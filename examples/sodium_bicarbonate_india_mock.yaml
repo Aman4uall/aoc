@@ -1,0 +1,25 @@
+project_id: sodium-bicarbonate-benchmark
+strict_citation_policy: true
+public_data_only: true
+require_india_only_data: true
+evidence_lock_required: true
+benchmark_profile: sodium_bicarbonate
+capacity_case_candidates:
+  - 40000
+  - 60000
+  - 80000
+basis:
+  target_product: Sodium bicarbonate
+  capacity_tpa: 60000
+  target_purity_wt_pct: 99.0
+  operating_mode: continuous
+  annual_operating_days: 330
+  region: India
+  currency: INR
+  process_template: generic_small_molecule
+  target_state: Gujarat
+  economic_reference_year: 2025
+model:
+  backend: mock
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.1

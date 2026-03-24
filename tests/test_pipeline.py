@@ -34,6 +34,9 @@ class PipelineTests(unittest.TestCase):
     def test_pipeline_gate_flow_and_render(self):
         runner = PipelineRunner(self._config_from_example())
         state = runner.run()
+        self.assertEqual(state.awaiting_gate_id, "evidence_lock")
+        runner.approve_gate("evidence_lock", notes="resolved basis approved for test")
+        state = runner.run()
         self.assertEqual(state.awaiting_gate_id, "heat_integration")
         runner.approve_gate("heat_integration", notes="approved for test")
         state = runner.run()
@@ -56,6 +59,7 @@ class PipelineTests(unittest.TestCase):
         runner.approve_gate("final_signoff")
         state = runner.run()
         self.assertEqual(state.run_status.value, "completed")
+        inspect_text = runner.inspect()
         self.assertEqual(
             runner._load("route_decision", DecisionRecord).selected_candidate_id,
             runner._load("route_selection", RouteSelectionArtifact).selected_route_id,
@@ -63,6 +67,11 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(runner._load("site_selection_decision", DecisionRecord).selected_candidate_id)
         self.assertTrue(runner._load("utility_basis_decision", DecisionRecord).selected_candidate_id)
         self.assertTrue(runner._load("economic_basis_decision", DecisionRecord).selected_candidate_id)
+        self.assertIn("benchmark:", inspect_text)
+        self.assertIn("source_resolution:", inspect_text)
+        self.assertIn("archetype:", inspect_text)
+        self.assertIn("alternative_sets:", inspect_text)
+        self.assertIn("method_decisions:", inspect_text)
         pdf_path = runner.render()
         self.assertTrue(Path(pdf_path).exists())
         self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "final_report.md").exists())

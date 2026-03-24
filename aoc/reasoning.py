@@ -291,6 +291,9 @@ class MockReasoningService(BaseReasoningService):
     def _citations(self, sources, count: int = 3) -> list[str]:
         return [source.source_id for source in sources[:count]] or ["seed_source_1"]
 
+    def _product_key(self, basis: ProjectBasis) -> str:
+        return basis.target_product.strip().lower().replace(" ", "_")
+
     def discover_sources(self, basis: ProjectBasis) -> SourceDiscoveryArtifact:
         if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
             sources = [
@@ -424,10 +427,43 @@ class MockReasoningService(BaseReasoningService):
                 normalization_year=2025 if basis.india_only else None,
             ),
         ]
+        if basis.india_only:
+            sources.extend(
+                [
+                    SourceRecord(
+                        source_id="seed_source_5",
+                        source_kind=SourceKind.COMPANY_REPORT,
+                        source_domain=SourceDomain.SITE,
+                        title=f"{basis.target_product} India site note",
+                        citation_text=f"Seed India site note for {basis.target_product}",
+                        url_or_doi=f"https://example.com/{product_slug}/india-site",
+                        extraction_snippet="India site comparison note with Gujarat-focused industrial clusters.",
+                        geographic_scope=GeographicScope.INDIA,
+                        geographic_label="India",
+                        country="India",
+                        reference_year=2025,
+                    ),
+                    SourceRecord(
+                        source_id="seed_source_6",
+                        source_kind=SourceKind.UTILITY,
+                        source_domain=SourceDomain.UTILITIES,
+                        title=f"{basis.target_product} India utility note",
+                        citation_text=f"Seed India utility note for {basis.target_product}",
+                        url_or_doi=f"https://example.com/{product_slug}/india-utilities",
+                        extraction_snippet="India power, steam, and industrial utility basis note normalized to 2025 INR.",
+                        geographic_scope=GeographicScope.INDIA,
+                        geographic_label="India",
+                        country="India",
+                        reference_year=2025,
+                        normalization_year=2025,
+                    ),
+                ]
+            )
         return SourceDiscoveryArtifact(sources=sources, summary=f"Seed research bundle for {basis.target_product}.")
 
     def build_product_profile(self, basis: ProjectBasis, sources, corpus: str) -> ProductProfileArtifact:
         citations = self._citations(sources, 3)
+        product_key = self._product_key(basis)
         if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
             properties = [
                 PropertyRecord(name="Molecular weight", value="62.07", units="g/mol", supporting_sources=citations, citations=citations),
@@ -457,6 +493,54 @@ class MockReasoningService(BaseReasoningService):
                 assumptions=["Mock EG product profile uses seeded but realistic property values."],
             )
 
+        if product_key == "acetic_acid":
+            return ProductProfileArtifact(
+                product_name=basis.target_product,
+                properties=[
+                    PropertyRecord(name="Molecular weight", value="60.05", units="g/mol", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Melting point", value="16.6", units="C", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Boiling point", value="118.1", units="C", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Density", value="1.049", units="g/cm3", supporting_sources=citations, citations=citations),
+                ],
+                uses=["Vinyl acetate monomer chain", "Acetic anhydride and solvents", "Food and pharma intermediates"],
+                industrial_relevance="Acetic acid is a large liquid-organic intermediate where route choice and purification economics both matter materially.",
+                safety_notes=["Corrosive liquid service requires leak control and metallurgy discipline."],
+                markdown="Acetic acid is treated as a continuous liquid-organic benchmark with strong separation and economics sensitivity.",
+                citations=citations,
+                assumptions=["Mock acetic acid profile uses seeded public values for deterministic testing."],
+            )
+        if product_key == "sulfuric_acid":
+            return ProductProfileArtifact(
+                product_name=basis.target_product,
+                properties=[
+                    PropertyRecord(name="Molecular weight", value="98.08", units="g/mol", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Melting point", value="10.3", units="C", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Boiling point", value="337.0", units="C", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Density", value="1.84", units="g/cm3", supporting_sources=citations, citations=citations),
+                ],
+                uses=["Fertilizer chain", "Metallurgy and pickling", "Chemical manufacture and drying service"],
+                industrial_relevance="Sulfuric acid is a strong inorganic benchmark for gas handling, catalytic conversion, absorption, and energy recovery.",
+                safety_notes=["Highly corrosive acid mist and SOx handling dominate the hazard envelope."],
+                markdown="Sulfuric acid is treated as an inorganic gas-absorption and energy-recovery benchmark rather than a generic liquid product.",
+                citations=citations,
+                assumptions=["Mock sulfuric acid profile uses seeded public values for deterministic testing."],
+            )
+        if product_key == "sodium_bicarbonate":
+            return ProductProfileArtifact(
+                product_name=basis.target_product,
+                properties=[
+                    PropertyRecord(name="Molecular weight", value="84.01", units="g/mol", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Melting point", value="50", units="C", supporting_sources=citations, citations=citations, assumptions=["Decomposes rather than boiling cleanly."]),
+                    PropertyRecord(name="Boiling point", value="Decomposes", units="-", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Density", value="2.20", units="g/cm3", supporting_sources=citations, citations=citations),
+                ],
+                uses=["Food and pharma grade uses", "Flue-gas treatment", "Detergents and specialty formulations"],
+                industrial_relevance="Sodium bicarbonate is a solids-handling benchmark with crystallization, filtration, drying, and logistics sensitivity.",
+                safety_notes=["Dust handling and dryer operation are more important than liquid hazard control."],
+                markdown="Sodium bicarbonate is treated as a solids-heavy process benchmark rather than a liquid-organic plant.",
+                citations=citations,
+                assumptions=["Mock sodium bicarbonate profile uses seeded public values for deterministic testing."],
+            )
         properties = [
             PropertyRecord(name="Molecular weight", value="150.00", units="g/mol", supporting_sources=citations, citations=citations),
             PropertyRecord(name="Melting point", value="60", units="C", supporting_sources=citations, citations=citations),
@@ -476,6 +560,7 @@ class MockReasoningService(BaseReasoningService):
 
     def build_market_assessment(self, basis: ProjectBasis, sources, corpus: str) -> MarketAssessmentArtifact:
         citations = self._citations(sources, 3)
+        product_key = self._product_key(basis)
         if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
             price_data = [
                 IndianPriceDatum(datum_id="meg_product_price", category="product", item_name="Monoethylene glycol", region="India", units="INR/kg", value_inr=63.0, reference_year=2025, normalization_year=2025, citations=[citations[2] if len(citations) > 2 else citations[0]]),
@@ -499,6 +584,57 @@ class MockReasoningService(BaseReasoningService):
                 assumptions=["Mock India market assessment uses seeded price points normalized to 2025 INR."],
             )
 
+        if product_key == "acetic_acid":
+            return MarketAssessmentArtifact(
+                estimated_price_per_kg=52.0,
+                price_range="INR 46-58 per kg in an India bulk-chemical window.",
+                competitor_notes=["Large commodity exposure with import parity sensitivity."],
+                demand_drivers=["VAM chain", "Solvents", "Anhydride and downstream esters"],
+                capacity_rationale=f"{basis.capacity_tpa:.0f} TPA supports continuous purification and commodity-style fixed-cost recovery.",
+                india_price_data=[
+                    IndianPriceDatum(datum_id="aa_product", category="product", item_name="Acetic acid", region="India", units="INR/kg", value_inr=52.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="aa_methanol", category="raw_material", item_name="Methanol", region="India", units="INR/kg", value_inr=28.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="aa_power", category="utility", item_name="Electricity", region="India", units="INR/kWh", value_inr=8.2, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="aa_labor", category="labor", item_name="Operating labour", region="India", units="INR/person-year", value_inr=620000.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                ],
+                markdown="Acetic acid is treated as a large continuous commodity chemical where route, purification duty, and India logistics jointly control feasibility.",
+                citations=citations,
+                assumptions=["Mock acetic acid market values are seeded and INR-normalized."],
+            )
+        if product_key == "sulfuric_acid":
+            return MarketAssessmentArtifact(
+                estimated_price_per_kg=11.0,
+                price_range="INR 8-14 per kg in an India sulfuric acid commodity window.",
+                competitor_notes=["Strong fertilizer and industrial acid demand but thinner per-kg margins."],
+                demand_drivers=["Fertilizers", "Metal processing", "Chemical manufacture"],
+                capacity_rationale=f"{basis.capacity_tpa:.0f} TPA supports absorber and heat-recovery economics.",
+                india_price_data=[
+                    IndianPriceDatum(datum_id="sa_product", category="product", item_name="Sulfuric acid", region="India", units="INR/kg", value_inr=11.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="sa_sulfur", category="raw_material", item_name="Sulfur", region="India", units="INR/kg", value_inr=13.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="sa_power", category="utility", item_name="Electricity", region="India", units="INR/kWh", value_inr=8.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="sa_labor", category="labor", item_name="Operating labour", region="India", units="INR/person-year", value_inr=600000.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                ],
+                markdown="Sulfuric acid economics are thin on a per-kilogram basis, so heat recovery and plant scale are central to viability.",
+                citations=citations,
+                assumptions=["Mock sulfuric acid market values are seeded and INR-normalized."],
+            )
+        if product_key == "sodium_bicarbonate":
+            return MarketAssessmentArtifact(
+                estimated_price_per_kg=24.0,
+                price_range="INR 20-30 per kg in an India industrial/food-grade window.",
+                competitor_notes=["Product mix and solids handling efficiency materially affect margin."],
+                demand_drivers=["Food and pharma", "Detergents", "Flue-gas treatment"],
+                capacity_rationale=f"{basis.capacity_tpa:.0f} TPA balances solids handling with defensible market absorption.",
+                india_price_data=[
+                    IndianPriceDatum(datum_id="sb_product", category="product", item_name="Sodium bicarbonate", region="India", units="INR/kg", value_inr=24.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="sb_soda_ash", category="raw_material", item_name="Soda ash", region="India", units="INR/kg", value_inr=22.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="sb_power", category="utility", item_name="Electricity", region="India", units="INR/kWh", value_inr=8.4, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="sb_labor", category="labor", item_name="Operating labour", region="India", units="INR/person-year", value_inr=580000.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                ],
+                markdown="Sodium bicarbonate economics depend on solids yield, dryer duty, grading, and India distribution assumptions.",
+                citations=citations,
+                assumptions=["Mock sodium bicarbonate market values are seeded and INR-normalized."],
+            )
         return MarketAssessmentArtifact(
             estimated_price_per_kg=320.0,
             price_range="INR 280-360 per kg in a specialty-intermediate market window.",
@@ -512,6 +648,7 @@ class MockReasoningService(BaseReasoningService):
 
     def survey_routes(self, basis: ProjectBasis, sources, corpus: str) -> RouteSurveyArtifact:
         citations = self._citations(sources, 4)
+        product_key = self._product_key(basis)
         if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
             routes = [
                 RouteOption(
@@ -592,6 +729,27 @@ class MockReasoningService(BaseReasoningService):
             )
             return RouteSurveyArtifact(routes=routes, markdown=markdown, citations=citations, assumptions=["Mock EG route survey uses seeded industrial route families."])
 
+        if product_key == "acetic_acid":
+            routes = [
+                RouteOption(route_id="methanol_carbonylation", name="Methanol carbonylation", reaction_equation="CH4O + CO -> C2H4O2", participants=[ReactionParticipant(name="Methanol", formula="CH4O", coefficient=1.0, role="reactant", molecular_weight_g_mol=32.04, phase="liquid"), ReactionParticipant(name="Carbon monoxide", formula="CO", coefficient=1.0, role="reactant", molecular_weight_g_mol=28.01, phase="gas"), ReactionParticipant(name="Acetic acid", formula="C2H4O2", coefficient=1.0, role="product", molecular_weight_g_mol=60.05, phase="liquid")], catalysts=["Rhodium/iodide system"], operating_temperature_c=190.0, operating_pressure_bar=30.0, residence_time_hr=1.1, yield_fraction=0.96, selectivity_fraction=0.98, byproducts=["trace propionic acid"], separations=["flash", "distillation", "light-ends removal"], scale_up_notes="Commodity route with strong industrial maturity.", route_score=9.4, rationale="Best industrial fit and strongest economics.", citations=citations),
+                RouteOption(route_id="acetaldehyde_oxidation", name="Acetaldehyde oxidation", reaction_equation="C2H4O + 0.5 O2 -> C2H4O2", participants=[ReactionParticipant(name="Acetaldehyde", formula="C2H4O", coefficient=1.0, role="reactant", molecular_weight_g_mol=44.05, phase="liquid"), ReactionParticipant(name="Oxygen", formula="O2", coefficient=0.5, role="reactant", molecular_weight_g_mol=32.0, phase="gas"), ReactionParticipant(name="Acetic acid", formula="C2H4O2", coefficient=1.0, role="product", molecular_weight_g_mol=60.05, phase="liquid")], catalysts=["Metal salt catalyst"], operating_temperature_c=65.0, operating_pressure_bar=5.0, residence_time_hr=2.0, yield_fraction=0.88, selectivity_fraction=0.91, byproducts=["CO2"], separations=["gas vent", "distillation"], scale_up_notes="Older liquid oxidation route.", route_score=7.1, rationale="Technically feasible but weaker than carbonylation.", citations=citations),
+                RouteOption(route_id="butane_oxidation", name="Butane oxidation", reaction_equation="C4H10 + 2.5 O2 -> 2 C2H4O2 + H2O", participants=[ReactionParticipant(name="n-Butane", formula="C4H10", coefficient=1.0, role="reactant", molecular_weight_g_mol=58.12, phase="gas"), ReactionParticipant(name="Oxygen", formula="O2", coefficient=2.5, role="reactant", molecular_weight_g_mol=32.0, phase="gas"), ReactionParticipant(name="Acetic acid", formula="C2H4O2", coefficient=2.0, role="product", molecular_weight_g_mol=60.05, phase="liquid"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="byproduct", molecular_weight_g_mol=18.015, phase="liquid")], catalysts=["Co/Mn catalyst"], operating_temperature_c=180.0, operating_pressure_bar=55.0, residence_time_hr=1.6, yield_fraction=0.80, selectivity_fraction=0.84, byproducts=["CO2", "formic acid"], separations=["gas quench", "distillation"], scale_up_notes="High-pressure oxidation with wider byproduct spread.", route_score=6.5, rationale="Lower selectivity and harsher conditions.", citations=citations),
+            ]
+            return RouteSurveyArtifact(routes=routes, markdown="Acetic acid route survey compares methanol carbonylation against oxidation routes on selectivity, duty, and industrial maturity.", citations=citations, assumptions=["Mock acetic acid route survey uses seeded industrial route families."])
+        if product_key == "sulfuric_acid":
+            routes = [
+                RouteOption(route_id="contact_double_absorption", name="Contact process with double absorption", reaction_equation="SO2 + 0.5 O2 + H2O -> H2SO4", participants=[ReactionParticipant(name="Sulfur dioxide", formula="SO2", coefficient=1.0, role="reactant", molecular_weight_g_mol=64.07, phase="gas"), ReactionParticipant(name="Oxygen", formula="O2", coefficient=0.5, role="reactant", molecular_weight_g_mol=32.0, phase="gas"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"), ReactionParticipant(name="Sulfuric acid", formula="H2SO4", coefficient=1.0, role="product", molecular_weight_g_mol=98.08, phase="liquid")], catalysts=["V2O5 catalyst"], operating_temperature_c=430.0, operating_pressure_bar=1.6, residence_time_hr=0.8, yield_fraction=0.98, selectivity_fraction=0.995, byproducts=["trace SO3 mist"], separations=["catalytic conversion", "interpass absorption", "final absorption"], scale_up_notes="Industry-standard route with strong energy recovery potential.", route_score=9.6, rationale="Best precedent and energy integration basis.", citations=citations),
+                RouteOption(route_id="wet_sulfuric_acid", name="Wet sulfuric acid route", reaction_equation="SO2 + 0.5 O2 + H2O -> H2SO4", participants=[ReactionParticipant(name="Sulfur dioxide", formula="SO2", coefficient=1.0, role="reactant", molecular_weight_g_mol=64.07, phase="gas"), ReactionParticipant(name="Oxygen", formula="O2", coefficient=0.5, role="reactant", molecular_weight_g_mol=32.0, phase="gas"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"), ReactionParticipant(name="Sulfuric acid", formula="H2SO4", coefficient=1.0, role="product", molecular_weight_g_mol=98.08, phase="liquid")], catalysts=["V2O5 catalyst"], operating_temperature_c=420.0, operating_pressure_bar=1.4, residence_time_hr=1.0, yield_fraction=0.95, selectivity_fraction=0.98, byproducts=["acid mist"], separations=["gas drying", "condensation/absorption"], scale_up_notes="Useful when feed gas is wet or offgas-based.", route_score=8.2, rationale="Viable but more feed-specific than the standard contact route.", citations=citations),
+                RouteOption(route_id="spent_acid_regeneration", name="Spent acid regeneration", reaction_equation="H2SO4 -> H2SO4", participants=[ReactionParticipant(name="Spent acid", formula="H2SO4", coefficient=1.0, role="reactant", molecular_weight_g_mol=98.08, phase="liquid"), ReactionParticipant(name="Sulfuric acid", formula="H2SO4", coefficient=1.0, role="product", molecular_weight_g_mol=98.08, phase="liquid")], catalysts=[], operating_temperature_c=900.0, operating_pressure_bar=1.2, residence_time_hr=1.5, yield_fraction=0.90, selectivity_fraction=0.94, byproducts=["SOx offgas"], separations=["thermal decomposition", "gas cleanup", "absorption"], scale_up_notes="Useful as a regeneration service rather than greenfield commodity route.", route_score=5.8, rationale="Not the best primary route for a new commodity acid plant.", citations=citations),
+            ]
+            return RouteSurveyArtifact(routes=routes, markdown="Sulfuric acid route survey compares contact-process and related gas-absorption pathways.", citations=citations, assumptions=["Mock sulfuric acid route survey uses seeded industrial route families."])
+        if product_key == "sodium_bicarbonate":
+            routes = [
+                RouteOption(route_id="soda_ash_carboxylation", name="Soda ash carbonation", reaction_equation="Na2CO3 + CO2 + H2O -> 2 NaHCO3", participants=[ReactionParticipant(name="Soda ash", formula="Na2CO3", coefficient=1.0, role="reactant", molecular_weight_g_mol=105.99, phase="solid"), ReactionParticipant(name="Carbon dioxide", formula="CO2", coefficient=1.0, role="reactant", molecular_weight_g_mol=44.01, phase="gas"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"), ReactionParticipant(name="Sodium bicarbonate", formula="NaHCO3", coefficient=2.0, role="product", molecular_weight_g_mol=84.01, phase="solid")], catalysts=[], operating_temperature_c=40.0, operating_pressure_bar=3.0, residence_time_hr=2.4, yield_fraction=0.93, selectivity_fraction=0.97, byproducts=[], separations=["crystallization", "filtration", "drying"], scale_up_notes="Simple solids route with strong fit for food/industrial grade production.", route_score=9.1, rationale="Best fit for a dedicated sodium bicarbonate plant.", citations=citations),
+                RouteOption(route_id="solvay_liquor_route", name="Solvay liquor route", reaction_equation="NaCl + NH3 + CO2 + H2O -> NaHCO3 + NH4Cl", participants=[ReactionParticipant(name="Sodium chloride", formula="NaCl", coefficient=1.0, role="reactant", molecular_weight_g_mol=58.44, phase="liquid"), ReactionParticipant(name="Ammonia", formula="NH3", coefficient=1.0, role="reactant", molecular_weight_g_mol=17.03, phase="gas"), ReactionParticipant(name="Carbon dioxide", formula="CO2", coefficient=1.0, role="reactant", molecular_weight_g_mol=44.01, phase="gas"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"), ReactionParticipant(name="Sodium bicarbonate", formula="NaHCO3", coefficient=1.0, role="product", molecular_weight_g_mol=84.01, phase="solid"), ReactionParticipant(name="Ammonium chloride", formula="NH4Cl", coefficient=1.0, role="byproduct", molecular_weight_g_mol=53.49, phase="solid")], catalysts=[], operating_temperature_c=35.0, operating_pressure_bar=2.0, residence_time_hr=3.0, yield_fraction=0.84, selectivity_fraction=0.90, byproducts=["Ammonium chloride mother liquor"], separations=["crystallization", "filtration", "ammonia recovery", "drying"], scale_up_notes="More integrated but more complex solids/liquor handling route.", route_score=7.6, rationale="Possible when upstream Solvay integration exists.", citations=citations),
+                RouteOption(route_id="trona_refining", name="Trona refining and bicarbonation", reaction_equation="Na2CO3 + CO2 + H2O -> 2 NaHCO3", participants=[ReactionParticipant(name="Sodium carbonate liquor", formula="Na2CO3", coefficient=1.0, role="reactant", molecular_weight_g_mol=105.99, phase="liquid"), ReactionParticipant(name="Carbon dioxide", formula="CO2", coefficient=1.0, role="reactant", molecular_weight_g_mol=44.01, phase="gas"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"), ReactionParticipant(name="Sodium bicarbonate", formula="NaHCO3", coefficient=2.0, role="product", molecular_weight_g_mol=84.01, phase="solid")], catalysts=[], operating_temperature_c=45.0, operating_pressure_bar=4.0, residence_time_hr=2.1, yield_fraction=0.88, selectivity_fraction=0.93, byproducts=["Insoluble solids"], separations=["clarification", "crystallization", "filtration", "drying"], scale_up_notes="Feedstock dependent and more impurity-sensitive.", route_score=7.0, rationale="Feed-sensitive route with additional solids cleanup burden.", citations=citations),
+            ]
+            return RouteSurveyArtifact(routes=routes, markdown="Sodium bicarbonate route survey compares direct carbonation, integrated Solvay liquor handling, and trona-derived pathways.", citations=citations, assumptions=["Mock sodium bicarbonate route survey uses seeded industrial route families."])
         routes = [
             RouteOption(
                 route_id="generic_route_1",
@@ -640,6 +798,7 @@ class MockReasoningService(BaseReasoningService):
 
     def select_site(self, basis: ProjectBasis, sources, corpus: str) -> SiteSelectionArtifact:
         citations = self._citations(sources, 4)
+        product_key = self._product_key(basis)
         if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
             candidates = [
                 SiteOption(name="Dahej", state="Gujarat", raw_material_score=9, logistics_score=9, utility_score=9, business_score=8, total_score=35, rationale="Strong petrochemical ecosystem, port access, and utility backbone.", citations=citations),
@@ -661,6 +820,51 @@ class MockReasoningService(BaseReasoningService):
                 assumptions=["Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."],
             )
 
+        if product_key == "acetic_acid":
+            return SiteSelectionArtifact(
+                candidates=[
+                    SiteOption(name="Dahej", state="Gujarat", raw_material_score=9, logistics_score=9, utility_score=9, business_score=8, total_score=35, rationale="Carbonylation-style commodity service fits a strong chemical cluster.", citations=citations),
+                    SiteOption(name="Hazira", state="Gujarat", raw_material_score=8, logistics_score=8, utility_score=8, business_score=7, total_score=31, rationale="Good west-coast logistics and chemical support services.", citations=citations),
+                ],
+                selected_site="Dahej",
+                india_location_data=[
+                    IndianLocationDatum(location_id="aa_dahej", site_name="Dahej", state="Gujarat", port_access="West coast chemical-port access", utility_note="Mature utility backbone for continuous chemicals.", logistics_note="Strong raw-material and product dispatch links.", regulatory_note="Established industrial operating ecosystem.", reference_year=2025, citations=citations),
+                    IndianLocationDatum(location_id="aa_hazira", site_name="Hazira", state="Gujarat", port_access="Hazira marine access", utility_note="Good utility and gas infrastructure.", logistics_note="Good west-coast logistics fit.", regulatory_note="Established but slightly tighter land envelope than Dahej.", reference_year=2025, citations=citations),
+                ],
+                markdown="Dahej is selected because it best balances utility infrastructure, carbonylation-style raw material logistics, and chemical cluster services.",
+                citations=citations,
+                assumptions=["Mock acetic acid site scoring uses seeded India cluster logic."],
+            )
+        if product_key == "sulfuric_acid":
+            return SiteSelectionArtifact(
+                candidates=[
+                    SiteOption(name="Paradip", state="Odisha", raw_material_score=9, logistics_score=8, utility_score=8, business_score=7, total_score=32, rationale="Strong sulfur and port linkage.", citations=citations),
+                    SiteOption(name="Dahej", state="Gujarat", raw_material_score=8, logistics_score=9, utility_score=9, business_score=8, total_score=34, rationale="Strong industrial utility and dispatch infrastructure.", citations=citations),
+                ],
+                selected_site="Dahej",
+                india_location_data=[
+                    IndianLocationDatum(location_id="sa_dahej", site_name="Dahej", state="Gujarat", port_access="West coast chemical-port access", utility_note="Strong industrial utilities and services.", logistics_note="Strong fertilizer and chemical dispatch linkage.", regulatory_note="Established industrial compliance environment.", reference_year=2025, citations=citations),
+                    IndianLocationDatum(location_id="sa_paradip", site_name="Paradip", state="Odisha", port_access="East coast port access", utility_note="Useful port-driven sulfur import basis.", logistics_note="Good for east India distribution.", regulatory_note="Project-specific development burden remains higher.", reference_year=2025, citations=citations),
+                ],
+                markdown="Dahej is selected because utility, logistics, and industrial services slightly outweigh Paradip's sulfur import advantage in the seeded benchmark.",
+                citations=citations,
+                assumptions=["Mock sulfuric acid site scoring uses seeded India cluster logic."],
+            )
+        if product_key == "sodium_bicarbonate":
+            return SiteSelectionArtifact(
+                candidates=[
+                    SiteOption(name="Mithapur", state="Gujarat", raw_material_score=9, logistics_score=7, utility_score=8, business_score=8, total_score=32, rationale="Strong alkali and soda-ash ecosystem for bicarbonate service.", citations=citations),
+                    SiteOption(name="Dahej", state="Gujarat", raw_material_score=8, logistics_score=9, utility_score=9, business_score=8, total_score=34, rationale="Strong logistics and utilities with solids dispatch options.", citations=citations),
+                ],
+                selected_site="Dahej",
+                india_location_data=[
+                    IndianLocationDatum(location_id="sb_dahej", site_name="Dahej", state="Gujarat", port_access="West coast chemical-port access", utility_note="Strong utility backbone and industrial services.", logistics_note="Good solids dispatch and bulk truck connectivity.", regulatory_note="Established industrial operating context.", reference_year=2025, citations=citations),
+                    IndianLocationDatum(location_id="sb_mithapur", site_name="Mithapur", state="Gujarat", port_access="Regional port and road connectivity", utility_note="Strong soda-ash ecosystem support.", logistics_note="Good raw-material fit but narrower dispatch ecosystem than Dahej.", regulatory_note="Industrially credible but more feedstock-specific.", reference_year=2025, citations=citations),
+                ],
+                markdown="Dahej is selected because logistics and utilities outweigh the feedstock-specific advantage of Mithapur in the seeded benchmark.",
+                citations=citations,
+                assumptions=["Mock sodium bicarbonate site scoring uses seeded India cluster logic."],
+            )
         candidates = [
             SiteOption(name="Dahej", state="Gujarat", raw_material_score=9, logistics_score=9, utility_score=9, business_score=8, total_score=35, rationale="Strong chemical ecosystem and port access.", citations=citations),
             SiteOption(name="Navi Mumbai", state="Maharashtra", raw_material_score=7, logistics_score=8, utility_score=8, business_score=6, total_score=29, rationale="Good market access but tighter land and compliance envelope.", citations=citations),
@@ -669,6 +873,7 @@ class MockReasoningService(BaseReasoningService):
 
     def build_thermo_assessment(self, basis: ProjectBasis, route: RouteOption, sources, corpus: str) -> ThermoAssessmentArtifact:
         citations = self._citations(sources, 3)
+        product_key = self._product_key(basis)
         if route.route_id == "eo_hydration":
             return ThermoAssessmentArtifact(
                 feasible=True,
@@ -679,6 +884,12 @@ class MockReasoningService(BaseReasoningService):
                 citations=citations,
                 assumptions=["Mock EG thermodynamic values are seeded from a realistic industrial range for deterministic execution."],
             )
+        if product_key == "acetic_acid":
+            return ThermoAssessmentArtifact(feasible=True, estimated_reaction_enthalpy_kj_per_mol=-140.0, estimated_gibbs_kj_per_mol=-95.0, equilibrium_comment="The selected acetic-acid route is thermodynamically favorable and strongly biased toward products under the selected operating window.", markdown="The seeded acetic-acid thermodynamic basis indicates a favorable reaction with manageable thermal load but meaningful purification consequences.", citations=citations, assumptions=["Mock acetic acid thermodynamic values are seeded for deterministic testing."])
+        if product_key == "sulfuric_acid":
+            return ThermoAssessmentArtifact(feasible=True, estimated_reaction_enthalpy_kj_per_mol=-227.0, estimated_gibbs_kj_per_mol=-140.0, equilibrium_comment="Sulfuric acid formation is highly favorable and strongly exothermic, making heat recovery central to feasibility.", markdown="The seeded sulfuric acid thermodynamic basis is strongly exothermic and therefore pushes the design toward heat recovery and robust absorption control.", citations=citations, assumptions=["Mock sulfuric acid thermodynamic values are seeded for deterministic testing."])
+        if product_key == "sodium_bicarbonate":
+            return ThermoAssessmentArtifact(feasible=True, estimated_reaction_enthalpy_kj_per_mol=-31.0, estimated_gibbs_kj_per_mol=-18.0, equilibrium_comment="The sodium bicarbonate route is moderately favorable under cool carbonation and crystallization conditions.", markdown="The seeded sodium bicarbonate thermodynamic basis supports low-temperature carbonation and downstream crystallization.", citations=citations, assumptions=["Mock sodium bicarbonate thermodynamic values are seeded for deterministic testing."])
         return ThermoAssessmentArtifact(
             feasible=True,
             estimated_reaction_enthalpy_kj_per_mol=-68.0,
@@ -691,6 +902,7 @@ class MockReasoningService(BaseReasoningService):
 
     def build_kinetic_assessment(self, basis: ProjectBasis, route: RouteOption, sources, corpus: str) -> KineticAssessmentArtifact:
         citations = self._citations(sources, 3)
+        product_key = self._product_key(basis)
         if route.route_id == "eo_hydration":
             return KineticAssessmentArtifact(
                 feasible=True,
@@ -702,6 +914,12 @@ class MockReasoningService(BaseReasoningService):
                 citations=citations,
                 assumptions=["Mock EG kinetic parameters are seeded for workflow verification and should be replaced by cited literature in live use."],
             )
+        if product_key == "acetic_acid":
+            return KineticAssessmentArtifact(feasible=True, activation_energy_kj_per_mol=82.0, pre_exponential_factor=6.4e8, apparent_order=1.0, design_residence_time_hr=route.residence_time_hr, markdown="The seeded acetic-acid kinetics basis supports continuous reactor sizing and strengthens the case for catalytic continuous service.", citations=citations, assumptions=["Mock acetic acid kinetic values are seeded for deterministic testing."])
+        if product_key == "sulfuric_acid":
+            return KineticAssessmentArtifact(feasible=True, activation_energy_kj_per_mol=96.0, pre_exponential_factor=1.8e9, apparent_order=1.0, design_residence_time_hr=route.residence_time_hr, markdown="The seeded sulfuric-acid kinetics basis supports catalytic converter sizing at short gas-phase residence time.", citations=citations, assumptions=["Mock sulfuric acid kinetic values are seeded for deterministic testing."])
+        if product_key == "sodium_bicarbonate":
+            return KineticAssessmentArtifact(feasible=True, activation_energy_kj_per_mol=38.0, pre_exponential_factor=7.5e5, apparent_order=1.0, design_residence_time_hr=route.residence_time_hr, markdown="The seeded sodium bicarbonate kinetics basis supports crystallizer residence-time sizing rather than high-severity reactor service.", citations=citations, assumptions=["Mock sodium bicarbonate kinetic values are seeded for deterministic testing."])
         return KineticAssessmentArtifact(
             feasible=True,
             activation_energy_kj_per_mol=58.0,
@@ -715,6 +933,7 @@ class MockReasoningService(BaseReasoningService):
 
     def build_process_narrative(self, basis: ProjectBasis, route: RouteOption, sources, corpus: str) -> ProcessNarrativeArtifact:
         citations = self._citations(sources, 3)
+        product_key = self._product_key(basis)
         if route.route_id == "eo_hydration":
             mermaid = "\n".join(
                 [
@@ -738,6 +957,12 @@ class MockReasoningService(BaseReasoningService):
             )
             return ProcessNarrativeArtifact(bfd_mermaid=mermaid, markdown=markdown, citations=citations, assumptions=["Seeded EG BFD reflects a conventional industrial hydration and purification path."])
 
+        if product_key == "sulfuric_acid":
+            mermaid = "\n".join(["flowchart LR", "A[SO2 Feed] --> B[Drying]", "B --> C[Converter]", "C --> D[Interpass Absorption]", "D --> E[Final Absorption]", "E --> F[Acid Storage]", "C --> G[Heat Recovery]"])
+            return ProcessNarrativeArtifact(bfd_mermaid=mermaid, markdown="Sulfur dioxide feed is dried, catalytically converted, absorbed, and cooled through a heat-recovery-aware gas processing train.", citations=citations, assumptions=["Seeded sulfuric acid BFD reflects contact-process logic."])
+        if product_key == "sodium_bicarbonate":
+            mermaid = "\n".join(["flowchart LR", "A[Soda Ash] --> B[Carbonation]", "C[CO2] --> B", "B --> D[Crystallization]", "D --> E[Filtration]", "E --> F[Drying]", "F --> G[Product Storage]"])
+            return ProcessNarrativeArtifact(bfd_mermaid=mermaid, markdown="Soda ash solution is carbonated, crystallized, filtered, dried, and sent to solids storage and dispatch.", citations=citations, assumptions=["Seeded sodium bicarbonate BFD reflects solids-processing logic."])
         mermaid = "\n".join(
             [
                 "flowchart LR",

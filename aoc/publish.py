@@ -6,20 +6,29 @@ import textwrap
 import fitz
 
 from aoc.models import (
+    BenchmarkManifest,
     CalcTrace,
     ChapterArtifact,
+    ControlArchitectureDecision,
     CostModel,
     DecisionRecord,
+    EconomicScenarioModel,
     EnergyBalance,
     EquipmentSpec,
     FinancialModel,
+    FlowsheetGraph,
+    HazopNodeRegister,
     HeatIntegrationStudyArtifact,
     IndianLocationDatum,
+    MechanicalDesignArtifact,
+    ProcessArchetype,
     ProcessSynthesisArtifact,
     ProcessTemplate,
     PropertyGapArtifact,
     ProductProfileArtifact,
     ProjectBasis,
+    ResolvedSourceSet,
+    ResolvedValueArtifact,
     SourceRecord,
     StreamTable,
     UtilitySummaryArtifact,
@@ -133,22 +142,32 @@ def _decision_markdown(title: str, decision: DecisionRecord | None) -> str:
 
 
 def annexures_markdown(
+    benchmark_manifest: BenchmarkManifest | None,
+    resolved_sources: ResolvedSourceSet | None,
     product_profile: ProductProfileArtifact,
     property_gap: PropertyGapArtifact | None,
+    resolved_values: ResolvedValueArtifact | None,
+    process_archetype: ProcessArchetype | None,
     process_synthesis: ProcessSynthesisArtifact | None,
     stream_table: StreamTable,
+    flowsheet_graph: FlowsheetGraph | None,
     equipment: list[EquipmentSpec],
     energy_balance: EnergyBalance,
     heat_integration_study: HeatIntegrationStudyArtifact | None,
     utility_network_decision: UtilityNetworkDecision | None,
     utility_summary: UtilitySummaryArtifact,
+    mechanical_design: MechanicalDesignArtifact | None,
+    control_architecture: ControlArchitectureDecision | None,
+    hazop_register: HazopNodeRegister | None,
     cost_model: CostModel,
     working_capital: WorkingCapitalModel,
     financial: FinancialModel,
+    economic_scenarios: EconomicScenarioModel | None,
     route_decision: DecisionRecord | None,
     site_decision: DecisionRecord | None,
     utility_basis_decision: DecisionRecord | None,
     economic_basis_decision: DecisionRecord | None,
+    extra_decisions: list[DecisionRecord],
     sources: dict[str, SourceRecord],
     assumptions: list[str],
     calc_sections: list[tuple[str, list[CalcTrace]]],
@@ -168,9 +187,17 @@ def annexures_markdown(
         for item in equipment
     ]
     utility_rows = [[item.utility_type, f"{item.load:.3f}", item.units, item.basis] for item in utility_summary.items]
+    mechanical_rows = [
+        [item.equipment_id, item.equipment_type, f"{item.shell_thickness_mm:.2f}", f"{item.head_thickness_mm:.2f}", f"{item.nozzle_diameter_mm:.1f}", item.support_type, f"{item.support_thickness_mm:.2f}"]
+        for item in (mechanical_design.items if mechanical_design else [])
+    ]
     value_rows = [
         [item.name, item.value, item.units, item.provenance_method.value, item.sensitivity.value, "yes" if item.blocking else "no", ", ".join(item.source_ids)]
         for item in ([*(property_gap.values if property_gap else []), *extra_value_records])
+    ]
+    resolved_value_rows = [
+        [item.name, str(item.resolution_level), item.resolution_status, item.sensitivity.value, item.selected_source_id or "-", item.justification]
+        for item in (resolved_values.values if resolved_values else [])
     ]
     price_rows = [
         [datum.item_name, datum.category, datum.region, f"{datum.value_inr:,.2f}", datum.units, str(datum.reference_year), str(datum.normalization_year), ", ".join(datum.citations)]
@@ -181,6 +208,43 @@ def annexures_markdown(
         for location in india_locations
     ]
     source_rows = [[source.source_id, source.source_kind.value, source.source_domain.value, source.title, source.geographic_label or source.geographic_scope.value, (source.url_or_doi or source.local_path or "Local source")] for source in sources.values()]
+    source_resolution_rows = []
+    for group in (resolved_sources.groups if resolved_sources else []):
+        for candidate in group.candidates:
+            source_resolution_rows.append(
+                [
+                    group.source_domain.value,
+                    candidate.source_id,
+                    f"{candidate.total_score:.1f}",
+                    "yes" if candidate.source_id in group.selected_source_ids else "no",
+                    "yes" if group.unresolved_conflict else "no",
+                ]
+            )
+    archetype_rows = []
+    if process_archetype:
+        archetype_rows = [
+            ["Archetype ID", process_archetype.archetype_id],
+            ["Compound family", process_archetype.compound_family],
+            ["Product phase", process_archetype.dominant_product_phase],
+            ["Feed phase", process_archetype.dominant_feed_phase],
+            ["Separation family", process_archetype.dominant_separation_family],
+            ["Heat profile", process_archetype.heat_management_profile],
+            ["Hazard intensity", process_archetype.hazard_intensity],
+            ["Benchmark profile", process_archetype.benchmark_profile or "custom"],
+        ]
+    flowsheet_rows = [
+        [node.node_id, node.unit_type, ", ".join(node.upstream_nodes) or "-", ", ".join(node.downstream_nodes) or "-", ", ".join(node.representative_stream_ids) or "-"]
+        for node in (flowsheet_graph.nodes if flowsheet_graph else [])
+    ]
+    benchmark_rows = []
+    if benchmark_manifest:
+        benchmark_rows = [
+            ["Benchmark ID", benchmark_manifest.benchmark_id],
+            ["Target product", benchmark_manifest.target_product],
+            ["Archetype family", benchmark_manifest.archetype_family],
+            ["Expected decisions", ", ".join(benchmark_manifest.expected_decisions)],
+            ["Required source domains", ", ".join(domain.value for domain in benchmark_manifest.required_public_source_domains)],
+        ]
     assumption_lines = [f"- {item}" for item in assumptions] or ["- No explicit assumptions recorded."]
     heat_rows: list[list[str]] = []
     for route_case in (heat_integration_study.route_decisions if heat_integration_study else []):
@@ -201,6 +265,25 @@ def annexures_markdown(
         [item.scenario_name, f"{item.annual_utility_cost_inr:,.2f}", f"{item.annual_operating_cost_inr:,.2f}", f"{item.annual_revenue_inr:,.2f}", f"{item.gross_margin_inr:,.2f}"]
         for item in cost_model.scenario_results
     ]
+    equipment_cost_rows = [
+        [item.equipment_id, item.equipment_type, f"{item.bare_cost_inr:,.2f}", f"{item.installed_cost_inr:,.2f}", f"{item.spares_cost_inr:,.2f}", item.basis]
+        for item in cost_model.equipment_cost_items
+    ]
+    schedule_rows = [
+        [
+            str(item["year"]),
+            f'{item["capacity_utilization_pct"]:.2f}',
+            f'{item["revenue_inr"]:,.2f}',
+            f'{item["operating_cost_inr"]:,.2f}',
+            f'{item["interest_inr"]:,.2f}',
+            f'{item["depreciation_inr"]:,.2f}',
+            f'{item["profit_before_tax_inr"]:,.2f}',
+            f'{item["tax_inr"]:,.2f}',
+            f'{item["profit_after_tax_inr"]:,.2f}',
+            f'{item["cash_accrual_inr"]:,.2f}',
+        ]
+        for item in financial.annual_schedule
+    ]
     rejected_rows: list[list[str]] = []
     for decision in [
         process_synthesis.operating_mode_decision if process_synthesis else None,
@@ -208,15 +291,44 @@ def annexures_markdown(
         route_decision,
         utility_basis_decision,
         economic_basis_decision,
+        control_architecture.decision if control_architecture else None,
+        *extra_decisions,
     ]:
         if decision is None:
             continue
         for alternative in decision.alternatives:
             if alternative.rejected_reasons:
                 rejected_rows.append([decision.decision_id, alternative.candidate_id, "; ".join(alternative.rejected_reasons)])
+    alternative_set_rows: list[list[str]] = []
+    if process_synthesis:
+        for alt_set in process_synthesis.alternative_sets:
+            for alternative in alt_set.alternatives:
+                alternative_set_rows.append(
+                    [
+                        alt_set.set_id,
+                        alternative.candidate_id,
+                        alternative.description,
+                        f"{alternative.total_score:.2f}",
+                        "yes" if alternative.candidate_id == alt_set.selected_candidate_id else "no",
+                    ]
+                )
+    hazop_rows = [
+        [node.node_id, node.parameter, node.guide_word, "; ".join(node.safeguards)]
+        for node in (hazop_register.nodes if hazop_register else [])
+    ]
+    datasheet_rows = [
+        [item.equipment_id, item.service, f"{item.design_temperature_c:.1f}", f"{item.design_pressure_bar:.2f}", f"{item.volume_m3:.3f}", item.material_of_construction]
+        for item in equipment
+    ]
 
     sections = [
         "## Annexures",
+        "",
+        "### Benchmark Manifest",
+        markdown_table(["Field", "Value"], benchmark_rows or [["n/a", "n/a"]]),
+        "",
+        "### Source Ranking Table",
+        markdown_table(["Domain", "Source ID", "Score", "Selected", "Conflict"], source_resolution_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Property Table",
         markdown_table(["Property", "Value", "Units", "Method", "Sources"], property_rows),
@@ -224,11 +336,26 @@ def annexures_markdown(
         "### Value Provenance Table",
         markdown_table(["Name", "Value", "Units", "Method", "Sensitivity", "Blocking", "Sources"], value_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
+        "### Resolved Value Table",
+        markdown_table(["Name", "Resolution Level", "Status", "Sensitivity", "Selected Source", "Justification"], resolved_value_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Process Archetype",
+        markdown_table(["Field", "Value"], archetype_rows or [["n/a", "n/a"]]),
+        "",
+        "### Alternative Set Summary",
+        markdown_table(["Set", "Candidate", "Description", "Score", "Selected"], alternative_set_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
         "### Stream Table",
         markdown_table(["Stream", "Description", "Component", "kg/h", "kmol/h"], stream_rows),
         "",
+        "### Flowsheet Graph",
+        markdown_table(["Node", "Unit Type", "Upstream", "Downstream", "Representative Streams"], flowsheet_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
         "### Equipment Table",
         markdown_table(["ID", "Type", "Service", "Volume (m3)", "Design Temp (C)", "Design Pressure (bar)", "MoC"], equipment_rows),
+        "",
+        "### Mechanical Design Table",
+        markdown_table(["Equipment", "Type", "Shell t (mm)", "Head t (mm)", "Nozzle (mm)", "Support", "Support t (mm)"], mechanical_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Utility Table",
         markdown_table(["Utility", "Load", "Units", "Basis"], utility_rows),
@@ -253,13 +380,21 @@ def annexures_markdown(
             ],
         ),
         "",
+        "### Equipment Cost Breakdown",
+        markdown_table(["Equipment", "Type", "Bare Cost (INR)", "Installed Cost (INR)", "Spares (INR)", "Basis"], equipment_cost_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
         "### Scenario Comparison Table",
         markdown_table(["Scenario", "Utility Cost (INR/y)", "Operating Cost (INR/y)", "Revenue (INR/y)", "Gross Margin (INR/y)"], scenario_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Multi-Year Financial Schedule",
+        markdown_table(["Year", "Capacity Utilization (%)", "Revenue (INR)", "Operating Cost (INR)", "Interest (INR)", "Depreciation (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)", "Cash Accrual (INR)"], schedule_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Heat Integration Cases",
         markdown_table(["Route", "Case ID", "Title", "Recovered Duty (kW)", "Residual Hot Utility (kW)", "Annual Savings (INR)", "Payback (y)", "Feasible"], heat_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         _decision_markdown("Operating Mode Decision", process_synthesis.operating_mode_decision if process_synthesis else None),
+        "",
+        _decision_markdown("Control Architecture Decision", control_architecture.decision if control_architecture else None),
         "",
         _decision_markdown("Site Decision", site_decision),
         "",
@@ -269,8 +404,23 @@ def annexures_markdown(
         "",
         _decision_markdown("Economic Basis Decision", economic_basis_decision),
         "",
+        *[
+            section
+            for decision in extra_decisions
+            for section in ["", _decision_markdown(decision.decision_id.replace("_", " ").title(), decision)]
+        ],
+        "",
+        "### HAZOP Node Register",
+        markdown_table(["Node", "Parameter", "Guide Word", "Safeguards"], hazop_rows or [["n/a", "n/a", "n/a", "n/a"]]),
+        "",
         "### Rejected Alternative Log",
         markdown_table(["Decision", "Candidate", "Reasons"], rejected_rows or [["n/a", "n/a", "n/a"]]),
+        "",
+        "### Economic Scenario Model",
+        economic_scenarios.markdown if economic_scenarios else "No economic scenario model captured.",
+        "",
+        "### Process Design Datasheet",
+        markdown_table(["Equipment", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "MoC"], datasheet_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Source Extracts",
         markdown_table(["Source ID", "Kind", "Domain", "Title", "Geography", "Location"], source_rows),

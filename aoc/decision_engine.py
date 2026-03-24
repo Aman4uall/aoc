@@ -252,11 +252,12 @@ def resolve_property_gaps(product_profile, config: ProjectConfig) -> PropertyGap
 
 def _operating_mode_decision(config: ProjectConfig, citations: list[str]) -> DecisionRecord:
     basis = config.basis
+    product_name = basis.target_product
     criteria = [
-        DecisionCriterion(name="Throughput support", weight=0.35, justification="World-scale petrochemical throughput strongly favors continuous operation."),
-        DecisionCriterion(name="Changeover burden", weight=0.15, justification="Single-product EG service does not need batch flexibility."),
-        DecisionCriterion(name="Heat integration fit", weight=0.25, justification="Continuous service supports pinch-based recovery and stable utility targeting."),
-        DecisionCriterion(name="Control and operability", weight=0.25, justification="Large EO-based plants need steady-state hazard management."),
+        DecisionCriterion(name="Throughput support", weight=0.35, justification="Large process plants generally favor continuous operation."),
+        DecisionCriterion(name="Changeover burden", weight=0.15, justification="Single-product dedicated service does not usually need batch flexibility."),
+        DecisionCriterion(name="Heat integration fit", weight=0.25, justification="Continuous service better supports stable utility targeting and recovery."),
+        DecisionCriterion(name="Control and operability", weight=0.25, justification="Steady-state hazard management is preferred for most large benchmark plants."),
     ]
     alternatives = [
         AlternativeOption(
@@ -264,7 +265,7 @@ def _operating_mode_decision(config: ProjectConfig, citations: list[str]) -> Dec
             candidate_type="operating_mode",
             description="Continuous plant basis",
             inputs={"capacity_tpa": f"{basis.capacity_tpa:.0f}"},
-            outputs={"fit": "Best for large petrochemical service and heat recovery"},
+            outputs={"fit": f"Best for large dedicated {product_name} service and utility integration"},
             score_breakdown={"Throughput support": 97.0, "Changeover burden": 90.0, "Heat integration fit": 96.0, "Control and operability": 88.0},
             total_score=93.0,
             citations=citations,
@@ -274,8 +275,8 @@ def _operating_mode_decision(config: ProjectConfig, citations: list[str]) -> Dec
             candidate_type="operating_mode",
             description="Batch campaign basis",
             inputs={"capacity_tpa": f"{basis.capacity_tpa:.0f}"},
-            outputs={"fit": "Useful for small multi-SKU service only"},
-            rejected_reasons=["Plant scale and steady exothermic service make batch operation uneconomic."],
+            outputs={"fit": "Useful mainly for small or campaign-based service"},
+            rejected_reasons=[f"Plant scale and dedicated {product_name} service make batch operation weaker on economics and operability."],
             score_breakdown={"Throughput support": 18.0, "Changeover burden": 40.0, "Heat integration fit": 12.0, "Control and operability": 28.0},
             total_score=24.5,
             citations=citations,
@@ -287,7 +288,7 @@ def _operating_mode_decision(config: ProjectConfig, citations: list[str]) -> Dec
         criteria=criteria,
         alternatives=alternatives,
         selected_candidate_id="continuous",
-        selected_summary="Continuous operation is selected because the EG scale, utility integration need, and hazard envelope all favor steady-state operation.",
+        selected_summary=f"Continuous operation is selected because the {product_name} scale, utility integration need, and hazard envelope all favor steady-state operation.",
         hard_constraint_results=[f"Capacity basis: {basis.capacity_tpa:.0f} TPA"],
         confidence=0.93,
         scenario_stability=ScenarioStability.STABLE,

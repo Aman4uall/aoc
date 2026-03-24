@@ -3,10 +3,19 @@ from __future__ import annotations
 import math
 import re
 
+from aoc.economics_v2 import (
+    build_cost_model_v2,
+    build_financial_model_v2,
+    build_financing_basis_decision,
+    build_logistics_basis_decision,
+    build_procurement_basis_decision,
+    build_working_capital_model_v2,
+)
 from aoc.models import (
     CalcTrace,
     ColumnDesign,
     CostModel,
+    DecisionRecord,
     EnergyBalance,
     EquipmentSpec,
     FinancialModel,
@@ -35,6 +44,15 @@ from aoc.models import (
     UtilitySummaryArtifact,
     UtilityNetworkDecision,
     WorkingCapitalModel,
+)
+from aoc.solvers import (
+    build_column_design_generic,
+    build_energy_balance_generic,
+    build_equipment_list_generic,
+    build_heat_exchanger_design_generic,
+    build_reactor_design_generic,
+    build_storage_design_generic,
+    build_stream_table_generic,
 )
 from aoc.value_engine import make_value_record
 
@@ -188,6 +206,8 @@ def build_stream_table(
     citations: list[str],
     assumptions: list[str],
 ) -> StreamTable:
+    return build_stream_table_generic(basis, route, reaction_system, citations, assumptions)
+
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA and route.route_id == "eo_hydration":
         product = _participant(route, "product", "ethylene glycol")
         eo = _participant(route, "reactant", "ethylene oxide")
@@ -373,6 +393,8 @@ def build_stream_table(
 
 
 def build_energy_balance(route: RouteOption, stream_table: StreamTable, thermo: ThermoAssessmentArtifact) -> EnergyBalance:
+    return build_energy_balance_generic(route, stream_table, thermo)
+
     if route.route_id == "eo_hydration":
         eo_feed = next(stream for stream in stream_table.streams if stream.stream_id == "S-101")
         water_feed = next(stream for stream in stream_table.streams if stream.stream_id == "S-102")
@@ -469,7 +491,10 @@ def build_reactor_design(
     reaction_system: ReactionSystem,
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
+    reactor_choice: DecisionRecord | None = None,
 ) -> ReactorDesign:
+    return build_reactor_design_generic(basis, route, reaction_system, stream_table, energy_balance, reactor_choice)
+
     feed_mass = sum(sum(component.mass_flow_kg_hr for component in stream.components) for stream in stream_table.streams if stream.stream_id in {"S-101", "S-102"})
     density = 1030.0 if route.route_id == "eo_hydration" else 950.0
     volumetric_flow_m3_hr = max(feed_mass / density, 0.1)
@@ -526,7 +551,15 @@ def build_reactor_design(
     )
 
 
-def build_column_design(basis: ProjectBasis, route: RouteOption, stream_table: StreamTable, energy_balance: EnergyBalance) -> ColumnDesign:
+def build_column_design(
+    basis: ProjectBasis,
+    route: RouteOption,
+    stream_table: StreamTable,
+    energy_balance: EnergyBalance,
+    separation_choice: DecisionRecord | None = None,
+) -> ColumnDesign:
+    return build_column_design_generic(basis, route, stream_table, energy_balance, separation_choice)
+
     column_feed = next(stream for stream in stream_table.streams if stream.stream_id in {"S-301", "S-201"})
     total_mass = sum(component.mass_flow_kg_hr for component in column_feed.components)
     meg_mass = sum(component.mass_flow_kg_hr for component in column_feed.components if "glycol" in component.name.lower() and "diethylene" not in component.name.lower())
@@ -598,7 +631,13 @@ def build_column_design(basis: ProjectBasis, route: RouteOption, stream_table: S
     )
 
 
-def build_heat_exchanger_design(route: RouteOption, energy_balance: EnergyBalance) -> HeatExchangerDesign:
+def build_heat_exchanger_design(
+    route: RouteOption,
+    energy_balance: EnergyBalance,
+    exchanger_choice: DecisionRecord | None = None,
+) -> HeatExchangerDesign:
+    return build_heat_exchanger_design_generic(route, energy_balance, exchanger_choice)
+
     preheater = next((duty for duty in energy_balance.duties if duty.unit_id == "E-101"), None)
     if preheater is None:
         heat_load_kw = max(energy_balance.total_heating_kw, 100.0)
@@ -637,7 +676,15 @@ def build_heat_exchanger_design(route: RouteOption, energy_balance: EnergyBalanc
     )
 
 
-def build_storage_design(basis: ProjectBasis, product_density_kg_m3: float, citations: list[str], assumptions: list[str]) -> StorageDesign:
+def build_storage_design(
+    basis: ProjectBasis,
+    product_density_kg_m3: float,
+    citations: list[str],
+    assumptions: list[str],
+    storage_choice: DecisionRecord | None = None,
+) -> StorageDesign:
+    return build_storage_design_generic(basis, product_density_kg_m3, citations, assumptions, storage_choice)
+
     inventory_days = 7.0 if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA else 3.0
     working_volume_m3 = hourly_output_kg(basis) * inventory_days * 24.0 / product_density_kg_m3
     total_volume_m3 = working_volume_m3 * 1.1
@@ -676,7 +723,10 @@ def build_equipment_list(
     exchanger: HeatExchangerDesign,
     storage: StorageDesign,
     energy_balance: EnergyBalance,
+    moc_decision: DecisionRecord | None = None,
 ) -> list[EquipmentSpec]:
+    return build_equipment_list_generic(route, reactor, column, exchanger, storage, energy_balance, moc_decision)
+
     flash_volume = max(reactor.design_volume_m3 * 0.12, 5.0) if route.route_id == "eo_hydration" else max(reactor.design_volume_m3 * 0.3, 1.0)
     return [
         EquipmentSpec(
@@ -840,7 +890,32 @@ def build_cost_model(
     assumptions: list[str],
     utility_network_decision: UtilityNetworkDecision | None = None,
     scenario_policy: ScenarioPolicy | None = None,
+    procurement_basis: DecisionRecord | None = None,
+    logistics_basis: DecisionRecord | None = None,
 ) -> CostModel:
+    scenario_policy = scenario_policy or ScenarioPolicy()
+    procurement_basis = procurement_basis or build_procurement_basis_decision(site, equipment)
+    logistics_basis = logistics_basis or build_logistics_basis_decision(site, market)
+    model = build_cost_model_v2(
+        basis,
+        equipment,
+        utilities,
+        stream_table,
+        market,
+        site,
+        scenario_policy,
+        citations,
+        assumptions,
+        procurement_basis,
+        logistics_basis,
+    )
+    selected_case = _selected_utility_case(utility_network_decision)
+    if utility_network_decision is not None:
+        model.selected_route_id = utility_network_decision.route_id
+        model.selected_heat_integration_case_id = selected_case.case_id if selected_case else None
+        model.integration_capex_inr = round(selected_case.added_capex_inr, 2) if selected_case else 0.0
+    return model
+
     price_data = list(market.india_price_data)
     if not price_data:
         price_data = [
@@ -963,6 +1038,8 @@ def build_working_capital_model(
     citations: list[str],
     assumptions: list[str],
 ) -> WorkingCapitalModel:
+    return build_working_capital_model_v2(basis, cost_model, market_price_per_kg, citations, assumptions)
+
     revenue = annual_output_kg(basis) * market_price_per_kg
     raw_material_days = 20.0
     product_inventory_days = 12.0
@@ -1020,7 +1097,11 @@ def build_financial_model(
     working_capital: WorkingCapitalModel,
     citations: list[str],
     assumptions: list[str],
+    financing_basis: DecisionRecord | None = None,
 ) -> FinancialModel:
+    financing_basis = financing_basis or build_financing_basis_decision(basis, SiteSelectionArtifact(candidates=[], selected_site="India", markdown="", citations=citations, assumptions=assumptions))
+    return build_financial_model_v2(basis, market_price_per_kg, cost_model, working_capital, citations, assumptions, financing_basis)
+
     annual_revenue = annual_output_kg(basis) * market_price_per_kg
     gross_profit = annual_revenue - cost_model.annual_opex
     total_investment = cost_model.total_capex + working_capital.working_capital_inr

@@ -36,6 +36,7 @@ def load_project_config(path: str) -> ProjectConfig:
     config.india_market_sheets = resolved_sheets
     if config.basis.process_template.value.endswith("_india"):
         config.require_india_only_data = True
+    if config.require_india_only_data:
         config.basis.india_only = True
         config.basis.region = "India"
         config.basis.currency = "INR"

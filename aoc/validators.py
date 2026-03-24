@@ -4,16 +4,20 @@ from aoc.calculators import operating_hours_per_year, reaction_balance_delta, re
 from aoc.models import (
     ChapterArtifact,
     ColumnDesign,
+    ControlArchitectureDecision,
     CostModel,
     DecisionRecord,
     EnergyBalance,
     FinancialModel,
+    FlowsheetGraph,
     GeographicScope,
+    HazopNodeRegister,
     HeatExchangerDesign,
     HeatIntegrationStudyArtifact,
     IndianLocationDatum,
     IndianPriceDatum,
     KineticAssessmentArtifact,
+    ProcessArchetype,
     PropertyGapArtifact,
     ProvenanceTag,
     ProjectConfig,
@@ -22,6 +26,8 @@ from aoc.models import (
     ReactionSystem,
     ReactorDesign,
     ResearchBundle,
+    ResolvedSourceSet,
+    ResolvedValueArtifact,
     RouteSelectionArtifact,
     SiteSelectionArtifact,
     ScenarioStability,
@@ -124,6 +130,44 @@ def validate_value_records(
     return issues
 
 
+def validate_resolved_source_set(
+    resolved_sources: ResolvedSourceSet,
+    available_source_ids: set[str],
+    config: ProjectConfig,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    issues.extend(require_source_ids(resolved_sources.selected_source_ids, available_source_ids, "resolved_sources", "missing_resolved_sources"))
+    if config.require_india_only_data and resolved_sources.unresolved_conflicts:
+        issues.append(
+            ValidationIssue(
+                code="unresolved_source_conflicts",
+                severity=Severity.BLOCKED,
+                message="Source conflicts remain for: " + ", ".join(resolved_sources.unresolved_conflicts) + ".",
+                artifact_ref="resolved_sources",
+                source_refs=resolved_sources.selected_source_ids,
+            )
+        )
+    return issues
+
+
+def validate_resolved_value_artifact(
+    resolved_values: ResolvedValueArtifact,
+    available_source_ids: set[str],
+    config: ProjectConfig,
+) -> list[ValidationIssue]:
+    issues = validate_value_records(resolved_values.values, available_source_ids, config, "resolved_values")
+    if config.evidence_lock_required and resolved_values.unresolved_value_ids:
+        issues.append(
+            ValidationIssue(
+                code="evidence_lock_unresolved_values",
+                severity=Severity.BLOCKED,
+                message="Evidence lock cannot pass while unresolved values remain: " + ", ".join(resolved_values.unresolved_value_ids) + ".",
+                artifact_ref="resolved_values",
+            )
+        )
+    return issues
+
+
 def validate_decision_record(decision: DecisionRecord, artifact_ref: str | None = None) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     if not decision.selected_candidate_id:
@@ -162,6 +206,29 @@ def validate_decision_record(decision: DecisionRecord, artifact_ref: str | None 
                 severity=Severity.BLOCKED,
                 message=f"Decision '{decision.decision_id}' is unstable under conservative scenarios.",
                 artifact_ref=artifact_ref or decision.decision_id,
+            )
+        )
+    return issues
+
+
+def validate_process_archetype(archetype: ProcessArchetype) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not archetype.operating_mode_candidates:
+        issues.append(
+            ValidationIssue(
+                code="archetype_missing_operating_modes",
+                severity=Severity.BLOCKED,
+                message="Process archetype has no operating-mode candidates.",
+                artifact_ref="process_archetype",
+            )
+        )
+    if not archetype.dominant_separation_family:
+        issues.append(
+            ValidationIssue(
+                code="archetype_missing_separation_family",
+                severity=Severity.BLOCKED,
+                message="Process archetype has no dominant separation family.",
+                artifact_ref="process_archetype",
             )
         )
     return issues
@@ -751,6 +818,56 @@ def validate_financial_model(model: FinancialModel, config: ProjectConfig) -> li
             )
         )
     return issues
+
+
+def validate_flowsheet_graph(flowsheet: FlowsheetGraph) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not flowsheet.nodes:
+        issues.append(
+            ValidationIssue(
+                code="flowsheet_missing_nodes",
+                severity=Severity.BLOCKED,
+                message="Flowsheet graph has no nodes.",
+                artifact_ref="flowsheet_graph",
+            )
+        )
+    if not flowsheet.unit_models:
+        issues.append(
+            ValidationIssue(
+                code="flowsheet_missing_unit_models",
+                severity=Severity.BLOCKED,
+                message="Flowsheet graph has no unit-operation models.",
+                artifact_ref="flowsheet_graph",
+            )
+        )
+    return issues
+
+
+def validate_control_architecture(control_architecture: ControlArchitectureDecision) -> list[ValidationIssue]:
+    issues = validate_decision_record(control_architecture.decision, "control_architecture")
+    if not control_architecture.critical_units:
+        issues.append(
+            ValidationIssue(
+                code="control_architecture_no_critical_units",
+                severity=Severity.WARNING,
+                message="Control architecture did not identify any critical units.",
+                artifact_ref="control_architecture",
+            )
+        )
+    return issues
+
+
+def validate_hazop_node_register(register: HazopNodeRegister) -> list[ValidationIssue]:
+    if register.nodes:
+        return []
+    return [
+        ValidationIssue(
+            code="hazop_register_empty",
+            severity=Severity.BLOCKED,
+            message="HAZOP node register is empty.",
+            artifact_ref="hazop_node_register",
+        )
+    ]
 
 
 def validate_cross_chapter_consistency(

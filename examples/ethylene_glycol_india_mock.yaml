@@ -12,6 +12,13 @@ basis:
   labor_basis_year: 2025
   economic_reference_year: 2025
 strict_citation_policy: true
+public_data_only: true
+benchmark_profile: ethylene_glycol
+evidence_lock_required: true
+capacity_case_candidates:
+  - 150000
+  - 200000
+  - 250000
 preferred_route_id: eo_hydration
 preferred_site: Dahej
 preferred_site_candidates:

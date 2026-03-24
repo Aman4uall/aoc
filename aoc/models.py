@@ -191,12 +191,18 @@ class ProjectConfig(BaseModel):
     project_id: Optional[str] = None
     basis: ProjectBasis
     strict_citation_policy: bool = True
+    public_data_only: bool = True
     decision_policy: DecisionPolicy = DecisionPolicy.HYBRID
     optimization_scope: OptimizationScope = OptimizationScope.EG_FIRST
     preferred_route_id: Optional[str] = None
     preferred_site: Optional[str] = None
     preferred_site_candidates: list[str] = Field(default_factory=list)
     preferred_state_candidates: list[str] = Field(default_factory=list)
+    compound_family_hint: Optional[str] = None
+    phase_system_hint: Optional[str] = None
+    benchmark_profile: Optional[str] = None
+    evidence_lock_required: bool = True
+    capacity_case_candidates: list[float] = Field(default_factory=list)
     require_india_only_data: bool = False
     user_documents: list[UserDocument] = Field(default_factory=list)
     india_market_sheets: list[str] = Field(default_factory=list)
@@ -252,12 +258,53 @@ class ValueRecord(ProvenancedModel):
     blocking: bool = False
 
 
+class SourceCandidate(BaseModel):
+    source_id: str
+    authority_score: float
+    recency_score: float
+    geography_score: float
+    domain_fit_score: float
+    consistency_score: float
+    total_score: float
+    rationale: str = ""
+
+
+class SourceCandidateSet(ProvenancedModel):
+    group_id: str
+    source_domain: SourceDomain
+    geographic_requirement: str
+    candidates: list[SourceCandidate] = Field(default_factory=list)
+    selected_source_ids: list[str] = Field(default_factory=list)
+    unresolved_conflict: bool = False
+    markdown: str = ""
+
+
+class ResolvedSourceSet(ProvenancedModel):
+    groups: list[SourceCandidateSet] = Field(default_factory=list)
+    selected_source_ids: list[str] = Field(default_factory=list)
+    unresolved_conflicts: list[str] = Field(default_factory=list)
+    markdown: str
+
+
+class ResolvedValue(ValueRecord):
+    resolution_level: int = 1
+    selected_source_id: Optional[str] = None
+    resolution_status: Literal["resolved", "estimated", "blocked"] = "resolved"
+    justification: str = ""
+
+
 class AssumptionRecord(BaseModel):
     assumption_id: str
     statement: str
     reason: str
     impact_scope: str
     expiry_review_condition: str
+
+
+class ResolvedValueArtifact(ProvenancedModel):
+    values: list[ResolvedValue] = Field(default_factory=list)
+    unresolved_value_ids: list[str] = Field(default_factory=list)
+    markdown: str
 
 
 class DecisionCriterion(BaseModel):
@@ -294,6 +341,16 @@ class DecisionRecord(ProvenancedModel):
     blocked_value_ids: list[str] = Field(default_factory=list)
 
 
+class AlternativeSet(ProvenancedModel):
+    set_id: str
+    context: str
+    criteria: list[DecisionCriterion] = Field(default_factory=list)
+    alternatives: list[AlternativeOption] = Field(default_factory=list)
+    selected_candidate_id: Optional[str] = None
+    scenario_stability: ScenarioStability = ScenarioStability.STABLE
+    markdown: str = ""
+
+
 class PropertyGapArtifact(ProvenancedModel):
     values: list[ValueRecord] = Field(default_factory=list)
     assumptions_log: list[AssumptionRecord] = Field(default_factory=list)
@@ -304,6 +361,14 @@ class PropertyGapArtifact(ProvenancedModel):
 class ProcessSynthesisArtifact(ProvenancedModel):
     operating_mode_decision: DecisionRecord
     route_candidates: list[AlternativeOption] = Field(default_factory=list)
+    archetype: Optional["ProcessArchetype"] = None
+    alternative_sets: list[AlternativeSet] = Field(default_factory=list)
+    markdown: str
+
+
+class MethodSelectionArtifact(ProvenancedModel):
+    method_family: Literal["thermo", "kinetics"]
+    decision: DecisionRecord
     markdown: str
 
 
@@ -385,6 +450,9 @@ class StreamRecord(BaseModel):
     temperature_c: float
     pressure_bar: float
     components: list[StreamComponentFlow]
+    source_unit_id: Optional[str] = None
+    destination_unit_id: Optional[str] = None
+    phase_hint: str = ""
 
 
 class CalcTrace(BaseModel):
@@ -421,6 +489,9 @@ class UnitDuty(BaseModel):
     heating_kw: float = 0.0
     cooling_kw: float = 0.0
     notes: str = ""
+    duty_type: str = "sensible"
+    hot_stream_id: Optional[str] = None
+    cold_stream_id: Optional[str] = None
 
 
 class EnergyBalance(ProvenancedModel):
@@ -442,6 +513,15 @@ class ReactorDesign(ProvenancedModel):
     design_pressure_bar: float
     heat_duty_kw: float
     heat_transfer_area_m2: float
+    shell_diameter_m: float = 0.0
+    shell_length_m: float = 0.0
+    overall_u_w_m2_k: float = 0.0
+    reynolds_number: float = 0.0
+    prandtl_number: float = 0.0
+    nusselt_number: float = 0.0
+    number_of_tubes: int = 0
+    tube_length_m: float = 0.0
+    cooling_medium: str = ""
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -459,6 +539,12 @@ class ColumnDesign(ProvenancedModel):
     column_height_m: float
     condenser_duty_kw: float
     reboiler_duty_kw: float
+    feed_stage: int = 0
+    tray_spacing_m: float = 0.0
+    flooding_fraction: float = 0.0
+    downcomer_area_fraction: float = 0.0
+    top_temperature_c: float = 0.0
+    bottom_temperature_c: float = 0.0
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -470,6 +556,12 @@ class HeatExchangerDesign(ProvenancedModel):
     lmtd_k: float
     overall_u_w_m2_k: float
     area_m2: float
+    exchanger_type: str = ""
+    shell_diameter_m: float = 0.0
+    tube_count: int = 0
+    tube_length_m: float = 0.0
+    shell_passes: int = 1
+    tube_passes: int = 1
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -481,6 +573,8 @@ class StorageDesign(ProvenancedModel):
     working_volume_m3: float
     total_volume_m3: float
     material_of_construction: str
+    diameter_m: float = 0.0
+    straight_side_height_m: float = 0.0
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -496,6 +590,28 @@ class EquipmentSpec(ProvenancedModel):
     material_of_construction: str
     duty_kw: float = 0.0
     notes: str = ""
+
+
+class MechanicalComponentDesign(ProvenancedModel):
+    equipment_id: str
+    equipment_type: str
+    design_pressure_bar: float
+    design_temperature_c: float
+    corrosion_allowance_mm: float
+    shell_thickness_mm: float
+    head_thickness_mm: float = 0.0
+    nozzle_diameter_mm: float = 0.0
+    support_type: str = ""
+    support_thickness_mm: float = 0.0
+    notes: str = ""
+    calc_traces: list[CalcTrace] = Field(default_factory=list)
+    value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class MechanicalDesignArtifact(ProvenancedModel):
+    items: list[MechanicalComponentDesign] = Field(default_factory=list)
+    markdown: str
+    value_records: list[ValueRecord] = Field(default_factory=list)
 
 
 class EquipmentListArtifact(ProvenancedModel):
@@ -527,6 +643,17 @@ class UtilitySummaryArtifact(ProvenancedModel):
     recovered_duty_kw: float = 0.0
     utility_basis_decision_id: Optional[str] = None
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class EquipmentCostItem(ProvenancedModel):
+    equipment_id: str
+    equipment_type: str
+    service: str
+    basis: str
+    bare_cost_inr: float
+    installed_cost_inr: float
+    spares_cost_inr: float = 0.0
+    notes: str = ""
 
 
 class HeatStream(ProvenancedModel):
@@ -603,6 +730,12 @@ class HazopStudyArtifact(ProvenancedModel):
     markdown: str
 
 
+class HazopNodeRegister(ProvenancedModel):
+    nodes: list[HazopNode] = Field(default_factory=list)
+    coverage_summary: str
+    markdown: str
+
+
 class IndianPriceDatum(ProvenancedModel):
     datum_id: str
     category: str
@@ -653,6 +786,12 @@ class HeatIntegrationStudyArtifact(ProvenancedModel):
     markdown: str
 
 
+class EconomicScenarioModel(ProvenancedModel):
+    selected_basis_decision_id: Optional[str] = None
+    scenarios: list[ScenarioResult] = Field(default_factory=list)
+    markdown: str
+
+
 class CostModel(ProvenancedModel):
     currency: str
     equipment_purchase_cost: float
@@ -674,6 +813,7 @@ class CostModel(ProvenancedModel):
     integration_capex_inr: float = 0.0
     scenario_results: list[ScenarioResult] = Field(default_factory=list)
     economic_basis_decision_id: Optional[str] = None
+    equipment_cost_items: list[EquipmentCostItem] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
 
@@ -698,6 +838,7 @@ class FinancialModel(ProvenancedModel):
     irr: float
     profitability_index: float
     break_even_fraction: float
+    annual_schedule: list[dict[str, float | str]] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     scenario_results: list[ScenarioResult] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
@@ -754,6 +895,16 @@ class ProjectRunState(BaseModel):
     last_updated: str = Field(default_factory=utc_now)
 
 
+class BenchmarkManifest(BaseModel):
+    benchmark_id: str
+    target_product: str
+    archetype_family: str
+    required_chapters: list[str] = Field(default_factory=list)
+    expected_decisions: list[str] = Field(default_factory=list)
+    required_public_source_domains: list[SourceDomain] = Field(default_factory=list)
+    notes: str = ""
+
+
 class ResearchBundle(BaseModel):
     sources: list[SourceRecord]
     technical_source_ids: list[str] = Field(default_factory=list)
@@ -797,6 +948,19 @@ class RouteSelectionArtifact(ProvenancedModel):
     comparison_markdown: str
 
 
+class ProcessArchetype(ProvenancedModel):
+    archetype_id: str
+    compound_family: Literal["organic", "inorganic", "mixed"]
+    dominant_product_phase: Literal["gas", "liquid", "solid", "mixed"]
+    dominant_feed_phase: Literal["gas", "liquid", "solid", "mixed"]
+    operating_mode_candidates: list[str] = Field(default_factory=list)
+    dominant_separation_family: str
+    heat_management_profile: str
+    hazard_intensity: Literal["low", "moderate", "high"]
+    rationale: str
+    benchmark_profile: Optional[str] = None
+
+
 class SiteSelectionArtifact(ProvenancedModel):
     candidates: list[SiteOption]
     selected_site: str
@@ -823,6 +987,37 @@ class KineticAssessmentArtifact(ProvenancedModel):
     value_records: list[ValueRecord] = Field(default_factory=list)
 
 
+class FlowsheetNode(BaseModel):
+    node_id: str
+    unit_type: str
+    label: str
+    upstream_nodes: list[str] = Field(default_factory=list)
+    downstream_nodes: list[str] = Field(default_factory=list)
+    representative_stream_ids: list[str] = Field(default_factory=list)
+    notes: str = ""
+
+
+class UnitOperationModel(ProvenancedModel):
+    unit_id: str
+    unit_type: str
+    service: str
+    formula_traces: list[CalcTrace] = Field(default_factory=list)
+    convergence_status: Literal["seeded", "converged", "estimated", "blocked"] = "seeded"
+    unresolved_sensitivities: list[str] = Field(default_factory=list)
+
+
+class FlowsheetGraph(ProvenancedModel):
+    graph_id: str
+    route_id: str
+    operating_mode: str
+    nodes: list[FlowsheetNode] = Field(default_factory=list)
+    unit_models: list[UnitOperationModel] = Field(default_factory=list)
+    stream_ids: list[str] = Field(default_factory=list)
+    convergence_status: Literal["seeded", "converged", "estimated", "blocked"] = "seeded"
+    unresolved_sensitivities: list[str] = Field(default_factory=list)
+    markdown: str
+
+
 class ProcessNarrativeArtifact(ProvenancedModel):
     bfd_mermaid: str
     markdown: str
@@ -830,6 +1025,18 @@ class ProcessNarrativeArtifact(ProvenancedModel):
 
 class ControlPlanArtifact(ProvenancedModel):
     control_loops: list[ControlLoop]
+    markdown: str
+
+
+class ControlArchitectureDecision(ProvenancedModel):
+    decision: DecisionRecord
+    critical_units: list[str] = Field(default_factory=list)
+    markdown: str
+
+
+class LayoutDecisionArtifact(ProvenancedModel):
+    decision: DecisionRecord
+    winning_layout_basis: str
     markdown: str
 
 
