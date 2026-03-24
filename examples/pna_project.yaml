@@ -1,0 +1,26 @@
+project_id: pna-demo
+basis:
+  target_product: para-nitroanisole
+  capacity_tpa: 600
+  target_purity_wt_pct: 99.0
+  operating_mode: batch
+  annual_operating_days: 300
+  region: India
+  currency: INR
+  site_assumptions:
+    - Greenfield specialty chemical manufacturing site.
+    - Site should support solvent handling and wastewater segregation.
+strict_citation_policy: true
+preferred_route_id: route_pncb_methoxylation
+user_documents:
+  - label: Product profile notes
+    path: pna_sources/product_profile.md
+  - label: Route survey notes
+    path: pna_sources/routes.md
+  - label: Safety notes
+    path: pna_sources/safety.md
+model:
+  backend: mock
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.2
+

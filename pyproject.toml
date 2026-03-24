@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aoc-plant-design"
+version = "0.1.0"
+description = "CLI-first plant design report generator with typed artifacts and approval gates."
+requires-python = ">=3.11"
+dependencies = [
+  "pydantic>=2.9",
+  "PyYAML>=6.0",
+  "google-genai>=1.68.0",
+  "PyMuPDF>=1.24.0",
+]
+
+[project.scripts]
+aoc = "aoc.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["aoc*"]
+

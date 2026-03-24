@@ -1,0 +1,5 @@
+item,category,region,units,value_inr,reference_year,normalization_year,note
+Monoethylene glycol,product,India,INR/kg,63,2025,2025,Seed India MEG selling-price basis
+Ethylene oxide,raw_material,India,INR/kg,62,2025,2025,Seed EO feedstock basis
+Electricity,utility,Gujarat,INR/kWh,8.5,2025,2025,Industrial tariff basis
+Operating labour,labor,India,INR/person-year,650000,2025,2025,Annual direct labor burden

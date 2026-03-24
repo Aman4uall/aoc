@@ -1,0 +1,41 @@
+project_id: eg-india-full-run-clean
+basis:
+  target_product: Ethylene Glycol
+  capacity_tpa: 200000
+  target_purity_wt_pct: 99.9
+  operating_mode: continuous
+  annual_operating_days: 330
+  process_template: ethylene_glycol_india
+  target_state: Gujarat
+  tariff_reference_year: 2025
+  utility_basis_year: 2025
+  labor_basis_year: 2025
+  economic_reference_year: 2025
+strict_citation_policy: true
+preferred_route_id: eo_hydration
+preferred_site: Dahej
+preferred_site_candidates:
+  - Dahej
+  - Jamnagar
+  - Paradip
+preferred_state_candidates:
+  - Gujarat
+  - Odisha
+india_market_sheets:
+  - eg_sources/india_market.csv
+user_documents:
+  - label: EG technical basis
+    path: eg_sources/technical_basis.md
+    source_kind: user_document
+    source_domain: technical
+    geographic_scope: global
+  - label: India site note
+    path: eg_sources/india_site_note.md
+    source_kind: user_document
+    source_domain: site
+    geographic_scope: india
+output_root: outputs
+model:
+  backend: mock
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.2
