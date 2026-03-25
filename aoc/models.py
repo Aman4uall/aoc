@@ -279,10 +279,22 @@ class SourceCandidateSet(ProvenancedModel):
     markdown: str = ""
 
 
+class SourceConflict(ProvenancedModel):
+    conflict_id: str
+    source_domain: SourceDomain
+    selected_source_id: Optional[str] = None
+    competing_source_ids: list[str] = Field(default_factory=list)
+    score_gap: float = 0.0
+    blocking: bool = False
+    rationale: str = ""
+    recommended_resolution: str = ""
+
+
 class ResolvedSourceSet(ProvenancedModel):
     groups: list[SourceCandidateSet] = Field(default_factory=list)
     selected_source_ids: list[str] = Field(default_factory=list)
     unresolved_conflicts: list[str] = Field(default_factory=list)
+    conflicts: list[SourceConflict] = Field(default_factory=list)
     markdown: str
 
 
@@ -291,6 +303,17 @@ class ResolvedValue(ValueRecord):
     selected_source_id: Optional[str] = None
     resolution_status: Literal["resolved", "estimated", "blocked"] = "resolved"
     justification: str = ""
+
+
+class PropertyEstimate(ProvenancedModel):
+    estimate_id: str
+    property_name: str
+    selected_method: ProvenanceTag
+    candidate_methods: list[ProvenanceTag] = Field(default_factory=list)
+    selected_source_id: Optional[str] = None
+    sensitivity: SensitivityLevel = SensitivityLevel.LOW
+    blocking: bool = False
+    rationale: str = ""
 
 
 class AssumptionRecord(BaseModel):
@@ -304,6 +327,7 @@ class AssumptionRecord(BaseModel):
 class ResolvedValueArtifact(ProvenancedModel):
     values: list[ResolvedValue] = Field(default_factory=list)
     unresolved_value_ids: list[str] = Field(default_factory=list)
+    property_estimates: list[PropertyEstimate] = Field(default_factory=list)
     markdown: str
 
 
@@ -349,6 +373,40 @@ class AlternativeSet(ProvenancedModel):
     selected_candidate_id: Optional[str] = None
     scenario_stability: ScenarioStability = ScenarioStability.STABLE
     markdown: str = ""
+
+
+class OptionSet(ProvenancedModel):
+    option_set_id: str
+    specialist_role: str
+    context: str
+    alternatives: list[AlternativeOption] = Field(default_factory=list)
+    selected_candidate_id: Optional[str] = None
+    markdown: str = ""
+
+
+class CriticVerdict(ProvenancedModel):
+    verdict_id: str
+    specialist_role: str
+    status: Literal["pass", "warning", "blocked"] = "pass"
+    decision_id: Optional[str] = None
+    message: str
+    blocking_issue_codes: list[str] = Field(default_factory=list)
+    recommended_action: str = ""
+
+
+class DecisionPacket(ProvenancedModel):
+    packet_id: str
+    specialist_role: str
+    context: str
+    option_set: OptionSet
+    selected_decision: Optional[DecisionRecord] = None
+    critic_verdicts: list[CriticVerdict] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class AgentDecisionFabricArtifact(ProvenancedModel):
+    packets: list[DecisionPacket] = Field(default_factory=list)
+    markdown: str
 
 
 class PropertyGapArtifact(ProvenancedModel):
@@ -470,6 +528,116 @@ class StreamTable(ProvenancedModel):
     closure_error_pct: float
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+    unit_operation_packets: list["UnitOperationPacket"] = Field(default_factory=list)
+    separation_packets: list["SeparationPacket"] = Field(default_factory=list)
+    recycle_packets: list["RecyclePacket"] = Field(default_factory=list)
+
+
+class StreamSpec(ProvenancedModel):
+    stream_id: str
+    source_unit_id: Optional[str] = None
+    destination_unit_id: Optional[str] = None
+    phase_hint: str = ""
+    total_mass_flow_kg_hr: float = 0.0
+    total_molar_flow_kmol_hr: float = 0.0
+    component_names: list[str] = Field(default_factory=list)
+
+
+class UnitOperationPacket(ProvenancedModel):
+    packet_id: str
+    unit_id: str
+    unit_type: str
+    service: str
+    inlet_stream_ids: list[str] = Field(default_factory=list)
+    outlet_stream_ids: list[str] = Field(default_factory=list)
+    inlet_mass_flow_kg_hr: float = 0.0
+    outlet_mass_flow_kg_hr: float = 0.0
+    closure_error_pct: float = 0.0
+    status: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class SeparationPacket(ProvenancedModel):
+    packet_id: str
+    unit_id: str
+    separation_family: str
+    driving_force: str
+    inlet_stream_ids: list[str] = Field(default_factory=list)
+    product_stream_ids: list[str] = Field(default_factory=list)
+    waste_stream_ids: list[str] = Field(default_factory=list)
+    recycle_stream_ids: list[str] = Field(default_factory=list)
+    side_draw_stream_ids: list[str] = Field(default_factory=list)
+    closure_error_pct: float = 0.0
+    notes: list[str] = Field(default_factory=list)
+
+
+class RecyclePacket(ProvenancedModel):
+    packet_id: str
+    loop_id: str
+    recycle_stream_ids: list[str] = Field(default_factory=list)
+    purge_stream_ids: list[str] = Field(default_factory=list)
+    component_targets_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    component_fresh_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    component_recycle_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    component_purge_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    convergence_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    closure_error_pct: float = 0.0
+    max_iterations: int = 0
+    notes: list[str] = Field(default_factory=list)
+
+
+class UnitSpec(ProvenancedModel):
+    unit_id: str
+    unit_type: str
+    service: str
+    upstream_stream_ids: list[str] = Field(default_factory=list)
+    downstream_stream_ids: list[str] = Field(default_factory=list)
+    closure_error_pct: float = 0.0
+    closure_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    unresolved_sensitivities: list[str] = Field(default_factory=list)
+
+
+class SeparationSpec(ProvenancedModel):
+    separation_id: str
+    separation_family: str
+    driving_force: str
+    inlet_stream_ids: list[str] = Field(default_factory=list)
+    product_stream_ids: list[str] = Field(default_factory=list)
+    waste_stream_ids: list[str] = Field(default_factory=list)
+    recycle_stream_ids: list[str] = Field(default_factory=list)
+    side_draw_stream_ids: list[str] = Field(default_factory=list)
+    closure_error_pct: float = 0.0
+
+
+class RecycleLoop(ProvenancedModel):
+    loop_id: str
+    recycle_stream_ids: list[str] = Field(default_factory=list)
+    purge_stream_ids: list[str] = Field(default_factory=list)
+    convergence_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    closure_error_pct: float = 0.0
+
+
+class FlowsheetCase(ProvenancedModel):
+    case_id: str
+    route_id: str
+    operating_mode: str
+    units: list[UnitSpec] = Field(default_factory=list)
+    streams: list[StreamSpec] = Field(default_factory=list)
+    separations: list[SeparationSpec] = Field(default_factory=list)
+    recycle_loops: list[RecycleLoop] = Field(default_factory=list)
+    unit_operation_packets: list[UnitOperationPacket] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class SolveResult(ProvenancedModel):
+    case_id: str
+    convergence_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    overall_closure_error_pct: float = 0.0
+    unitwise_closure: dict[str, float] = Field(default_factory=dict)
+    unitwise_status: dict[str, Literal["converged", "estimated", "blocked"]] = Field(default_factory=dict)
+    unresolved_sensitivities: list[str] = Field(default_factory=list)
+    critic_messages: list[str] = Field(default_factory=list)
+    markdown: str = ""
 
 
 class ReactionSystem(ProvenancedModel):
@@ -494,10 +662,43 @@ class UnitDuty(BaseModel):
     cold_stream_id: Optional[str] = None
 
 
+class UnitThermalPacket(ProvenancedModel):
+    packet_id: str
+    unit_id: str
+    service: str
+    duty_type: str = "sensible"
+    heating_kw: float = 0.0
+    cooling_kw: float = 0.0
+    hot_stream_id: Optional[str] = None
+    cold_stream_id: Optional[str] = None
+    hot_supply_temp_c: float = 0.0
+    hot_target_temp_c: float = 0.0
+    cold_supply_temp_c: float = 0.0
+    cold_target_temp_c: float = 0.0
+    recoverable_duty_kw: float = 0.0
+    candidate_media: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class ExchangerNetworkCandidate(ProvenancedModel):
+    candidate_id: str
+    source_unit_id: str
+    sink_unit_id: str
+    hot_packet_id: str
+    cold_packet_id: str
+    topology: Literal["direct", "htm_loop"]
+    recovered_duty_kw: float
+    minimum_approach_temp_c: float
+    feasible: bool = True
+    notes: str = ""
+
+
 class EnergyBalance(ProvenancedModel):
     duties: list[UnitDuty]
     total_heating_kw: float
     total_cooling_kw: float
+    unit_thermal_packets: list[UnitThermalPacket] = Field(default_factory=list)
+    network_candidates: list[ExchangerNetworkCandidate] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -522,8 +723,21 @@ class ReactorDesign(ProvenancedModel):
     number_of_tubes: int = 0
     tube_length_m: float = 0.0
     cooling_medium: str = ""
+    utility_topology: str = ""
+    integrated_thermal_duty_kw: float = 0.0
+    residual_utility_duty_kw: float = 0.0
+    selected_train_step_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class ReactorDesignBasis(ProvenancedModel):
+    reactor_id: str
+    selected_reactor_type: str
+    governing_equations: list[str] = Field(default_factory=list)
+    design_inputs: dict[str, str] = Field(default_factory=dict)
+    operating_envelope: dict[str, str] = Field(default_factory=dict)
+    markdown: str = ""
 
 
 class ColumnDesign(ProvenancedModel):
@@ -545,8 +759,23 @@ class ColumnDesign(ProvenancedModel):
     downcomer_area_fraction: float = 0.0
     top_temperature_c: float = 0.0
     bottom_temperature_c: float = 0.0
+    utility_topology: str = ""
+    integrated_reboiler_duty_kw: float = 0.0
+    residual_reboiler_utility_kw: float = 0.0
+    condenser_recovery_duty_kw: float = 0.0
+    selected_train_step_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class ColumnHydraulics(ProvenancedModel):
+    column_id: str
+    flooding_fraction: float
+    tray_spacing_m: float
+    downcomer_area_fraction: float
+    vapor_velocity_m_s: float = 0.0
+    liquid_load_m3_hr: float = 0.0
+    markdown: str = ""
 
 
 class HeatExchangerDesign(ProvenancedModel):
@@ -562,8 +791,18 @@ class HeatExchangerDesign(ProvenancedModel):
     tube_length_m: float = 0.0
     shell_passes: int = 1
     tube_passes: int = 1
+    utility_topology: str = ""
+    selected_train_step_id: Optional[str] = None
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class HeatExchangerThermalDesign(ProvenancedModel):
+    exchanger_id: str
+    selected_configuration: str
+    governing_equations: list[str] = Field(default_factory=list)
+    thermal_inputs: dict[str, str] = Field(default_factory=dict)
+    markdown: str = ""
 
 
 class StorageDesign(ProvenancedModel):
@@ -577,6 +816,26 @@ class StorageDesign(ProvenancedModel):
     straight_side_height_m: float = 0.0
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class PumpDesign(ProvenancedModel):
+    pump_id: str
+    service: str
+    flow_m3_hr: float
+    differential_head_m: float
+    power_kw: float
+    npsh_margin_m: float
+    markdown: str = ""
+
+
+class EquipmentDatasheet(ProvenancedModel):
+    datasheet_id: str
+    equipment_id: str
+    equipment_type: str
+    service: str
+    design_data: dict[str, str] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
+    markdown: str = ""
 
 
 class EquipmentSpec(ProvenancedModel):
@@ -606,6 +865,43 @@ class MechanicalComponentDesign(ProvenancedModel):
     notes: str = ""
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class MechanicalDesignBasis(ProvenancedModel):
+    basis_id: str
+    code_basis: str
+    design_pressure_basis: str
+    design_temperature_basis: str
+    corrosion_allowance_mm: float
+    markdown: str = ""
+
+
+class SupportDesign(ProvenancedModel):
+    equipment_id: str
+    support_type: str
+    support_load_basis_kn: float
+    support_thickness_mm: float
+    anchor_bolt_diameter_mm: float = 0.0
+    base_plate_thickness_mm: float = 0.0
+    markdown: str = ""
+
+
+class NozzleSchedule(ProvenancedModel):
+    equipment_id: str
+    nozzle_count: int
+    nozzle_diameters_mm: list[float] = Field(default_factory=list)
+    nozzle_services: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class VesselMechanicalDesign(ProvenancedModel):
+    equipment_id: str
+    shell_thickness_mm: float
+    head_thickness_mm: float
+    corrosion_allowance_mm: float
+    support_design: Optional[SupportDesign] = None
+    nozzle_schedule: Optional[NozzleSchedule] = None
+    markdown: str = ""
 
 
 class MechanicalDesignArtifact(ProvenancedModel):
@@ -641,6 +937,8 @@ class UtilitySummaryArtifact(ProvenancedModel):
     utility_basis: Optional[UtilityBasis] = None
     selected_heat_integration_case_id: Optional[str] = None
     recovered_duty_kw: float = 0.0
+    selected_train_step_count: int = 0
+    selected_train_recovered_duty_kw: float = 0.0
     utility_basis_decision_id: Optional[str] = None
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -689,6 +987,24 @@ class HeatMatch(ProvenancedModel):
     notes: str = ""
 
 
+class HeatStreamSet(ProvenancedModel):
+    route_id: str
+    hot_streams: list[HeatStream] = Field(default_factory=list)
+    cold_streams: list[HeatStream] = Field(default_factory=list)
+    pinch_temp_c: float = 0.0
+    markdown: str = ""
+
+
+class HeatMatchCandidate(ProvenancedModel):
+    candidate_id: str
+    hot_stream_id: str
+    cold_stream_id: str
+    topology: str
+    recovered_duty_kw: float
+    feasible: bool = True
+    notes: str = ""
+
+
 class HeatIntegrationCase(ProvenancedModel):
     case_id: str
     title: str
@@ -704,6 +1020,43 @@ class HeatIntegrationCase(ProvenancedModel):
     heat_matches: list[HeatMatch] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     summary: str = ""
+
+
+class HeatNetworkCase(ProvenancedModel):
+    case_id: str
+    topology: str
+    recovered_duty_kw: float
+    residual_hot_utility_kw: float
+    residual_cold_utility_kw: float
+    exchanger_count: int
+    match_candidates: list[HeatMatchCandidate] = Field(default_factory=list)
+    selected_matches: list[HeatMatch] = Field(default_factory=list)
+    selected_train_steps: list["HeatExchangerTrainStep"] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class HeatExchangerTrainStep(ProvenancedModel):
+    step_id: str
+    exchanger_id: str
+    topology: str
+    service: str
+    hot_stream_id: str
+    cold_stream_id: str
+    source_unit_id: str
+    sink_unit_id: str
+    recovered_duty_kw: float
+    medium: str
+    notes: str = ""
+
+
+class HeatNetworkArchitecture(ProvenancedModel):
+    route_id: str
+    selected_case_id: Optional[str] = None
+    heat_stream_set: Optional[HeatStreamSet] = None
+    cases: list[HeatNetworkCase] = Field(default_factory=list)
+    selected_train_steps: list[HeatExchangerTrainStep] = Field(default_factory=list)
+    topology_summary: str = ""
+    markdown: str = ""
 
 
 class ControlLoop(ProvenancedModel):
@@ -781,6 +1134,13 @@ class UtilityNetworkDecision(ProvenancedModel):
     markdown: str
 
 
+class UtilityArchitectureDecision(ProvenancedModel):
+    route_id: str
+    architecture: HeatNetworkArchitecture
+    decision: DecisionRecord
+    markdown: str
+
+
 class HeatIntegrationStudyArtifact(ProvenancedModel):
     route_decisions: list[UtilityNetworkDecision] = Field(default_factory=list)
     markdown: str
@@ -817,6 +1177,30 @@ class CostModel(ProvenancedModel):
     value_records: list[ValueRecord] = Field(default_factory=list)
 
 
+class EquipmentCostBreakdown(ProvenancedModel):
+    equipment_id: str
+    bare_cost_inr: float
+    installation_inr: float
+    piping_inr: float
+    instrumentation_inr: float
+    electrical_inr: float
+    civil_structural_inr: float
+    insulation_painting_inr: float
+    contingency_inr: float
+    total_installed_inr: float
+
+
+class PlantCostSummary(ProvenancedModel):
+    currency: str
+    equipment_breakdowns: list[EquipmentCostBreakdown] = Field(default_factory=list)
+    direct_plant_cost_inr: float
+    indirect_cost_inr: float
+    contingency_inr: float
+    working_capital_inr: float = 0.0
+    total_project_cost_inr: float
+    markdown: str = ""
+
+
 class WorkingCapitalModel(ProvenancedModel):
     raw_material_days: float
     product_inventory_days: float
@@ -842,6 +1226,47 @@ class FinancialModel(ProvenancedModel):
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     scenario_results: list[ScenarioResult] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+
+
+class DebtScheduleEntry(ProvenancedModel):
+    year: int
+    opening_debt_inr: float
+    principal_repayment_inr: float
+    interest_inr: float
+    closing_debt_inr: float
+
+
+class DebtSchedule(ProvenancedModel):
+    debt_fraction: float
+    interest_rate: float
+    entries: list[DebtScheduleEntry] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class TaxDepreciationBasis(ProvenancedModel):
+    depreciation_method: str
+    depreciation_years: int
+    tax_rate_fraction: float
+    markdown: str = ""
+
+
+class FinancialScheduleLine(ProvenancedModel):
+    year: int
+    capacity_utilization_pct: float
+    revenue_inr: float
+    operating_cost_inr: float
+    depreciation_inr: float
+    interest_inr: float
+    profit_before_tax_inr: float
+    tax_inr: float
+    profit_after_tax_inr: float
+    cash_accrual_inr: float
+
+
+class FinancialSchedule(ProvenancedModel):
+    currency: str
+    lines: list[FinancialScheduleLine] = Field(default_factory=list)
+    markdown: str = ""
 
 
 class ValidationIssue(BaseModel):

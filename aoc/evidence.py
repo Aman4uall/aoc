@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from aoc.models import (
     GeographicScope,
+    PropertyEstimate,
     ProjectConfig,
     PropertyGapArtifact,
     ProvenanceTag,
@@ -14,6 +15,7 @@ from aoc.models import (
     SensitivityLevel,
     SourceCandidate,
     SourceCandidateSet,
+    SourceConflict,
     SourceDomain,
     SourceKind,
     ValueRecord,
@@ -89,11 +91,39 @@ def _consistency_score(source) -> float:
     return min(score, 1.0)
 
 
+def _property_estimates_from_values(values: list[ResolvedValue]) -> list[PropertyEstimate]:
+    estimates: list[PropertyEstimate] = []
+    for value in values:
+        if value.provenance_method in {ProvenanceTag.SOURCED, ProvenanceTag.USER_SUPPLIED} and not value.blocking:
+            continue
+        estimates.append(
+            PropertyEstimate(
+                estimate_id=f"{value.value_id}_estimate",
+                property_name=value.name,
+                selected_method=value.provenance_method,
+                candidate_methods=[
+                    ProvenanceTag.SOURCED,
+                    ProvenanceTag.CALCULATED,
+                    ProvenanceTag.ESTIMATED,
+                    ProvenanceTag.ANALOGY,
+                ],
+                selected_source_id=value.selected_source_id,
+                sensitivity=value.sensitivity,
+                blocking=value.blocking,
+                rationale=value.justification or "Estimate carried from the resolution hierarchy.",
+                citations=value.citations,
+                assumptions=value.assumptions,
+            )
+        )
+    return estimates
+
+
 def build_resolved_source_set(config: ProjectConfig, bundle: ResearchBundle) -> ResolvedSourceSet:
     grouped = defaultdict(list)
     for source in bundle.sources:
         grouped[source.source_domain].append(source)
     groups: list[SourceCandidateSet] = []
+    conflicts: list[SourceConflict] = []
     unresolved_conflicts: list[str] = []
     selected_source_ids: list[str] = []
     for domain in SOURCE_DOMAIN_PRIORITY:
@@ -139,6 +169,9 @@ def build_resolved_source_set(config: ProjectConfig, bundle: ResearchBundle) -> 
         candidates.sort(key=lambda item: item.total_score, reverse=True)
         selected_ids = [item.source_id for item in candidates[:2]]
         unresolved = False
+        score_gap = 0.0
+        if len(candidates) > 1:
+            score_gap = round(candidates[0].total_score - candidates[1].total_score, 3)
         if config.require_india_only_data and domain in {
             SourceDomain.MARKET,
             SourceDomain.SITE,
@@ -153,6 +186,21 @@ def build_resolved_source_set(config: ProjectConfig, bundle: ResearchBundle) -> 
             unresolved = True
         if unresolved:
             unresolved_conflicts.append(domain.value)
+        if len(candidates) > 1 and (score_gap <= 5.0 or unresolved):
+            conflicts.append(
+                SourceConflict(
+                    conflict_id=f"{domain.value}_conflict",
+                    source_domain=domain,
+                    selected_source_id=selected_ids[0] if selected_ids else None,
+                    competing_source_ids=[candidate.source_id for candidate in candidates[1:3]],
+                    score_gap=score_gap,
+                    blocking=unresolved,
+                    rationale="Top-ranked sources remain close in score or fail the India-only requirement.",
+                    recommended_resolution="Prefer the highest-ranked India-grounded source or request analyst confirmation if the score gap remains narrow.",
+                    citations=selected_ids,
+                    assumptions=["Source conflict recorded when top-ranked evidence remains close or non-India-grounded."],
+                )
+            )
         selected_source_ids.extend(selected_ids)
         rows = [
             f"| {candidate.source_id} | {candidate.total_score:.1f} | {candidate.authority_score:.1f} | {candidate.recency_score:.1f} | {candidate.geography_score:.1f} |"
@@ -189,6 +237,7 @@ def build_resolved_source_set(config: ProjectConfig, bundle: ResearchBundle) -> 
         groups=groups,
         selected_source_ids=sorted(dict.fromkeys(selected_source_ids)),
         unresolved_conflicts=sorted(set(unresolved_conflicts)),
+        conflicts=conflicts,
         markdown="\n".join(lines),
         citations=sorted(dict.fromkeys(selected_source_ids)),
         assumptions=["Resolved-source selection is deterministic and public-data-only oriented."],
@@ -245,6 +294,7 @@ def build_resolved_value_artifact(
     return ResolvedValueArtifact(
         values=resolved_values,
         unresolved_value_ids=sorted(set(unresolved_value_ids)),
+        property_estimates=_property_estimates_from_values(resolved_values),
         markdown="\n".join(lines),
         citations=sorted({source_id for value in resolved_values for source_id in value.source_ids}),
         assumptions=property_gap.assumptions,
@@ -301,6 +351,7 @@ def extend_resolved_value_artifact(
     return ResolvedValueArtifact(
         values=values,
         unresolved_value_ids=sorted(unresolved_value_ids),
+        property_estimates=_property_estimates_from_values(values),
         markdown="\n".join(lines),
         citations=sorted({source_id for value in values for source_id in value.source_ids}),
         assumptions=existing.assumptions + [f"Resolved values extended with {context}."],

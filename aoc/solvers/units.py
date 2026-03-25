@@ -16,6 +16,9 @@ from aoc.models import (
     SensitivityLevel,
     StorageDesign,
     StreamTable,
+    UnitOperationPacket,
+    UnitThermalPacket,
+    UtilityArchitectureDecision,
 )
 from aoc.value_engine import make_value_record
 
@@ -38,6 +41,54 @@ def _product_stream_id(stream_table: StreamTable) -> str:
     return "S-401"
 
 
+def _unit_operation_packet(
+    stream_table: StreamTable,
+    *,
+    unit_ids: tuple[str, ...] = (),
+    unit_types: tuple[str, ...] = (),
+) -> UnitOperationPacket | None:
+    for packet in stream_table.unit_operation_packets:
+        if unit_ids and packet.unit_id in unit_ids:
+            return packet
+        if unit_types and packet.unit_type in unit_types:
+            return packet
+    return None
+
+
+def _thermal_packet(
+    energy_balance: EnergyBalance,
+    *,
+    unit_ids: tuple[str, ...] = (),
+    prefer: str = "any",
+) -> UnitThermalPacket | None:
+    matches = [
+        packet
+        for packet in energy_balance.unit_thermal_packets
+        if not unit_ids or packet.unit_id in unit_ids
+    ]
+    if prefer == "heating":
+        matches = [packet for packet in matches if packet.heating_kw > 0.0] or matches
+    elif prefer == "cooling":
+        matches = [packet for packet in matches if packet.cooling_kw > 0.0] or matches
+    return max(matches, key=lambda packet: max(packet.heating_kw, packet.cooling_kw), default=None)
+
+
+def _train_steps_for_units(
+    utility_architecture: UtilityArchitectureDecision | None,
+    *,
+    source_unit_ids: tuple[str, ...] = (),
+    sink_unit_ids: tuple[str, ...] = (),
+) -> list:
+    if utility_architecture is None:
+        return []
+    return [
+        step
+        for step in utility_architecture.architecture.selected_train_steps
+        if (source_unit_ids and step.source_unit_id in source_unit_ids)
+        or (sink_unit_ids and step.sink_unit_id in sink_unit_ids)
+    ]
+
+
 def _duty_for_prefix(energy_balance: EnergyBalance, prefixes: tuple[str, ...]) -> float:
     matches = [
         max(duty.heating_kw, duty.cooling_kw)
@@ -56,9 +107,11 @@ def build_reactor_design_generic(
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
     reactor_choice: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> ReactorDesign:
     reactor_type = reactor_choice.selected_candidate_id if reactor_choice and reactor_choice.selected_candidate_id else "jacketed_cstr"
-    feed_mass = _feed_mass(stream_table)
+    reactor_packet = _unit_operation_packet(stream_table, unit_ids=("reactor",), unit_types=("reactor",))
+    feed_mass = reactor_packet.inlet_mass_flow_kg_hr if reactor_packet is not None else _feed_mass(stream_table)
     density = 1150.0 if "solid" in reactor_type else 1020.0 if "aqueous" in reactor_type or "hydrator" in reactor_type else 900.0
     volumetric_flow_m3_hr = max(feed_mass / density, 0.1)
     residence_time = reaction_system.excess_ratio * 0.03 + route.residence_time_hr
@@ -75,9 +128,31 @@ def build_reactor_design_generic(
         liquid_holdup_m3 = volumetric_flow_m3_hr * residence_time * 1.15
         design_factor = 1.22
     design_volume = liquid_holdup_m3 * design_factor
-    reactor_duty = _duty_for_prefix(energy_balance, ("R-", "CONV"))
-    u_value = 850.0 if "plug_flow" in reactor_type or "hydrator" in reactor_type else 600.0
-    lmtd = 24.0 if reactor_duty > 0 else 18.0
+    reactor_thermal = _thermal_packet(energy_balance, unit_ids=("R-101", "CONV-101"), prefer="cooling")
+    reactor_train_steps = _train_steps_for_units(
+        utility_architecture,
+        source_unit_ids=("R-101", "CONV-101", "reactor"),
+        sink_unit_ids=("R-101", "CONV-101", "reactor"),
+    )
+    integrated_recovery = sum(step.recovered_duty_kw for step in reactor_train_steps)
+    reactor_duty = max(
+        reactor_thermal.cooling_kw if reactor_thermal and reactor_thermal.cooling_kw > 0.0 else 0.0,
+        reactor_thermal.heating_kw if reactor_thermal and reactor_thermal.heating_kw > 0.0 else 0.0,
+        _duty_for_prefix(energy_balance, ("R-", "CONV")),
+    )
+    uses_htm_loop = any(step.medium.lower() != "direct" for step in reactor_train_steps)
+    u_value = 500.0 if uses_htm_loop else 850.0 if "plug_flow" in reactor_type or "hydrator" in reactor_type else 600.0
+    if reactor_thermal is not None:
+        lmtd = max(
+            (
+                reactor_thermal.hot_supply_temp_c - reactor_thermal.cold_target_temp_c
+                if reactor_duty > 0 and reactor_thermal.cooling_kw > 0.0
+                else reactor_thermal.cold_target_temp_c - reactor_thermal.cold_supply_temp_c
+            ),
+            18.0,
+        )
+    else:
+        lmtd = 24.0 if reactor_duty > 0 else 18.0
     area = max((reactor_duty * 1000.0) / max(u_value * lmtd, 1.0), 1.0)
     shell_diameter = max((4.0 * design_volume / (math.pi * 5.0)) ** (1.0 / 3.0), 1.1)
     shell_length = max(design_volume / (math.pi * (shell_diameter / 2.0) ** 2), 4.5)
@@ -95,6 +170,30 @@ def build_reactor_design_generic(
         CalcTrace(trace_id="reactor_design_volume", title="Reactor design volume", formula="Vd = V * design_factor", substitutions={"V": f"{liquid_holdup_m3:.3f}", "factor": f"{design_factor:.3f}"}, result=f"{design_volume:.3f}", units="m3"),
         CalcTrace(trace_id="reactor_reynolds", title="Reactor-side Reynolds number", formula="Re = rho * v * Dh / mu", substitutions={"rho": f"{density:.1f}", "v": f"{velocity_m_s:.3f}", "Dh": f"{hydraulic_diameter_m:.3f}", "mu": f"{viscosity_pa_s:.5f}"}, result=f"{reynolds:.1f}", units="-"),
         CalcTrace(trace_id="reactor_nusselt", title="Reactor-side Nusselt number", formula="Nu = 0.023 Re^0.8 Pr^0.4", substitutions={"Re": f"{reynolds:.1f}", "Pr": f"{prandtl:.2f}"}, result=f"{nusselt:.2f}", units="-"),
+        CalcTrace(
+            trace_id="reactor_packet_basis",
+            title="Solved reactor packet basis",
+            formula="reactor packet -> inlet mass and thermal duty",
+            substitutions={
+                "packet_inlet_mass_kg_hr": f"{reactor_packet.inlet_mass_flow_kg_hr:.3f}" if reactor_packet else "fallback",
+                "thermal_packet": reactor_thermal.packet_id if reactor_thermal else "fallback",
+            },
+            result=f"{reactor_duty:.3f}",
+            units="kW",
+            notes="Reactor sizing now reads the solved reactor unit packet and thermal packet before falling back to route-level heuristics.",
+        ),
+        CalcTrace(
+            trace_id="reactor_utility_integration_basis",
+            title="Reactor utility-train coupling",
+            formula="Integrated reactor duty = sum(selected train steps tied to reactor source/sink)",
+            substitutions={
+                "selected_steps": ", ".join(step.step_id for step in reactor_train_steps) or "none",
+                "topology": utility_architecture.architecture.topology_summary if utility_architecture else "none",
+            },
+            result=f"{integrated_recovery:.3f}",
+            units="kW",
+            notes="This captures recovered reactor duty exported to or imported from the selected utility train.",
+        ),
     ]
     return ReactorDesign(
         reactor_id="R-101",
@@ -115,7 +214,15 @@ def build_reactor_design_generic(
         nusselt_number=round(nusselt, 2),
         number_of_tubes=tube_count,
         tube_length_m=round(tube_length, 3),
-        cooling_medium="Dowtherm / cooling water" if reactor_duty > 0 else "Steam / hot oil",
+        cooling_medium=(
+            " / ".join(reactor_thermal.candidate_media[:2])
+            if reactor_thermal and reactor_thermal.candidate_media
+            else "Dowtherm / cooling water" if reactor_duty > 0 else "Steam / hot oil"
+        ),
+        utility_topology=utility_architecture.architecture.topology_summary if utility_architecture else "",
+        integrated_thermal_duty_kw=round(integrated_recovery, 3),
+        residual_utility_duty_kw=round(max(reactor_duty - integrated_recovery, 0.0), 3),
+        selected_train_step_ids=[step.step_id for step in reactor_train_steps],
         calc_traces=traces,
         value_records=[
             make_value_record("reactor_design_volume", "Reactor design volume", design_volume, "m3", citations=route.citations, assumptions=route.assumptions, sensitivity=SensitivityLevel.HIGH),
@@ -132,9 +239,30 @@ def build_column_design_generic(
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
     separation_choice: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> ColumnDesign:
     separation_type = separation_choice.selected_candidate_id if separation_choice and separation_choice.selected_candidate_id else "distillation_train"
-    product_mass = _product_mass(stream_table)
+    if "absorption" in separation_type:
+        process_packet = _unit_operation_packet(stream_table, unit_ids=("regeneration",), unit_types=("stripping",))
+        heating_packet = _thermal_packet(energy_balance, unit_ids=("STR-201",), prefer="heating")
+        cooling_packet = _thermal_packet(energy_balance, unit_ids=("ABS-201", "STR-201"), prefer="cooling")
+    elif "crystallization" in separation_type or "filtration" in separation_type:
+        process_packet = _unit_operation_packet(stream_table, unit_ids=("filtration", "drying"), unit_types=("filtration", "drying"))
+        heating_packet = _thermal_packet(energy_balance, unit_ids=("DRY-301",), prefer="heating")
+        cooling_packet = _thermal_packet(energy_balance, unit_ids=("CRYS-201", "FILT-201"), prefer="cooling")
+    elif "extraction" in separation_type:
+        process_packet = _unit_operation_packet(stream_table, unit_ids=("purification",), unit_types=("extraction",))
+        heating_packet = _thermal_packet(energy_balance, unit_ids=("SR-301", "EXT-201"), prefer="heating")
+        cooling_packet = _thermal_packet(energy_balance, unit_ids=("DEC-201", "EXT-201"), prefer="cooling")
+    else:
+        process_packet = _unit_operation_packet(stream_table, unit_ids=("purification",), unit_types=("distillation", "evaporation"))
+        heating_packet = _thermal_packet(energy_balance, unit_ids=("D-101", "EV-101"), prefer="heating")
+        cooling_packet = _thermal_packet(energy_balance, unit_ids=("D-101", "V-101", "E-201"), prefer="cooling")
+    product_mass = (
+        max(process_packet.outlet_mass_flow_kg_hr * 0.72, _product_mass(stream_table))
+        if process_packet is not None and process_packet.outlet_mass_flow_kg_hr > 0.0
+        else _product_mass(stream_table)
+    )
     if "absorption" in separation_type:
         service = "Absorption tower train"
         light_key = "Offgas"
@@ -144,10 +272,10 @@ def build_column_design_generic(
         reflux = 0.20
         diameter = max(math.sqrt(product_mass / 9000.0), 1.5)
         height = 18.0
-        reboiler = max(energy_balance.total_heating_kw * 0.18, 1200.0)
-        condenser = max(energy_balance.total_cooling_kw * 0.45, 1800.0)
-        top_temp = 55.0
-        bottom_temp = 98.0
+        reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.18, 1200.0)
+        condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.45, 1800.0)
+        top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 55.0
+        bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 98.0
     elif "crystallization" in separation_type or "filtration" in separation_type:
         service = "Crystallizer / filtration / dryer equivalent train"
         light_key = "Mother liquor"
@@ -157,10 +285,10 @@ def build_column_design_generic(
         reflux = 0.10
         diameter = max(math.sqrt(product_mass / 12000.0), 1.2)
         height = 9.0
-        reboiler = max(energy_balance.total_heating_kw * 0.30, 900.0)
-        condenser = max(energy_balance.total_cooling_kw * 0.30, 900.0)
-        top_temp = 45.0
-        bottom_temp = 110.0
+        reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.30, 900.0)
+        condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.30, 900.0)
+        top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 45.0
+        bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 110.0
     elif "extraction" in separation_type:
         service = "Extraction and solvent recovery train"
         light_key = "Solvent-rich phase"
@@ -170,10 +298,10 @@ def build_column_design_generic(
         reflux = 0.35
         diameter = max(math.sqrt(product_mass / 10000.0), 1.4)
         height = 14.0
-        reboiler = max(energy_balance.total_heating_kw * 0.35, 1000.0)
-        condenser = max(energy_balance.total_cooling_kw * 0.40, 950.0)
-        top_temp = 62.0
-        bottom_temp = 132.0
+        reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.35, 1000.0)
+        condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.40, 950.0)
+        top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 62.0
+        bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 132.0
     else:
         service = "Distillation and purification train"
         light_key = "Water" if route.route_id == "eo_hydration" else "Light phase"
@@ -183,10 +311,15 @@ def build_column_design_generic(
         reflux = 1.45
         diameter = max(math.sqrt(product_mass / 8000.0), 1.8)
         height = stages * 0.75 + 4.0
-        reboiler = max(energy_balance.total_heating_kw * 0.55, 1200.0)
-        condenser = max(energy_balance.total_cooling_kw * 0.50, 1100.0)
-        top_temp = 92.0
-        bottom_temp = 198.0
+        reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.55, 1200.0)
+        condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.50, 1100.0)
+        top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 92.0
+        bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 198.0
+    process_unit_ids = ("purification", "concentration", "regeneration", "drying", "filtration")
+    heating_train_steps = _train_steps_for_units(utility_architecture, sink_unit_ids=process_unit_ids)
+    condenser_train_steps = _train_steps_for_units(utility_architecture, source_unit_ids=process_unit_ids)
+    integrated_reboiler = sum(step.recovered_duty_kw for step in heating_train_steps)
+    condenser_recovery = sum(step.recovered_duty_kw for step in condenser_train_steps)
     feed_stage = max(int(round(stages * 0.55)), 2)
     tray_spacing = 0.45
     flooding_fraction = min(max((product_mass / max(diameter ** 2 * 12000.0, 1.0)), 0.45), 0.82)
@@ -195,6 +328,32 @@ def build_column_design_generic(
         CalcTrace(trace_id="process_unit_service", title="Process-unit family", formula="service = selected separation family", result=service, units=""),
         CalcTrace(trace_id="process_unit_size", title="Equivalent diameter", formula="D = f(product throughput)", substitutions={"product_mass": f"{product_mass:.3f}"}, result=f"{diameter:.3f}", units="m"),
         CalcTrace(trace_id="process_unit_flooding", title="Flooding fraction", formula="fraction = superficial load / capacity proxy", substitutions={"product_mass": f"{product_mass:.3f}", "diameter": f"{diameter:.3f}"}, result=f"{flooding_fraction:.3f}", units="-"),
+        CalcTrace(
+            trace_id="column_packet_basis",
+            title="Solved process-unit packet basis",
+            formula="packet basis -> outlet throughput and matched thermal packets",
+            substitutions={
+                "process_packet": process_packet.packet_id if process_packet else "fallback",
+                "heating_packet": heating_packet.packet_id if heating_packet else "fallback",
+                "cooling_packet": cooling_packet.packet_id if cooling_packet else "fallback",
+            },
+            result=f"{reboiler:.3f}",
+            units="kW",
+            notes="Process-unit sizing now prefers solved separation and thermal packets before route-level utility heuristics.",
+        ),
+        CalcTrace(
+            trace_id="column_utility_integration_basis",
+            title="Process-unit utility-train coupling",
+            formula="Integrated reboiler duty = sum(selected train steps tied to process-unit cold sinks",
+            substitutions={
+                "heating_steps": ", ".join(step.step_id for step in heating_train_steps) or "none",
+                "condenser_steps": ", ".join(step.step_id for step in condenser_train_steps) or "none",
+                "topology": utility_architecture.architecture.topology_summary if utility_architecture else "none",
+            },
+            result=f"{integrated_reboiler:.3f}",
+            units="kW",
+            notes="This captures recovered duty delivered into the reboiler/process unit and heat recovered from condenser-side streams.",
+        ),
     ]
     return ColumnDesign(
         column_id="PU-201",
@@ -215,6 +374,11 @@ def build_column_design_generic(
         downcomer_area_fraction=round(downcomer_fraction, 3),
         top_temperature_c=round(top_temp, 1),
         bottom_temperature_c=round(bottom_temp, 1),
+        utility_topology=utility_architecture.architecture.topology_summary if utility_architecture else "",
+        integrated_reboiler_duty_kw=round(integrated_reboiler, 3),
+        residual_reboiler_utility_kw=round(max(reboiler - integrated_reboiler, 0.0), 3),
+        condenser_recovery_duty_kw=round(condenser_recovery, 3),
+        selected_train_step_ids=[step.step_id for step in heating_train_steps + condenser_train_steps],
         calc_traces=traces,
         value_records=[
             make_value_record("process_unit_stages", "Process-unit design stages", stages, "stages", citations=route.citations, assumptions=route.assumptions, sensitivity=SensitivityLevel.MEDIUM),
@@ -229,9 +393,35 @@ def build_heat_exchanger_design_generic(
     route: RouteOption,
     energy_balance: EnergyBalance,
     exchanger_choice: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> HeatExchangerDesign:
+    selected_train_steps = utility_architecture.architecture.selected_train_steps if utility_architecture is not None else []
     exchanger_type = exchanger_choice.selected_candidate_id if exchanger_choice and exchanger_choice.selected_candidate_id else "shell_and_tube"
-    duty = max((item.heating_kw or item.cooling_kw) for item in energy_balance.duties if item.unit_id.startswith("E-") or item.unit_id.startswith("D-") or item.unit_id.startswith("DRY"))
+    selected_step = max(selected_train_steps, key=lambda step: step.recovered_duty_kw, default=None)
+    preferred_unit_ids = tuple(
+        unit_id
+        for step in selected_train_steps
+        for unit_id in (step.source_unit_id, step.sink_unit_id)
+    )
+    packet = _thermal_packet(
+        energy_balance,
+        unit_ids=preferred_unit_ids or ("E-101", "E-201", "D-101", "EV-101", "DRY-301", "STR-201"),
+        prefer="heating",
+    ) or _thermal_packet(
+        energy_balance,
+        unit_ids=preferred_unit_ids or ("E-101", "E-201", "D-101", "EV-101", "DRY-301", "STR-201"),
+        prefer="cooling",
+    )
+    duty = max(
+        selected_step.recovered_duty_kw if selected_step is not None else 0.0,
+        packet.heating_kw if packet and packet.heating_kw > 0.0 else 0.0,
+        packet.cooling_kw if packet and packet.cooling_kw > 0.0 else 0.0,
+        max((item.heating_kw or item.cooling_kw) for item in energy_balance.duties if item.unit_id.startswith("E-") or item.unit_id.startswith("D-") or item.unit_id.startswith("DRY")),
+    )
+    if selected_step is not None and selected_step.medium.lower() != "direct":
+        exchanger_type = "kettle_reboiler" if "reboiler" in selected_step.service.lower() else exchanger_type
+    elif selected_step is not None and "feed" in selected_step.service.lower():
+        exchanger_type = "plate" if exchanger_choice is None else exchanger_type
     if "plate" in exchanger_type:
         u_value = 900.0
         lmtd = 18.0
@@ -244,6 +434,11 @@ def build_heat_exchanger_design_generic(
     else:
         u_value = 520.0
         lmtd = 30.0
+    if packet is not None:
+        if duty == packet.heating_kw:
+            lmtd = max(packet.hot_supply_temp_c - packet.cold_target_temp_c, 12.0)
+        else:
+            lmtd = max(packet.hot_supply_temp_c - packet.hot_target_temp_c, 12.0)
     area = max(duty * 1000.0 / max(u_value * lmtd, 1.0), 1.0)
     tube_length = 4.8 if "shell" in exchanger_type or "kettle" in exchanger_type else 2.2
     tube_area = math.pi * 0.019 * tube_length
@@ -251,7 +446,7 @@ def build_heat_exchanger_design_generic(
     shell_diameter = max(math.sqrt(area / 12.0), 0.5)
     return HeatExchangerDesign(
         exchanger_id="E-101",
-        service=exchanger_type.replace("_", " ").title(),
+        service=selected_step.service if selected_step is not None else exchanger_type.replace("_", " ").title(),
         heat_load_kw=round(duty, 3),
         lmtd_k=round(lmtd, 3),
         overall_u_w_m2_k=round(u_value, 3),
@@ -262,7 +457,23 @@ def build_heat_exchanger_design_generic(
         tube_length_m=round(tube_length, 3),
         shell_passes=1,
         tube_passes=2 if "plate" not in exchanger_type else 1,
-        calc_traces=[CalcTrace(trace_id="exchanger_area", title="Exchanger area", formula="A = Q/(U*dTlm)", substitutions={"Q": f"{duty * 1000.0:.1f}", "U": f"{u_value:.1f}", "dTlm": f"{lmtd:.1f}"}, result=f"{area:.3f}", units="m2")],
+        utility_topology=utility_architecture.architecture.topology_summary if utility_architecture is not None else "",
+        selected_train_step_id=selected_step.step_id if selected_step is not None else None,
+        calc_traces=[
+            CalcTrace(trace_id="exchanger_area", title="Exchanger area", formula="A = Q/(U*dTlm)", substitutions={"Q": f"{duty * 1000.0:.1f}", "U": f"{u_value:.1f}", "dTlm": f"{lmtd:.1f}"}, result=f"{area:.3f}", units="m2"),
+            CalcTrace(
+                trace_id="exchanger_packet_basis",
+                title="Solved exchanger packet basis",
+                formula="packet basis -> selected thermal packet",
+                substitutions={
+                    "thermal_packet": packet.packet_id if packet else "fallback",
+                    "selected_train_step": selected_step.step_id if selected_step else "fallback",
+                },
+                result=f"{duty:.3f}",
+                units="kW",
+                notes="Exchanger sizing now prefers the selected utility-train step and solved thermal packet before aggregate-duty fallback.",
+            ),
+        ],
         value_records=[
             make_value_record("exchanger_area", "Exchanger area", area, "m2", citations=energy_balance.citations, assumptions=energy_balance.assumptions, sensitivity=SensitivityLevel.MEDIUM),
         ],

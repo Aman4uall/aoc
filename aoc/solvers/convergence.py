@@ -37,3 +37,24 @@ def solve_recycle_loop(
         "iterations": iteration,
         "converged": iteration < max_iterations,
     }
+
+
+def solve_multi_component_recycle_loop(
+    target_total_flows: dict[str, float],
+    consumed_flows: dict[str, float],
+    recovery_fractions: dict[str, float],
+    purge_fractions: dict[str, float],
+    tolerance: float = 1e-6,
+    max_iterations: int = 50,
+) -> dict[str, dict[str, float | int | bool]]:
+    results: dict[str, dict[str, float | int | bool]] = {}
+    for key, target_total in target_total_flows.items():
+        results[key] = solve_recycle_loop(
+            target_total_flow=target_total,
+            consumed_flow=consumed_flows.get(key, 0.0),
+            recovery_fraction=recovery_fractions.get(key, 0.0),
+            purge_fraction=purge_fractions.get(key, 0.0),
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+        )
+    return results

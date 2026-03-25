@@ -5,9 +5,13 @@ import math
 from aoc.models import (
     CalcTrace,
     EquipmentListArtifact,
+    MechanicalDesignBasis,
     MechanicalComponentDesign,
     MechanicalDesignArtifact,
+    NozzleSchedule,
     SensitivityLevel,
+    SupportDesign,
+    VesselMechanicalDesign,
 )
 from aoc.value_engine import make_value_record
 
@@ -130,3 +134,55 @@ def build_mechanical_design_artifact(equipment: EquipmentListArtifact) -> Mechan
         citations=sorted({citation for item in items for citation in item.citations}),
         assumptions=[assumption for item in items for assumption in item.assumptions],
     )
+
+
+def build_mechanical_design_basis(mechanical_design: MechanicalDesignArtifact) -> MechanicalDesignBasis:
+    return MechanicalDesignBasis(
+        basis_id="mechanical_screening_basis",
+        code_basis="ASME-style screening logic",
+        design_pressure_basis="Selected equipment design pressure with feasibility-study margin",
+        design_temperature_basis="Selected equipment design temperature with preliminary utility envelope",
+        corrosion_allowance_mm=max((item.corrosion_allowance_mm for item in mechanical_design.items), default=3.0),
+        markdown="Mechanical basis uses ASME-style screening equations for shell, head, nozzle, and support sizing.",
+        citations=mechanical_design.citations,
+        assumptions=mechanical_design.assumptions,
+    )
+
+
+def build_vessel_mechanical_designs(mechanical_design: MechanicalDesignArtifact) -> list[VesselMechanicalDesign]:
+    vessel_designs: list[VesselMechanicalDesign] = []
+    for item in mechanical_design.items:
+        support = SupportDesign(
+            equipment_id=item.equipment_id,
+            support_type=item.support_type,
+            support_load_basis_kn=round(max(item.support_thickness_mm * 3.8, 25.0), 3),
+            support_thickness_mm=item.support_thickness_mm,
+            anchor_bolt_diameter_mm=round(max(item.nozzle_diameter_mm * 0.22, 20.0), 3),
+            base_plate_thickness_mm=round(max(item.support_thickness_mm * 0.85, 18.0), 3),
+            markdown=f"{item.equipment_id} uses {item.support_type} with screening anchor-bolt and base-plate sizing.",
+            citations=item.citations,
+            assumptions=item.assumptions,
+        )
+        nozzle_schedule = NozzleSchedule(
+            equipment_id=item.equipment_id,
+            nozzle_count=4 if "column" in item.equipment_type.lower() else 3,
+            nozzle_diameters_mm=[item.nozzle_diameter_mm] * (4 if "column" in item.equipment_type.lower() else 3),
+            nozzle_services=["feed", "product", "vent", "instrument"][: (4 if "column" in item.equipment_type.lower() else 3)],
+            markdown=f"Nozzle schedule for {item.equipment_id} derived from screening nozzle diameter {item.nozzle_diameter_mm:.1f} mm.",
+            citations=item.citations,
+            assumptions=item.assumptions,
+        )
+        vessel_designs.append(
+            VesselMechanicalDesign(
+                equipment_id=item.equipment_id,
+                shell_thickness_mm=item.shell_thickness_mm,
+                head_thickness_mm=item.head_thickness_mm,
+                corrosion_allowance_mm=item.corrosion_allowance_mm,
+                support_design=support,
+                nozzle_schedule=nozzle_schedule,
+                markdown=f"Preliminary vessel mechanical design generated for {item.equipment_id}.",
+                citations=item.citations,
+                assumptions=item.assumptions,
+            )
+        )
+    return vessel_designs

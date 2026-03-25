@@ -5,6 +5,7 @@ import json
 import math
 
 from aoc.archetypes import build_alternative_sets, classify_process_archetype
+from aoc.agent_fabric import build_agent_decision_fabric
 from aoc.benchmarks import build_benchmark_manifest
 from aoc.calculators import (
     annual_output_kg,
@@ -34,10 +35,14 @@ from aoc.decision_engine import (
     selected_heat_case,
 )
 from aoc.economics_v2 import (
+    build_debt_schedule,
     build_economic_scenario_model_v2,
     build_financing_basis_decision,
+    build_financial_schedule,
     build_logistics_basis_decision,
+    build_plant_cost_summary,
     build_procurement_basis_decision,
+    build_tax_depreciation_basis,
 )
 from aoc.evidence import build_resolved_source_set, build_resolved_value_artifact, extend_resolved_value_artifact
 from aoc.flowsheet import (
@@ -48,26 +53,33 @@ from aoc.flowsheet import (
     build_layout_decision,
 )
 from aoc.methods import build_capacity_decision, build_kinetics_method_decision, build_thermo_method_decision
-from aoc.mechanical import build_mechanical_design_artifact
+from aoc.mechanical import build_mechanical_design_artifact, build_mechanical_design_basis, build_vessel_mechanical_designs
 from aoc.models import (
+    AgentDecisionFabricArtifact,
     BenchmarkManifest,
     ChapterArtifact,
     ChapterStatus,
     ColumnDesign,
+    ColumnHydraulics,
     ControlArchitectureDecision,
     ControlPlanArtifact,
     CostModel,
+    DebtSchedule,
     DecisionRecord,
+    EquipmentDatasheet,
     EconomicScenarioModel,
     EnergyBalance,
     EquipmentListArtifact,
     FinalReport,
     FinancialModel,
+    FinancialSchedule,
     FlowsheetGraph,
+    FlowsheetCase,
     GateDecision,
     GateStatus,
     HazopNode,
     HazopNodeRegister,
+    HeatExchangerThermalDesign,
     HazopStudyArtifact,
     HeatExchangerDesign,
     HeatIntegrationStudyArtifact,
@@ -75,8 +87,11 @@ from aoc.models import (
     LayoutDecisionArtifact,
     MarketAssessmentArtifact,
     MechanicalDesignArtifact,
+    MechanicalDesignBasis,
     MethodSelectionArtifact,
     NarrativeArtifact,
+    PlantCostSummary,
+    PumpDesign,
     ProcessArchetype,
     ProcessSynthesisArtifact,
     ProcessNarrativeArtifact,
@@ -87,6 +102,7 @@ from aoc.models import (
     ProjectRunState,
     ReactionSystem,
     ReactorDesign,
+    ReactorDesignBasis,
     ResearchBundle,
     ResolvedSourceSet,
     ResolvedValueArtifact,
@@ -95,15 +111,19 @@ from aoc.models import (
     RouteSelectionArtifact,
     RouteSurveyArtifact,
     RunStatus,
+    SolveResult,
     SensitivityLevel,
     Severity,
     SiteSelectionArtifact,
     StorageDesign,
     StreamTable,
+    TaxDepreciationBasis,
     ThermoAssessmentArtifact,
+    UtilityArchitectureDecision,
     UtilitySummaryArtifact,
     UtilityNetworkDecision,
     ValidationIssue,
+    VesselMechanicalDesign,
     WorkingCapitalModel,
     utc_now,
 )
@@ -118,7 +138,16 @@ from aoc.selectors import (
     select_separation_configuration,
     select_storage_configuration,
 )
+from aoc.design_artifacts import (
+    build_column_hydraulics,
+    build_equipment_datasheets,
+    build_heat_exchanger_thermal_design,
+    build_pump_design,
+    build_reactor_design_basis,
+)
+from aoc.solver_architecture import build_flowsheet_case, build_solve_result
 from aoc.store import ArtifactStore
+from aoc.utility_architecture import build_utility_architecture_decision
 from aoc.validators import (
     apply_state_issues,
     validate_chapter,
@@ -126,8 +155,10 @@ from aoc.validators import (
     validate_cost_model,
     validate_cross_chapter_consistency,
     validate_decision_record,
+    validate_energy_balance,
     validate_equipment_applicability,
     validate_financial_model,
+    validate_flowsheet_case,
     validate_flowsheet_graph,
     validate_control_architecture,
     validate_hazop_node_register,
@@ -142,6 +173,7 @@ from aoc.validators import (
     validate_resolved_source_set,
     validate_resolved_value_artifact,
     validate_site_selection_consistency,
+    validate_solve_result,
     validate_reactor_design,
     validate_research_bundle,
     validate_route_balance,
@@ -179,7 +211,7 @@ STAGES = [
     StageSpec("product_profile", "Introduction and product profile", ("research_bundle",), ("product_profile",)),
     StageSpec("market_capacity", "Market and capacity selection", ("research_bundle",), ("market_assessment", "capacity_decision")),
     StageSpec("literature_route_survey", "Literature survey", ("research_bundle",), ("route_survey",)),
-    StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources"), ("property_gap", "resolved_values"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
+    StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources"), ("property_gap", "resolved_values", "agent_decision_fabric"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
     StageSpec("site_selection", "Site selection", ("research_bundle",), ("site_selection", "site_selection_decision")),
     StageSpec("process_synthesis", "Process synthesis", ("route_survey", "property_gap"), ("process_synthesis",)),
     StageSpec("rough_alternative_balances", "Rough alternative balances", ("process_synthesis", "market_assessment"), ("rough_alternatives",)),
@@ -189,20 +221,20 @@ STAGES = [
     StageSpec("kinetic_feasibility", "Kinetics", ("route_selection", "route_survey", "research_bundle"), ("kinetic_assessment", "kinetics_method_decision")),
     StageSpec("block_diagram", "Block diagram", ("route_selection", "route_survey", "research_bundle"), ("process_narrative",)),
     StageSpec("process_description", "Process description", ("process_narrative",), ("process_narrative",)),
-    StageSpec("material_balance", "Material balance", ("route_selection", "kinetic_assessment", "process_narrative"), ("reaction_system", "stream_table", "flowsheet_graph")),
-    StageSpec("energy_balance", "Energy balance", ("stream_table", "thermo_assessment"), ("energy_balance",), "design_basis", "Design Basis Lock", "Approve thermo, kinetics, process narrative, and balance basis before detailed design."),
-    StageSpec("reactor_design", "Reactor design", ("reaction_system", "stream_table", "energy_balance"), ("reactor_design",)),
-    StageSpec("distillation_design", "Distillation/process-unit design", ("stream_table", "energy_balance"), ("column_design", "heat_exchanger_design", "exchanger_choice_decision")),
-    StageSpec("equipment_sizing", "Equipment sizing", ("reactor_design", "column_design", "heat_exchanger_design"), ("storage_design", "equipment_list", "storage_choice_decision", "moc_choice_decision"), "equipment_basis", "Reactor/Column Design Basis", "Approve reactor, column, exchanger, and storage design basis before downstream detailing."),
-    StageSpec("mechanical_design_moc", "Mechanical design and materials of construction", ("equipment_list", "route_selection"), ("mechanical_design",)),
-    StageSpec("storage_utilities", "Storage and utilities", ("storage_design", "equipment_list", "energy_balance"), ("utility_summary", "utility_basis_decision")),
+    StageSpec("material_balance", "Material balance", ("route_selection", "kinetic_assessment", "process_narrative"), ("reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case")),
+    StageSpec("energy_balance", "Energy balance", ("stream_table", "thermo_assessment"), ("energy_balance", "solve_result"), "design_basis", "Design Basis Lock", "Approve thermo, kinetics, process narrative, and balance basis before detailed design."),
+    StageSpec("reactor_design", "Reactor design", ("reaction_system", "stream_table", "energy_balance"), ("reactor_design", "reactor_design_basis")),
+    StageSpec("distillation_design", "Distillation/process-unit design", ("stream_table", "energy_balance"), ("column_design", "column_hydraulics", "heat_exchanger_design", "heat_exchanger_thermal_design", "exchanger_choice_decision")),
+    StageSpec("equipment_sizing", "Equipment sizing", ("reactor_design", "column_design", "heat_exchanger_design"), ("storage_design", "pump_design", "equipment_list", "equipment_datasheets", "storage_choice_decision", "moc_choice_decision"), "equipment_basis", "Reactor/Column Design Basis", "Approve reactor, column, exchanger, and storage design basis before downstream detailing."),
+    StageSpec("mechanical_design_moc", "Mechanical design and materials of construction", ("equipment_list", "route_selection"), ("mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs")),
+    StageSpec("storage_utilities", "Storage and utilities", ("storage_design", "equipment_list", "energy_balance"), ("utility_summary", "utility_basis_decision", "utility_architecture")),
     StageSpec("instrumentation_control", "Instrumentation and process control", ("equipment_list", "utility_summary", "flowsheet_graph"), ("control_plan", "control_architecture")),
     StageSpec("hazop_she", "HAZOP and SHE", ("equipment_list", "route_selection", "flowsheet_graph", "control_plan"), ("hazop_study", "hazop_node_register", "safety_environment"), "hazop", "HAZOP Gate", "Approve critical HAZOP nodes and SHE safeguards before layout and economics are released."),
     StageSpec("layout_waste", "Project and plant layout", ("equipment_list", "utility_summary", "site_selection"), ("layout_plan", "layout_decision")),
-    StageSpec("project_cost", "Project cost", ("equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection"), ("cost_model", "procurement_basis_decision", "logistics_basis_decision")),
+    StageSpec("project_cost", "Project cost", ("equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection"), ("cost_model", "plant_cost_summary", "procurement_basis_decision", "logistics_basis_decision")),
     StageSpec("cost_of_production", "Cost of production", ("cost_model",), ("cost_model",)),
     StageSpec("working_capital", "Working capital", ("cost_model", "market_assessment"), ("working_capital_model",)),
-    StageSpec("financial_analysis", "Financial analysis", ("cost_model", "working_capital_model", "market_assessment"), ("financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios"), "india_cost_basis", "India Cost Basis", "Approve India site and economics basis before final assembly."),
+    StageSpec("financial_analysis", "Financial analysis", ("cost_model", "working_capital_model", "market_assessment"), ("financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios", "debt_schedule", "tax_depreciation_basis", "financial_schedule"), "india_cost_basis", "India Cost Basis", "Approve India site and economics basis before final assembly."),
     StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report",), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
 ]
 
@@ -358,6 +390,7 @@ class PipelineRunner:
         resolved_sources = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_sources.json", ResolvedSourceSet)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
+        agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
         process_archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
         process_synthesis = self.store.maybe_load_model(self.config.project_id, "artifacts/process_synthesis.json", ProcessSynthesisArtifact)
         capacity_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/capacity_decision.json", DecisionRecord)
@@ -377,6 +410,12 @@ class PipelineRunner:
         kinetics_method = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_method_decision.json", MethodSelectionArtifact)
         layout_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/layout_decision.json", LayoutDecisionArtifact)
         heat_study = self.store.maybe_load_model(self.config.project_id, "artifacts/heat_integration_study.json", HeatIntegrationStudyArtifact)
+        flowsheet_case = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_case.json", FlowsheetCase)
+        solve_result = self.store.maybe_load_model(self.config.project_id, "artifacts/solve_result.json", SolveResult)
+        utility_architecture = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_architecture.json", UtilityArchitectureDecision)
+        plant_cost_summary = self.store.maybe_load_model(self.config.project_id, "artifacts/plant_cost_summary.json", PlantCostSummary)
+        debt_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/debt_schedule.json", DebtSchedule)
+        financial_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/financial_schedule.json", FinancialSchedule)
         if benchmark_manifest:
             lines.append("")
             lines.append("benchmark:")
@@ -387,6 +426,11 @@ class PipelineRunner:
             lines.append("source_resolution:")
             lines.append(f"- selected_sources: {len(resolved_sources.selected_source_ids)}")
             lines.append(f"- unresolved_conflicts: {', '.join(resolved_sources.unresolved_conflicts) or 'none'}")
+            if resolved_sources.conflicts:
+                for conflict in resolved_sources.conflicts[:5]:
+                    lines.append(
+                        f"- conflict[{conflict.source_domain.value}]: selected={conflict.selected_source_id or 'none'}; competing={', '.join(conflict.competing_source_ids) or 'none'}; blocking={'yes' if conflict.blocking else 'no'}"
+                    )
         if property_gap:
             lines.append("")
             lines.append("value_resolution:")
@@ -394,6 +438,8 @@ class PipelineRunner:
             lines.append(f"- unresolved_high_sensitivity: {unresolved}")
         if resolved_values:
             lines.append(f"- evidence_lock_unresolved: {', '.join(resolved_values.unresolved_value_ids) or 'none'}")
+            if resolved_values.property_estimates:
+                lines.append(f"- property_estimates: {len(resolved_values.property_estimates)}")
         if process_archetype:
             lines.append("")
             lines.append("archetype:")
@@ -423,6 +469,25 @@ class PipelineRunner:
                 lines.append(
                     f"- {alt_set.set_id}: selected={alt_set.selected_candidate_id or 'n/a'}; candidates={len(alt_set.alternatives)}; stability={alt_set.scenario_stability.value}"
                 )
+        if agent_fabric:
+            lines.append("")
+            lines.append("agent_fabric:")
+            lines.append(f"- packets: {len(agent_fabric.packets)}")
+            warning_packets = sum(1 for packet in agent_fabric.packets for verdict in packet.critic_verdicts if verdict.status == "warning")
+            blocked_packets = sum(1 for packet in agent_fabric.packets for verdict in packet.critic_verdicts if verdict.status == "blocked")
+            lines.append(f"- critic_warnings: {warning_packets}")
+            lines.append(f"- critic_blocked: {blocked_packets}")
+        if flowsheet_case or solve_result:
+            lines.append("")
+            lines.append("flowsheet_solver:")
+            if flowsheet_case:
+                lines.append(
+                    f"- units: {len(flowsheet_case.units)}; streams: {len(flowsheet_case.streams)}; separations: {len(flowsheet_case.separations)}; recycle_loops: {len(flowsheet_case.recycle_loops)}"
+                )
+            if solve_result:
+                lines.append(
+                    f"- convergence: {solve_result.convergence_status}; closure_error_pct: {solve_result.overall_closure_error_pct:.3f}; critic_messages: {len(solve_result.critic_messages)}"
+                )
         if heat_study:
             lines.append("")
             lines.append("heat_integration:")
@@ -431,10 +496,25 @@ class PipelineRunner:
                 lines.append(
                     f"- {route_case.route_id}: case={selected_case.case_id if selected_case else 'n/a'}; recovered_kw={selected_case.recovered_duty_kw if selected_case else 0.0:.1f}; savings_inr={selected_case.annual_savings_inr if selected_case else 0.0:.2f}"
                 )
+        if utility_architecture:
+            lines.append("")
+            lines.append("utility_architecture:")
+            lines.append(f"- topology: {utility_architecture.architecture.topology_summary}")
+            lines.append(f"- selected_case: {utility_architecture.architecture.selected_case_id or 'n/a'}")
+            lines.append(f"- train_steps: {len(utility_architecture.architecture.selected_train_steps)}")
         if layout_decision:
             lines.append("")
             lines.append("layout:")
             lines.append(f"- basis: {layout_decision.winning_layout_basis}")
+        if plant_cost_summary or debt_schedule or financial_schedule:
+            lines.append("")
+            lines.append("economics_v3:")
+            if plant_cost_summary:
+                lines.append(f"- total_project_cost_inr: {plant_cost_summary.total_project_cost_inr:,.2f}")
+            if debt_schedule:
+                lines.append(f"- debt_schedule_years: {len(debt_schedule.entries)}")
+            if financial_schedule:
+                lines.append(f"- financial_schedule_years: {len(financial_schedule.lines)}")
         return "\n".join(lines)
 
     def _require_state(self) -> ProjectRunState:
@@ -448,6 +528,48 @@ class PipelineRunner:
 
     def _save(self, name: str, model) -> None:
         self.store.save_model(self.config.project_id, f"artifacts/{name}.json", model)
+
+    def _maybe_load(self, name: str, model_type):
+        return self.store.maybe_load_model(self.config.project_id, f"artifacts/{name}.json", model_type)
+
+    def _refresh_agent_fabric(self) -> None:
+        resolved_sources = self._maybe_load("resolved_sources", ResolvedSourceSet)
+        resolved_values = self._maybe_load("resolved_values", ResolvedValueArtifact)
+        decision_names = [
+            "capacity_decision",
+            "site_selection_decision",
+            "route_decision",
+            "reactor_choice_decision",
+            "separation_choice_decision",
+            "exchanger_choice_decision",
+            "storage_choice_decision",
+            "moc_choice_decision",
+            "utility_basis_decision",
+            "procurement_basis_decision",
+            "logistics_basis_decision",
+            "financing_basis_decision",
+            "economic_basis_decision",
+        ]
+        decisions = [decision for name in decision_names if (decision := self._maybe_load(name, DecisionRecord)) is not None]
+        thermo_method = self._maybe_load("thermo_method_decision", MethodSelectionArtifact)
+        kinetics_method = self._maybe_load("kinetics_method_decision", MethodSelectionArtifact)
+        control_architecture = self._maybe_load("control_architecture", ControlArchitectureDecision)
+        layout_decision = self._maybe_load("layout_decision", LayoutDecisionArtifact)
+        utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision)
+        if thermo_method:
+            decisions.append(thermo_method.decision)
+        if kinetics_method:
+            decisions.append(kinetics_method.decision)
+        if control_architecture:
+            decisions.append(control_architecture.decision)
+        if layout_decision:
+            decisions.append(layout_decision.decision)
+        if utility_architecture:
+            decisions.append(utility_architecture.decision)
+        if not any([resolved_sources, resolved_values, decisions]):
+            return
+        artifact = build_agent_decision_fabric(resolved_sources, resolved_values, decisions)
+        self._save("agent_decision_fabric", artifact)
 
     def _chapter(
         self,
@@ -578,6 +700,7 @@ class PipelineRunner:
         capacity_decision = build_capacity_decision(self.config, artifact)
         self._save("market_assessment", artifact)
         self._save("capacity_decision", capacity_decision)
+        self._refresh_agent_fabric()
         issues = validate_india_price_data(artifact.india_price_data, self._source_ids(), self.config, "market_assessment")
         chapter = self._chapter(
             "market_capacity_selection",
@@ -635,6 +758,7 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, market_value_records, resolved_sources, self.config, "market_capacity")
         self._save("property_gap", artifact)
         self._save("resolved_values", resolved_values)
+        self._refresh_agent_fabric()
         issues = validate_property_gap_artifact(artifact, self.config)
         issues.extend(validate_resolved_value_artifact(resolved_values, self._source_ids(), self.config))
         gate = None
@@ -707,6 +831,7 @@ class PipelineRunner:
         self._save("reactor_choice_decision", reactor_choice)
         self._save("separation_choice_decision", separation_choice)
         self._save("utility_network_decision", utility_network)
+        self._refresh_agent_fabric()
         issues = (
             validate_route_balance(selected_route)
             + validate_decision_record(route_decision, "route_decision")
@@ -743,6 +868,7 @@ class PipelineRunner:
         artifact.selected_site = site_decision.selected_candidate_id or artifact.selected_site
         self._save("site_selection", artifact)
         self._save("site_selection_decision", site_decision)
+        self._refresh_agent_fabric()
         chapter = self._chapter(
             "site_selection",
             "Site Selection",
@@ -809,6 +935,7 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(resolved_values, artifact.value_records, resolved_sources, self.config, "thermodynamic_feasibility"),
         )
+        self._refresh_agent_fabric()
         chapter = self._chapter(
             "thermodynamic_feasibility",
             "Thermodynamic Feasibility",
@@ -889,6 +1016,7 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(resolved_values, artifact.value_records, resolved_sources, self.config, "kinetic_feasibility"),
         )
+        self._refresh_agent_fabric()
         chapter = self._chapter(
             "reaction_kinetics",
             "Reaction Kinetics",
@@ -961,9 +1089,11 @@ class PipelineRunner:
             process_narrative,
             self.config.basis.operating_mode,
         )
+        flowsheet_case = build_flowsheet_case(route.route_id, self.config.basis.operating_mode, stream_table, flowsheet_graph)
         self._save("reaction_system", reaction_system)
         self._save("stream_table", stream_table)
         self._save("flowsheet_graph", flowsheet_graph)
+        self._save("flowsheet_case", flowsheet_case)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = extend_resolved_value_artifact(resolved_values, reaction_system.value_records, resolved_sources, self.config, "material_balance_reaction_system")
@@ -993,13 +1123,14 @@ class PipelineRunner:
             markdown,
             sorted(set(stream_table.citations + reaction_system.citations)),
             reaction_system.assumptions + stream_table.assumptions,
-            ["reaction_system", "stream_table", "flowsheet_graph"],
+            ["reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case"],
             required_inputs=["route_selection", "kinetic_assessment", "process_narrative"],
         )
         issues = (
             validate_reaction_system(reaction_system)
             + validate_stream_table(stream_table)
             + validate_flowsheet_graph(flowsheet_graph)
+            + validate_flowsheet_case(flowsheet_case)
             + self._value_issues(reaction_system, "reaction_system")
             + self._value_issues(stream_table, "stream_table")
             + self._chapter_issues(chapter)
@@ -1013,7 +1144,10 @@ class PipelineRunner:
         kinetics = self._load("kinetic_assessment", KineticAssessmentArtifact)
         reaction_system = self._load("reaction_system", ReactionSystem)
         energy = build_energy_balance(route, stream_table, thermo)
+        flowsheet_case = self._load("flowsheet_case", FlowsheetCase)
+        solve_result = build_solve_result(flowsheet_case, stream_table, energy)
         self._save("energy_balance", energy)
+        self._save("solve_result", solve_result)
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), energy.value_records, self._load("resolved_sources", ResolvedSourceSet), self.config, "energy_balance"),
@@ -1027,12 +1161,14 @@ class PipelineRunner:
             markdown,
             sorted(set(stream_table.citations + energy.citations)),
             stream_table.assumptions + energy.assumptions,
-            ["energy_balance"],
+            ["energy_balance", "solve_result"],
             required_inputs=["stream_table", "thermo_assessment"],
         )
         issues = (
             self._value_issues(energy, "energy_balance")
+            + validate_energy_balance(energy)
             + validate_phase_feasibility(route, thermo, kinetics, reaction_system, energy)
+            + validate_solve_result(solve_result)
             + self._chapter_issues(chapter)
         )
         gate = self._gate("design_basis", "Design Basis Lock", "Approve thermo, kinetics, process narrative, and balance basis before detailed design.")
@@ -1045,8 +1181,12 @@ class PipelineRunner:
         energy = self._load("energy_balance", EnergyBalance)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         reactor_choice = self._load("reactor_choice_decision", DecisionRecord)
-        reactor = build_reactor_design(self.config.basis, route, reaction_system, stream_table, energy, reactor_choice)
+        utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(self._selected_utility_network(), energy)
+        self._save("utility_architecture", utility_architecture)
+        reactor = build_reactor_design(self.config.basis, route, reaction_system, stream_table, energy, reactor_choice, utility_architecture)
+        reactor_basis = build_reactor_design_basis(reactor)
         self._save("reactor_design", reactor)
+        self._save("reactor_design_basis", reactor_basis)
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), reactor.value_records, resolved_sources, self.config, "reactor_design"),
@@ -1071,6 +1211,10 @@ class PipelineRunner:
                 ["Tube count", str(reactor.number_of_tubes)],
                 ["Tube length (m)", f"{reactor.tube_length_m:.3f}"],
                 ["Cooling medium", reactor.cooling_medium],
+                ["Utility topology", reactor.utility_topology or "standalone utilities"],
+                ["Integrated thermal duty (kW)", f"{reactor.integrated_thermal_duty_kw:.3f}"],
+                ["Residual utility duty (kW)", f"{reactor.residual_utility_duty_kw:.3f}"],
+                ["Selected train steps", ", ".join(reactor.selected_train_step_ids) or "none"],
             ],
         )
         chapter = self._chapter(
@@ -1080,7 +1224,7 @@ class PipelineRunner:
             markdown,
             reactor.citations,
             reactor.assumptions,
-            ["reactor_design"],
+            ["reactor_design", "reactor_design_basis"],
             required_inputs=["reaction_system", "stream_table", "energy_balance"],
         )
         issues = validate_decision_record(reactor_choice, "reactor_choice_decision") + validate_reactor_design(reactor) + self._value_issues(reactor, "reactor_design") + self._chapter_issues(chapter)
@@ -1093,10 +1237,16 @@ class PipelineRunner:
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         separation_choice = self._load("separation_choice_decision", DecisionRecord)
         exchanger_choice = select_exchanger_configuration(route, energy)
-        column = build_column_design(self.config.basis, route, stream_table, energy, separation_choice)
-        exchanger = build_heat_exchanger_design(route, energy, exchanger_choice)
+        utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(self._selected_utility_network(), energy)
+        column = build_column_design(self.config.basis, route, stream_table, energy, separation_choice, utility_architecture)
+        exchanger = build_heat_exchanger_design(route, energy, exchanger_choice, utility_architecture)
+        column_hydraulics = build_column_hydraulics(column)
+        exchanger_thermal = build_heat_exchanger_thermal_design(exchanger)
         self._save("column_design", column)
         self._save("heat_exchanger_design", exchanger)
+        self._save("column_hydraulics", column_hydraulics)
+        self._save("heat_exchanger_thermal_design", exchanger_thermal)
+        self._save("utility_architecture", utility_architecture)
         self._save("exchanger_choice_decision", exchanger_choice)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_values = extend_resolved_value_artifact(resolved_values, column.value_records, resolved_sources, self.config, "distillation_design")
@@ -1124,6 +1274,11 @@ class PipelineRunner:
                     ["Bottom temperature (C)", f"{column.bottom_temperature_c:.1f}"],
                     ["Condenser duty (kW)", f"{column.condenser_duty_kw:.3f}"],
                     ["Reboiler duty (kW)", f"{column.reboiler_duty_kw:.3f}"],
+                    ["Utility topology", column.utility_topology or "standalone utilities"],
+                    ["Integrated reboiler duty (kW)", f"{column.integrated_reboiler_duty_kw:.3f}"],
+                    ["Residual reboiler utility (kW)", f"{column.residual_reboiler_utility_kw:.3f}"],
+                    ["Condenser recovery duty (kW)", f"{column.condenser_recovery_duty_kw:.3f}"],
+                    ["Selected train steps", ", ".join(column.selected_train_step_ids) or "none"],
                 ],
             )
             + "\n\n### E-101 Heat Exchanger Basis\n\n"
@@ -1141,6 +1296,8 @@ class PipelineRunner:
                     ["Tube length (m)", f"{exchanger.tube_length_m:.3f}"],
                     ["Shell passes", str(exchanger.shell_passes)],
                     ["Tube passes", str(exchanger.tube_passes)],
+                    ["Utility topology", exchanger.utility_topology or "standalone utilities"],
+                    ["Selected train step", exchanger.selected_train_step_id or "none"],
                 ],
             )
         )
@@ -1151,7 +1308,7 @@ class PipelineRunner:
             markdown,
             sorted(set(column.citations + exchanger.citations)),
             column.assumptions + exchanger.assumptions,
-            ["column_design", "heat_exchanger_design", "exchanger_choice_decision"],
+            ["column_design", "column_hydraulics", "heat_exchanger_design", "heat_exchanger_thermal_design", "exchanger_choice_decision"],
             required_inputs=["stream_table", "energy_balance"],
         )
         issues = (
@@ -1182,13 +1339,28 @@ class PipelineRunner:
         storage_choice = select_storage_configuration(self.config.basis, archetype)
         moc_choice = select_moc_configuration(route, archetype)
         storage = build_storage_design(self.config.basis, density_kg_m3, product_profile.citations, product_profile.assumptions, storage_choice)
+        pump_design = build_pump_design(storage)
         self._save("storage_design", storage)
         energy = self._load("energy_balance", EnergyBalance)
         equipment_items = build_equipment_list(route, reactor, column, exchanger, storage, energy, moc_choice)
         artifact = EquipmentListArtifact(items=equipment_items, citations=sorted(set(reactor.citations + column.citations + exchanger.citations + storage.citations)), assumptions=reactor.assumptions + column.assumptions + exchanger.assumptions + storage.assumptions)
+        datasheets = build_equipment_datasheets(artifact, reactor, column, exchanger, storage)
         self._save("equipment_list", artifact)
+        self._save("pump_design", pump_design)
+        self._save(
+            "equipment_datasheets",
+            NarrativeArtifact(
+                artifact_id="equipment_datasheets",
+                title="Equipment Datasheets",
+                markdown="\n\n".join(item.markdown for item in datasheets),
+                summary=f"{len(datasheets)} equipment datasheets generated.",
+                citations=sorted({citation for item in datasheets for citation in item.citations}),
+                assumptions=sorted({assumption for item in datasheets for assumption in item.assumptions}),
+            ),
+        )
         self._save("storage_choice_decision", storage_choice)
         self._save("moc_choice_decision", moc_choice)
+        self._refresh_agent_fabric()
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), storage.value_records, resolved_sources, self.config, "equipment_sizing"),
@@ -1218,7 +1390,7 @@ class PipelineRunner:
             f"{markdown}",
             artifact.citations,
             artifact.assumptions,
-            ["storage_design", "equipment_list", "storage_choice_decision", "moc_choice_decision"],
+            ["storage_design", "pump_design", "equipment_list", "equipment_datasheets", "storage_choice_decision", "moc_choice_decision"],
             required_inputs=["reactor_design", "column_design", "heat_exchanger_design"],
         )
         issues = (
@@ -1234,7 +1406,21 @@ class PipelineRunner:
     def _run_mechanical_design_moc(self) -> StageResult:
         equipment = self._load("equipment_list", EquipmentListArtifact)
         artifact = build_mechanical_design_artifact(equipment)
+        basis = build_mechanical_design_basis(artifact)
+        vessel_designs = build_vessel_mechanical_designs(artifact)
         self._save("mechanical_design", artifact)
+        self._save("mechanical_design_basis", basis)
+        self._save(
+            "vessel_mechanical_designs",
+            NarrativeArtifact(
+                artifact_id="vessel_mechanical_designs",
+                title="Vessel Mechanical Designs",
+                markdown="\n\n".join(item.markdown for item in vessel_designs),
+                summary=f"{len(vessel_designs)} vessel mechanical design records generated.",
+                citations=sorted({citation for item in vessel_designs for citation in item.citations}),
+                assumptions=sorted({assumption for item in vessel_designs for assumption in item.assumptions}),
+            ),
+        )
         chapter = self._chapter(
             "mechanical_design_moc",
             "Mechanical Design and MoC",
@@ -1242,7 +1428,7 @@ class PipelineRunner:
             artifact.markdown,
             artifact.citations or equipment.citations,
             artifact.assumptions + ["Mechanical chapter now uses deterministic screening calculations for shell thickness, nozzles, and supports."],
-            ["mechanical_design"],
+            ["mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs"],
             required_inputs=["equipment_list", "route_selection"],
             summary="Mechanical design chapter includes screening shell thickness, nozzle, and support calculations for major equipment.",
         )
@@ -1255,6 +1441,7 @@ class PipelineRunner:
         energy = self._load("energy_balance", EnergyBalance)
         site = self._load("site_selection", SiteSelectionArtifact)
         utility_network = self._selected_utility_network()
+        utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(utility_network, energy)
         utility_basis, utility_basis_decision = build_utility_basis_decision(
             self.config,
             site,
@@ -1270,10 +1457,13 @@ class PipelineRunner:
             sorted(set(utility_basis.citations + utility_network.citations)),
             utility_basis.assumptions + utility_network.assumptions,
             utility_network_decision=utility_network,
+            utility_architecture=utility_architecture,
         )
         artifact.utility_basis_decision_id = utility_basis_decision.decision_id
         self._save("utility_basis_decision", utility_basis_decision)
         self._save("utility_summary", artifact)
+        self._save("utility_architecture", utility_architecture)
+        self._refresh_agent_fabric()
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = extend_resolved_value_artifact(resolved_values, utility_basis.value_records, resolved_sources, self.config, "utility_basis")
@@ -1314,6 +1504,8 @@ class PipelineRunner:
             )
             + "\n\n### Utilities\n\n"
             + markdown_table(["Utility", "Load", "Units", "Basis"], rows)
+            + "\n\n### Utility Architecture\n\n"
+            + utility_architecture.markdown
         )
         chapter = self._chapter(
             "storage_utilities",
@@ -1322,7 +1514,7 @@ class PipelineRunner:
             markdown,
             sorted(set(storage.citations + artifact.citations + utility_network.citations + utility_basis_decision.citations)),
             storage.assumptions + artifact.assumptions + utility_network.assumptions + utility_basis_decision.assumptions,
-            ["utility_summary", "utility_basis_decision"],
+            ["utility_summary", "utility_basis_decision", "utility_architecture"],
             required_inputs=["storage_design", "equipment_list", "energy_balance", "utility_network_decision"],
         )
         issues = (
@@ -1348,6 +1540,7 @@ class PipelineRunner:
         )
         self._save("control_plan", artifact)
         self._save("control_architecture", control_architecture)
+        self._refresh_agent_fabric()
         rows = [[loop.control_id, loop.controlled_variable, loop.manipulated_variable, loop.sensor, loop.actuator] for loop in artifact.control_loops]
         markdown = (
             artifact.markdown
@@ -1404,6 +1597,7 @@ class PipelineRunner:
         )
         self._save("layout_plan", artifact)
         self._save("layout_decision", layout_decision)
+        self._refresh_agent_fabric()
         chapter = self._chapter(
             "layout",
             "Project and Plant Layout",
@@ -1425,6 +1619,7 @@ class PipelineRunner:
         market = self._load("market_assessment", MarketAssessmentArtifact)
         site = self._load("site_selection", SiteSelectionArtifact)
         utility_network = self._selected_utility_network()
+        utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision)
         citations = sorted(set(equipment.citations + utilities.citations + market.citations + site.citations + utility_network.citations))
         assumptions = equipment.assumptions + utilities.assumptions + market.assumptions + site.assumptions + utility_network.assumptions
         procurement_basis = build_procurement_basis_decision(site, equipment.items)
@@ -1439,13 +1634,17 @@ class PipelineRunner:
             citations,
             assumptions,
             utility_network_decision=utility_network,
+            utility_architecture=utility_architecture,
             scenario_policy=self.config.scenario_policy,
             procurement_basis=procurement_basis,
             logistics_basis=logistics_basis,
         )
+        plant_cost_summary = build_plant_cost_summary(cost_model)
         self._save("cost_model", cost_model)
+        self._save("plant_cost_summary", plant_cost_summary)
         self._save("procurement_basis_decision", procurement_basis)
         self._save("logistics_basis_decision", logistics_basis)
+        self._refresh_agent_fabric()
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         self._save("resolved_values", extend_resolved_value_artifact(resolved_values, cost_model.value_records, resolved_sources, self.config, "project_cost"))
@@ -1502,7 +1701,7 @@ class PipelineRunner:
             f"{markdown}",
             cost_model.citations,
             cost_model.assumptions,
-            ["cost_model", "procurement_basis_decision", "logistics_basis_decision"],
+            ["cost_model", "plant_cost_summary", "procurement_basis_decision", "logistics_basis_decision"],
             required_inputs=["equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection"],
         )
         issues = (
@@ -1590,12 +1789,21 @@ class PipelineRunner:
         financial_model = build_financial_model(self.config.basis, market.estimated_price_per_kg, cost_model, working_capital, citations, assumptions, financing_basis=financing_basis)
         economic_basis_decision = build_economic_basis_decision(self.config, site, utility_network, cost_model, financial_model, utility_basis_decision)
         economic_scenarios = build_economic_scenario_model_v2(cost_model, financial_model, economic_basis_decision)
+        debt_schedule = build_debt_schedule(cost_model, financing_basis)
+        tax_depreciation_basis = build_tax_depreciation_basis(cost_model)
+        financial_schedule = build_financial_schedule(financial_model)
+        plant_cost_summary = build_plant_cost_summary(cost_model, working_capital)
         cost_model.economic_basis_decision_id = economic_basis_decision.decision_id
         self._save("cost_model", cost_model)
+        self._save("plant_cost_summary", plant_cost_summary)
         self._save("financial_model", financial_model)
         self._save("economic_basis_decision", economic_basis_decision)
         self._save("economic_scenarios", economic_scenarios)
         self._save("financing_basis_decision", financing_basis)
+        self._save("debt_schedule", debt_schedule)
+        self._save("tax_depreciation_basis", tax_depreciation_basis)
+        self._save("financial_schedule", financial_schedule)
+        self._refresh_agent_fabric()
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         self._save("resolved_values", extend_resolved_value_artifact(resolved_values, financial_model.value_records, resolved_sources, self.config, "financial_analysis"))
@@ -1651,10 +1859,14 @@ class PipelineRunner:
             "financial_analysis",
             "### Financing Basis\n\n"
             f"{financing_basis.selected_summary}\n\n"
-            f"{markdown}",
+            f"{markdown}"
+            + "\n\n### Debt Schedule\n\n"
+            + debt_schedule.markdown
+            + "\n\n### Tax and Depreciation Basis\n\n"
+            + tax_depreciation_basis.markdown,
             financial_model.citations,
             financial_model.assumptions + economic_basis_decision.assumptions + financing_basis.assumptions,
-            ["financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios"],
+            ["financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios", "debt_schedule", "tax_depreciation_basis", "financial_schedule"],
             required_inputs=["cost_model", "working_capital_model", "market_assessment"],
         )
         issues = (
@@ -1687,6 +1899,7 @@ class PipelineRunner:
         product_profile = self._load("product_profile", ProductProfileArtifact)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
+        agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
         process_archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
         process_synthesis = self.store.maybe_load_model(self.config.project_id, "artifacts/process_synthesis.json", ProcessSynthesisArtifact)
         capacity_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/capacity_decision.json", DecisionRecord)
@@ -1694,9 +1907,12 @@ class PipelineRunner:
         kinetics_method = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_method_decision.json", MethodSelectionArtifact)
         stream_table = self._load("stream_table", StreamTable)
         flowsheet_graph = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_graph.json", FlowsheetGraph)
+        flowsheet_case = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_case.json", FlowsheetCase)
+        solve_result = self.store.maybe_load_model(self.config.project_id, "artifacts/solve_result.json", SolveResult)
         energy = self._load("energy_balance", EnergyBalance)
         heat_integration_study = self.store.maybe_load_model(self.config.project_id, "artifacts/heat_integration_study.json", HeatIntegrationStudyArtifact)
         utility_network = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_network_decision.json", UtilityNetworkDecision)
+        utility_architecture = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_architecture.json", UtilityArchitectureDecision)
         site_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/site_selection_decision.json", DecisionRecord)
         exchanger_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/exchanger_choice_decision.json", DecisionRecord)
         storage_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/storage_choice_decision.json", DecisionRecord)
@@ -1712,16 +1928,26 @@ class PipelineRunner:
         hazop_register = self.store.maybe_load_model(self.config.project_id, "artifacts/hazop_node_register.json", HazopNodeRegister)
         layout_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/layout_decision.json", LayoutDecisionArtifact)
         mechanical_design = self.store.maybe_load_model(self.config.project_id, "artifacts/mechanical_design.json", MechanicalDesignArtifact)
+        mechanical_design_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/mechanical_design_basis.json", MechanicalDesignBasis)
         cost_model = self._load("cost_model", CostModel)
+        plant_cost_summary = self.store.maybe_load_model(self.config.project_id, "artifacts/plant_cost_summary.json", PlantCostSummary)
         working_capital = self._load("working_capital_model", WorkingCapitalModel)
         financial = self._load("financial_model", FinancialModel)
         economic_scenarios = self.store.maybe_load_model(self.config.project_id, "artifacts/economic_scenarios.json", EconomicScenarioModel)
+        debt_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/debt_schedule.json", DebtSchedule)
+        tax_depreciation_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/tax_depreciation_basis.json", TaxDepreciationBasis)
+        financial_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/financial_schedule.json", FinancialSchedule)
         route_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/route_decision.json", DecisionRecord)
         reaction_system = self._load("reaction_system", ReactionSystem)
         reactor = self._load("reactor_design", ReactorDesign)
+        reactor_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/reactor_design_basis.json", ReactorDesignBasis)
         column = self._load("column_design", ColumnDesign)
+        column_hydraulics = self.store.maybe_load_model(self.config.project_id, "artifacts/column_hydraulics.json", ColumnHydraulics)
         exchanger = self._load("heat_exchanger_design", HeatExchangerDesign)
+        exchanger_thermal = self.store.maybe_load_model(self.config.project_id, "artifacts/heat_exchanger_thermal_design.json", HeatExchangerThermalDesign)
         storage = self._load("storage_design", StorageDesign)
+        pump_design = self.store.maybe_load_model(self.config.project_id, "artifacts/pump_design.json", PumpDesign)
+        equipment_datasheets = self.store.maybe_load_model(self.config.project_id, "artifacts/equipment_datasheets.json", NarrativeArtifact)
         site = self._load("site_selection", SiteSelectionArtifact)
         bundle = self._load("research_bundle", ResearchBundle)
         existing_chapters = self._existing_chapters(state)
@@ -1776,19 +2002,28 @@ class PipelineRunner:
             resolved_values,
             process_archetype,
             process_synthesis,
+            agent_fabric,
             stream_table,
             flowsheet_graph,
+            flowsheet_case,
+            solve_result,
             equipment.items,
             energy,
             heat_integration_study,
             utility_network,
+            utility_architecture,
             utilities,
             mechanical_design,
+            mechanical_design_basis,
             control_architecture,
             hazop_register,
             cost_model,
+            plant_cost_summary,
             working_capital,
             financial,
+            debt_schedule,
+            tax_depreciation_basis,
+            financial_schedule,
             economic_scenarios,
             route_decision,
             site_decision,
@@ -1814,6 +2049,11 @@ class PipelineRunner:
             assumptions,
             calc_sections,
             site.india_location_data,
+            reactor_basis,
+            column_hydraulics,
+            exchanger_thermal,
+            pump_design,
+            equipment_datasheets.markdown if equipment_datasheets else None,
             [
                 *getattr(self._load("thermo_assessment", ThermoAssessmentArtifact), "value_records", []),
                 *getattr(self._load("kinetic_assessment", KineticAssessmentArtifact), "value_records", []),

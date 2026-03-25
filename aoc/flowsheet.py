@@ -32,13 +32,45 @@ def _separation_unit_type(route: RouteOption) -> str:
         return "extraction"
     if "crystal" in text or "filter" in text:
         return "crystallization"
+    if "distill" in text or "vacuum" in text:
+        return "distillation"
     if "dry" in text:
         return "drying"
     if "flash" in text:
         return "flash"
-    if "distill" in text or "vacuum" in text:
-        return "distillation"
     return "separation"
+
+
+def _unit_metadata(unit_id: str, separation_type: str) -> tuple[str, str]:
+    if unit_id == "feed_prep":
+        return "feed_preparation", "Feed preparation"
+    if unit_id == "reactor":
+        return "reactor", "Reaction zone"
+    if unit_id == "primary_flash":
+        return "flash", "Primary flash and purge recovery"
+    if unit_id == "primary_separation":
+        return separation_type if separation_type != "separation" else "separation", "Primary separation"
+    if unit_id == "concentration":
+        if separation_type == "crystallization":
+            return "crystallization", "Crystallization and mother-liquor split"
+        return "evaporation", "Water removal and concentration"
+    if unit_id == "purification":
+        if separation_type == "extraction":
+            return "extraction", "Purification train"
+        return "distillation", "Purification train"
+    if unit_id == "filtration":
+        return "filtration", "Filtration and solids split"
+    if unit_id == "drying":
+        return "drying", "Drying and finishing"
+    if unit_id == "regeneration":
+        return "stripping", "Regeneration and recycle"
+    if unit_id == "recycle_recovery":
+        return "recycle", "Recycle recovery"
+    if unit_id == "storage":
+        return "storage", "Product storage"
+    if unit_id == "waste_treatment":
+        return "waste_handling", "Waste treatment"
+    return "unit_operation", unit_id.replace("_", " ").title()
 
 
 def build_flowsheet_graph(
@@ -50,44 +82,39 @@ def build_flowsheet_graph(
 ) -> FlowsheetGraph:
     stream_ids = [stream.stream_id for stream in stream_table.streams]
     separation_type = _separation_unit_type(route)
-    has_concentration = any(stream.stream_id == "S-302" for stream in stream_table.streams)
-    if separation_type == "distillation":
-        nodes = [
-            FlowsheetNode(node_id="feed_prep", unit_type="feed_preparation", label="Feed preparation", downstream_nodes=["reactor"], representative_stream_ids=[item for item in stream_ids if item.startswith("S-10") or item == "S-150"]),
-            FlowsheetNode(node_id="reactor", unit_type="reactor", label="Reaction zone", upstream_nodes=["feed_prep"], downstream_nodes=["primary_flash"], representative_stream_ids=["S-201"]),
-            FlowsheetNode(node_id="primary_flash", unit_type="flash", label="Primary flash and purge recovery", upstream_nodes=["reactor"], downstream_nodes=["concentration", "recycle_recovery"], representative_stream_ids=["S-202", "S-203"]),
-            FlowsheetNode(node_id="concentration", unit_type="evaporation", label="Water removal and concentration", upstream_nodes=["primary_flash"], downstream_nodes=["purification", "recycle_recovery"], representative_stream_ids=["S-301", "S-302"] if has_concentration else ["S-203"]),
-            FlowsheetNode(node_id="purification", unit_type="distillation", label="Purification columns", upstream_nodes=["concentration"], downstream_nodes=["product_storage", "waste_treatment"], representative_stream_ids=["S-401", "S-402", "S-403"]),
-            FlowsheetNode(node_id="recycle_recovery", unit_type="recycle", label="Recycle and condensate recovery", upstream_nodes=["primary_flash", "concentration"], downstream_nodes=["feed_prep"], representative_stream_ids=["S-301"]),
-            FlowsheetNode(node_id="product_storage", unit_type="storage", label="Product finishing and storage", upstream_nodes=["purification"], representative_stream_ids=["S-402"]),
-            FlowsheetNode(node_id="waste_treatment", unit_type="waste_handling", label="Purge and heavy-ends handling", upstream_nodes=["purification"], representative_stream_ids=["S-401", "S-403"]),
-        ]
-    elif separation_type == "crystallization":
-        nodes = [
-            FlowsheetNode(node_id="feed_prep", unit_type="feed_preparation", label="Feed preparation", downstream_nodes=["reactor"], representative_stream_ids=[item for item in stream_ids if item.startswith("S-10") or item == "S-150"]),
-            FlowsheetNode(node_id="reactor", unit_type="reactor", label="Reaction / carbonation zone", upstream_nodes=["feed_prep"], downstream_nodes=["crystallization"], representative_stream_ids=["S-201", "S-203"]),
-            FlowsheetNode(node_id="crystallization", unit_type="crystallization", label="Crystallization", upstream_nodes=["reactor"], downstream_nodes=["filtration", "recycle_recovery"], representative_stream_ids=["S-301", "S-302"]),
-            FlowsheetNode(node_id="filtration", unit_type="filtration", label="Filtration and mother-liquor split", upstream_nodes=["crystallization"], downstream_nodes=["drying", "recycle_recovery"], representative_stream_ids=["S-302", "S-403"]),
-            FlowsheetNode(node_id="drying", unit_type="drying", label="Drying and finishing", upstream_nodes=["filtration"], downstream_nodes=["product_storage"], representative_stream_ids=["S-402"]),
-            FlowsheetNode(node_id="recycle_recovery", unit_type="recycle", label="Mother-liquor recycle", upstream_nodes=["crystallization", "filtration"], downstream_nodes=["feed_prep"], representative_stream_ids=["S-301"]),
-            FlowsheetNode(node_id="product_storage", unit_type="storage", label="Product storage", upstream_nodes=["drying"], representative_stream_ids=["S-402"]),
-        ]
-    elif separation_type == "absorption":
-        nodes = [
-            FlowsheetNode(node_id="feed_prep", unit_type="feed_preparation", label="Feed preparation", downstream_nodes=["reactor"], representative_stream_ids=[item for item in stream_ids if item.startswith("S-10") or item == "S-150"]),
-            FlowsheetNode(node_id="reactor", unit_type="reactor", label="Converter / reactor zone", upstream_nodes=["feed_prep"], downstream_nodes=["primary_separation"], representative_stream_ids=["S-201"]),
-            FlowsheetNode(node_id="primary_separation", unit_type="absorption", label="Absorption and scrubbing", upstream_nodes=["reactor"], downstream_nodes=["regeneration", "product_storage"], representative_stream_ids=["S-202", "S-203"]),
-            FlowsheetNode(node_id="regeneration", unit_type="stripping", label="Regeneration and recycle", upstream_nodes=["primary_separation"], downstream_nodes=["feed_prep"], representative_stream_ids=["S-301"]),
-            FlowsheetNode(node_id="product_storage", unit_type="storage", label="Product storage", upstream_nodes=["primary_separation"], representative_stream_ids=["S-401", "S-402"]),
-        ]
-    else:
-        nodes = [
-            FlowsheetNode(node_id="feed_prep", unit_type="feed_preparation", label="Feed preparation", downstream_nodes=["reactor"], representative_stream_ids=[item for item in stream_ids if item.startswith("S-10") or item == "S-150"]),
-            FlowsheetNode(node_id="reactor", unit_type="reactor", label="Reaction zone", upstream_nodes=["feed_prep"], downstream_nodes=["primary_separation"], representative_stream_ids=["S-201"]),
-            FlowsheetNode(node_id="primary_separation", unit_type=separation_type, label="Primary separation", upstream_nodes=["reactor"], downstream_nodes=["product_finish", "recycle_recovery"], representative_stream_ids=["S-202", "S-203"]),
-            FlowsheetNode(node_id="recycle_recovery", unit_type="recycle", label="Recycle recovery", upstream_nodes=["primary_separation"], downstream_nodes=["feed_prep"], representative_stream_ids=["S-301"]),
-            FlowsheetNode(node_id="product_finish", unit_type="product_finishing", label="Product finishing and storage", upstream_nodes=["primary_separation"], representative_stream_ids=["S-401", "S-402", "S-403"]),
-        ]
+    ordered_unit_ids: list[str] = []
+    for stream in stream_table.streams:
+        for unit_id in (stream.source_unit_id, stream.destination_unit_id):
+            if not unit_id or unit_id == "battery_limits":
+                continue
+            if unit_id not in ordered_unit_ids:
+                ordered_unit_ids.append(unit_id)
+
+    nodes: list[FlowsheetNode] = []
+    for unit_id in ordered_unit_ids:
+        unit_type, label = _unit_metadata(unit_id, separation_type)
+        upstream_nodes = []
+        downstream_nodes = []
+        representative_stream_ids = []
+        for stream in stream_table.streams:
+            if stream.destination_unit_id == unit_id and stream.source_unit_id and stream.source_unit_id != "battery_limits":
+                if stream.source_unit_id not in upstream_nodes:
+                    upstream_nodes.append(stream.source_unit_id)
+                representative_stream_ids.append(stream.stream_id)
+            if stream.source_unit_id == unit_id and stream.destination_unit_id:
+                if stream.destination_unit_id not in downstream_nodes:
+                    downstream_nodes.append(stream.destination_unit_id)
+                representative_stream_ids.append(stream.stream_id)
+        nodes.append(
+            FlowsheetNode(
+                node_id=unit_id,
+                unit_type=unit_type,
+                label=label,
+                upstream_nodes=upstream_nodes,
+                downstream_nodes=downstream_nodes,
+                representative_stream_ids=sorted(dict.fromkeys(representative_stream_ids)),
+            )
+        )
     unit_models = [
         UnitOperationModel(
             unit_id=node.node_id,

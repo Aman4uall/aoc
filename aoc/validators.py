@@ -9,6 +9,7 @@ from aoc.models import (
     DecisionRecord,
     EnergyBalance,
     FinancialModel,
+    FlowsheetCase,
     FlowsheetGraph,
     GeographicScope,
     HazopNodeRegister,
@@ -293,6 +294,225 @@ def validate_stream_table(stream_table: StreamTable, tolerance_pct: float = 2.0)
             artifact_ref="stream_table",
         )
     ]
+
+
+def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    stream_ids = {stream.stream_id for stream in flowsheet_case.streams}
+    if not flowsheet_case.units:
+        issues.append(
+            ValidationIssue(
+                code="flowsheet_case_missing_units",
+                severity=Severity.BLOCKED,
+                message="Flowsheet case has no unit specifications.",
+                artifact_ref="flowsheet_case",
+            )
+        )
+        return issues
+    for unit in flowsheet_case.units:
+        if unit.closure_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_unit_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{unit.unit_id}' is blocked in the flowsheet case with closure error {unit.closure_error_pct:.3f}%.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+    for separation in flowsheet_case.separations:
+        if not separation.inlet_stream_ids:
+            issues.append(
+                ValidationIssue(
+                    code="separation_missing_inlet",
+                    severity=Severity.BLOCKED,
+                    message=f"Separation '{separation.separation_id}' has no inlet streams.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        for stream_id in separation.inlet_stream_ids + separation.product_stream_ids + separation.waste_stream_ids + separation.recycle_stream_ids + separation.side_draw_stream_ids:
+            if stream_id not in stream_ids:
+                issues.append(
+                    ValidationIssue(
+                        code="separation_missing_stream_ref",
+                        severity=Severity.BLOCKED,
+                        message=f"Separation '{separation.separation_id}' references unknown stream '{stream_id}'.",
+                        artifact_ref="flowsheet_case",
+                    )
+                )
+        if not (separation.product_stream_ids or separation.waste_stream_ids or separation.recycle_stream_ids or separation.side_draw_stream_ids):
+            issues.append(
+                ValidationIssue(
+                    code="separation_missing_outlets",
+                    severity=Severity.BLOCKED,
+                    message=f"Separation '{separation.separation_id}' has no outlet split streams.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if separation.closure_error_pct > 5.0:
+            issues.append(
+                ValidationIssue(
+                    code="separation_closure_high",
+                    severity=Severity.BLOCKED,
+                    message=f"Separation '{separation.separation_id}' closure error {separation.closure_error_pct:.3f}% exceeds tolerance.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+    for loop in flowsheet_case.recycle_loops:
+        if not loop.recycle_stream_ids:
+            issues.append(
+                ValidationIssue(
+                    code="recycle_loop_missing_recycle",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop.loop_id}' has no recycle stream ids.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        for stream_id in loop.recycle_stream_ids + loop.purge_stream_ids:
+            if stream_id not in stream_ids:
+                issues.append(
+                    ValidationIssue(
+                        code="recycle_loop_missing_stream_ref",
+                        severity=Severity.BLOCKED,
+                        message=f"Recycle loop '{loop.loop_id}' references unknown stream '{stream_id}'.",
+                        artifact_ref="flowsheet_case",
+                    )
+                )
+        for stream_id in loop.recycle_stream_ids:
+            stream = next((item for item in flowsheet_case.streams if item.stream_id == stream_id), None)
+            if stream is not None and stream.destination_unit_id != "feed_prep":
+                issues.append(
+                    ValidationIssue(
+                        code="recycle_stream_destination_invalid",
+                        severity=Severity.BLOCKED,
+                        message=f"Recycle stream '{stream_id}' in loop '{loop.loop_id}' does not return to feed preparation.",
+                        artifact_ref="flowsheet_case",
+                    )
+                )
+    return issues
+
+
+def validate_solve_result(solve_result: SolveResult) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if solve_result.convergence_status == "blocked":
+        issues.append(
+            ValidationIssue(
+                code="solve_result_blocked",
+                severity=Severity.BLOCKED,
+                message="Flowsheet solve result is blocked.",
+                artifact_ref="solve_result",
+            )
+        )
+    for unit_id, status in solve_result.unitwise_status.items():
+        if status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="unitwise_convergence_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{unit_id}' is blocked in the solve result.",
+                    artifact_ref="solve_result",
+                )
+            )
+    for message in solve_result.critic_messages:
+        lowered = message.lower()
+        if (
+            "blocked" not in lowered
+            and "too high" not in lowered
+            and "no usable" not in lowered
+            and "no unit thermal packet" not in lowered
+        ):
+            continue
+        issues.append(
+            ValidationIssue(
+                code="flowsheet_critic",
+                severity=Severity.BLOCKED,
+                message=message,
+                artifact_ref="solve_result",
+            )
+        )
+    return issues
+
+
+def validate_energy_balance(energy_balance: EnergyBalance) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not energy_balance.unit_thermal_packets:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_thermal_packets",
+                severity=Severity.BLOCKED,
+                message="Energy balance does not expose any unit thermal packets.",
+                artifact_ref="energy_balance",
+            )
+        )
+        return issues
+    total_packet_heating = round(sum(packet.heating_kw for packet in energy_balance.unit_thermal_packets), 3)
+    total_packet_cooling = round(sum(packet.cooling_kw for packet in energy_balance.unit_thermal_packets), 3)
+    if abs(total_packet_heating - energy_balance.total_heating_kw) > max(5.0, energy_balance.total_heating_kw * 0.05):
+        issues.append(
+            ValidationIssue(
+                code="thermal_packet_heating_mismatch",
+                severity=Severity.BLOCKED,
+                message="Summed thermal-packet heating duty does not reconcile with total heating duty.",
+                artifact_ref="energy_balance",
+            )
+        )
+    if abs(total_packet_cooling - energy_balance.total_cooling_kw) > max(5.0, energy_balance.total_cooling_kw * 0.05):
+        issues.append(
+            ValidationIssue(
+                code="thermal_packet_cooling_mismatch",
+                severity=Severity.BLOCKED,
+                message="Summed thermal-packet cooling duty does not reconcile with total cooling duty.",
+                artifact_ref="energy_balance",
+            )
+        )
+    hot_packets = [packet for packet in energy_balance.unit_thermal_packets if packet.cooling_kw > 0.0]
+    cold_packets = [packet for packet in energy_balance.unit_thermal_packets if packet.heating_kw > 0.0]
+    feasible_recovery_window = any(
+        hot_packet.hot_supply_temp_c - cold_packet.cold_supply_temp_c >= 20.0
+        for hot_packet in hot_packets
+        for cold_packet in cold_packets
+        if hot_packet.unit_id != cold_packet.unit_id
+    )
+    if hot_packets and cold_packets and feasible_recovery_window and not energy_balance.network_candidates:
+        issues.append(
+            ValidationIssue(
+                code="missing_network_candidates",
+                severity=Severity.BLOCKED,
+                message="Energy balance has both hot and cold packets but no exchanger-network candidates.",
+                artifact_ref="energy_balance",
+            )
+        )
+    for packet in energy_balance.unit_thermal_packets:
+        if packet.heating_kw > 0.0 and packet.cold_target_temp_c <= packet.cold_supply_temp_c:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_cold_side_temperature_rise",
+                    severity=Severity.BLOCKED,
+                    message=f"Thermal packet '{packet.packet_id}' does not show a usable cold-side temperature rise.",
+                    artifact_ref="energy_balance",
+                )
+            )
+        if packet.cooling_kw > 0.0 and packet.hot_supply_temp_c <= packet.hot_target_temp_c:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_hot_side_temperature_drop",
+                    severity=Severity.BLOCKED,
+                    message=f"Thermal packet '{packet.packet_id}' does not show a usable hot-side temperature drop.",
+                    artifact_ref="energy_balance",
+                )
+            )
+    for candidate in energy_balance.network_candidates:
+        if not candidate.feasible:
+            continue
+        if candidate.recovered_duty_kw <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_network_candidate_duty",
+                    severity=Severity.BLOCKED,
+                    message=f"Network candidate '{candidate.candidate_id}' has non-positive recovered duty.",
+                    artifact_ref="energy_balance",
+                )
+            )
+    return issues
 
 
 def validate_thermo_assessment(thermo: ThermoAssessmentArtifact) -> list[ValidationIssue]:

@@ -3,11 +3,13 @@ from __future__ import annotations
 from aoc.models import (
     CalcTrace,
     EnergyBalance,
+    ExchangerNetworkCandidate,
     RouteOption,
     SensitivityLevel,
     StreamTable,
     ThermoAssessmentArtifact,
     UnitDuty,
+    UnitThermalPacket,
 )
 from aoc.value_engine import make_value_record
 
@@ -55,6 +57,139 @@ def _product_stream(stream_table: StreamTable):
         if stream.stream_id == "S-401":
             return stream
     return stream_table.streams[-1]
+
+
+def _stream_record(stream_table: StreamTable, stream_id: str | None):
+    if not stream_id:
+        return None
+    return next((stream for stream in stream_table.streams if stream.stream_id == stream_id), None)
+
+
+def _temperature_for_stream(stream_table: StreamTable, stream_id: str | None, default: float) -> float:
+    stream = _stream_record(stream_table, stream_id)
+    return stream.temperature_c if stream is not None else default
+
+
+def _packet_media(duty: UnitDuty) -> list[str]:
+    lowered = f"{duty.unit_id} {duty.notes} {duty.duty_type}".lower()
+    media: list[str] = []
+    if duty.cooling_kw > 0.0:
+        if "reactor" in lowered or duty.unit_id.startswith("R-") or duty.unit_id.startswith("CONV"):
+            media.extend(["Dowtherm A", "cooling water"])
+        elif "condenser" in lowered or duty.unit_id.startswith("D-") or duty.unit_id.startswith("V-"):
+            media.extend(["direct", "cooling water"])
+        else:
+            media.extend(["cooling water"])
+    if duty.heating_kw > 0.0:
+        if "reboiler" in lowered or duty.unit_id.startswith("D-") or duty.unit_id.startswith("EV-"):
+            media.extend(["Dowtherm A", "steam"])
+        elif duty.unit_id.startswith("DRY"):
+            media.extend(["steam", "hot air"])
+        else:
+            media.extend(["steam", "hot oil"])
+    return list(dict.fromkeys(media))
+
+
+def _build_thermal_packets(
+    route: RouteOption,
+    stream_table: StreamTable,
+    duties: list[UnitDuty],
+) -> list[UnitThermalPacket]:
+    packets: list[UnitThermalPacket] = []
+    for duty in duties:
+        hot_supply = _temperature_for_stream(
+            stream_table,
+            duty.hot_stream_id,
+            route.operating_temperature_c + (30.0 if duty.heating_kw > 0.0 else 20.0 if duty.duty_type == "reaction" else 5.0),
+        )
+        cold_supply = _temperature_for_stream(stream_table, duty.cold_stream_id, 30.0) if duty.heating_kw > 0.0 else 30.0
+        if duty.cooling_kw > 0.0:
+            hot_target_candidate = _temperature_for_stream(
+                stream_table,
+                duty.cold_stream_id,
+                hot_supply - (45.0 if duty.duty_type == "reaction" else 25.0),
+            )
+            hot_target = min(hot_target_candidate, hot_supply - 5.0)
+            if hot_target >= hot_supply:
+                hot_target = max(hot_supply - 10.0, 25.0)
+        else:
+            hot_target = max(hot_supply - 15.0, cold_supply + 5.0)
+        if duty.heating_kw > 0.0:
+            cold_target = max(
+                cold_supply + 5.0,
+                min(
+                    route.operating_temperature_c if duty.unit_id.startswith("E-101") or duty.unit_id.startswith("R-") else cold_supply + (70.0 if duty.duty_type in {"latent", "reaction"} else 45.0),
+                    max(hot_supply - 8.0, cold_supply + 10.0),
+                ),
+            )
+        else:
+            cold_target = min(max(cold_supply + 12.0, 42.0), max(hot_target - 3.0, cold_supply + 8.0))
+        recoverable = min(duty.heating_kw, duty.cooling_kw) if duty.heating_kw > 0.0 and duty.cooling_kw > 0.0 else 0.0
+        packets.append(
+            UnitThermalPacket(
+                packet_id=f"{duty.unit_id}_thermal_packet",
+                unit_id=duty.unit_id,
+                service=duty.notes or duty.unit_id,
+                duty_type=duty.duty_type,
+                heating_kw=round(duty.heating_kw, 3),
+                cooling_kw=round(duty.cooling_kw, 3),
+                hot_stream_id=duty.hot_stream_id,
+                cold_stream_id=duty.cold_stream_id,
+                hot_supply_temp_c=round(hot_supply, 3),
+                hot_target_temp_c=round(hot_target, 3),
+                cold_supply_temp_c=round(cold_supply, 3),
+                cold_target_temp_c=round(cold_target, 3),
+                recoverable_duty_kw=round(recoverable, 3),
+                candidate_media=_packet_media(duty),
+                notes=[duty.notes] if duty.notes else [],
+                citations=stream_table.citations,
+                assumptions=stream_table.assumptions,
+            )
+        )
+    return packets
+
+
+def _build_network_candidates(packets: list[UnitThermalPacket], min_approach_temp_c: float = 20.0) -> list[ExchangerNetworkCandidate]:
+    hot_packets = [packet for packet in packets if packet.cooling_kw > 0.0]
+    cold_packets = [packet for packet in packets if packet.heating_kw > 0.0]
+    candidates: list[ExchangerNetworkCandidate] = []
+    for hot_packet in hot_packets:
+        for cold_packet in cold_packets:
+            if hot_packet.unit_id == cold_packet.unit_id:
+                continue
+            direct_margin = hot_packet.hot_supply_temp_c - cold_packet.cold_target_temp_c
+            indirect_margin = hot_packet.hot_supply_temp_c - cold_packet.cold_supply_temp_c
+            topology = "direct" if direct_margin >= min_approach_temp_c else "htm_loop"
+            feasible = direct_margin >= min_approach_temp_c or indirect_margin >= min_approach_temp_c
+            recovered = min(hot_packet.cooling_kw, cold_packet.heating_kw)
+            if not feasible or recovered <= 0.0:
+                continue
+            if topology == "direct":
+                recovered *= 0.90
+            else:
+                recovered *= 0.76
+            candidates.append(
+                ExchangerNetworkCandidate(
+                    candidate_id=f"{hot_packet.unit_id}_to_{cold_packet.unit_id}",
+                    source_unit_id=hot_packet.unit_id,
+                    sink_unit_id=cold_packet.unit_id,
+                    hot_packet_id=hot_packet.packet_id,
+                    cold_packet_id=cold_packet.packet_id,
+                    topology=topology,
+                    recovered_duty_kw=round(recovered, 3),
+                    minimum_approach_temp_c=min_approach_temp_c,
+                    feasible=True,
+                    notes=(
+                        "Direct packet-level recovery candidate."
+                        if topology == "direct"
+                        else "Indirect hot-transfer-medium candidate derived from solved unit duties."
+                    ),
+                    citations=sorted(set(hot_packet.citations + cold_packet.citations)),
+                    assumptions=sorted(set(hot_packet.assumptions + cold_packet.assumptions)),
+                )
+            )
+    candidates.sort(key=lambda item: item.recovered_duty_kw, reverse=True)
+    return candidates
 
 
 def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, thermo: ThermoAssessmentArtifact) -> EnergyBalance:
@@ -131,6 +266,8 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
         duties.append(UnitDuty(unit_id="SEP-201", heating_kw=round(polish_kw, 3), cooling_kw=round(polish_kw * 0.5, 3), notes="Generic purification duty.", duty_type="sensible"))
     total_heating = round(sum(item.heating_kw for item in duties), 3)
     total_cooling = round(sum(item.cooling_kw for item in duties), 3)
+    thermal_packets = _build_thermal_packets(route, stream_table, duties)
+    network_candidates = _build_network_candidates(thermal_packets)
     traces = [
         CalcTrace(
             trace_id="energy_preheat",
@@ -156,11 +293,29 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
             units="duties",
             notes="The generic energy solver now emits duty rows for each major process section rather than a single family-level total.",
         ),
+        CalcTrace(
+            trace_id="energy_thermal_packets",
+            title="Thermal packet expansion",
+            formula="packet_count = number of unitwise thermal packets carried into utility and equipment design",
+            result=f"{len(thermal_packets)}",
+            units="packets",
+            notes="These packets preserve unit-level hot and cold thermal interfaces downstream.",
+        ),
+        CalcTrace(
+            trace_id="energy_network_candidates",
+            title="Packet-derived exchanger candidates",
+            formula="candidate_count = number of packet-to-packet heat-recovery candidates",
+            result=f"{len(network_candidates)}",
+            units="candidates",
+            notes="These candidates seed utility-architecture selection and detailed exchanger sizing.",
+        ),
     ]
     return EnergyBalance(
         duties=duties,
         total_heating_kw=total_heating,
         total_cooling_kw=total_cooling,
+        unit_thermal_packets=thermal_packets,
+        network_candidates=network_candidates,
         calc_traces=traces,
         value_records=[
             make_value_record("energy_total_heating", "Total heating duty", total_heating, "kW", citations=thermo.citations, assumptions=thermo.assumptions, sensitivity=SensitivityLevel.HIGH),

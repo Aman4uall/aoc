@@ -4,14 +4,21 @@ from aoc.models import (
     AlternativeOption,
     CalcTrace,
     CostModel,
+    DebtSchedule,
+    DebtScheduleEntry,
     DecisionCriterion,
     DecisionRecord,
     EconomicScenarioModel,
     EquipmentCostItem,
+    EquipmentCostBreakdown,
     EquipmentSpec,
     FinancialModel,
+    FinancialSchedule,
+    FinancialScheduleLine,
+    HeatExchangerTrainStep,
     IndianPriceDatum,
     MarketAssessmentArtifact,
+    PlantCostSummary,
     ProjectBasis,
     ScenarioStability,
     ScenarioPolicy,
@@ -19,6 +26,8 @@ from aoc.models import (
     SensitivityLevel,
     SiteSelectionArtifact,
     StreamTable,
+    TaxDepreciationBasis,
+    UtilityArchitectureDecision,
     UtilitySummaryArtifact,
     WorkingCapitalModel,
 )
@@ -64,6 +73,57 @@ def _decision(decision_id: str, context: str, alternatives: list[AlternativeOpti
     )
 
 
+def _utility_train_cost_items(
+    utility_architecture: UtilityArchitectureDecision | None,
+    citations: list[str],
+    assumptions: list[str],
+) -> tuple[list[EquipmentCostItem], float]:
+    if utility_architecture is None or not utility_architecture.architecture.selected_train_steps:
+        return [], 0.0
+    items: list[EquipmentCostItem] = []
+    installed_total = 0.0
+    for step in utility_architecture.architecture.selected_train_steps:
+        direct = step.medium.lower() == "direct"
+        base_cost = (2_500_000.0 if direct else 4_500_000.0) + step.recovered_duty_kw * (2600.0 if direct else 3400.0)
+        installed_cost = base_cost * (2.10 if direct else 2.45)
+        installed_total += installed_cost
+        items.append(
+            EquipmentCostItem(
+                equipment_id=step.exchanger_id,
+                equipment_type="Heat integration exchanger" if direct else "HTM loop exchanger",
+                service=step.service,
+                basis=f"{step.topology}; medium={step.medium}; recovered duty={step.recovered_duty_kw:.3f} kW",
+                bare_cost_inr=round(base_cost, 2),
+                installed_cost_inr=round(installed_cost, 2),
+                spares_cost_inr=round(base_cost * 0.02, 2),
+                notes="Utility-train equipment item derived from the selected packet-level exchanger train.",
+                citations=sorted(set(citations + step.citations)),
+                assumptions=sorted(set(assumptions + step.assumptions)),
+            )
+        )
+    indirect_steps = [step for step in utility_architecture.architecture.selected_train_steps if step.medium.lower() != "direct"]
+    if indirect_steps:
+        total_htm_duty = sum(step.recovered_duty_kw for step in indirect_steps)
+        package_bare_cost = 8_000_000.0 + total_htm_duty * 550.0
+        package_installed = package_bare_cost * 2.20
+        installed_total += package_installed
+        items.append(
+            EquipmentCostItem(
+                equipment_id="UTL-HTM-PKG",
+                equipment_type="HTM loop package",
+                service="Hot-transfer-medium circulation and expansion package",
+                basis=f"{len(indirect_steps)} indirect train steps; total HTM duty={total_htm_duty:.3f} kW",
+                bare_cost_inr=round(package_bare_cost, 2),
+                installed_cost_inr=round(package_installed, 2),
+                spares_cost_inr=round(package_bare_cost * 0.025, 2),
+                notes="Added when the selected utility train uses HTM-mediated recovery.",
+                citations=citations,
+                assumptions=assumptions,
+            )
+        )
+    return items, round(installed_total, 2)
+
+
 def build_procurement_basis_decision(site: SiteSelectionArtifact, equipment: list[EquipmentSpec]) -> DecisionRecord:
     coastal = "port" in " ".join(location.port_access.lower() for location in site.india_location_data)
     options = [
@@ -104,6 +164,7 @@ def build_cost_model_v2(
     assumptions: list[str],
     procurement_basis: DecisionRecord,
     logistics_basis: DecisionRecord,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> CostModel:
     price_data = list(market.india_price_data)
     if not price_data:
@@ -145,6 +206,10 @@ def build_cost_model_v2(
                 assumptions=item.assumptions,
             )
         )
+    utility_train_items, utility_train_installed_capex = _utility_train_cost_items(utility_architecture, citations, assumptions)
+    if utility_train_items:
+        equipment_cost_items.extend(utility_train_items)
+        purchase_cost += sum(item.bare_cost_inr for item in utility_train_items)
     installed_factor = 2.15 if procurement_basis.selected_candidate_id == "domestic_cluster_procurement" else 2.35
     logistics_penalty = 0.02 if logistics_basis.selected_candidate_id == "coastal_cluster_dispatch" else 0.06
     installed_cost = purchase_cost * installed_factor
@@ -208,9 +273,11 @@ def build_cost_model_v2(
         calc_traces=[
             CalcTrace(trace_id="capex", title="Total CAPEX", formula="CAPEX = direct + indirect + contingency", substitutions={"direct": f"{direct_cost:.2f}", "indirect": f"{indirect_cost:.2f}", "contingency": f"{contingency:.2f}"}, result=f"{total_capex:.2f}", units="INR"),
             CalcTrace(trace_id="opex", title="Annual OPEX", formula="OPEX = RM + utilities + labor + maintenance + overheads", substitutions={"RM": f"{raw_material_cost:.2f}", "utilities": f"{utility_cost:.2f}", "labor": f"{labor_cost:.2f}"}, result=f"{annual_opex:.2f}", units="INR/y"),
+            CalcTrace(trace_id="integration_train_capex", title="Selected utility-train CAPEX", formula="CAPEX = sum(installed cost of selected utility-train items)", result=f"{utility_train_installed_capex:.2f}", units="INR"),
         ],
         india_price_data=price_data,
         scenario_results=scenario_results,
+        integration_capex_inr=utility_train_installed_capex,
         equipment_cost_items=equipment_cost_items,
         value_records=[
             make_value_record("cost_total_capex", "Total CAPEX", total_capex, "INR", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
@@ -218,7 +285,11 @@ def build_cost_model_v2(
             make_value_record("cost_logistics_penalty", "Logistics penalty factor", logistics_penalty, "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.MEDIUM),
         ],
         citations=citations,
-        assumptions=assumptions + procurement_basis.assumptions + logistics_basis.assumptions + ["Economics v2 ties CAPEX and OPEX to the selected procurement and logistics basis."],
+        assumptions=assumptions
+        + procurement_basis.assumptions
+        + logistics_basis.assumptions
+        + (["Cost model includes installed equipment implied by the selected utility exchanger train."] if utility_train_items else [])
+        + ["Economics v2 ties CAPEX and OPEX to the selected procurement and logistics basis."],
     )
 
 
@@ -359,4 +430,164 @@ def build_economic_scenario_model_v2(
         markdown=markdown,
         citations=cost_model.citations,
         assumptions=cost_model.assumptions + financial_model.assumptions + economic_basis.assumptions,
+    )
+
+
+def build_plant_cost_summary(cost_model: CostModel, working_capital: WorkingCapitalModel | None = None) -> PlantCostSummary:
+    breakdowns: list[EquipmentCostBreakdown] = []
+    direct_cost_accumulator = 0.0
+    for item in cost_model.equipment_cost_items:
+        installation = max(item.installed_cost_inr - item.bare_cost_inr, 0.0) * 0.42
+        piping = item.installed_cost_inr * 0.14
+        instrumentation = item.installed_cost_inr * 0.08
+        electrical = item.installed_cost_inr * 0.06
+        civil = item.installed_cost_inr * 0.12
+        insulation = item.installed_cost_inr * 0.04
+        contingency = item.installed_cost_inr * 0.05
+        total_installed = item.bare_cost_inr + installation + piping + instrumentation + electrical + civil + insulation + contingency
+        direct_cost_accumulator += total_installed
+        breakdowns.append(
+            EquipmentCostBreakdown(
+                equipment_id=item.equipment_id,
+                bare_cost_inr=round(item.bare_cost_inr, 2),
+                installation_inr=round(installation, 2),
+                piping_inr=round(piping, 2),
+                instrumentation_inr=round(instrumentation, 2),
+                electrical_inr=round(electrical, 2),
+                civil_structural_inr=round(civil, 2),
+                insulation_painting_inr=round(insulation, 2),
+                contingency_inr=round(contingency, 2),
+                total_installed_inr=round(total_installed, 2),
+                citations=item.citations,
+                assumptions=item.assumptions,
+            )
+        )
+    indirect = cost_model.indirect_cost
+    working_capital_inr = working_capital.working_capital_inr if working_capital else 0.0
+    total_project_cost = direct_cost_accumulator + indirect + cost_model.contingency + working_capital_inr
+    markdown_rows = [
+        [
+            item.equipment_id,
+            f"{item.bare_cost_inr:,.2f}",
+            f"{item.installation_inr:,.2f}",
+            f"{item.piping_inr:,.2f}",
+            f"{item.instrumentation_inr:,.2f}",
+            f"{item.total_installed_inr:,.2f}",
+        ]
+        for item in breakdowns
+    ]
+    markdown = "\n".join(
+        [
+            "| Equipment | Bare | Installation | Piping | Instrumentation | Total Installed |",
+            "| --- | --- | --- | --- | --- | --- |",
+            *[
+                f"| {row[0]} | {row[1]} | {row[2]} | {row[3]} | {row[4]} | {row[5]} |"
+                for row in markdown_rows
+            ],
+        ]
+    )
+    return PlantCostSummary(
+        currency=cost_model.currency,
+        equipment_breakdowns=breakdowns,
+        direct_plant_cost_inr=round(direct_cost_accumulator, 2),
+        indirect_cost_inr=round(indirect, 2),
+        contingency_inr=round(cost_model.contingency, 2),
+        working_capital_inr=round(working_capital_inr, 2),
+        total_project_cost_inr=round(total_project_cost, 2),
+        markdown=markdown,
+        citations=cost_model.citations + (working_capital.citations if working_capital else []),
+        assumptions=cost_model.assumptions + (working_capital.assumptions if working_capital else []) + ["Plant-cost summary allocates installed cost into industrial screening buckets."],
+    )
+
+
+def build_debt_schedule(cost_model: CostModel, financing_basis: DecisionRecord, years: int = 5) -> DebtSchedule:
+    interest_rate = {"debt_equity_70_30": 0.105, "debt_equity_60_40": 0.11, "conservative_50_50": 0.12}.get(financing_basis.selected_candidate_id or "", 0.11)
+    debt_fraction = {"debt_equity_70_30": 0.70, "debt_equity_60_40": 0.60, "conservative_50_50": 0.50}.get(financing_basis.selected_candidate_id or "", 0.60)
+    opening_debt = cost_model.total_capex * debt_fraction
+    principal_fraction = 1.0 / max(years, 1)
+    entries: list[DebtScheduleEntry] = []
+    for year in range(1, years + 1):
+        principal = opening_debt * principal_fraction
+        interest = opening_debt * interest_rate
+        closing = max(opening_debt - principal, 0.0)
+        entries.append(
+            DebtScheduleEntry(
+                year=year,
+                opening_debt_inr=round(opening_debt, 2),
+                principal_repayment_inr=round(principal, 2),
+                interest_inr=round(interest, 2),
+                closing_debt_inr=round(closing, 2),
+                citations=cost_model.citations + financing_basis.citations,
+                assumptions=cost_model.assumptions + financing_basis.assumptions,
+            )
+        )
+        opening_debt = closing
+    markdown = "\n".join(
+        [
+            "| Year | Opening Debt | Principal | Interest | Closing Debt |",
+            "| --- | --- | --- | --- | --- |",
+            *[
+                f"| {entry.year} | {entry.opening_debt_inr:,.2f} | {entry.principal_repayment_inr:,.2f} | {entry.interest_inr:,.2f} | {entry.closing_debt_inr:,.2f} |"
+                for entry in entries
+            ],
+        ]
+    )
+    return DebtSchedule(
+        debt_fraction=debt_fraction,
+        interest_rate=interest_rate,
+        entries=entries,
+        markdown=markdown,
+        citations=cost_model.citations + financing_basis.citations,
+        assumptions=cost_model.assumptions + financing_basis.assumptions,
+    )
+
+
+def build_tax_depreciation_basis(cost_model: CostModel) -> TaxDepreciationBasis:
+    return TaxDepreciationBasis(
+        depreciation_method="Straight line screening basis",
+        depreciation_years=12,
+        tax_rate_fraction=0.25,
+        markdown=(
+            f"Depreciation uses a 12-year straight-line screening basis on total CAPEX of INR {cost_model.total_capex:,.2f}; "
+            "corporate tax assumed at 25%."
+        ),
+        citations=cost_model.citations,
+        assumptions=cost_model.assumptions + ["Tax and depreciation remain screening-level and India-grounded."],
+    )
+
+
+def build_financial_schedule(financial_model: FinancialModel) -> FinancialSchedule:
+    lines = [
+        FinancialScheduleLine(
+            year=int(row["year"]),
+            capacity_utilization_pct=float(row["capacity_utilization_pct"]),
+            revenue_inr=float(row["revenue_inr"]),
+            operating_cost_inr=float(row["operating_cost_inr"]),
+            depreciation_inr=float(row["depreciation_inr"]),
+            interest_inr=float(row["interest_inr"]),
+            profit_before_tax_inr=float(row["profit_before_tax_inr"]),
+            tax_inr=float(row["tax_inr"]),
+            profit_after_tax_inr=float(row["profit_after_tax_inr"]),
+            cash_accrual_inr=float(row["cash_accrual_inr"]),
+            citations=financial_model.citations,
+            assumptions=financial_model.assumptions,
+        )
+        for row in financial_model.annual_schedule
+    ]
+    markdown = "\n".join(
+        [
+            "| Year | Utilization (%) | Revenue | Opex | Depreciation | Interest | PBT | Tax | PAT | Cash Accrual |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            *[
+                f"| {line.year} | {line.capacity_utilization_pct:.2f} | {line.revenue_inr:,.2f} | {line.operating_cost_inr:,.2f} | {line.depreciation_inr:,.2f} | {line.interest_inr:,.2f} | {line.profit_before_tax_inr:,.2f} | {line.tax_inr:,.2f} | {line.profit_after_tax_inr:,.2f} | {line.cash_accrual_inr:,.2f} |"
+                for line in lines
+            ],
+        ]
+    )
+    return FinancialSchedule(
+        currency=financial_model.currency,
+        lines=lines,
+        markdown=markdown,
+        citations=financial_model.citations,
+        assumptions=financial_model.assumptions,
     )

@@ -32,6 +32,8 @@ class KernelTests(unittest.TestCase):
         self.assertTrue(resolved_sources.selected_source_ids)
         self.assertEqual(resolved_sources.unresolved_conflicts, [])
         self.assertEqual(resolved_values.unresolved_value_ids, [])
+        self.assertIsInstance(resolved_sources.conflicts, list)
+        self.assertIsInstance(resolved_values.property_estimates, list)
 
     def test_archetype_and_alternative_sets_are_emitted(self):
         config = self._config()
@@ -50,4 +52,3 @@ class KernelTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

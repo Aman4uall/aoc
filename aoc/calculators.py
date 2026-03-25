@@ -40,6 +40,7 @@ from aoc.models import (
     ThermoAssessmentArtifact,
     UnitDuty,
     UtilityBasis,
+    UtilityArchitectureDecision,
     UtilityLoad,
     UtilitySummaryArtifact,
     UtilityNetworkDecision,
@@ -492,8 +493,9 @@ def build_reactor_design(
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
     reactor_choice: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> ReactorDesign:
-    return build_reactor_design_generic(basis, route, reaction_system, stream_table, energy_balance, reactor_choice)
+    return build_reactor_design_generic(basis, route, reaction_system, stream_table, energy_balance, reactor_choice, utility_architecture)
 
     feed_mass = sum(sum(component.mass_flow_kg_hr for component in stream.components) for stream in stream_table.streams if stream.stream_id in {"S-101", "S-102"})
     density = 1030.0 if route.route_id == "eo_hydration" else 950.0
@@ -557,8 +559,9 @@ def build_column_design(
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
     separation_choice: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> ColumnDesign:
-    return build_column_design_generic(basis, route, stream_table, energy_balance, separation_choice)
+    return build_column_design_generic(basis, route, stream_table, energy_balance, separation_choice, utility_architecture)
 
     column_feed = next(stream for stream in stream_table.streams if stream.stream_id in {"S-301", "S-201"})
     total_mass = sum(component.mass_flow_kg_hr for component in column_feed.components)
@@ -635,8 +638,9 @@ def build_heat_exchanger_design(
     route: RouteOption,
     energy_balance: EnergyBalance,
     exchanger_choice: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> HeatExchangerDesign:
-    return build_heat_exchanger_design_generic(route, energy_balance, exchanger_choice)
+    return build_heat_exchanger_design_generic(route, energy_balance, exchanger_choice, utility_architecture)
 
     preheater = next((duty for duty in energy_balance.duties if duty.unit_id == "E-101"), None)
     if preheater is None:
@@ -831,8 +835,10 @@ def compute_utilities(
     citations: list[str],
     assumptions: list[str],
     utility_network_decision: UtilityNetworkDecision | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> UtilitySummaryArtifact:
     selected_case = _selected_utility_case(utility_network_decision)
+    selected_train_steps = utility_architecture.architecture.selected_train_steps if utility_architecture is not None else []
     effective_heating_kw = selected_case.residual_hot_utility_kw if selected_case else energy_balance.total_heating_kw
     effective_cooling_kw = selected_case.residual_cold_utility_kw if selected_case else energy_balance.total_cooling_kw
     steam_kg_hr = effective_heating_kw * 3600.0 / 2200.0
@@ -841,6 +847,13 @@ def compute_utilities(
     electrical_kw = max(major_volume * 0.9, 35.0) + pump_power_kw(flow_m3_hr=hourly_output_kg(basis) / 1100.0, head_m=45.0)
     if selected_case and selected_case.case_id.endswith("pinch_htm"):
         electrical_kw += max(selected_case.recovered_duty_kw / 3500.0, 15.0)
+    train_aux_power_kw = 0.0
+    if selected_train_steps:
+        direct_steps = [step for step in selected_train_steps if step.medium.lower() == "direct"]
+        indirect_steps = [step for step in selected_train_steps if step.medium.lower() != "direct"]
+        train_aux_power_kw += len(direct_steps) * 1.5
+        train_aux_power_kw += len(indirect_steps) * 4.5 + sum(step.recovered_duty_kw for step in indirect_steps) / 5000.0
+        electrical_kw += train_aux_power_kw
     dm_water_m3_hr = max(hourly_output_kg(basis) / 25000.0, 2.0)
     nitrogen_nm3_hr = max(hourly_output_kg(basis) / 7000.0, 3.0)
     loads = [
@@ -850,10 +863,26 @@ def compute_utilities(
         UtilityLoad(utility_id="UT-DMW", utility_type="DM water", load=round(dm_water_m3_hr, 3), units="m3/h", basis="Boiler and wash service allowance", citations=citations, assumptions=assumptions),
         UtilityLoad(utility_id="UT-N2", utility_type="Nitrogen", load=round(nitrogen_nm3_hr, 3), units="Nm3/h", basis="Inerting and blanketing", citations=citations, assumptions=assumptions),
     ]
+    if train_aux_power_kw > 0.0:
+        loads.append(
+            UtilityLoad(
+                utility_id="UT-HTM-AUX",
+                utility_type="Heat-integration auxiliaries",
+                load=round(train_aux_power_kw, 3),
+                units="kW",
+                basis="Selected utility train circulation, HTM pumping, and exchanger-network auxiliaries",
+                citations=citations,
+                assumptions=assumptions,
+            )
+        )
     utility_assumptions = list(assumptions)
     if selected_case:
         utility_assumptions.append(
             f"Utility loads are net of selected heat-integration case `{selected_case.case_id}` with {selected_case.recovered_duty_kw:.1f} kW recovered duty."
+        )
+    if selected_train_steps:
+        utility_assumptions.append(
+            f"Utility loads include {len(selected_train_steps)} selected train steps with {sum(step.recovered_duty_kw for step in selected_train_steps):.1f} kW packet-derived recovery basis."
         )
     utility_assumptions.append("Cooling water rise fixed at 10 K and steam latent heat at 2200 kJ/kg for preliminary utility sizing.")
     return UtilitySummaryArtifact(
@@ -863,6 +892,8 @@ def compute_utilities(
         assumptions=utility_assumptions,
         selected_heat_integration_case_id=selected_case.case_id if selected_case else None,
         recovered_duty_kw=round(selected_case.recovered_duty_kw, 3) if selected_case else 0.0,
+        selected_train_step_count=len(selected_train_steps),
+        selected_train_recovered_duty_kw=round(sum(step.recovered_duty_kw for step in selected_train_steps), 3),
         value_records=[
             make_value_record("utility_steam_load", "Steam load", steam_kg_hr, "kg/h", citations=citations, assumptions=utility_assumptions, sensitivity=SensitivityLevel.HIGH),
             make_value_record("utility_cw_load", "Cooling-water load", cooling_water_m3_hr, "m3/h", citations=citations, assumptions=utility_assumptions, sensitivity=SensitivityLevel.MEDIUM),
@@ -889,6 +920,7 @@ def build_cost_model(
     citations: list[str],
     assumptions: list[str],
     utility_network_decision: UtilityNetworkDecision | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
     scenario_policy: ScenarioPolicy | None = None,
     procurement_basis: DecisionRecord | None = None,
     logistics_basis: DecisionRecord | None = None,
@@ -908,12 +940,14 @@ def build_cost_model(
         assumptions,
         procurement_basis,
         logistics_basis,
+        utility_architecture=utility_architecture,
     )
     selected_case = _selected_utility_case(utility_network_decision)
     if utility_network_decision is not None:
         model.selected_route_id = utility_network_decision.route_id
         model.selected_heat_integration_case_id = selected_case.case_id if selected_case else None
-        model.integration_capex_inr = round(selected_case.added_capex_inr, 2) if selected_case else 0.0
+        if model.integration_capex_inr <= 0.0:
+            model.integration_capex_inr = round(selected_case.added_capex_inr, 2) if selected_case else 0.0
     return model
 
     price_data = list(market.india_price_data)
