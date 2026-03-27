@@ -1003,6 +1003,69 @@ class ColumnDesign(ProvenancedModel):
     condenser_phase_change_load_kg_hr: float = 0.0
     condenser_circulation_flow_m3_hr: float = 0.0
     condenser_package_item_ids: list[str] = Field(default_factory=list)
+    equilibrium_model: str = ""
+    equilibrium_parameter_ids: list[str] = Field(default_factory=list)
+    equilibrium_fallback: bool = False
+    absorber_key_component: str = ""
+    absorber_henry_constant_bar: float = 0.0
+    absorber_equilibrium_slope: float = 0.0
+    absorber_solvent_to_gas_ratio: float = 0.0
+    absorber_capture_fraction: float = 0.0
+    absorber_stage_efficiency: float = 0.0
+    absorber_theoretical_stages: float = 0.0
+    absorber_packed_height_m: float = 0.0
+    absorber_gas_mass_velocity_kg_m2_s: float = 0.0
+    absorber_liquid_mass_velocity_kg_m2_s: float = 0.0
+    absorber_ntu: float = 0.0
+    absorber_htu_m: float = 0.0
+    absorber_overall_mass_transfer_coefficient_1_s: float = 0.0
+    absorber_packing_family: str = ""
+    absorber_packing_specific_area_m2_m3: float = 0.0
+    absorber_effective_interfacial_area_m2_m3: float = 0.0
+    absorber_gas_phase_transfer_coeff_1_s: float = 0.0
+    absorber_liquid_phase_transfer_coeff_1_s: float = 0.0
+    absorber_min_wetting_rate_kg_m2_s: float = 0.0
+    absorber_wetting_ratio: float = 0.0
+    absorber_operating_velocity_m_s: float = 0.0
+    absorber_flooding_velocity_m_s: float = 0.0
+    absorber_flooding_margin_fraction: float = 0.0
+    absorber_pressure_drop_per_m_kpa_m: float = 0.0
+    absorber_total_pressure_drop_kpa: float = 0.0
+    crystallizer_key_component: str = ""
+    crystallizer_solubility_limit_kg_per_kg: float = 0.0
+    crystallizer_feed_loading_kg_per_kg: float = 0.0
+    crystallizer_supersaturation_ratio: float = 0.0
+    crystallizer_precipitated_mass_kg_hr: float = 0.0
+    crystallizer_dissolved_mass_kg_hr: float = 0.0
+    crystallizer_yield_fraction: float = 0.0
+    crystallizer_residence_time_hr: float = 0.0
+    crystallizer_holdup_m3: float = 0.0
+    crystal_slurry_density_kg_m3: float = 0.0
+    crystal_growth_rate_mm_hr: float = 0.0
+    crystal_size_d10_mm: float = 0.0
+    crystal_size_d50_mm: float = 0.0
+    crystal_size_d90_mm: float = 0.0
+    crystal_classifier_cut_size_mm: float = 0.0
+    crystal_classified_product_fraction: float = 0.0
+    slurry_circulation_rate_m3_hr: float = 0.0
+    filter_cake_moisture_fraction: float = 0.0
+    filter_area_m2: float = 0.0
+    filter_cake_throughput_kg_m2_hr: float = 0.0
+    filter_specific_cake_resistance_m_kg: float = 0.0
+    filter_medium_resistance_1_m: float = 0.0
+    dryer_evaporation_load_kg_hr: float = 0.0
+    dryer_residence_time_hr: float = 0.0
+    dryer_target_moisture_fraction: float = 0.0
+    dryer_product_moisture_fraction: float = 0.0
+    dryer_equilibrium_moisture_fraction: float = 0.0
+    dryer_inlet_humidity_ratio_kg_kg: float = 0.0
+    dryer_exhaust_humidity_ratio_kg_kg: float = 0.0
+    dryer_dry_air_flow_kg_hr: float = 0.0
+    dryer_exhaust_saturation_fraction: float = 0.0
+    dryer_mass_transfer_coefficient_kg_m2_s: float = 0.0
+    dryer_heat_transfer_coefficient_w_m2_k: float = 0.0
+    dryer_heat_transfer_area_m2: float = 0.0
+    dryer_refined_duty_kw: float = 0.0
     selected_train_step_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
@@ -1400,6 +1463,11 @@ class IndianLocationDatum(ProvenancedModel):
 class ScenarioResult(BaseModel):
     scenario_name: str
     annual_utility_cost_inr: float
+    annual_transport_service_cost_inr: float = 0.0
+    annual_packing_replacement_cost_inr: float = 0.0
+    annual_classifier_service_cost_inr: float = 0.0
+    annual_filter_media_replacement_cost_inr: float = 0.0
+    annual_dryer_exhaust_treatment_cost_inr: float = 0.0
     annual_operating_cost_inr: float
     annual_revenue_inr: float
     gross_margin_inr: float
@@ -1450,6 +1518,21 @@ class CostModel(ProvenancedModel):
     annual_utility_cost: float
     annual_labor_cost: float
     annual_maintenance_cost: float
+    annual_transport_service_cost: float = 0.0
+    annual_packing_replacement_cost: float = 0.0
+    annual_classifier_service_cost: float = 0.0
+    annual_filter_media_replacement_cost: float = 0.0
+    annual_dryer_exhaust_treatment_cost: float = 0.0
+    packing_replacement_cycle_years: float = 0.0
+    packing_replacement_event_cost: float = 0.0
+    availability_policy_label: str = ""
+    planned_minor_outage_days_per_year: float = 0.0
+    planned_major_turnaround_days: float = 0.0
+    startup_loss_days_after_turnaround: float = 0.0
+    minor_outage_window_note: str = ""
+    major_turnaround_window_note: str = ""
+    maintenance_turnaround_cycle_years: int = 0
+    maintenance_turnaround_event_cost: float = 0.0
     annual_overheads: float
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     india_price_data: list[IndianPriceDatum] = Field(default_factory=list)
@@ -1538,8 +1621,25 @@ class TaxDepreciationBasis(ProvenancedModel):
 class FinancialScheduleLine(ProvenancedModel):
     year: int
     capacity_utilization_pct: float
+    availability_pct: float = 0.0
+    minor_outage_days: float = 0.0
+    major_turnaround_days: float = 0.0
+    startup_loss_days: float = 0.0
+    available_operating_days: float = 0.0
+    outage_calendar_note: str = ""
     revenue_inr: float
     operating_cost_inr: float
+    raw_material_cost_inr: float = 0.0
+    utility_cost_inr: float = 0.0
+    labor_cost_inr: float = 0.0
+    base_maintenance_inr: float = 0.0
+    transport_service_cost_inr: float = 0.0
+    packing_replacement_cost_inr: float = 0.0
+    classifier_service_cost_inr: float = 0.0
+    filter_media_replacement_cost_inr: float = 0.0
+    dryer_exhaust_treatment_cost_inr: float = 0.0
+    turnaround_cost_inr: float = 0.0
+    turnaround_flag: bool = False
     depreciation_inr: float
     interest_inr: float
     profit_before_tax_inr: float

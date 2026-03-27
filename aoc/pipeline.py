@@ -1475,6 +1475,45 @@ class PipelineRunner:
         exchanger_thermal: HeatExchangerThermalDesign,
         stream_table: StreamTable,
     ) -> str:
+        def _normalize_component(name: str) -> str:
+            return name.strip().lower().replace("-", "_").replace(" ", "_")
+
+        def _component_mass(stream_ids: list[str], component_name: str) -> float:
+            selected_ids = set(stream_ids)
+            target = _normalize_component(component_name)
+            return sum(
+                component.mass_flow_kg_hr
+                for stream in stream_table.streams
+                if stream.stream_id in selected_ids
+                for component in stream.components
+                if _normalize_component(component.name) == target
+            )
+
+        def _preferred_component(packet, *, mode: str) -> str | None:
+            component_names = (
+                set(packet.component_split_to_product)
+                | set(packet.component_split_to_waste)
+                | set(packet.component_split_to_recycle)
+            )
+            excluded = {"water"} if mode == "sle" else {"water", "sulfuric_acid", "spent_acid"}
+            ranked: list[tuple[float, float, str]] = []
+            for component_name in component_names:
+                normalized = _normalize_component(component_name)
+                if normalized in excluded:
+                    continue
+                product_split = packet.component_split_to_product.get(component_name, 0.0)
+                waste_split = packet.component_split_to_waste.get(component_name, 0.0)
+                recycle_split = packet.component_split_to_recycle.get(component_name, 0.0)
+                score = (
+                    product_split + recycle_split - waste_split
+                    if mode == "gle"
+                    else product_split - recycle_split - waste_split
+                )
+                ranked.append((score, product_split + recycle_split + waste_split, component_name))
+            if ranked:
+                return max(ranked, key=lambda item: (item[0], item[1], item[2].lower()))[2]
+            return None
+
         process_packets = [
             packet
             for packet in stream_table.unit_operation_packets
@@ -1559,6 +1598,232 @@ class PipelineRunner:
             ["Boiling-side coefficient (W/m2-K)", f"{exchanger.boiling_side_coefficient_w_m2_k:.3f}"],
             ["Condensing-side coefficient (W/m2-K)", f"{exchanger.condensing_side_coefficient_w_m2_k:.3f}"],
         ]
+        absorption_sections: list[str] = []
+        crystallization_sections: list[str] = []
+        if "absor" in column.service.lower():
+            equilibrium_packets = [
+                packet
+                for packet in stream_table.separation_packets
+                if packet.unit_id in {"primary_separation", "regeneration"}
+                or packet.separation_family in {"absorption", "stripping"}
+            ]
+            if equilibrium_packets:
+                packet_rows = [
+                    [
+                        packet.packet_id,
+                        packet.unit_id,
+                        packet.equilibrium_model or "heuristic_gle_fallback",
+                        ", ".join(packet.equilibrium_parameter_ids) or "none",
+                        "yes" if packet.equilibrium_fallback else "no",
+                        f"{packet.product_mass_fraction:.3f}",
+                        f"{packet.waste_mass_fraction:.3f}",
+                        f"{packet.recycle_mass_fraction:.3f}",
+                        "; ".join(packet.notes) or "n/a",
+                    ]
+                    for packet in equilibrium_packets
+                ]
+                component_rows = []
+                for packet in equilibrium_packets:
+                    component_name = _preferred_component(packet, mode="gle")
+                    if not component_name:
+                        continue
+                    captured_mass = _component_mass(packet.product_stream_ids, component_name) + _component_mass(packet.recycle_stream_ids, component_name)
+                    offgas_mass = _component_mass(packet.waste_stream_ids, component_name)
+                    retained_fraction = min(
+                        packet.component_split_to_product.get(component_name, 0.0)
+                        + packet.component_split_to_recycle.get(component_name, 0.0),
+                        1.0,
+                    )
+                    component_rows.append(
+                        [
+                            packet.unit_id,
+                            component_name,
+                            packet.equilibrium_model or "heuristic_gle_fallback",
+                            f"{captured_mass:.3f}",
+                            f"{offgas_mass:.3f}",
+                            f"{retained_fraction:.4f}",
+                            "; ".join(packet.notes) or "n/a",
+                        ]
+                    )
+                absorption_sections = [
+                    "### Gas-Liquid Equilibrium Basis\n\n"
+                    + markdown_table(
+                        [
+                            "Packet",
+                            "Unit",
+                            "Model",
+                            "Parameter IDs",
+                            "Fallback",
+                            "Product Mass Fraction",
+                            "Waste Mass Fraction",
+                            "Recycle Mass Fraction",
+                            "Notes",
+                        ],
+                        packet_rows,
+                    )
+                ]
+                if component_rows:
+                    absorption_sections.append(
+                        "### Absorber Capture Basis\n\n"
+                        + markdown_table(
+                            [
+                                "Unit",
+                                "Component",
+                                "Model",
+                                "Captured to Liquid (kg/h)",
+                                "Offgas (kg/h)",
+                                "Retained Fraction",
+                                "Notes",
+                            ],
+                            component_rows,
+                    )
+                    )
+                absorber_stage_rows = [
+                    ["Key absorbed component", column.absorber_key_component or "n/a"],
+                    ["Henry constant (bar)", f"{column.absorber_henry_constant_bar:.6f}"],
+                    ["Equilibrium slope m", f"{column.absorber_equilibrium_slope:.6f}"],
+                    ["Solvent / gas ratio", f"{column.absorber_solvent_to_gas_ratio:.6f}"],
+                    ["Capture fraction", f"{column.absorber_capture_fraction:.6f}"],
+                    ["Stage efficiency", f"{column.absorber_stage_efficiency:.6f}"],
+                    ["Theoretical stages", f"{column.absorber_theoretical_stages:.6f}"],
+                    ["Gas mass velocity (kg/m2-s)", f"{column.absorber_gas_mass_velocity_kg_m2_s:.6f}"],
+                    ["Liquid mass velocity (kg/m2-s)", f"{column.absorber_liquid_mass_velocity_kg_m2_s:.6f}"],
+                    ["Packing family", column.absorber_packing_family or "n/a"],
+                    ["Packing specific area (m2/m3)", f"{column.absorber_packing_specific_area_m2_m3:.6f}"],
+                    ["Effective interfacial area (m2/m3)", f"{column.absorber_effective_interfacial_area_m2_m3:.6f}"],
+                    ["Gas-film transfer coefficient (1/s)", f"{column.absorber_gas_phase_transfer_coeff_1_s:.6f}"],
+                    ["Liquid-film transfer coefficient (1/s)", f"{column.absorber_liquid_phase_transfer_coeff_1_s:.6f}"],
+                    ["Overall mass-transfer coefficient (1/s)", f"{column.absorber_overall_mass_transfer_coefficient_1_s:.6f}"],
+                    ["Minimum wetting rate (kg/m2-s)", f"{column.absorber_min_wetting_rate_kg_m2_s:.6f}"],
+                    ["Wetting ratio", f"{column.absorber_wetting_ratio:.6f}"],
+                    ["Operating velocity (m/s)", f"{column.absorber_operating_velocity_m_s:.6f}"],
+                    ["Flooding velocity (m/s)", f"{column.absorber_flooding_velocity_m_s:.6f}"],
+                    ["Flooding margin fraction", f"{column.absorber_flooding_margin_fraction:.6f}"],
+                    ["NTU", f"{column.absorber_ntu:.6f}"],
+                    ["HTU (m)", f"{column.absorber_htu_m:.6f}"],
+                    ["Pressure drop per m (kPa/m)", f"{column.absorber_pressure_drop_per_m_kpa_m:.6f}"],
+                    ["Total pressure drop (kPa)", f"{column.absorber_total_pressure_drop_kpa:.6f}"],
+                    ["Packed height (m)", f"{column.absorber_packed_height_m:.6f}"],
+                ]
+                absorption_sections.append(
+                    "### Absorber Stage Screening\n\n"
+                    + markdown_table(["Parameter", "Value"], absorber_stage_rows)
+                )
+        elif "crystallizer" in column.service.lower():
+            equilibrium_packets = [
+                packet
+                for packet in stream_table.separation_packets
+                if packet.unit_id in {"concentration", "filtration", "drying"}
+                or packet.separation_family in {"crystallization", "filtration", "drying"}
+            ]
+            if equilibrium_packets:
+                packet_rows = [
+                    [
+                        packet.packet_id,
+                        packet.unit_id,
+                        packet.equilibrium_model or "heuristic_sle_fallback",
+                        ", ".join(packet.equilibrium_parameter_ids) or "none",
+                        "yes" if packet.equilibrium_fallback else "no",
+                        f"{packet.product_mass_fraction:.3f}",
+                        f"{packet.waste_mass_fraction:.3f}",
+                        f"{packet.recycle_mass_fraction:.3f}",
+                        "; ".join(packet.notes) or "n/a",
+                    ]
+                    for packet in equilibrium_packets
+                ]
+                component_rows = []
+                for packet in equilibrium_packets:
+                    component_name = _preferred_component(packet, mode="sle")
+                    if not component_name:
+                        continue
+                    precipitated_mass = _component_mass(packet.product_stream_ids, component_name)
+                    dissolved_mass = _component_mass(packet.recycle_stream_ids, component_name) + _component_mass(packet.waste_stream_ids, component_name)
+                    yield_fraction = precipitated_mass / max(precipitated_mass + dissolved_mass, 1e-9)
+                    component_rows.append(
+                        [
+                            packet.unit_id,
+                            component_name,
+                            packet.equilibrium_model or "heuristic_sle_fallback",
+                            f"{dissolved_mass:.3f}",
+                            f"{precipitated_mass:.3f}",
+                            f"{yield_fraction:.4f}",
+                            "; ".join(packet.notes) or "n/a",
+                        ]
+                    )
+                crystallization_sections = [
+                    "### Solid-Liquid Equilibrium Basis\n\n"
+                    + markdown_table(
+                        [
+                            "Packet",
+                            "Unit",
+                            "Model",
+                            "Parameter IDs",
+                            "Fallback",
+                            "Product Mass Fraction",
+                            "Waste Mass Fraction",
+                            "Recycle Mass Fraction",
+                            "Notes",
+                        ],
+                        packet_rows,
+                    )
+                ]
+                if component_rows:
+                    crystallization_sections.append(
+                        "### Crystallization Yield Basis\n\n"
+                        + markdown_table(
+                            [
+                                "Unit",
+                                "Component",
+                                "Model",
+                                "Dissolved in Liquor (kg/h)",
+                                "Precipitated to Crystals (kg/h)",
+                                "Yield Fraction",
+                                "Notes",
+                            ],
+                            component_rows,
+                        )
+                    )
+                crystallizer_rows = [
+                    ["Key crystal component", column.crystallizer_key_component or "n/a"],
+                    ["Solubility limit (kg/kg solvent)", f"{column.crystallizer_solubility_limit_kg_per_kg:.6f}"],
+                    ["Feed loading (kg/kg solvent)", f"{column.crystallizer_feed_loading_kg_per_kg:.6f}"],
+                    ["Supersaturation ratio", f"{column.crystallizer_supersaturation_ratio:.6f}"],
+                    ["Precipitated mass (kg/h)", f"{column.crystallizer_precipitated_mass_kg_hr:.6f}"],
+                    ["Dissolved mass (kg/h)", f"{column.crystallizer_dissolved_mass_kg_hr:.6f}"],
+                    ["Yield fraction", f"{column.crystallizer_yield_fraction:.6f}"],
+                    ["Crystallizer residence time (h)", f"{column.crystallizer_residence_time_hr:.6f}"],
+                    ["Crystallizer holdup (m3)", f"{column.crystallizer_holdup_m3:.6f}"],
+                    ["Crystal slurry density (kg/m3)", f"{column.crystal_slurry_density_kg_m3:.6f}"],
+                    ["Crystal growth rate (mm/h)", f"{column.crystal_growth_rate_mm_hr:.6f}"],
+                    ["Crystal size d10 (mm)", f"{column.crystal_size_d10_mm:.6f}"],
+                    ["Crystal size d50 (mm)", f"{column.crystal_size_d50_mm:.6f}"],
+                    ["Crystal size d90 (mm)", f"{column.crystal_size_d90_mm:.6f}"],
+                    ["Classifier cut size (mm)", f"{column.crystal_classifier_cut_size_mm:.6f}"],
+                    ["Classified product fraction", f"{column.crystal_classified_product_fraction:.6f}"],
+                    ["Slurry circulation rate (m3/h)", f"{column.slurry_circulation_rate_m3_hr:.6f}"],
+                    ["Filter cake moisture fraction", f"{column.filter_cake_moisture_fraction:.6f}"],
+                    ["Filter area (m2)", f"{column.filter_area_m2:.6f}"],
+                    ["Filter cake throughput (kg/m2-h)", f"{column.filter_cake_throughput_kg_m2_hr:.6f}"],
+                    ["Specific cake resistance (m/kg)", f"{column.filter_specific_cake_resistance_m_kg:.6f}"],
+                    ["Filter medium resistance (1/m)", f"{column.filter_medium_resistance_1_m:.6f}"],
+                    ["Dryer evaporation load (kg/h)", f"{column.dryer_evaporation_load_kg_hr:.6f}"],
+                    ["Dryer residence time (h)", f"{column.dryer_residence_time_hr:.6f}"],
+                    ["Dryer target moisture fraction", f"{column.dryer_target_moisture_fraction:.6f}"],
+                    ["Dryer product moisture fraction", f"{column.dryer_product_moisture_fraction:.6f}"],
+                    ["Dryer equilibrium moisture fraction", f"{column.dryer_equilibrium_moisture_fraction:.6f}"],
+                    ["Dryer inlet humidity ratio (kg/kg)", f"{column.dryer_inlet_humidity_ratio_kg_kg:.6f}"],
+                    ["Dryer exhaust humidity ratio (kg/kg)", f"{column.dryer_exhaust_humidity_ratio_kg_kg:.6f}"],
+                    ["Dryer dry-air flow (kg/h)", f"{column.dryer_dry_air_flow_kg_hr:.6f}"],
+                    ["Dryer exhaust saturation fraction", f"{column.dryer_exhaust_saturation_fraction:.6f}"],
+                    ["Dryer mass-transfer coefficient (kg/m2-s)", f"{column.dryer_mass_transfer_coefficient_kg_m2_s:.6f}"],
+                    ["Dryer heat-transfer coefficient (W/m2-K)", f"{column.dryer_heat_transfer_coefficient_w_m2_k:.6f}"],
+                    ["Dryer heat-transfer area (m2)", f"{column.dryer_heat_transfer_area_m2:.6f}"],
+                    ["Dryer refined duty (kW)", f"{column.dryer_refined_duty_kw:.6f}"],
+                ]
+                crystallization_sections.append(
+                    "### Crystallizer / Filter Design Basis\n\n"
+                    + markdown_table(["Parameter", "Value"], crystallizer_rows)
+                )
         return "\n\n".join(
             [
                 column_hydraulics.markdown,
@@ -1574,6 +1839,8 @@ class PipelineRunner:
                     ["Packet", "Unit", "Type", "Inlet kg/h", "Outlet kg/h", "Closure Error (%)", "Status"],
                     packet_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "n/a"]],
                 ),
+                *absorption_sections,
+                *crystallization_sections,
                 "### Process-Unit Sizing Basis\n\n" + markdown_table(["Parameter", "Value"], column_rows),
                 "### Hydraulics Basis\n\n" + markdown_table(["Parameter", "Value"], hydraulics_rows),
                 "### Utility Coupling\n\n" + markdown_table(["Parameter", "Value"], utility_rows),
@@ -1807,6 +2074,7 @@ class PipelineRunner:
             separation_choice,
             utility_architecture,
             separation_thermo,
+            property_packages,
         )
         exchanger = build_heat_exchanger_design(route, energy, exchanger_choice, utility_architecture)
         column_hydraulics = build_column_hydraulics(column)
@@ -1991,6 +2259,7 @@ class PipelineRunner:
         storage = self._load("storage_design", StorageDesign)
         equipment = self._load("equipment_list", EquipmentListArtifact)
         energy = self._load("energy_balance", EnergyBalance)
+        column = self._load("column_design", ColumnDesign)
         site = self._load("site_selection", SiteSelectionArtifact)
         utility_network = self._selected_utility_network()
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(utility_network, energy)
@@ -2010,6 +2279,7 @@ class PipelineRunner:
             utility_basis.assumptions + utility_network.assumptions,
             utility_network_decision=utility_network,
             utility_architecture=utility_architecture,
+            column_design=column,
         )
         artifact.utility_basis_decision_id = utility_basis_decision.decision_id
         self._save("utility_basis_decision", utility_basis_decision)
@@ -2171,6 +2441,7 @@ class PipelineRunner:
         stream_table = self._load("stream_table", StreamTable)
         market = self._load("market_assessment", MarketAssessmentArtifact)
         site = self._load("site_selection", SiteSelectionArtifact)
+        column_design = self._load("column_design", ColumnDesign)
         utility_network = self._selected_utility_network()
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision)
         citations = sorted(set(equipment.citations + utilities.citations + market.citations + site.citations + utility_network.citations))
@@ -2191,6 +2462,7 @@ class PipelineRunner:
             scenario_policy=self.config.scenario_policy,
             procurement_basis=procurement_basis,
             logistics_basis=logistics_basis,
+            column_design=column_design,
         )
         plant_cost_summary = build_plant_cost_summary(cost_model)
         self._save("cost_model", cost_model)
@@ -2204,16 +2476,29 @@ class PipelineRunner:
         scenario_markdown = ""
         if cost_model.scenario_results:
             scenario_markdown = "\n\n### Scenario Cost Snapshot\n\n" + markdown_table(
-                ["Scenario", "Utility Cost (INR/y)", "Operating Cost (INR/y)", "Revenue (INR/y)", "Gross Margin (INR/y)"],
+                ["Scenario", "Utility Cost (INR/y)", "Transport/Service (INR/y)", "Operating Cost (INR/y)", "Revenue (INR/y)", "Gross Margin (INR/y)"],
                 [
                     [
                         item.scenario_name,
                         f"{item.annual_utility_cost_inr:,.2f}",
+                        f"{item.annual_transport_service_cost_inr:,.2f}",
                         f"{item.annual_operating_cost_inr:,.2f}",
                         f"{item.annual_revenue_inr:,.2f}",
                         f"{item.gross_margin_inr:,.2f}",
                     ]
                     for item in cost_model.scenario_results
+                ],
+            )
+        recurring_service_markdown = ""
+        if cost_model.annual_transport_service_cost > 0.0:
+            recurring_service_markdown = "\n\n### Recurring Transport / Service Submodels\n\n" + markdown_table(
+                ["Recurring submodel", f"Value ({cost_model.currency}/y)"],
+                [
+                    ["Packing replacement", f"{cost_model.annual_packing_replacement_cost:,.2f}"],
+                    ["Classifier service", f"{cost_model.annual_classifier_service_cost:,.2f}"],
+                    ["Filter media replacement", f"{cost_model.annual_filter_media_replacement_cost:,.2f}"],
+                    ["Dryer exhaust treatment", f"{cost_model.annual_dryer_exhaust_treatment_cost:,.2f}"],
+                    ["Total transport/service burden", f"{cost_model.annual_transport_service_cost:,.2f}"],
                 ],
             )
         equipment_cost_markdown = "\n\n### Equipment-wise Costing\n\n" + markdown_table(
@@ -2242,7 +2527,7 @@ class PipelineRunner:
                 ["Total CAPEX", f"{cost_model.total_capex:,.2f}"],
             ],
         )
-        markdown += equipment_cost_markdown + scenario_markdown
+        markdown += equipment_cost_markdown + recurring_service_markdown + scenario_markdown
         chapter = self._chapter(
             "project_cost",
             "Project Cost",
@@ -2269,18 +2554,34 @@ class PipelineRunner:
     def _run_cost_of_production(self) -> StageResult:
         cost_model = self._load("cost_model", CostModel)
         unit_cost = cost_model.annual_opex / max(annual_output_kg(self.config.basis), 1.0)
-        markdown = markdown_table(
-            ["Opex bucket", f"Value ({cost_model.currency}/y)"],
+        opex_rows = [
+            ["Raw materials", f"{cost_model.annual_raw_material_cost:,.2f}"],
+            ["Utilities", f"{cost_model.annual_utility_cost:,.2f}"],
+            ["Labor", f"{cost_model.annual_labor_cost:,.2f}"],
+        ]
+        if cost_model.annual_transport_service_cost > 0.0:
+            base_maintenance = max(cost_model.annual_maintenance_cost - cost_model.annual_transport_service_cost, 0.0)
+            opex_rows.extend(
+                [
+                    ["Base maintenance", f"{base_maintenance:,.2f}"],
+                    ["Packing replacement", f"{cost_model.annual_packing_replacement_cost:,.2f}"],
+                    ["Classifier service", f"{cost_model.annual_classifier_service_cost:,.2f}"],
+                    ["Filter media replacement", f"{cost_model.annual_filter_media_replacement_cost:,.2f}"],
+                    ["Dryer exhaust treatment", f"{cost_model.annual_dryer_exhaust_treatment_cost:,.2f}"],
+                    ["Transport/service penalties", f"{cost_model.annual_transport_service_cost:,.2f}"],
+                    ["Total maintenance", f"{cost_model.annual_maintenance_cost:,.2f}"],
+                ]
+            )
+        else:
+            opex_rows.append(["Maintenance", f"{cost_model.annual_maintenance_cost:,.2f}"])
+        opex_rows.extend(
             [
-                ["Raw materials", f"{cost_model.annual_raw_material_cost:,.2f}"],
-                ["Utilities", f"{cost_model.annual_utility_cost:,.2f}"],
-                ["Labor", f"{cost_model.annual_labor_cost:,.2f}"],
-                ["Maintenance", f"{cost_model.annual_maintenance_cost:,.2f}"],
                 ["Overheads", f"{cost_model.annual_overheads:,.2f}"],
                 ["Total OPEX", f"{cost_model.annual_opex:,.2f}"],
                 ["Unit cost", f"{unit_cost:,.2f} {cost_model.currency}/kg"],
-            ],
+            ]
         )
+        markdown = markdown_table(["Opex bucket", f"Value ({cost_model.currency}/y)"], opex_rows)
         chapter = self._chapter(
             "cost_of_production",
             "Cost of Production",
@@ -2374,28 +2675,63 @@ class PipelineRunner:
                 ["Break-even fraction", f"{financial_model.break_even_fraction:.3f}"],
             ],
         )
+        if financial_model.annual_schedule:
+            markdown += "\n\n### Availability and Outage Calendar\n\n" + markdown_table(
+                ["Year", "Availability (%)", "Minor Outage (d)", "Turnaround (d)", "Startup Loss (d)", "Available Days", "Calendar Basis"],
+                [
+                    [
+                        str(item["year"]),
+                        f'{item.get("availability_pct", 0.0):.2f}',
+                        f'{item.get("minor_outage_days", 0.0):.2f}',
+                        f'{item.get("major_turnaround_days", 0.0):.2f}',
+                        f'{item.get("startup_loss_days", 0.0):.2f}',
+                        f'{item.get("available_operating_days", 0.0):.2f}',
+                        str(item.get("outage_calendar_note", "")),
+                    ]
+                    for item in financial_model.annual_schedule
+                ],
+            )
         if financial_model.scenario_results:
             markdown += "\n\n### Scenario Margin Snapshot\n\n" + markdown_table(
-                ["Scenario", "Revenue (INR/y)", "Operating Cost (INR/y)", "Gross Margin (INR/y)"],
+                ["Scenario", "Revenue (INR/y)", "Transport/Service (INR/y)", "Operating Cost (INR/y)", "Gross Margin (INR/y)"],
                 [
                     [
                         item.scenario_name,
                         f"{item.annual_revenue_inr:,.2f}",
+                        f"{item.annual_transport_service_cost_inr:,.2f}",
                         f"{item.annual_operating_cost_inr:,.2f}",
                         f"{item.gross_margin_inr:,.2f}",
                     ]
                     for item in financial_model.scenario_results
                 ],
             )
+            if any(item.annual_transport_service_cost_inr > 0.0 for item in financial_model.scenario_results):
+                markdown += "\n\n### Scenario Recurring Service Breakdown\n\n" + markdown_table(
+                    ["Scenario", "Packing (INR/y)", "Classifier (INR/y)", "Filter Media (INR/y)", "Dryer Exhaust (INR/y)"],
+                    [
+                        [
+                            item.scenario_name,
+                            f"{item.annual_packing_replacement_cost_inr:,.2f}",
+                            f"{item.annual_classifier_service_cost_inr:,.2f}",
+                            f"{item.annual_filter_media_replacement_cost_inr:,.2f}",
+                            f"{item.annual_dryer_exhaust_treatment_cost_inr:,.2f}",
+                        ]
+                        for item in financial_model.scenario_results
+                    ],
+                )
         if financial_model.annual_schedule:
             markdown += "\n\n### Multi-Year Financial Schedule\n\n" + markdown_table(
-                ["Year", "Capacity Utilization (%)", "Revenue (INR)", "Operating Cost (INR)", "Interest (INR)", "Depreciation (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)", "Cash Accrual (INR)"],
+                ["Year", "Capacity Utilization (%)", "Availability (%)", "Revenue (INR)", "Operating Cost (INR)", "Transport/Service (INR)", "Packing (INR)", "Turnaround (INR)", "Interest (INR)", "Depreciation (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)", "Cash Accrual (INR)"],
                 [
                     [
                         str(item["year"]),
                         f'{item["capacity_utilization_pct"]:.2f}',
+                        f'{item.get("availability_pct", 0.0):.2f}',
                         f'{item["revenue_inr"]:,.2f}',
                         f'{item["operating_cost_inr"]:,.2f}',
+                        f'{item.get("transport_service_cost_inr", 0.0):,.2f}',
+                        f'{item.get("packing_replacement_cost_inr", 0.0):,.2f}',
+                        f'{item.get("turnaround_cost_inr", 0.0):,.2f}',
                         f'{item["interest_inr"]:,.2f}',
                         f'{item["depreciation_inr"]:,.2f}',
                         f'{item["profit_before_tax_inr"]:,.2f}',

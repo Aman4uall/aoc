@@ -1504,6 +1504,124 @@ def validate_column_design(column: ColumnDesign) -> list[ValidationIssue]:
                 artifact_ref=column.column_id,
             )
         )
+    if "absorption" in column.service.lower():
+        if column.absorber_capture_fraction <= 0.0 or column.absorber_packed_height_m <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_absorber_screening_basis",
+                    severity=Severity.BLOCKED,
+                    message="Absorber service requires capture and packed-height screening outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if column.absorber_ntu <= 0.0 or column.absorber_htu_m <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_absorber_mass_transfer_basis",
+                    severity=Severity.BLOCKED,
+                    message="Absorber service requires packed-tower mass-transfer screening metrics.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if column.absorber_overall_mass_transfer_coefficient_1_s <= 0.0 or column.absorber_total_pressure_drop_kpa <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_absorber_hydraulic_refinement",
+                    severity=Severity.BLOCKED,
+                    message="Absorber service requires packed-tower coefficient and pressure-drop screening outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            column.absorber_min_wetting_rate_kg_m2_s <= 0.0
+            or column.absorber_wetting_ratio <= 0.0
+            or column.absorber_flooding_velocity_m_s <= 0.0
+            or column.absorber_flooding_margin_fraction <= 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_absorber_operating_window_basis",
+                    severity=Severity.BLOCKED,
+                    message="Absorber service requires packed-bed wetting and flooding window outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            not column.absorber_packing_family
+            or column.absorber_packing_specific_area_m2_m3 <= 0.0
+            or column.absorber_effective_interfacial_area_m2_m3 <= 0.0
+            or column.absorber_gas_phase_transfer_coeff_1_s <= 0.0
+            or column.absorber_liquid_phase_transfer_coeff_1_s <= 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_absorber_packing_family_basis",
+                    severity=Severity.BLOCKED,
+                    message="Absorber service requires packing-family transfer-unit outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+    if "crystallizer" in column.service.lower():
+        if column.crystallizer_yield_fraction <= 0.0 or column.filter_area_m2 <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_crystallizer_screening_basis",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer service requires crystal-yield and filter-area screening outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if column.crystallizer_residence_time_hr <= 0.0 or column.dryer_refined_duty_kw <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_solids_unit_refinement",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer/dryer service requires residence-time, holdup, and refined dryer-duty outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if column.crystal_growth_rate_mm_hr <= 0.0 or column.slurry_circulation_rate_m3_hr <= 0.0 or column.dryer_product_moisture_fraction <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_solids_growth_or_endpoint_basis",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer/dryer service requires crystal-growth, slurry-circulation, and dryer-endpoint screening outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            column.crystal_size_d10_mm <= 0.0
+            or column.crystal_size_d50_mm <= 0.0
+            or column.crystal_size_d90_mm <= 0.0
+            or column.dryer_equilibrium_moisture_fraction <= 0.0
+            or column.dryer_mass_transfer_coefficient_kg_m2_s <= 0.0
+            or column.dryer_heat_transfer_area_m2 <= 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_solids_distribution_or_transfer_basis",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer/dryer service requires PSD and dryer heat/mass-transfer endpoint outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            column.crystal_classifier_cut_size_mm <= 0.0
+            or column.crystal_classified_product_fraction <= 0.0
+            or column.filter_specific_cake_resistance_m_kg <= 0.0
+            or column.filter_medium_resistance_1_m <= 0.0
+            or column.dryer_exhaust_humidity_ratio_kg_kg <= 0.0
+            or column.dryer_dry_air_flow_kg_hr <= 0.0
+            or column.dryer_exhaust_saturation_fraction <= 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_solids_transport_limited_basis",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer/dryer service requires classification, filter-resistance, and dryer exhaust-humidity outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
     return issues
 
 
@@ -1666,6 +1784,14 @@ def validate_cross_chapter_consistency(
     economic_basis_decision: DecisionRecord | None = None,
 ) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
+
+    def _sum_utility_family(prefix: str) -> float:
+        return sum(
+            item.load
+            for item in utility_summary.items
+            if item.utility_type.lower().startswith(prefix.lower())
+        )
+
     if site_decision and site_decision.selected_candidate_id and site_decision.selected_candidate_id != site_selection.selected_site:
         issues.append(
             ValidationIssue(
@@ -1717,9 +1843,9 @@ def validate_cross_chapter_consistency(
                 )
     if utility_summary.utility_basis is not None:
         annual_hours = operating_hours_per_year(config.basis)
-        steam_load = next((item.load for item in utility_summary.items if item.utility_type == "Steam"), 0.0)
-        cw_load = next((item.load for item in utility_summary.items if item.utility_type == "Cooling water"), 0.0)
-        power_load = next((item.load for item in utility_summary.items if item.utility_type == "Electricity"), 0.0)
+        steam_load = _sum_utility_family("Steam")
+        cw_load = _sum_utility_family("Cooling water")
+        power_load = _sum_utility_family("Electricity")
         expected_utility_cost = (
             steam_load * annual_hours * utility_summary.utility_basis.steam_cost_inr_per_kg
             + cw_load * annual_hours * utility_summary.utility_basis.cooling_water_cost_inr_per_m3

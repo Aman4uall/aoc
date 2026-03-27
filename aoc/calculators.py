@@ -634,6 +634,7 @@ def build_column_design(
     separation_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
     separation_thermo: SeparationThermoArtifact | None = None,
+    property_packages: PropertyPackageArtifact | None = None,
 ) -> ColumnDesign:
     return build_column_design_generic(
         basis,
@@ -644,6 +645,7 @@ def build_column_design(
         separation_choice,
         utility_architecture,
         separation_thermo,
+        property_packages,
     )
 
     column_feed = next(stream for stream in stream_table.streams if stream.stream_id in {"S-301", "S-201"})
@@ -920,6 +922,7 @@ def compute_utilities(
     assumptions: list[str],
     utility_network_decision: UtilityNetworkDecision | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
+    column_design: ColumnDesign | None = None,
 ) -> UtilitySummaryArtifact:
     selected_case = _selected_utility_case(utility_network_decision)
     selected_train_steps = utility_architecture.architecture.selected_train_steps if utility_architecture is not None else []
@@ -943,6 +946,110 @@ def compute_utilities(
         train_aux_power_kw += len(indirect_steps) * 4.5 + sum(step.recovered_duty_kw for step in indirect_steps) / 5000.0
     if train_aux_power_kw > 0.0:
         electrical_kw += train_aux_power_kw
+    transport_loads: list[UtilityLoad] = []
+    if column_design is not None and "absorption" in column_design.service.lower():
+        absorber_area_m2 = math.pi * (column_design.column_diameter_m / 2.0) ** 2 * max(1.0 - column_design.downcomer_area_fraction, 0.25)
+        absorber_gas_q_m3_s = absorber_area_m2 * max(column_design.absorber_operating_velocity_m_s, 0.1)
+        packing_family_factor = 1.10 if column_design.absorber_packing_family.startswith("structured") else 0.96
+        absorber_window_factor = (
+            1.0
+            + max(0.20 - column_design.absorber_flooding_margin_fraction, 0.0) * 1.40
+            + max(1.0 - column_design.absorber_wetting_ratio, 0.0) * 0.20
+        )
+        absorber_hydraulic_power_kw = max(
+            column_design.absorber_total_pressure_drop_kpa * absorber_gas_q_m3_s / 0.62 * packing_family_factor * absorber_window_factor,
+            0.0,
+        )
+        if absorber_hydraulic_power_kw > 0.0:
+            electrical_kw += absorber_hydraulic_power_kw
+            transport_loads.append(
+                UtilityLoad(
+                    utility_id="UT-ABS-HYD",
+                    utility_type="Electricity - absorber hydraulics",
+                    load=round(absorber_hydraulic_power_kw, 3),
+                    units="kW",
+                    basis=(
+                        "Packed-bed pressure-drop penalty and gas handling power from absorber transport screening, "
+                        f"including {column_design.absorber_packing_family} packing-family and operating-window factors"
+                    ),
+                    citations=citations,
+                    assumptions=assumptions,
+                )
+            )
+    if column_design is not None and "crystallizer" in column_design.service.lower():
+        classifier_kw = max(
+            column_design.slurry_circulation_rate_m3_hr
+            * 0.10
+            * (
+                1.0
+                + max(0.30 - column_design.crystal_classifier_cut_size_mm, 0.0) / 0.30 * 0.30
+                + max(column_design.crystal_classified_product_fraction - 0.75, 0.0) * 0.20
+            ),
+            0.0,
+        )
+        filter_kw = max(
+            (column_design.filter_specific_cake_resistance_m_kg / 1.5e9)
+            * (1.0 + min(column_design.filter_medium_resistance_1_m / 5.0e10, 2.0) * 0.20),
+            0.0,
+        )
+        dryer_fan_kw = max(
+            column_design.dryer_dry_air_flow_kg_hr
+            / 9000.0
+            * (1.0 + column_design.dryer_exhaust_saturation_fraction)
+            * (
+                1.0
+                + max(
+                    column_design.dryer_exhaust_humidity_ratio_kg_kg - column_design.dryer_inlet_humidity_ratio_kg_kg,
+                    0.0,
+                )
+                / 0.06
+                * 0.15
+            ),
+            0.0,
+        )
+        solids_aux_power_kw = classifier_kw + filter_kw + dryer_fan_kw
+        dryer_endpoint_heat_kw = max(
+            column_design.dryer_refined_duty_kw
+            * (
+                0.18
+                * max(
+                    column_design.dryer_target_moisture_fraction - column_design.dryer_equilibrium_moisture_fraction,
+                    0.0,
+                )
+                / max(column_design.dryer_target_moisture_fraction, 1e-6)
+                + 0.08 * max(column_design.dryer_exhaust_saturation_fraction - 0.60, 0.0)
+            ),
+            0.0,
+        )
+        if solids_aux_power_kw > 0.0:
+            electrical_kw += solids_aux_power_kw
+            transport_loads.append(
+                UtilityLoad(
+                    utility_id="UT-SOLIDS-AUX",
+                    utility_type="Electricity - solids auxiliaries",
+                    load=round(solids_aux_power_kw, 3),
+                    units="kW",
+                    basis=(
+                        "Classifier sharpness, filter resistance, and dryer-gas transport penalties from solids-unit screening"
+                    ),
+                    citations=citations,
+                    assumptions=assumptions,
+                )
+            )
+        if dryer_endpoint_heat_kw > 0.0:
+            steam_penalty_kg_hr = dryer_endpoint_heat_kw * 3600.0 / 2200.0
+            steam_kg_hr += steam_penalty_kg_hr
+            transport_loads.append(
+                UtilityLoad(
+                    utility_id="UT-DRY-ENDPT",
+                    utility_type="Steam - dryer endpoint penalty",
+                    load=round(steam_penalty_kg_hr, 3),
+                    units="kg/h",
+                    basis="Dryer endpoint polish duty tied to exhaust humidity and endpoint transport screening",
+                    citations=citations,
+                    assumptions=assumptions,
+                )
+            )
     dm_water_m3_hr = max(hourly_output_kg(basis) / 25000.0, 2.0)
     nitrogen_nm3_hr = max(hourly_output_kg(basis) / 7000.0, 3.0)
     loads = [
@@ -977,7 +1084,13 @@ def compute_utilities(
         utility_assumptions.append(
             f"Utility auxiliary power includes {len(selected_package_items)} selected package items with {sum(item.power_kw for item in selected_package_items):.1f} kW explicit package power."
         )
+    if transport_loads:
+        utility_assumptions.append(
+            f"Process-unit transport penalties add {sum(item.load for item in transport_loads if item.utility_type.startswith('Electricity')):.1f} kW electricity and "
+            f"{sum(item.load for item in transport_loads if item.utility_type.startswith('Steam')):.1f} kg/h steam equivalent."
+        )
     utility_assumptions.append("Cooling water rise fixed at 10 K and steam latent heat at 2200 kJ/kg for preliminary utility sizing.")
+    loads.extend(transport_loads)
     return UtilitySummaryArtifact(
         items=loads,
         utility_basis=utility_basis,
@@ -1017,6 +1130,7 @@ def build_cost_model(
     scenario_policy: ScenarioPolicy | None = None,
     procurement_basis: DecisionRecord | None = None,
     logistics_basis: DecisionRecord | None = None,
+    column_design: ColumnDesign | None = None,
 ) -> CostModel:
     scenario_policy = scenario_policy or ScenarioPolicy()
     procurement_basis = procurement_basis or build_procurement_basis_decision(site, equipment)
@@ -1034,6 +1148,7 @@ def build_cost_model(
         procurement_basis,
         logistics_basis,
         utility_architecture=utility_architecture,
+        column_design=column_design,
     )
     selected_case = _selected_utility_case(utility_network_decision)
     if utility_network_decision is not None:
@@ -1086,9 +1201,9 @@ def build_cost_model(
     labor_price = _find_price(price_data, "Operating labour", 650000.0)
 
     annual_raw_material_cost = eo_annual_kg * eo_price + water_annual_kg * water_price
-    steam_load = next(load.load for load in utilities.items if load.utility_type == "Steam")
-    cw_load = next(load.load for load in utilities.items if load.utility_type == "Cooling water")
-    power_load = next(load.load for load in utilities.items if load.utility_type == "Electricity")
+    steam_load = sum(load.load for load in utilities.items if load.utility_type.lower().startswith("steam"))
+    cw_load = sum(load.load for load in utilities.items if load.utility_type.lower().startswith("cooling water"))
+    power_load = sum(load.load for load in utilities.items if load.utility_type.lower().startswith("electricity"))
     annual_utility_cost = steam_load * annual_hours * steam_price + cw_load * annual_hours * cw_price + power_load * annual_hours * power_price
     annual_labor_cost = 220.0 * labor_price
     annual_maintenance_cost = total_capex * 0.03

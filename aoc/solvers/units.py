@@ -14,13 +14,15 @@ from aoc.models import (
     ReactorDesign,
     RouteOption,
     SensitivityLevel,
+    SeparationPacket,
     StorageDesign,
     StreamTable,
     UnitOperationPacket,
     UnitThermalPacket,
     UtilityArchitectureDecision,
 )
-from aoc.properties.models import MixturePropertyArtifact, SeparationThermoArtifact
+from aoc.properties.models import MixturePropertyArtifact, PropertyPackageArtifact, SeparationThermoArtifact
+from aoc.properties.sources import normalize_chemical_name
 from aoc.solvers.composition import (
     component_mass_fraction,
     composition_state_for_unit,
@@ -62,6 +64,22 @@ def _unit_operation_packet(
         if unit_types and packet.unit_type in unit_types:
             return packet
     return None
+
+
+def _separation_packets(
+    stream_table: StreamTable,
+    *,
+    unit_ids: tuple[str, ...] = (),
+    families: tuple[str, ...] = (),
+) -> list[SeparationPacket]:
+    matches: list[SeparationPacket] = []
+    for packet in stream_table.separation_packets:
+        if unit_ids and packet.unit_id in unit_ids:
+            matches.append(packet)
+            continue
+        if families and packet.separation_family in families:
+            matches.append(packet)
+    return matches
 
 
 def _thermal_packet(
@@ -168,6 +186,132 @@ def _select_package_item(steps: list, *, role: str = "exchanger", family: str | 
                 continue
             candidates.append(item)
     return max(candidates, key=lambda item: max(item.duty_kw, item.heat_transfer_area_m2, item.flow_m3_hr, item.volume_m3), default=None)
+
+
+def _stream_component_mass_kg_hr(
+    stream_table: StreamTable,
+    stream_ids: list[str],
+    component_name: str,
+) -> float:
+    selected_ids = set(stream_ids)
+    if not selected_ids:
+        return 0.0
+    target = normalize_chemical_name(component_name)
+    return sum(
+        component.mass_flow_kg_hr
+        for stream in stream_table.streams
+        if stream.stream_id in selected_ids
+        for component in stream.components
+        if normalize_chemical_name(component.name) == target
+    )
+
+
+def _stream_component_molar_kmol_hr(
+    stream_table: StreamTable,
+    stream_ids: list[str],
+    component_name: str,
+) -> float:
+    selected_ids = set(stream_ids)
+    if not selected_ids:
+        return 0.0
+    target = normalize_chemical_name(component_name)
+    return sum(
+        component.molar_flow_kmol_hr
+        for stream in stream_table.streams
+        if stream.stream_id in selected_ids
+        for component in stream.components
+        if normalize_chemical_name(component.name) == target
+    )
+
+
+def _stream_total_mass_kg_hr(stream_table: StreamTable, stream_ids: list[str]) -> float:
+    selected_ids = set(stream_ids)
+    return sum(
+        component.mass_flow_kg_hr
+        for stream in stream_table.streams
+        if stream.stream_id in selected_ids
+        for component in stream.components
+    )
+
+
+def _average_stream_temperature_c(stream_table: StreamTable, stream_ids: list[str], fallback: float) -> float:
+    selected = [stream.temperature_c for stream in stream_table.streams if stream.stream_id in set(stream_ids)]
+    return sum(selected) / len(selected) if selected else fallback
+
+
+def _preferred_equilibrium_component(packet: SeparationPacket, *, mode: str) -> str | None:
+    component_names = (
+        set(packet.component_split_to_product)
+        | set(packet.component_split_to_waste)
+        | set(packet.component_split_to_recycle)
+    )
+    if not component_names:
+        return None
+    excluded = {"water"} if mode == "sle" else {"water", "sulfuric_acid", "spent_acid"}
+    ranked: list[tuple[float, float, str]] = []
+    for component_name in component_names:
+        normalized = normalize_chemical_name(component_name)
+        if normalized in excluded:
+            continue
+        product_split = packet.component_split_to_product.get(component_name, 0.0)
+        waste_split = packet.component_split_to_waste.get(component_name, 0.0)
+        recycle_split = packet.component_split_to_recycle.get(component_name, 0.0)
+        if mode == "gle":
+            score = product_split + recycle_split - waste_split
+        else:
+            score = product_split - recycle_split - waste_split
+        ranked.append((score, product_split + recycle_split + waste_split, component_name))
+    if ranked:
+        return max(ranked, key=lambda item: (item[0], item[1], item[2].lower()))[2]
+    return max(sorted(component_names), key=lambda name: packet.component_split_to_product.get(name, 0.0), default=None)
+
+
+def _lookup_henry_constant(
+    property_packages: PropertyPackageArtifact | None,
+    gas_name: str,
+    solvent_name: str,
+):
+    if property_packages is None:
+        return None
+    gas_id = normalize_chemical_name(gas_name)
+    solvent_id = normalize_chemical_name(solvent_name)
+    return next(
+        (
+            item
+            for item in property_packages.henry_law_constants
+            if item.gas_component_id == gas_id and item.solvent_component_id == solvent_id and item.resolution_status == "resolved"
+        ),
+        None,
+    )
+
+
+def _lookup_solubility_curve(
+    property_packages: PropertyPackageArtifact | None,
+    solute_name: str,
+    solvent_name: str,
+):
+    if property_packages is None:
+        return None
+    solute_id = normalize_chemical_name(solute_name)
+    solvent_id = normalize_chemical_name(solvent_name)
+    return next(
+        (
+            item
+            for item in property_packages.solubility_curves
+            if item.solute_component_id == solute_id and item.solvent_component_id == solvent_id and item.resolution_status == "resolved"
+        ),
+        None,
+    )
+
+
+def _evaluate_solubility_curve(curve, temperature_c: float) -> float | None:
+    if curve is None:
+        return None
+    if curve.equation_name.lower() == "linear":
+        a = float(curve.parameters.get("a", 0.0))
+        b = float(curve.parameters.get("b", 0.0))
+        return max(a + b * temperature_c, 0.0)
+    return None
 
 
 def _fenske_min_stages(alpha: float, xD_lk: float, xB_lk: float, xD_hk: float, xB_hk: float) -> float:
@@ -413,24 +557,45 @@ def build_column_design_generic(
     separation_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
     separation_thermo: SeparationThermoArtifact | None = None,
+    property_packages: PropertyPackageArtifact | None = None,
 ) -> ColumnDesign:
     separation_type = separation_choice.selected_candidate_id if separation_choice and separation_choice.selected_candidate_id else "distillation_train"
+    equilibrium_packets: list[SeparationPacket] = []
     if "absorption" in separation_type:
         process_packet = _unit_operation_packet(stream_table, unit_ids=("regeneration",), unit_types=("stripping",))
         heating_packet = _thermal_packet(energy_balance, unit_ids=("STR-201",), prefer="heating")
         cooling_packet = _thermal_packet(energy_balance, unit_ids=("ABS-201", "STR-201"), prefer="cooling")
+        equilibrium_packets = _separation_packets(
+            stream_table,
+            unit_ids=("primary_separation", "regeneration"),
+            families=("absorption", "stripping"),
+        )
     elif "crystallization" in separation_type or "filtration" in separation_type:
         process_packet = _unit_operation_packet(stream_table, unit_ids=("filtration", "drying"), unit_types=("filtration", "drying"))
         heating_packet = _thermal_packet(energy_balance, unit_ids=("DRY-301",), prefer="heating")
         cooling_packet = _thermal_packet(energy_balance, unit_ids=("CRYS-201", "FILT-201"), prefer="cooling")
+        equilibrium_packets = _separation_packets(
+            stream_table,
+            unit_ids=("concentration", "filtration", "drying"),
+            families=("crystallization", "filtration", "drying"),
+        )
     elif "extraction" in separation_type:
         process_packet = _unit_operation_packet(stream_table, unit_ids=("purification",), unit_types=("extraction",))
         heating_packet = _thermal_packet(energy_balance, unit_ids=("SR-301", "EXT-201"), prefer="heating")
         cooling_packet = _thermal_packet(energy_balance, unit_ids=("DEC-201", "EXT-201"), prefer="cooling")
+        equilibrium_packets = _separation_packets(stream_table, unit_ids=("purification",), families=("extraction",))
     else:
         process_packet = _unit_operation_packet(stream_table, unit_ids=("purification",), unit_types=("distillation", "evaporation"))
         heating_packet = _thermal_packet(energy_balance, unit_ids=("D-101", "EV-101"), prefer="heating")
         cooling_packet = _thermal_packet(energy_balance, unit_ids=("D-101", "V-101", "E-201"), prefer="cooling")
+        equilibrium_packets = _separation_packets(stream_table, unit_ids=("purification", "concentration"), families=("distillation", "evaporation"))
+    if not equilibrium_packets:
+        equilibrium_packets = [
+            packet
+            for packet in stream_table.separation_packets
+            if packet.equilibrium_model in {"henry_law", "heuristic_gle_fallback", "solubility_curve", "heuristic_sle_fallback"}
+            or packet.separation_family in {"absorption", "stripping", "crystallization", "filtration", "drying", "extraction"}
+        ]
     process_state = composition_state_for_unit(
         stream_table.composition_states,
         unit_ids=("purification", "concentration", "regeneration", "filtration", "drying"),
@@ -450,7 +615,11 @@ def build_column_design_generic(
         else _product_mass(stream_table)
     )
     target_purity = min(max(basis.target_purity_wt_pct / 100.0, 0.85), 0.999)
-    if "absorption" in separation_type:
+    packet_families = {packet.separation_family for packet in equilibrium_packets}
+    is_absorption_family = "absorption" in separation_type or bool(packet_families & {"absorption", "stripping"})
+    is_crystallization_family = ("crystallization" in separation_type or "filtration" in separation_type) or bool(packet_families & {"crystallization", "filtration", "drying"})
+    is_extraction_family = "extraction" in separation_type or "extraction" in packet_families
+    if is_absorption_family:
         service = "Absorption tower train"
         light_key = "Offgas"
         heavy_key = "Rich absorbent"
@@ -459,7 +628,7 @@ def build_column_design_generic(
         condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.45, 1800.0)
         top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 55.0
         bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 98.0
-    elif "crystallization" in separation_type or "filtration" in separation_type:
+    elif is_crystallization_family:
         service = "Crystallizer / filtration / dryer equivalent train"
         light_key = "Mother liquor"
         heavy_key = "Crystal product"
@@ -468,7 +637,7 @@ def build_column_design_generic(
         condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.30, 900.0)
         top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 45.0
         bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 110.0
-    elif "extraction" in separation_type:
+    elif is_extraction_family:
         service = "Extraction and solvent recovery train"
         light_key = "Solvent-rich phase"
         heavy_key = "Product-rich phase"
@@ -561,6 +730,70 @@ def build_column_design_generic(
         else 0.0
     )
     feed_stage = max(int(round(stages * 0.55)), 2)
+    equilibrium_models = sorted({packet.equilibrium_model for packet in equilibrium_packets if packet.equilibrium_model})
+    equilibrium_parameter_ids = sorted({parameter_id for packet in equilibrium_packets for parameter_id in packet.equilibrium_parameter_ids})
+    equilibrium_fallback = any(packet.equilibrium_fallback for packet in equilibrium_packets)
+    equilibrium_notes = sorted({note for packet in equilibrium_packets for note in packet.notes if note})
+    absorber_key_component = ""
+    absorber_henry_constant_bar = 0.0
+    absorber_equilibrium_slope = 0.0
+    absorber_solvent_to_gas_ratio = 0.0
+    absorber_capture_fraction = 0.0
+    absorber_stage_efficiency = 0.0
+    absorber_theoretical_stages = 0.0
+    absorber_packed_height_m = 0.0
+    absorber_gas_mass_velocity_kg_m2_s = 0.0
+    absorber_liquid_mass_velocity_kg_m2_s = 0.0
+    absorber_ntu = 0.0
+    absorber_htu_m = 0.0
+    absorber_overall_mass_transfer_coefficient_1_s = 0.0
+    absorber_packing_family = ""
+    absorber_packing_specific_area_m2_m3 = 0.0
+    absorber_effective_interfacial_area_m2_m3 = 0.0
+    absorber_gas_phase_transfer_coeff_1_s = 0.0
+    absorber_liquid_phase_transfer_coeff_1_s = 0.0
+    absorber_min_wetting_rate_kg_m2_s = 0.0
+    absorber_wetting_ratio = 0.0
+    absorber_operating_velocity_m_s = 0.0
+    absorber_flooding_velocity_m_s = 0.0
+    absorber_flooding_margin_fraction = 0.0
+    absorber_pressure_drop_per_m_kpa_m = 0.0
+    absorber_total_pressure_drop_kpa = 0.0
+    crystallizer_key_component = ""
+    crystallizer_solubility_limit_kg_per_kg = 0.0
+    crystallizer_feed_loading_kg_per_kg = 0.0
+    crystallizer_supersaturation_ratio = 0.0
+    crystallizer_precipitated_mass_kg_hr = 0.0
+    crystallizer_dissolved_mass_kg_hr = 0.0
+    crystallizer_yield_fraction = 0.0
+    crystallizer_residence_time_hr = 0.0
+    crystallizer_holdup_m3 = 0.0
+    crystal_slurry_density_kg_m3 = 0.0
+    crystal_growth_rate_mm_hr = 0.0
+    crystal_size_d10_mm = 0.0
+    crystal_size_d50_mm = 0.0
+    crystal_size_d90_mm = 0.0
+    crystal_classifier_cut_size_mm = 0.0
+    crystal_classified_product_fraction = 0.0
+    slurry_circulation_rate_m3_hr = 0.0
+    filter_cake_moisture_fraction = 0.0
+    filter_area_m2 = 0.0
+    filter_cake_throughput_kg_m2_hr = 0.0
+    filter_specific_cake_resistance_m_kg = 0.0
+    filter_medium_resistance_1_m = 0.0
+    dryer_evaporation_load_kg_hr = 0.0
+    dryer_residence_time_hr = 0.0
+    dryer_target_moisture_fraction = 0.0
+    dryer_product_moisture_fraction = 0.0
+    dryer_equilibrium_moisture_fraction = 0.0
+    dryer_inlet_humidity_ratio_kg_kg = 0.0
+    dryer_exhaust_humidity_ratio_kg_kg = 0.0
+    dryer_dry_air_flow_kg_hr = 0.0
+    dryer_exhaust_saturation_fraction = 0.0
+    dryer_mass_transfer_coefficient_kg_m2_s = 0.0
+    dryer_heat_transfer_coefficient_w_m2_k = 0.0
+    dryer_heat_transfer_area_m2 = 0.0
+    dryer_refined_duty_kw = 0.0
     traces = [
         CalcTrace(trace_id="process_unit_service", title="Process-unit family", formula="service = selected separation family", result=service, units=""),
         CalcTrace(
@@ -721,6 +954,667 @@ def build_column_design_generic(
             notes="Recovered condenser duty is tied to selected train steps sourced from the process-unit hot side.",
         ),
     ]
+    if equilibrium_packets:
+        traces.append(
+            CalcTrace(
+                trace_id="process_unit_equilibrium_packet_basis",
+                title="Solved equilibrium packet basis",
+                formula="selected separation packets provide the active phase-equilibrium model and split basis for this process-unit family",
+                substitutions={
+                    "packet_ids": ", ".join(packet.packet_id for packet in equilibrium_packets),
+                    "models": ", ".join(equilibrium_models) or "heuristic",
+                    "parameter_ids": ", ".join(equilibrium_parameter_ids) or "none",
+                    "fallback": "yes" if equilibrium_fallback else "no",
+                },
+                result=", ".join(equilibrium_models) or "heuristic_split",
+                units="",
+                notes="This basis is consumed directly from the solved separator packets rather than being inferred from chapter prose.",
+            )
+        )
+    if is_absorption_family and equilibrium_packets:
+        absorber_packet = next(
+            (packet for packet in equilibrium_packets if packet.unit_id == "primary_separation"),
+            equilibrium_packets[0],
+        )
+        absorbed_component = _preferred_equilibrium_component(absorber_packet, mode="gle")
+        if absorbed_component:
+            absorber_key_component = absorbed_component
+            retained_fraction = min(
+                absorber_packet.component_split_to_product.get(absorbed_component, 0.0)
+                + absorber_packet.component_split_to_recycle.get(absorbed_component, 0.0),
+                1.0,
+            )
+            absorber_capture_fraction = retained_fraction
+            overhead_fraction = absorber_packet.component_split_to_waste.get(absorbed_component, 0.0)
+            absorbed_mass = (
+                _stream_component_mass_kg_hr(stream_table, absorber_packet.product_stream_ids, absorbed_component)
+                + _stream_component_mass_kg_hr(stream_table, absorber_packet.recycle_stream_ids, absorbed_component)
+            )
+            overhead_mass = _stream_component_mass_kg_hr(stream_table, absorber_packet.waste_stream_ids, absorbed_component)
+            inlet_gas_molar = _stream_component_molar_kmol_hr(stream_table, absorber_packet.inlet_stream_ids, absorbed_component)
+            inlet_components = {
+                component.name
+                for stream in stream_table.streams
+                if stream.stream_id in set(absorber_packet.inlet_stream_ids)
+                for component in stream.components
+            }
+            solvent_candidates = [
+                name
+                for name in sorted(inlet_components)
+                if normalize_chemical_name(name) in {"water", "sulfuric_acid", "spent_acid"}
+            ]
+            solvent_name = next(
+                (
+                    candidate
+                    for candidate in solvent_candidates
+                    if _lookup_henry_constant(property_packages, absorbed_component, candidate) is not None
+                ),
+                solvent_candidates[0] if solvent_candidates else "",
+            )
+            solvent_molar = _stream_component_molar_kmol_hr(stream_table, absorber_packet.inlet_stream_ids, solvent_name) if solvent_name else 0.0
+            absorber_solvent_to_gas_ratio = solvent_molar / max(inlet_gas_molar, 1e-9) if solvent_molar > 0.0 else 0.0
+            henry_constant = _lookup_henry_constant(property_packages, absorbed_component, solvent_name) if solvent_name else None
+            if henry_constant is not None:
+                absorber_henry_constant_bar = henry_constant.value
+                absorber_equilibrium_slope = absorber_henry_constant_bar / max(max(route.operating_pressure_bar - 0.8, 1.0), 1e-6)
+            elif retained_fraction > 0.0:
+                absorber_equilibrium_slope = max(1.0 / retained_fraction, 1.0)
+            absorption_factor = absorber_solvent_to_gas_ratio / max(absorber_equilibrium_slope, 1e-6) if absorber_equilibrium_slope > 0.0 else 0.0
+            if absorption_factor > 1.02 and 0.0 < retained_fraction < 0.9995:
+                absorber_theoretical_stages = max(
+                    math.log(1.0 / max(1.0 - retained_fraction, 1e-6)) / math.log(absorption_factor),
+                    1.0,
+                )
+            else:
+                absorber_theoretical_stages = max(2.0, 5.0 * retained_fraction)
+            absorber_stage_efficiency = min(max(0.52 + 0.10 * min(absorption_factor, 3.0) / 3.0, 0.45), 0.78)
+            solvent_mass_flow = _stream_total_mass_kg_hr(stream_table, absorber_packet.product_stream_ids + absorber_packet.recycle_stream_ids)
+            gas_mass_flow = _stream_total_mass_kg_hr(stream_table, absorber_packet.waste_stream_ids)
+            absorber_gas_mass_velocity_kg_m2_s = gas_mass_flow / max(active_area * 3600.0, 1e-9)
+            absorber_liquid_mass_velocity_kg_m2_s = solvent_mass_flow / max(active_area * 3600.0, 1e-9)
+            gas_superficial_velocity = absorber_gas_mass_velocity_kg_m2_s / max(vapor_density, 0.1)
+            liquid_superficial_velocity = absorber_liquid_mass_velocity_kg_m2_s / max(process_density, 1.0)
+            viscosity_ratio = min(max(process_viscosity / 0.0025, 0.4), 4.0)
+            if process_viscosity <= 0.0025 and diameter >= 1.6:
+                absorber_packing_family = "structured_250y"
+                absorber_packing_specific_area_m2_m3 = 250.0
+            else:
+                absorber_packing_family = "random_50mm_pall"
+                absorber_packing_specific_area_m2_m3 = 125.0
+            absorber_operating_velocity_m_s = gas_superficial_velocity
+            absorber_flooding_velocity_m_s = max(
+                allowable_vapor_velocity * (1.08 if absorber_packing_family.startswith("structured") else 1.00),
+                gas_superficial_velocity * 1.05,
+            )
+            absorber_flooding_margin_fraction = max(
+                1.0 - absorber_operating_velocity_m_s / max(absorber_flooding_velocity_m_s, 1e-6),
+                0.02,
+            )
+            absorber_min_wetting_rate_kg_m2_s = min(
+                max(0.032 + 0.00009 * absorber_packing_specific_area_m2_m3 + 0.010 * min(viscosity_ratio, 3.0), 0.040),
+                0.120,
+            )
+            absorber_wetting_ratio = absorber_liquid_mass_velocity_kg_m2_s / max(absorber_min_wetting_rate_kg_m2_s, 1e-6)
+            wetted_fraction = min(
+                max(
+                    0.42
+                    + 0.18 * min(absorber_wetting_ratio, 2.0) / 2.0
+                    + 0.08 * min(liquid_superficial_velocity / 0.01, 2.0),
+                    0.35,
+                ),
+                0.95,
+            )
+            absorber_effective_interfacial_area_m2_m3 = absorber_packing_specific_area_m2_m3 * wetted_fraction
+            absorber_gas_phase_transfer_coeff_1_s = min(
+                max(
+                    0.030
+                    + 0.095 * math.pow(max(gas_superficial_velocity, 0.02), 0.72)
+                    * math.pow(max(absorber_packing_specific_area_m2_m3 / 125.0, 0.6), 0.22),
+                    0.020,
+                ),
+                0.220,
+            )
+            absorber_liquid_phase_transfer_coeff_1_s = min(
+                max(
+                    0.012
+                    + 0.055 * math.pow(max(liquid_superficial_velocity, 0.005), 0.60)
+                    * math.pow(max(absorber_packing_specific_area_m2_m3 / 125.0, 0.6), 0.30)
+                    / math.pow(max(viscosity_ratio, 0.5), 0.25),
+                    0.010,
+                ),
+                0.180,
+            )
+            correlated_overall_coeff = 1.0 / max(
+                (1.0 / max(absorber_gas_phase_transfer_coeff_1_s, 1e-6))
+                + (1.0 / max(absorber_liquid_phase_transfer_coeff_1_s * max(absorption_factor, 0.65), 1e-6)),
+                1e-6,
+            )
+            absorber_overall_mass_transfer_coefficient_1_s = min(
+                max(
+                    correlated_overall_coeff * max(absorber_effective_interfacial_area_m2_m3 / max(absorber_packing_specific_area_m2_m3, 1.0), 0.30),
+                    0.030,
+                ),
+                0.75,
+            )
+            absorber_ntu = max(math.log(1.0 / max(1.0 - retained_fraction, 1e-6)), 0.35)
+            absorber_htu_m = min(
+                max(
+                    gas_superficial_velocity
+                    / max(
+                        absorber_overall_mass_transfer_coefficient_1_s
+                        * max(1.0 + 0.35 * max(absorption_factor - 1.0, 0.0), 1.0),
+                        1e-6,
+                    ),
+                    0.30,
+                ),
+                1.75,
+            )
+            absorber_packed_height_m = max(absorber_htu_m * absorber_ntu * 1.15, 3.0)
+            absorber_pressure_drop_per_m_kpa_m = min(
+                max(
+                    0.18
+                    + (0.78 if absorber_packing_family.startswith("structured") else 0.95) * math.pow(max(absorber_gas_mass_velocity_kg_m2_s, 0.05), 1.15)
+                    + 0.05 * absorber_liquid_mass_velocity_kg_m2_s
+                    + 0.65 * max(absorber_operating_velocity_m_s / max(absorber_flooding_velocity_m_s, 1e-6) - 0.55, 0.0),
+                    0.15,
+                ),
+                4.00,
+            )
+            absorber_total_pressure_drop_kpa = absorber_pressure_drop_per_m_kpa_m * absorber_packed_height_m
+            theoretical_stages = max(theoretical_stages, absorber_theoretical_stages)
+            tray_efficiency = max(tray_efficiency, absorber_stage_efficiency)
+            stages = max(int(math.ceil(theoretical_stages / max(tray_efficiency, 0.35))), 6)
+            height = max(height, absorber_packed_height_m + 3.5)
+            traces.extend(
+                [
+                    CalcTrace(
+                        trace_id="absorption_equilibrium_basis",
+                        title="Absorber Henry-law basis",
+                        formula="retained fraction = split_product + split_recycle = 1 - split_waste",
+                        substitutions={
+                            "unit_id": absorber_packet.unit_id,
+                            "component": absorbed_component,
+                            "model": absorber_packet.equilibrium_model or "heuristic_gle_fallback",
+                            "parameter_ids": ", ".join(absorber_packet.equilibrium_parameter_ids) or "none",
+                            "split_product": f"{absorber_packet.component_split_to_product.get(absorbed_component, 0.0):.4f}",
+                            "split_recycle": f"{absorber_packet.component_split_to_recycle.get(absorbed_component, 0.0):.4f}",
+                            "split_waste": f"{overhead_fraction:.4f}",
+                        },
+                        result=f"{retained_fraction:.4f}",
+                        units="-",
+                        notes=(
+                            "GLE basis falls back to heuristic partitioning when cited Henry-law constants are unavailable."
+                            if absorber_packet.equilibrium_fallback
+                            else "GLE capture basis comes from the solved Henry-law separation packet."
+                        ),
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_component_capture",
+                        title="Absorbed component capture basis",
+                        formula="m_captured = m_product + m_recycle; m_offgas = m_waste",
+                        substitutions={
+                            "component": absorbed_component,
+                            "m_product": f"{_stream_component_mass_kg_hr(stream_table, absorber_packet.product_stream_ids, absorbed_component):.3f}",
+                            "m_recycle": f"{_stream_component_mass_kg_hr(stream_table, absorber_packet.recycle_stream_ids, absorbed_component):.3f}",
+                            "m_waste": f"{overhead_mass:.3f}",
+                        },
+                        result=f"{absorbed_mass:.3f}",
+                        units="kg/h",
+                        notes="This exposes the captured gas mass basis used by the absorber/regeneration train in the solved flowsheet.",
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_factor_screening",
+                        title="Absorber stage-screening basis",
+                        formula="A = (L/V)/m ; Nscreen = ln[1/(1-capture)] / ln(A) for A > 1",
+                        substitutions={
+                            "component": absorbed_component,
+                            "L/V": f"{absorber_solvent_to_gas_ratio:.4f}",
+                            "m": f"{absorber_equilibrium_slope:.4f}",
+                            "A": f"{absorption_factor:.4f}",
+                            "capture": f"{retained_fraction:.4f}",
+                        },
+                        result=f"{absorber_theoretical_stages:.3f}",
+                        units="stages",
+                        notes="This is a Kremser-style screening estimate anchored to the solved Henry-law capture basis.",
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_packed_height_basis",
+                        title="Absorber packed-height basis",
+                        formula="H = (Nscreen / efficiency) * HETP",
+                        substitutions={
+                            "Nscreen": f"{absorber_theoretical_stages:.3f}",
+                            "efficiency": f"{absorber_stage_efficiency:.3f}",
+                            "HETP": "0.75",
+                        },
+                        result=f"{absorber_packed_height_m:.3f}",
+                        units="m",
+                        notes="Packed height is a screening basis for the absorber and not a detailed packing-vendor design.",
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_mass_transfer_hydraulics",
+                        title="Packed-tower mass-transfer screening",
+                        formula="HTU/NTU basis with gas and liquid mass velocities over active packing area",
+                        substitutions={
+                            "gas_mass_velocity": f"{absorber_gas_mass_velocity_kg_m2_s:.4f}",
+                            "liquid_mass_velocity": f"{absorber_liquid_mass_velocity_kg_m2_s:.4f}",
+                            "packing_family": absorber_packing_family,
+                            "aeff": f"{absorber_effective_interfacial_area_m2_m3:.2f}",
+                            "KGa": f"{absorber_overall_mass_transfer_coefficient_1_s:.4f}",
+                            "NTU": f"{absorber_ntu:.4f}",
+                            "HTU": f"{absorber_htu_m:.4f}",
+                        },
+                        result=f"{absorber_packed_height_m:.3f}",
+                        units="m packed height",
+                        notes="This is the packed-tower hydraulic/mass-transfer screening layer built on top of the Henry-law capture basis.",
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_pressure_drop_basis",
+                        title="Packed-tower pressure-drop basis",
+                        formula="dP/dz = f(G, L, flooding); dPtotal = (dP/dz) * Hpacked",
+                        substitutions={
+                            "G": f"{absorber_gas_mass_velocity_kg_m2_s:.4f}",
+                            "L": f"{absorber_liquid_mass_velocity_kg_m2_s:.4f}",
+                            "flooding_fraction": f"{flooding_fraction:.4f}",
+                            "Hpacked": f"{absorber_packed_height_m:.4f}",
+                        },
+                        result=f"{absorber_total_pressure_drop_kpa:.3f}",
+                        units="kPa",
+                        notes="Pressure-drop screening is used to keep the packed absorber inside a feasible hydraulic envelope.",
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_transfer_unit_family_basis",
+                        title="Packing-family transfer-unit basis",
+                        formula="KGa uses packing-family specific area and gas/liquid film coefficients",
+                        substitutions={
+                            "packing_family": absorber_packing_family,
+                            "a_spec": f"{absorber_packing_specific_area_m2_m3:.1f}",
+                            "a_eff": f"{absorber_effective_interfacial_area_m2_m3:.1f}",
+                            "kG": f"{absorber_gas_phase_transfer_coeff_1_s:.4f}",
+                            "kL": f"{absorber_liquid_phase_transfer_coeff_1_s:.4f}",
+                        },
+                        result=f"{absorber_overall_mass_transfer_coefficient_1_s:.4f}",
+                        units="1/s",
+                        notes="This upgrades the absorber basis from one generic coefficient to a packing-family transport screening.",
+                    ),
+                    CalcTrace(
+                        trace_id="absorption_packed_bed_window",
+                        title="Packed-bed wetting and flooding window",
+                        formula="wetting ratio = L/Lmin ; flooding margin = 1 - uop/uflood",
+                        substitutions={
+                            "L": f"{absorber_liquid_mass_velocity_kg_m2_s:.4f}",
+                            "Lmin": f"{absorber_min_wetting_rate_kg_m2_s:.4f}",
+                            "uop": f"{absorber_operating_velocity_m_s:.4f}",
+                            "uflood": f"{absorber_flooding_velocity_m_s:.4f}",
+                        },
+                        result=f"{absorber_flooding_margin_fraction:.4f}",
+                        units="fraction margin",
+                        notes="This checks that the packed column is operating above a wetting threshold and below the flooding window.",
+                    ),
+                ]
+            )
+    if is_crystallization_family and equilibrium_packets:
+        crystal_packet = next(
+            (
+                packet
+                for packet in equilibrium_packets
+                if packet.unit_id in {"concentration", "filtration"} and packet.equilibrium_model in {"solubility_curve", "heuristic_sle_fallback"}
+            ),
+            equilibrium_packets[0],
+        )
+        crystal_component = _preferred_equilibrium_component(crystal_packet, mode="sle")
+        if crystal_component:
+            crystallizer_key_component = crystal_component
+            precipitated_mass = _stream_component_mass_kg_hr(stream_table, crystal_packet.product_stream_ids, crystal_component)
+            dissolved_mass = (
+                _stream_component_mass_kg_hr(stream_table, crystal_packet.recycle_stream_ids, crystal_component)
+                + _stream_component_mass_kg_hr(stream_table, crystal_packet.waste_stream_ids, crystal_component)
+            )
+            crystallizer_precipitated_mass_kg_hr = precipitated_mass
+            crystallizer_dissolved_mass_kg_hr = dissolved_mass
+            crystal_yield = precipitated_mass / max(precipitated_mass + dissolved_mass, 1e-9)
+            crystallizer_yield_fraction = crystal_yield
+            solvent_name = "Water"
+            crystal_temperature_c = _average_stream_temperature_c(
+                stream_table,
+                crystal_packet.product_stream_ids + crystal_packet.recycle_stream_ids + crystal_packet.waste_stream_ids,
+                top_temp or 35.0,
+            )
+            solubility_curve = _lookup_solubility_curve(property_packages, crystal_component, solvent_name)
+            solubility_limit = _evaluate_solubility_curve(solubility_curve, crystal_temperature_c)
+            solvent_mass_in = _stream_component_mass_kg_hr(stream_table, crystal_packet.inlet_stream_ids, solvent_name)
+            solute_mass_in = _stream_component_mass_kg_hr(stream_table, crystal_packet.inlet_stream_ids, crystal_component)
+            if solvent_mass_in > 0.0:
+                crystallizer_feed_loading_kg_per_kg = solute_mass_in / solvent_mass_in
+            if solubility_limit is not None:
+                crystallizer_solubility_limit_kg_per_kg = solubility_limit
+                crystallizer_supersaturation_ratio = crystallizer_feed_loading_kg_per_kg / max(solubility_limit, 1e-9)
+            wet_cake_mass = _stream_total_mass_kg_hr(stream_table, crystal_packet.product_stream_ids)
+            wet_cake_water_mass = _stream_component_mass_kg_hr(stream_table, crystal_packet.product_stream_ids, "Water")
+            filter_cake_moisture_fraction = wet_cake_water_mass / max(wet_cake_mass, 1e-9)
+            filtrate_mass = _stream_total_mass_kg_hr(stream_table, crystal_packet.recycle_stream_ids + crystal_packet.waste_stream_ids)
+            filter_flux_m3_m2_hr = 0.18 if crystallizer_supersaturation_ratio > 1.20 else 0.24
+            filter_area_m2 = max((filtrate_mass / max(process_density, 1.0)) / max(filter_flux_m3_m2_hr, 1e-6), 1.0)
+            filter_cake_throughput_kg_m2_hr = wet_cake_mass / max(filter_area_m2, 1e-9)
+            crystal_slurry_density_kg_m3 = max(process_density * (1.05 + 0.10 * min(crystallizer_supersaturation_ratio, 2.0)), process_density)
+            crystal_growth_rate_mm_hr = min(
+                max(0.10 + 0.65 * math.pow(max(crystallizer_supersaturation_ratio - 1.0, 0.0), 1.10), 0.05),
+                2.00,
+            )
+            target_crystal_size_mm = min(max(0.35 + 0.18 * max(crystallizer_supersaturation_ratio - 1.0, 0.0), 0.25), 0.90)
+            crystal_size_d50_mm = target_crystal_size_mm
+            crystal_size_d10_mm = max(target_crystal_size_mm * (0.48 + 0.04 * min(crystallizer_supersaturation_ratio, 2.5)), 0.08)
+            crystal_size_d90_mm = max(target_crystal_size_mm * (1.55 + 0.08 * min(crystallizer_supersaturation_ratio, 2.5)), crystal_size_d50_mm)
+            crystal_classifier_cut_size_mm = max(min(0.72 * crystal_size_d50_mm, crystal_size_d50_mm), 0.08)
+            classification_span = max(crystal_size_d90_mm - crystal_size_d10_mm, 0.05)
+            crystal_classified_product_fraction = min(
+                max(0.55 + 0.35 * (crystal_size_d50_mm - crystal_classifier_cut_size_mm) / classification_span, 0.25),
+                0.97,
+            )
+            crystallizer_residence_time_hr = min(max(target_crystal_size_mm / max(crystal_growth_rate_mm_hr, 0.05), 0.8), 4.5)
+            slurry_mass_flow = wet_cake_mass + filtrate_mass
+            slurry_volumetric_flow_m3_hr = slurry_mass_flow / max(crystal_slurry_density_kg_m3, 1.0)
+            slurry_circulation_factor = min(max(2.5 + 1.4 * max(crystallizer_supersaturation_ratio - 1.0, 0.0), 2.0), 6.0)
+            slurry_circulation_rate_m3_hr = slurry_volumetric_flow_m3_hr * slurry_circulation_factor
+            crystallizer_holdup_m3 = slurry_volumetric_flow_m3_hr * crystallizer_residence_time_hr
+            drying_packet = _unit_operation_packet(stream_table, unit_ids=("drying",), unit_types=("drying",))
+            dry_crystal_mass = max(wet_cake_mass - wet_cake_water_mass, 0.0)
+            crystal_porosity = min(max(0.42 - 0.05 * min(max(crystallizer_supersaturation_ratio - 1.0, 0.0), 1.8), 0.28), 0.48)
+            particle_size_m = max(crystal_size_d50_mm / 1000.0, 5e-5)
+            particle_density_kg_m3 = max(process_density * 1.35, 1400.0)
+            filter_specific_cake_resistance_m_kg = min(
+                max(
+                    180.0
+                    * max(1.0 - crystal_porosity, 0.05)
+                    / max(particle_density_kg_m3 * math.pow(particle_size_m, 2) * math.pow(max(crystal_porosity, 0.20), 3), 1e-9),
+                    5.0e6,
+                ),
+                2.0e10,
+            )
+            filter_medium_resistance_1_m = min(
+                max(2.5e8 * (1.0 + 1.5 * filter_cake_moisture_fraction), 1.0e8),
+                5.0e9,
+            )
+            dryer_target_moisture_fraction = min(max(0.012 + 0.020 * max(filter_cake_moisture_fraction - 0.08, 0.0), 0.010), 0.050)
+            dryer_equilibrium_moisture_fraction = max(min(dryer_target_moisture_fraction * 0.55, dryer_target_moisture_fraction * 0.90), 0.004)
+            target_product_water = (
+                dry_crystal_mass * dryer_target_moisture_fraction / max(1.0 - dryer_target_moisture_fraction, 1e-6)
+                if dry_crystal_mass > 0.0
+                else 0.0
+            )
+            design_product_water = target_product_water
+            if drying_packet is not None:
+                dryer_feed_water = _stream_component_mass_kg_hr(stream_table, drying_packet.inlet_stream_ids, "Water")
+                dryer_product_water = _stream_component_mass_kg_hr(stream_table, drying_packet.outlet_stream_ids, "Water")
+                design_product_water = min(dryer_product_water, target_product_water) if dryer_product_water > 0.0 else target_product_water
+            dryer_feed_water = wet_cake_water_mass if drying_packet is None else _stream_component_mass_kg_hr(stream_table, drying_packet.inlet_stream_ids, "Water")
+            dryer_product_moisture_fraction = design_product_water / max(dry_crystal_mass + design_product_water, 1e-9)
+            dryer_evaporation_load_kg_hr = max(dryer_feed_water - design_product_water, 0.0)
+            dryer_residence_time_hr = min(
+                max(
+                    0.40
+                    + 7.5 * max(filter_cake_moisture_fraction - dryer_product_moisture_fraction, 0.0)
+                    + 0.08 * max(target_crystal_size_mm - 0.30, 0.0),
+                    0.35,
+                ),
+                2.10,
+            )
+            latent_kw = dryer_evaporation_load_kg_hr * 2257.0 / 3600.0
+            sensible_kw = dry_crystal_mass * 0.90 * max(85.0 - crystal_temperature_c, 20.0) / 3600.0
+            endpoint_polish_kw = max(dryer_target_moisture_fraction - dryer_product_moisture_fraction, 0.0) * dry_crystal_mass * 120.0 / 3600.0
+            dryer_refined_duty_kw = max(latent_kw + sensible_kw, heating_packet.heating_kw if heating_packet is not None else 0.0)
+            dryer_refined_duty_kw += endpoint_polish_kw
+            dryer_heat_transfer_coefficient_w_m2_k = min(
+                max(42.0 + 18.0 * min(filter_cake_moisture_fraction / 0.15, 2.5) + 6.0 * min(dryer_residence_time_hr, 2.0), 35.0),
+                140.0,
+            )
+            dryer_effective_delta_t_k = max(95.0 - crystal_temperature_c, 18.0)
+            dryer_heat_transfer_area_m2 = max(
+                (dryer_refined_duty_kw * 1000.0) / max(dryer_heat_transfer_coefficient_w_m2_k * dryer_effective_delta_t_k, 1.0),
+                0.5,
+            )
+            moisture_driving_force = max(filter_cake_moisture_fraction - dryer_equilibrium_moisture_fraction, 0.01)
+            dryer_inlet_humidity_ratio_kg_kg = 0.010
+            saturation_humidity_capacity = min(max(0.090 + 0.0010 * max(85.0 - crystal_temperature_c, 15.0), 0.075), 0.180)
+            target_exhaust_humidity = min(max(dryer_inlet_humidity_ratio_kg_kg + 0.060, 0.045), 0.82 * saturation_humidity_capacity)
+            dryer_dry_air_flow_kg_hr = max(
+                dryer_evaporation_load_kg_hr / max(target_exhaust_humidity - dryer_inlet_humidity_ratio_kg_kg, 0.01),
+                200.0,
+            )
+            dryer_exhaust_humidity_ratio_kg_kg = dryer_inlet_humidity_ratio_kg_kg + dryer_evaporation_load_kg_hr / max(dryer_dry_air_flow_kg_hr, 1e-6)
+            dryer_exhaust_saturation_fraction = min(
+                max(dryer_exhaust_humidity_ratio_kg_kg / max(saturation_humidity_capacity, 1e-6), 0.05),
+                0.98,
+            )
+            dryer_mass_transfer_coefficient_kg_m2_s = min(
+                max(
+                    (dryer_evaporation_load_kg_hr / 3600.0) / max(dryer_heat_transfer_area_m2 * moisture_driving_force, 1e-6),
+                    0.0005,
+                ),
+                0.0800,
+            )
+            traces.extend(
+                [
+                    CalcTrace(
+                        trace_id="crystallization_solubility_basis",
+                        title="Crystallizer solubility-limited basis",
+                        formula="m_precipitated = m_product; m_dissolved = m_recycle + m_waste; yield = m_precipitated / (m_precipitated + m_dissolved)",
+                        substitutions={
+                            "unit_id": crystal_packet.unit_id,
+                            "component": crystal_component,
+                            "model": crystal_packet.equilibrium_model or "heuristic_sle_fallback",
+                            "parameter_ids": ", ".join(crystal_packet.equilibrium_parameter_ids) or "none",
+                            "m_product": f"{precipitated_mass:.3f}",
+                            "m_recycle_plus_waste": f"{dissolved_mass:.3f}",
+                        },
+                        result=f"{crystal_yield:.4f}",
+                        units="-",
+                        notes=(
+                            "SLE basis falls back to heuristic solid/liquid splitting when cited solubility curves are unavailable."
+                            if crystal_packet.equilibrium_fallback
+                            else "SLE yield basis comes from the solved solubility-limited crystallization packet."
+                        ),
+                    ),
+                    CalcTrace(
+                        trace_id="crystallization_component_yield",
+                        title="Crystal product yield basis",
+                        formula="yield_mass = crystal product mass; dissolved loss = mother liquor + bleed",
+                        substitutions={
+                            "component": crystal_component,
+                            "crystal_product_mass": f"{precipitated_mass:.3f}",
+                            "dissolved_loss_mass": f"{dissolved_mass:.3f}",
+                        },
+                        result=f"{precipitated_mass:.3f}",
+                        units="kg/h",
+                        notes="This trace makes the solubility-limited crystal recovery explicit for the product-bearing solids train.",
+                    ),
+                    CalcTrace(
+                        trace_id="crystallizer_supersaturation_basis",
+                        title="Crystallizer supersaturation basis",
+                        formula="S = feed loading / solubility limit",
+                        substitutions={
+                            "feed_loading": f"{crystallizer_feed_loading_kg_per_kg:.4f}",
+                            "solubility_limit": f"{crystallizer_solubility_limit_kg_per_kg:.4f}" if crystallizer_solubility_limit_kg_per_kg > 0.0 else "fallback",
+                            "temperature_c": f"{crystal_temperature_c:.1f}",
+                        },
+                        result=f"{crystallizer_supersaturation_ratio:.4f}",
+                        units="-",
+                        notes="This uses the resolved solubility curve when available and remains explicit when the curve falls back.",
+                    ),
+                    CalcTrace(
+                        trace_id="filtration_area_basis",
+                        title="Filtration area basis",
+                        formula="Afilter = Qfiltrate / flux",
+                        substitutions={
+                            "filtrate_mass_kg_hr": f"{filtrate_mass:.3f}",
+                            "density": f"{process_density:.3f}",
+                            "flux": f"{filter_flux_m3_m2_hr:.3f}",
+                        },
+                        result=f"{filter_area_m2:.3f}",
+                        units="m2",
+                        notes="Filter area is a screening basis from the solved mother-liquor removal rate.",
+                    ),
+                    CalcTrace(
+                        trace_id="crystallizer_holdup_basis",
+                        title="Crystallizer residence-time and holdup basis",
+                        formula="Vhold = Qslurry * tau",
+                        substitutions={
+                            "Qslurry": f"{slurry_volumetric_flow_m3_hr:.3f}",
+                            "rho_slurry": f"{crystal_slurry_density_kg_m3:.3f}",
+                            "tau": f"{crystallizer_residence_time_hr:.3f}",
+                        },
+                        result=f"{crystallizer_holdup_m3:.3f}",
+                        units="m3",
+                        notes="This is the preliminary crystallizer hold-up basis derived from the solved slurry rate and supersaturation severity.",
+                    ),
+                    CalcTrace(
+                        trace_id="crystal_growth_basis",
+                        title="Crystal growth screening basis",
+                        formula="tau = Ltarget / Ggrowth",
+                        substitutions={
+                            "Ltarget": f"{target_crystal_size_mm:.3f}",
+                            "Ggrowth": f"{crystal_growth_rate_mm_hr:.3f}",
+                            "supersaturation": f"{crystallizer_supersaturation_ratio:.3f}",
+                        },
+                        result=f"{crystallizer_residence_time_hr:.3f}",
+                        units="h",
+                        notes="Crystal growth screening ties slurry residence time to the target crystal size and supersaturation severity.",
+                    ),
+                    CalcTrace(
+                        trace_id="crystal_size_distribution_basis",
+                        title="Crystal size distribution basis",
+                        formula="PSD screening derives d10/d50/d90 around the target crystal size",
+                        substitutions={
+                            "d10": f"{crystal_size_d10_mm:.3f}",
+                            "d50": f"{crystal_size_d50_mm:.3f}",
+                            "d90": f"{crystal_size_d90_mm:.3f}",
+                            "supersaturation": f"{crystallizer_supersaturation_ratio:.3f}",
+                        },
+                        result=f"{crystal_size_d50_mm:.3f}",
+                        units="mm",
+                        notes="This PSD screening keeps solids design tied to a target median crystal size instead of one undifferentiated crystal metric.",
+                    ),
+                    CalcTrace(
+                        trace_id="crystal_classification_basis",
+                        title="Crystal classification basis",
+                        formula="classified product fraction = f(cut size, PSD span)",
+                        substitutions={
+                            "cut_size": f"{crystal_classifier_cut_size_mm:.3f}",
+                            "d10": f"{crystal_size_d10_mm:.3f}",
+                            "d50": f"{crystal_size_d50_mm:.3f}",
+                            "d90": f"{crystal_size_d90_mm:.3f}",
+                        },
+                        result=f"{crystal_classified_product_fraction:.4f}",
+                        units="-",
+                        notes="This exposes the screening classification split between on-spec crystals and recycle fines.",
+                    ),
+                    CalcTrace(
+                        trace_id="slurry_circulation_basis",
+                        title="Slurry circulation basis",
+                        formula="Qcirc = Qslurry * circulation factor",
+                        substitutions={
+                            "Qslurry": f"{slurry_volumetric_flow_m3_hr:.3f}",
+                            "factor": f"{slurry_circulation_factor:.3f}",
+                        },
+                        result=f"{slurry_circulation_rate_m3_hr:.3f}",
+                        units="m3/h",
+                        notes="This captures the internal slurry recirculation burden used for crystallizer suspension and solids management.",
+                    ),
+                    CalcTrace(
+                        trace_id="filter_throughput_basis",
+                        title="Filter cake throughput basis",
+                        formula="throughput = mcake / Afilter",
+                        substitutions={
+                            "mcake": f"{wet_cake_mass:.3f}",
+                            "Afilter": f"{filter_area_m2:.3f}",
+                        },
+                        result=f"{filter_cake_throughput_kg_m2_hr:.3f}",
+                        units="kg/m2-h",
+                        notes="This exposes the solids-handling intensity on the selected filtration basis.",
+                    ),
+                    CalcTrace(
+                        trace_id="filter_resistance_basis",
+                        title="Filter resistance basis",
+                        formula="alpha_cake = f(particle size, porosity); Rm = medium screening resistance",
+                        substitutions={
+                            "particle_size_m": f"{particle_size_m:.6f}",
+                            "porosity": f"{crystal_porosity:.4f}",
+                            "alpha_cake": f"{filter_specific_cake_resistance_m_kg:.3e}",
+                            "Rm": f"{filter_medium_resistance_1_m:.3e}",
+                        },
+                        result=f"{filter_specific_cake_resistance_m_kg:.3e}",
+                        units="m/kg",
+                        notes="This adds transport-limited filter resistance screening on top of the cake throughput basis.",
+                    ),
+                    CalcTrace(
+                        trace_id="dryer_evaporation_basis",
+                        title="Dryer evaporation basis",
+                        formula="m_evap = water in wet cake - water at endpoint moisture",
+                        substitutions={
+                            "wet_cake_moisture_fraction": f"{filter_cake_moisture_fraction:.4f}",
+                            "dryer_feed_water_kg_hr": f"{_stream_component_mass_kg_hr(stream_table, drying_packet.inlet_stream_ids, 'Water') if drying_packet is not None else wet_cake_water_mass:.3f}",
+                            "dryer_product_water_kg_hr": f"{design_product_water if drying_packet is not None else 0.0:.3f}",
+                            "target_moisture_fraction": f"{dryer_target_moisture_fraction:.4f}",
+                        },
+                        result=f"{dryer_evaporation_load_kg_hr:.3f}",
+                        units="kg/h",
+                        notes="Dryer basis now shows the moisture removed from the solved wet-cake stream.",
+                    ),
+                    CalcTrace(
+                        trace_id="dryer_refined_duty_basis",
+                        title="Dryer refined duty basis",
+                        formula="Qdryer = m_evap*lambda + m_dry*Cp*DeltaT",
+                        substitutions={
+                            "m_evap": f"{dryer_evaporation_load_kg_hr:.3f}",
+                            "m_dry": f"{dry_crystal_mass:.3f}",
+                            "tau": f"{dryer_residence_time_hr:.3f}",
+                        },
+                        result=f"{dryer_refined_duty_kw:.3f}",
+                        units="kW",
+                        notes="This refines the dryer basis with latent moisture removal plus sensible heating of the dry crystal bed.",
+                    ),
+                    CalcTrace(
+                        trace_id="dryer_moisture_endpoint_basis",
+                        title="Dryer moisture-endpoint basis",
+                        formula="xH2O,prod = mwater,prod / (mwater,prod + mdry)",
+                        substitutions={
+                            "mwater,prod": f"{design_product_water:.3f}",
+                            "mdry": f"{dry_crystal_mass:.3f}",
+                            "target_moisture_fraction": f"{dryer_target_moisture_fraction:.4f}",
+                        },
+                        result=f"{dryer_product_moisture_fraction:.4f}",
+                        units="-",
+                        notes="Endpoint moisture is now explicit so the dryer design basis does not stop at evaporation load alone.",
+                    ),
+                    CalcTrace(
+                        trace_id="dryer_exhaust_humidity_basis",
+                        title="Dryer exhaust humidity basis",
+                        formula="Yout = Yin + mevap/m_dry_air ; saturation fraction = Yout/Ysat",
+                        substitutions={
+                            "Yin": f"{dryer_inlet_humidity_ratio_kg_kg:.4f}",
+                            "mdry_air": f"{dryer_dry_air_flow_kg_hr:.3f}",
+                            "Yout": f"{dryer_exhaust_humidity_ratio_kg_kg:.4f}",
+                            "sat_fraction": f"{dryer_exhaust_saturation_fraction:.4f}",
+                        },
+                        result=f"{dryer_exhaust_humidity_ratio_kg_kg:.4f}",
+                        units="kg/kg dry air",
+                        notes="This adds an exhaust-side humidity constraint so dryer endpoint logic reflects air-side carrying capacity.",
+                    ),
+                    CalcTrace(
+                        trace_id="dryer_heat_mass_transfer_basis",
+                        title="Dryer heat and mass-transfer basis",
+                        formula="Q = U*A*dT ; Nw = kY*A*driving force",
+                        substitutions={
+                            "U": f"{dryer_heat_transfer_coefficient_w_m2_k:.3f}",
+                            "A": f"{dryer_heat_transfer_area_m2:.3f}",
+                            "kY": f"{dryer_mass_transfer_coefficient_kg_m2_s:.5f}",
+                            "xeq": f"{dryer_equilibrium_moisture_fraction:.4f}",
+                        },
+                        result=f"{dryer_refined_duty_kw:.3f}",
+                        units="kW",
+                        notes="This extends the dryer endpoint basis into explicit heat-transfer and mass-transfer screening terms.",
+                    ),
+                ]
+            )
     return ColumnDesign(
         column_id="PU-201",
         service=service,
@@ -769,15 +1663,180 @@ def build_column_design_generic(
         condenser_phase_change_load_kg_hr=round(condenser_phase_change_load, 3),
         condenser_circulation_flow_m3_hr=round(condenser_package.flow_m3_hr if condenser_package is not None else liquid_load_m3_hr, 3),
         condenser_package_item_ids=[item.package_item_id for step in condenser_train_steps for item in step.package_items if item.package_family == "condenser"],
+        equilibrium_model=", ".join(equilibrium_models) or "",
+        equilibrium_parameter_ids=equilibrium_parameter_ids,
+        equilibrium_fallback=equilibrium_fallback,
+        absorber_key_component=absorber_key_component,
+        absorber_henry_constant_bar=round(absorber_henry_constant_bar, 6),
+        absorber_equilibrium_slope=round(absorber_equilibrium_slope, 6),
+        absorber_solvent_to_gas_ratio=round(absorber_solvent_to_gas_ratio, 6),
+        absorber_capture_fraction=round(absorber_capture_fraction, 6),
+        absorber_stage_efficiency=round(absorber_stage_efficiency, 6),
+        absorber_theoretical_stages=round(absorber_theoretical_stages, 6),
+        absorber_packed_height_m=round(absorber_packed_height_m, 6),
+        absorber_gas_mass_velocity_kg_m2_s=round(absorber_gas_mass_velocity_kg_m2_s, 6),
+        absorber_liquid_mass_velocity_kg_m2_s=round(absorber_liquid_mass_velocity_kg_m2_s, 6),
+        absorber_ntu=round(absorber_ntu, 6),
+        absorber_htu_m=round(absorber_htu_m, 6),
+        absorber_overall_mass_transfer_coefficient_1_s=round(absorber_overall_mass_transfer_coefficient_1_s, 6),
+        absorber_packing_family=absorber_packing_family,
+        absorber_packing_specific_area_m2_m3=round(absorber_packing_specific_area_m2_m3, 6),
+        absorber_effective_interfacial_area_m2_m3=round(absorber_effective_interfacial_area_m2_m3, 6),
+        absorber_gas_phase_transfer_coeff_1_s=round(absorber_gas_phase_transfer_coeff_1_s, 6),
+        absorber_liquid_phase_transfer_coeff_1_s=round(absorber_liquid_phase_transfer_coeff_1_s, 6),
+        absorber_min_wetting_rate_kg_m2_s=round(absorber_min_wetting_rate_kg_m2_s, 6),
+        absorber_wetting_ratio=round(absorber_wetting_ratio, 6),
+        absorber_operating_velocity_m_s=round(absorber_operating_velocity_m_s, 6),
+        absorber_flooding_velocity_m_s=round(absorber_flooding_velocity_m_s, 6),
+        absorber_flooding_margin_fraction=round(absorber_flooding_margin_fraction, 6),
+        absorber_pressure_drop_per_m_kpa_m=round(absorber_pressure_drop_per_m_kpa_m, 6),
+        absorber_total_pressure_drop_kpa=round(absorber_total_pressure_drop_kpa, 6),
+        crystallizer_key_component=crystallizer_key_component,
+        crystallizer_solubility_limit_kg_per_kg=round(crystallizer_solubility_limit_kg_per_kg, 6),
+        crystallizer_feed_loading_kg_per_kg=round(crystallizer_feed_loading_kg_per_kg, 6),
+        crystallizer_supersaturation_ratio=round(crystallizer_supersaturation_ratio, 6),
+        crystallizer_precipitated_mass_kg_hr=round(crystallizer_precipitated_mass_kg_hr, 6),
+        crystallizer_dissolved_mass_kg_hr=round(crystallizer_dissolved_mass_kg_hr, 6),
+        crystallizer_yield_fraction=round(crystallizer_yield_fraction, 6),
+        crystallizer_residence_time_hr=round(crystallizer_residence_time_hr, 6),
+        crystallizer_holdup_m3=round(crystallizer_holdup_m3, 6),
+        crystal_slurry_density_kg_m3=round(crystal_slurry_density_kg_m3, 6),
+        crystal_growth_rate_mm_hr=round(crystal_growth_rate_mm_hr, 6),
+        crystal_size_d10_mm=round(crystal_size_d10_mm, 6),
+        crystal_size_d50_mm=round(crystal_size_d50_mm, 6),
+        crystal_size_d90_mm=round(crystal_size_d90_mm, 6),
+        crystal_classifier_cut_size_mm=round(crystal_classifier_cut_size_mm, 6),
+        crystal_classified_product_fraction=round(crystal_classified_product_fraction, 6),
+        slurry_circulation_rate_m3_hr=round(slurry_circulation_rate_m3_hr, 6),
+        filter_cake_moisture_fraction=round(filter_cake_moisture_fraction, 6),
+        filter_area_m2=round(filter_area_m2, 6),
+        filter_cake_throughput_kg_m2_hr=round(filter_cake_throughput_kg_m2_hr, 6),
+        filter_specific_cake_resistance_m_kg=round(filter_specific_cake_resistance_m_kg, 6),
+        filter_medium_resistance_1_m=round(filter_medium_resistance_1_m, 6),
+        dryer_evaporation_load_kg_hr=round(dryer_evaporation_load_kg_hr, 6),
+        dryer_residence_time_hr=round(dryer_residence_time_hr, 6),
+        dryer_target_moisture_fraction=round(dryer_target_moisture_fraction, 6),
+        dryer_product_moisture_fraction=round(dryer_product_moisture_fraction, 6),
+        dryer_equilibrium_moisture_fraction=round(dryer_equilibrium_moisture_fraction, 6),
+        dryer_inlet_humidity_ratio_kg_kg=round(dryer_inlet_humidity_ratio_kg_kg, 6),
+        dryer_exhaust_humidity_ratio_kg_kg=round(dryer_exhaust_humidity_ratio_kg_kg, 6),
+        dryer_dry_air_flow_kg_hr=round(dryer_dry_air_flow_kg_hr, 6),
+        dryer_exhaust_saturation_fraction=round(dryer_exhaust_saturation_fraction, 6),
+        dryer_mass_transfer_coefficient_kg_m2_s=round(dryer_mass_transfer_coefficient_kg_m2_s, 6),
+        dryer_heat_transfer_coefficient_w_m2_k=round(dryer_heat_transfer_coefficient_w_m2_k, 6),
+        dryer_heat_transfer_area_m2=round(dryer_heat_transfer_area_m2, 6),
+        dryer_refined_duty_kw=round(dryer_refined_duty_kw, 6),
         selected_train_step_ids=[step.step_id for step in heating_train_steps + condenser_train_steps],
         calc_traces=traces,
         value_records=[
             make_value_record("process_unit_relative_volatility", "Process-unit relative volatility", alpha, "-", citations=route.citations, assumptions=route.assumptions, sensitivity=SensitivityLevel.HIGH),
             make_value_record("process_unit_stages", "Process-unit design stages", stages, "stages", citations=route.citations, assumptions=route.assumptions, sensitivity=SensitivityLevel.MEDIUM),
             make_value_record("process_unit_reboiler_duty", "Process-unit heating duty", reboiler, "kW", citations=energy_balance.citations, assumptions=energy_balance.assumptions, sensitivity=SensitivityLevel.HIGH),
+            *(
+                [
+                    make_value_record(
+                        "absorber_capture_fraction",
+                        "Absorber capture fraction",
+                        absorber_capture_fraction,
+                        "-",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.HIGH,
+                    ),
+                    make_value_record(
+                        "absorber_packed_height",
+                        "Absorber packed height",
+                        absorber_packed_height_m,
+                        "m",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                    make_value_record(
+                        "absorber_total_pressure_drop",
+                        "Absorber total pressure drop",
+                        absorber_total_pressure_drop_kpa,
+                        "kPa",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                    make_value_record(
+                        "absorber_wetting_ratio",
+                        "Absorber wetting ratio",
+                        absorber_wetting_ratio,
+                        "-",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                    make_value_record(
+                        "absorber_flooding_margin",
+                        "Absorber flooding margin",
+                        absorber_flooding_margin_fraction,
+                        "-",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                ]
+                if absorber_key_component
+                else []
+            ),
+            *(
+                [
+                    make_value_record(
+                        "crystallizer_yield_fraction",
+                        "Crystallizer yield fraction",
+                        crystallizer_yield_fraction,
+                        "-",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.HIGH,
+                    ),
+                    make_value_record(
+                        "filter_area",
+                        "Filter area",
+                        filter_area_m2,
+                        "m2",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                    make_value_record(
+                        "dryer_product_moisture_fraction",
+                        "Dryer product moisture fraction",
+                        dryer_product_moisture_fraction,
+                        "-",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                    make_value_record(
+                        "crystal_size_d50",
+                        "Crystal median size",
+                        crystal_size_d50_mm,
+                        "mm",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                    make_value_record(
+                        "dryer_exhaust_humidity_ratio",
+                        "Dryer exhaust humidity ratio",
+                        dryer_exhaust_humidity_ratio_kg_kg,
+                        "kg/kg dry air",
+                        citations=(property_packages.citations if property_packages is not None else route.citations),
+                        assumptions=(property_packages.assumptions if property_packages is not None else route.assumptions),
+                        sensitivity=SensitivityLevel.MEDIUM,
+                    ),
+                ]
+                if crystallizer_key_component
+                else []
+            ),
         ],
-        citations=sorted(set(route.citations + energy_balance.citations + (separation_choice.citations if separation_choice else []))),
-        assumptions=route.assumptions + energy_balance.assumptions + (separation_choice.assumptions if separation_choice else []),
+        citations=sorted(set(route.citations + energy_balance.citations + (separation_choice.citations if separation_choice else []) + (property_packages.citations if property_packages is not None else []))),
+        assumptions=route.assumptions + energy_balance.assumptions + (separation_choice.assumptions if separation_choice else []) + (property_packages.assumptions if property_packages is not None else []),
     )
 
 
@@ -1049,6 +2108,79 @@ def build_equipment_list_generic(
             assumptions=storage.assumptions,
         ),
     ]
+    if "absorption" in column.service.lower() and column.absorber_packing_family:
+        packed_cross_section_m2 = math.pi * (column.column_diameter_m / 2.0) ** 2 * max(1.0 - column.downcomer_area_fraction, 0.25)
+        packed_volume_m3 = max(packed_cross_section_m2 * max(column.absorber_packed_height_m, 2.0), 1.0)
+        absorber_transport_kw = max(
+            column.absorber_total_pressure_drop_kpa * packed_cross_section_m2 * max(column.absorber_operating_velocity_m_s, 0.1) / 0.62,
+            2.0,
+        )
+        equipment.append(
+            EquipmentSpec(
+                equipment_id=f"{column.column_id}_packing",
+                equipment_type="Packing internals",
+                service=f"{column.absorber_packing_family} packing",
+                design_basis=(
+                    f"{column.absorber_packing_specific_area_m2_m3:.0f} m2/m3 packing with "
+                    f"{column.absorber_effective_interfacial_area_m2_m3:.0f} m2/m3 effective area"
+                ),
+                volume_m3=round(packed_volume_m3, 3),
+                design_temperature_c=column.bottom_temperature_c or 120.0,
+                design_pressure_bar=max(column.design_stages * 0.05 + 1.5, 2.0),
+                material_of_construction=moc,
+                duty_kw=round(absorber_transport_kw, 3),
+                notes="Packed-absorber internals sized from transport-limited wetting, flooding, and transfer-unit screening.",
+                citations=column.citations,
+                assumptions=column.assumptions,
+            )
+        )
+    if "crystallizer" in column.service.lower() and column.crystallizer_key_component:
+        equipment.extend(
+            [
+                EquipmentSpec(
+                    equipment_id=f"{column.column_id}_classifier",
+                    equipment_type="Crystal classifier",
+                    service="Crystal cut-size control",
+                    design_basis=f"Cut size {column.crystal_classifier_cut_size_mm:.3f} mm at classified fraction {column.crystal_classified_product_fraction:.3f}",
+                    volume_m3=round(max(column.slurry_circulation_rate_m3_hr * 0.05, 1.0), 3),
+                    design_temperature_c=max(column.bottom_temperature_c, 35.0),
+                    design_pressure_bar=1.5,
+                    material_of_construction=moc,
+                    duty_kw=round(max(column.slurry_circulation_rate_m3_hr * 0.12, 4.0), 3),
+                    notes="Classifier sizing follows the solved crystal-size distribution and fines cut.",
+                    citations=column.citations,
+                    assumptions=column.assumptions,
+                ),
+                EquipmentSpec(
+                    equipment_id=f"{column.column_id}_filter",
+                    equipment_type="Pressure filter",
+                    service="Cake filtration",
+                    design_basis=f"Filter area {column.filter_area_m2:.3f} m2 with cake resistance {column.filter_specific_cake_resistance_m_kg:.3e} m/kg",
+                    volume_m3=round(max(column.filter_area_m2 * 0.06, 1.2), 3),
+                    design_temperature_c=max(column.top_temperature_c, 30.0),
+                    design_pressure_bar=2.0,
+                    material_of_construction=moc,
+                    duty_kw=round(max(column.filter_specific_cake_resistance_m_kg / 1.5e9, 3.0), 3),
+                    notes="Filter package sizing follows the solids throughput and transport-limited resistance basis.",
+                    citations=column.citations,
+                    assumptions=column.assumptions,
+                ),
+                EquipmentSpec(
+                    equipment_id=f"{column.column_id}_dryer_air",
+                    equipment_type="Dryer gas handling skid",
+                    service="Dryer circulation and exhaust handling",
+                    design_basis=f"Dry-air flow {column.dryer_dry_air_flow_kg_hr:.3f} kg/h with exhaust humidity {column.dryer_exhaust_humidity_ratio_kg_kg:.4f} kg/kg",
+                    volume_m3=round(max(column.dryer_heat_transfer_area_m2 * 0.04, 1.0), 3),
+                    design_temperature_c=max(column.bottom_temperature_c, 85.0),
+                    design_pressure_bar=1.4,
+                    material_of_construction=moc,
+                    duty_kw=round(max(column.dryer_dry_air_flow_kg_hr / 9000.0, 4.0), 3),
+                    notes="Dryer gas package sizing follows the endpoint humidity and air-side transfer basis.",
+                    citations=column.citations,
+                    assumptions=column.assumptions,
+                ),
+            ]
+        )
     if utility_architecture is not None:
         for package_item in utility_architecture.architecture.selected_package_items:
             package_assumptions = sorted(set(package_item.assumptions + [f"Utility train package role: {package_item.package_role}."]))
