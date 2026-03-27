@@ -49,6 +49,7 @@ from aoc.models import (
     UtilityNetworkDecision,
     WorkingCapitalModel,
 )
+from aoc.properties.models import MixturePropertyArtifact, PropertyPackageArtifact, PropertyRequirementSet, SeparationThermoArtifact
 
 
 EG_CHAPTER_ORDER = [
@@ -162,10 +163,14 @@ def annexures_markdown(
     reaction_system: ReactionSystem | None,
     property_gap: PropertyGapArtifact | None,
     resolved_values: ResolvedValueArtifact | None,
+    property_packages: PropertyPackageArtifact | None,
+    property_requirements: PropertyRequirementSet | None,
+    separation_thermo: SeparationThermoArtifact | None,
     process_archetype: ProcessArchetype | None,
     process_synthesis: ProcessSynthesisArtifact | None,
     agent_fabric: AgentDecisionFabricArtifact | None,
     stream_table: StreamTable,
+    mixture_properties: MixturePropertyArtifact | None,
     flowsheet_graph: FlowsheetGraph | None,
     flowsheet_case: FlowsheetCase | None,
     solve_result: SolveResult | None,
@@ -302,6 +307,151 @@ def annexures_markdown(
         ]
         for estimate in (resolved_values.property_estimates if resolved_values else [])
     ]
+    property_identifier_rows = [
+        [
+            identifier.identifier_id,
+            identifier.canonical_name,
+            identifier.formula or "-",
+            identifier.cas_number or "-",
+            ", ".join(identifier.route_ids) or "-",
+            identifier.resolution_status,
+        ]
+        for identifier in (property_packages.identifiers if property_packages else [])
+    ]
+    pure_component_rows = []
+    property_correlation_rows = []
+    binary_interaction_rows = []
+    henry_rows = []
+    solubility_rows = []
+    if property_packages:
+        for package in property_packages.packages:
+            for label, prop in [
+                ("molecular_weight", package.molecular_weight),
+                ("normal_boiling_point", package.normal_boiling_point),
+                ("melting_point", package.melting_point),
+                ("liquid_density", package.liquid_density),
+                ("liquid_viscosity", package.liquid_viscosity),
+                ("liquid_heat_capacity", package.liquid_heat_capacity),
+                ("heat_of_vaporization", package.heat_of_vaporization),
+                ("thermal_conductivity", package.thermal_conductivity),
+            ]:
+                if prop is None:
+                    continue
+                pure_component_rows.append(
+                    [
+                        package.identifier.canonical_name,
+                        label,
+                        prop.value,
+                        prop.units,
+                        str(prop.reference_temperature_c) if prop.reference_temperature_c is not None else "-",
+                        prop.provenance_method.value,
+                        prop.resolution_status,
+                        ", ".join(prop.source_ids) or "-",
+                    ]
+                )
+        for correlation in property_packages.correlations:
+            property_correlation_rows.append(
+                [
+                    correlation.identifier_id,
+                    correlation.property_name,
+                    correlation.equation_name,
+                    ", ".join(f"{key}={value}" for key, value in correlation.parameters.items()) or "-",
+                    str(correlation.temperature_min_c) if correlation.temperature_min_c is not None else "-",
+                    str(correlation.temperature_max_c) if correlation.temperature_max_c is not None else "-",
+                    correlation.provenance_method.value,
+                    ", ".join(correlation.source_ids) or "-",
+                ]
+            )
+        for bip in property_packages.binary_interaction_parameters:
+            binary_interaction_rows.append(
+                [
+                    bip.component_a_name,
+                    bip.component_b_name,
+                    bip.model_name,
+                    f"{bip.tau12:.6f}" if bip.tau12 is not None else "-",
+                    f"{bip.tau21:.6f}" if bip.tau21 is not None else "-",
+                    f"{bip.alpha12:.6f}" if bip.alpha12 is not None else "-",
+                    bip.resolution_status,
+                    ", ".join(bip.source_ids) or "-",
+                ]
+            )
+        for constant in property_packages.henry_law_constants:
+            henry_rows.append(
+                [
+                    constant.gas_component_name,
+                    constant.solvent_component_name,
+                    f"{constant.value:.6f}",
+                    constant.units,
+                    str(constant.reference_temperature_c) if constant.reference_temperature_c is not None else "-",
+                    constant.equation_form,
+                    constant.resolution_status,
+                    ", ".join(constant.source_ids) or "-",
+                ]
+            )
+        for curve in property_packages.solubility_curves:
+            solubility_rows.append(
+                [
+                    curve.solute_component_name,
+                    curve.solvent_component_name,
+                    curve.equation_name,
+                    ", ".join(f"{key}={value}" for key, value in curve.parameters.items()) or "-",
+                    str(curve.temperature_min_c) if curve.temperature_min_c is not None else "-",
+                    str(curve.temperature_max_c) if curve.temperature_max_c is not None else "-",
+                    curve.units,
+                    curve.resolution_status,
+                    ", ".join(curve.source_ids) or "-",
+                ]
+            )
+    requirement_rows = [
+        [
+            item.stage_id,
+            item.identifier_id,
+            item.property_name,
+            item.status,
+            "yes" if item.allow_estimated else "no",
+            "yes" if item.blocking else "no",
+        ]
+        for item in (property_requirements.coverage if property_requirements else [])
+    ]
+    separation_thermo_rows = [
+        ["Family", separation_thermo.separation_family],
+        ["Pressure (bar)", f"{separation_thermo.system_pressure_bar:.3f}"],
+        ["Light key", separation_thermo.light_key],
+        ["Heavy key", separation_thermo.heavy_key],
+        ["Activity model", separation_thermo.activity_model],
+        ["Top temperature (C)", f"{separation_thermo.nominal_top_temp_c:.3f}"],
+        ["Bottom temperature (C)", f"{separation_thermo.nominal_bottom_temp_c:.3f}"],
+        ["Average alpha", f"{separation_thermo.relative_volatility.average_alpha:.6f}" if separation_thermo.relative_volatility else "n/a"],
+        ["Method", separation_thermo.relative_volatility.method if separation_thermo.relative_volatility else "n/a"],
+        ["Missing BIP pairs", ", ".join(separation_thermo.missing_binary_pairs) or "none"],
+    ] if separation_thermo else []
+    separation_thermo_component_rows = [
+        [
+            top.component_name,
+            f"{top.temperature_c:.1f}",
+            f"{top.activity_coefficient:.6f}",
+            f"{top.k_value:.6f}",
+            top.method,
+            f"{bottom.temperature_c:.1f}",
+            f"{bottom.activity_coefficient:.6f}",
+            f"{bottom.k_value:.6f}",
+            bottom.method,
+        ]
+        for top, bottom in zip(
+            separation_thermo.top_k_values if separation_thermo else [],
+            separation_thermo.bottom_k_values if separation_thermo else [],
+        )
+    ]
+    unresolved_property_rows = [
+        [
+            package.identifier.canonical_name,
+            property_name,
+            package.resolution_status,
+            "yes" if property_name in package.blocked_properties else "no",
+        ]
+        for package in (property_packages.packages if property_packages else [])
+        for property_name in package.blocked_properties
+    ]
     archetype_rows = []
     if process_archetype:
         archetype_rows = [
@@ -351,6 +501,18 @@ def annexures_markdown(
             closure.closure_status,
         ]
         for closure in (stream_table.composition_closures if stream_table else [])
+    ]
+    mixture_rows = [
+        [
+            package.unit_id,
+            package.dominant_phase or "-",
+            f"{package.liquid_heat_capacity_kj_kg_k:.6f}" if package.liquid_heat_capacity_kj_kg_k is not None else "-",
+            f"{package.liquid_density_kg_m3:.6f}" if package.liquid_density_kg_m3 is not None else "-",
+            f"{package.liquid_viscosity_pa_s:.8f}" if package.liquid_viscosity_pa_s is not None else "-",
+            package.resolution_status,
+            ", ".join(package.estimated_properties) or "-",
+        ]
+        for package in (mixture_properties.packages if mixture_properties else [])
     ]
     solve_rows = [
         [
@@ -576,12 +738,17 @@ def annexures_markdown(
         ["Tray spacing (m)", f"{column_hydraulics.tray_spacing_m:.3f}"],
         ["Downcomer area fraction", f"{column_hydraulics.downcomer_area_fraction:.3f}"],
         ["Vapor velocity (m/s)", f"{column_hydraulics.vapor_velocity_m_s:.3f}"],
+        ["Allowable vapor velocity (m/s)", f"{column_hydraulics.allowable_vapor_velocity_m_s:.3f}"],
+        ["Capacity factor (m/s)", f"{column_hydraulics.capacity_factor_m_s:.3f}"],
+        ["Active area (m2)", f"{column_hydraulics.active_area_m2:.3f}"],
         ["Liquid load (m3/h)", f"{column_hydraulics.liquid_load_m3_hr:.3f}"],
+        ["Pressure drop per stage (kPa)", f"{column_hydraulics.pressure_drop_per_stage_kpa:.3f}"],
     ] if column_hydraulics else []
     exchanger_thermal_rows = [
         ["Configuration", exchanger_thermal.selected_configuration],
         ["Equations", "; ".join(exchanger_thermal.governing_equations)],
         ["Thermal inputs", "; ".join(f"{key}={value}" for key, value in exchanger_thermal.thermal_inputs.items())],
+        ["Package basis", "; ".join(f"{key}={value}" for key, value in exchanger_thermal.package_basis.items())],
     ] if exchanger_thermal else []
     pump_rows = [
         ["Pump ID", pump_design.pump_id],
@@ -606,6 +773,24 @@ def annexures_markdown(
         "### Property Table",
         markdown_table(["Property", "Value", "Units", "Method", "Sources"], property_rows),
         "",
+        "### Component Identifier Table",
+        markdown_table(["Identifier", "Canonical Name", "Formula", "CAS", "Route IDs", "Status"], property_identifier_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Pure-Component Property Table",
+        markdown_table(["Component", "Property", "Value", "Units", "Ref Temp (C)", "Method", "Status", "Sources"], pure_component_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Property Correlation Register",
+        markdown_table(["Identifier", "Property", "Equation", "Parameters", "Tmin (C)", "Tmax (C)", "Method", "Sources"], property_correlation_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Binary Interaction Parameter Register",
+        markdown_table(["Component A", "Component B", "Model", "Tau12", "Tau21", "Alpha12", "Status", "Sources"], binary_interaction_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Henry-Law Constant Register",
+        markdown_table(["Gas", "Solvent", "Value", "Units", "Ref Temp (C)", "Equation", "Status", "Sources"], henry_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Solubility Curve Register",
+        markdown_table(["Solute", "Solvent", "Equation", "Parameters", "Tmin (C)", "Tmax (C)", "Units", "Status", "Sources"], solubility_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
         "### Value Provenance Table",
         markdown_table(["Name", "Value", "Units", "Method", "Sensitivity", "Blocking", "Sources"], value_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
@@ -614,6 +799,18 @@ def annexures_markdown(
         "",
         "### Property Estimate Register",
         markdown_table(["Property", "Selected Method", "Candidate Methods", "Selected Source", "Sensitivity", "Blocking"], property_estimate_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Property Requirement Coverage",
+        markdown_table(["Stage", "Identifier", "Property", "Status", "Allow Estimated", "Blocking"], requirement_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Separation Thermodynamics Basis",
+        markdown_table(["Field", "Value"], separation_thermo_rows or [["n/a", "n/a"]]),
+        "",
+        "### Component K-Value Register",
+        markdown_table(["Component", "Top T (C)", "Top Gamma", "Top K", "Top Method", "Bottom T (C)", "Bottom Gamma", "Bottom K", "Bottom Method"], separation_thermo_component_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Blocked / Unresolved Property Register",
+        markdown_table(["Component", "Property", "Package Status", "Blocking"], unresolved_property_rows or [["n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Reaction Extent Set",
         markdown_table(["Extent", "Kind", "Representative Component", "Fraction of Converted Feed", "Status"], reaction_extent_rows or [["n/a", "n/a", "n/a", "0.0", "n/a"]]),
@@ -652,6 +849,12 @@ def annexures_markdown(
         markdown_table(
             ["Unit", "Reactive", "Inlet Fraction Sum", "Outlet Fraction Sum", "Composition Error (%)", "Status"],
             composition_closure_rows or [["n/a", "n/a", "0", "0", "0", "n/a"]],
+        ),
+        "",
+        "### Mixture Property Packages",
+        markdown_table(
+            ["Unit", "Phase", "Cp (kJ/kg-K)", "Density (kg/m3)", "Viscosity (Pa.s)", "Status", "Estimated Properties"],
+            mixture_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
         ),
         "",
         "### Solve Result",

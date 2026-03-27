@@ -8,6 +8,7 @@ from aoc.models import (
     SensitivityLevel,
     StreamTable,
 )
+from aoc.properties.models import PropertyPackageArtifact
 from aoc.solvers.composition import build_unit_composition_artifacts
 from aoc.solvers.flowsheet_sequence import build_generic_sequence_streams
 from aoc.value_engine import make_value_record
@@ -23,6 +24,7 @@ def build_stream_table_generic(
     reaction_system: ReactionSystem,
     citations: list[str],
     assumptions: list[str],
+    property_packages: PropertyPackageArtifact | None = None,
 ) -> StreamTable:
     solve_result = build_generic_sequence_streams(
         product_mass_kg_hr=_hourly_output_kg(basis),
@@ -30,6 +32,7 @@ def build_stream_table_generic(
         reaction_system=reaction_system,
         citations=citations,
         assumptions=assumptions,
+        property_packages=property_packages,
     )
     composition_states, composition_closures = build_unit_composition_artifacts(
         solve_result.streams,

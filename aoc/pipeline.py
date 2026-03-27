@@ -127,6 +127,20 @@ from aoc.models import (
     WorkingCapitalModel,
     utc_now,
 )
+from aoc.properties import (
+    MixturePropertyArtifact,
+    PropertyMethodDecision,
+    PropertyPackageArtifact,
+    PropertyRequirementSet,
+    SeparationThermoArtifact,
+    build_mixture_property_artifact,
+    build_property_method_decision,
+    build_property_package_artifact,
+    build_property_requirement_artifact,
+    build_separation_thermo_artifact,
+    property_estimates_from_packages,
+    property_value_records,
+)
 from aoc.publish import annexures_markdown, assemble_report, markdown_table, references_markdown, render_pdf
 from aoc.reasoning import build_reasoning_service
 from aoc.research import ResearchManager
@@ -167,11 +181,17 @@ from aoc.validators import (
     validate_india_price_data,
     validate_kinetic_assessment,
     validate_phase_feasibility,
+    validate_property_method_decision,
+    validate_property_package_artifact,
     validate_process_archetype,
     validate_property_gap_artifact,
+    validate_property_requirement_set,
+    validate_property_requirements_for_stage,
     validate_property_records,
     validate_resolved_source_set,
     validate_resolved_value_artifact,
+    validate_separation_thermo_artifact,
+    validate_mixture_property_artifact,
     validate_site_selection_consistency,
     validate_solve_result,
     validate_reactor_design,
@@ -212,20 +232,20 @@ STAGES = [
     StageSpec("product_profile", "Introduction and product profile", ("research_bundle",), ("product_profile",)),
     StageSpec("market_capacity", "Market and capacity selection", ("research_bundle",), ("market_assessment", "capacity_decision")),
     StageSpec("literature_route_survey", "Literature survey", ("research_bundle",), ("route_survey",)),
-    StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources"), ("property_gap", "resolved_values", "agent_decision_fabric"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
+    StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources", "route_survey", "research_bundle"), ("property_gap", "resolved_values", "property_packages", "property_requirements", "agent_decision_fabric"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
     StageSpec("site_selection", "Site selection", ("research_bundle",), ("site_selection", "site_selection_decision")),
     StageSpec("process_synthesis", "Process synthesis", ("route_survey", "property_gap"), ("process_synthesis",)),
     StageSpec("rough_alternative_balances", "Rough alternative balances", ("process_synthesis", "market_assessment"), ("rough_alternatives",)),
     StageSpec("heat_integration_optimization", "Heat integration optimization", ("rough_alternatives", "market_assessment"), ("heat_integration_study",), "heat_integration", "Heat Integration Review", "Approve the selected heat-integration studies before route finalization."),
     StageSpec("route_selection", "Process selection", ("route_survey", "rough_alternatives", "heat_integration_study", "market_assessment"), ("route_selection", "route_decision", "reactor_choice_decision", "separation_choice_decision", "utility_network_decision"), "process_architecture", "Process Architecture", "Approve the selected route, reactor, separation train, and utility-integration basis before downstream design work continues."),
-    StageSpec("thermodynamic_feasibility", "Thermodynamics", ("route_selection", "route_survey", "research_bundle"), ("thermo_assessment", "thermo_method_decision")),
+    StageSpec("thermodynamic_feasibility", "Thermodynamics", ("route_selection", "route_survey", "research_bundle", "property_packages", "property_requirements"), ("thermo_assessment", "thermo_method_decision", "property_method_decision", "separation_thermo")),
     StageSpec("kinetic_feasibility", "Kinetics", ("route_selection", "route_survey", "research_bundle"), ("kinetic_assessment", "kinetics_method_decision")),
     StageSpec("block_diagram", "Block diagram", ("route_selection", "route_survey", "research_bundle"), ("process_narrative",)),
     StageSpec("process_description", "Process description", ("process_narrative",), ("process_narrative",)),
     StageSpec("material_balance", "Material balance", ("route_selection", "kinetic_assessment", "process_narrative"), ("reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case")),
-    StageSpec("energy_balance", "Energy balance", ("stream_table", "thermo_assessment"), ("energy_balance", "solve_result"), "design_basis", "Design Basis Lock", "Approve thermo, kinetics, process narrative, and balance basis before detailed design."),
-    StageSpec("reactor_design", "Reactor design", ("reaction_system", "stream_table", "energy_balance"), ("reactor_design", "reactor_design_basis")),
-    StageSpec("distillation_design", "Distillation/process-unit design", ("stream_table", "energy_balance"), ("column_design", "column_hydraulics", "heat_exchanger_design", "heat_exchanger_thermal_design", "exchanger_choice_decision")),
+    StageSpec("energy_balance", "Energy balance", ("stream_table", "thermo_assessment", "property_packages", "property_requirements"), ("energy_balance", "solve_result", "mixture_properties"), "design_basis", "Design Basis Lock", "Approve thermo, kinetics, process narrative, and balance basis before detailed design."),
+    StageSpec("reactor_design", "Reactor design", ("reaction_system", "stream_table", "energy_balance", "mixture_properties", "property_packages", "property_requirements"), ("reactor_design", "reactor_design_basis")),
+    StageSpec("distillation_design", "Distillation/process-unit design", ("stream_table", "energy_balance", "mixture_properties", "property_packages", "property_requirements", "separation_thermo"), ("column_design", "column_hydraulics", "heat_exchanger_design", "heat_exchanger_thermal_design", "exchanger_choice_decision")),
     StageSpec("equipment_sizing", "Equipment sizing", ("reactor_design", "column_design", "heat_exchanger_design"), ("storage_design", "pump_design", "equipment_list", "equipment_datasheets", "storage_choice_decision", "moc_choice_decision"), "equipment_basis", "Reactor/Column Design Basis", "Approve reactor, column, exchanger, and storage design basis before downstream detailing."),
     StageSpec("mechanical_design_moc", "Mechanical design and materials of construction", ("equipment_list", "route_selection"), ("mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs")),
     StageSpec("storage_utilities", "Storage and utilities", ("storage_design", "equipment_list", "energy_balance"), ("utility_summary", "utility_basis_decision", "utility_architecture")),
@@ -429,6 +449,9 @@ class PipelineRunner:
         resolved_sources = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_sources.json", ResolvedSourceSet)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
+        property_packages = self.store.maybe_load_model(self.config.project_id, "artifacts/property_packages.json", PropertyPackageArtifact)
+        property_requirements = self.store.maybe_load_model(self.config.project_id, "artifacts/property_requirements.json", PropertyRequirementSet)
+        separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
         agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
         process_archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
         process_synthesis = self.store.maybe_load_model(self.config.project_id, "artifacts/process_synthesis.json", ProcessSynthesisArtifact)
@@ -446,11 +469,14 @@ class PipelineRunner:
         financing_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/financing_basis_decision.json", DecisionRecord)
         economic_basis_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/economic_basis_decision.json", DecisionRecord)
         thermo_method = self.store.maybe_load_model(self.config.project_id, "artifacts/thermo_method_decision.json", MethodSelectionArtifact)
+        property_method = self.store.maybe_load_model(self.config.project_id, "artifacts/property_method_decision.json", PropertyMethodDecision)
+        separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
         kinetics_method = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_method_decision.json", MethodSelectionArtifact)
         layout_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/layout_decision.json", LayoutDecisionArtifact)
         heat_study = self.store.maybe_load_model(self.config.project_id, "artifacts/heat_integration_study.json", HeatIntegrationStudyArtifact)
         reaction_system = self.store.maybe_load_model(self.config.project_id, "artifacts/reaction_system.json", ReactionSystem)
         stream_table = self.store.maybe_load_model(self.config.project_id, "artifacts/stream_table.json", StreamTable)
+        mixture_properties = self.store.maybe_load_model(self.config.project_id, "artifacts/mixture_properties.json", MixturePropertyArtifact)
         flowsheet_case = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_case.json", FlowsheetCase)
         solve_result = self.store.maybe_load_model(self.config.project_id, "artifacts/solve_result.json", SolveResult)
         utility_architecture = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_architecture.json", UtilityArchitectureDecision)
@@ -481,6 +507,18 @@ class PipelineRunner:
             lines.append(f"- evidence_lock_unresolved: {', '.join(resolved_values.unresolved_value_ids) or 'none'}")
             if resolved_values.property_estimates:
                 lines.append(f"- property_estimates: {len(resolved_values.property_estimates)}")
+        if property_packages:
+            lines.append(f"- resolved_components: {len(property_packages.packages)}")
+            lines.append(f"- unresolved_identifiers: {', '.join(property_packages.unresolved_identifier_ids) or 'none'}")
+            lines.append(f"- blocked_property_ids: {', '.join(property_packages.blocked_property_ids[:8]) or 'none'}")
+            lines.append(f"- resolved_bip_pairs: {len(property_packages.binary_interaction_parameters)}")
+            lines.append(f"- unresolved_bip_pairs: {', '.join(property_packages.unresolved_binary_pairs[:6]) or 'none'}")
+            lines.append(f"- resolved_henry_pairs: {len(property_packages.henry_law_constants)}")
+            lines.append(f"- unresolved_henry_pairs: {', '.join(property_packages.unresolved_henry_pairs[:6]) or 'none'}")
+            lines.append(f"- resolved_solubility_pairs: {len(property_packages.solubility_curves)}")
+            lines.append(f"- unresolved_solubility_pairs: {', '.join(property_packages.unresolved_solubility_pairs[:6]) or 'none'}")
+        if property_requirements:
+            lines.append(f"- property_requirement_stage_failures: {', '.join(property_requirements.blocked_stage_ids) or 'none'}")
         if process_archetype:
             lines.append("")
             lines.append("archetype:")
@@ -496,9 +534,17 @@ class PipelineRunner:
                     lines.append(
                         f"- {decision.decision_id}: selected={decision.selected_candidate_id or 'n/a'}; stability={decision.scenario_stability.value}; approval_required={'yes' if decision.approval_required else 'no'}"
                     )
-        if thermo_method or kinetics_method:
+        if thermo_method or kinetics_method or property_method:
             lines.append("")
             lines.append("method_decisions:")
+            if property_method:
+                lines.append(f"- property_basis: {property_method.decision.selected_candidate_id or 'n/a'}")
+            if separation_thermo and separation_thermo.relative_volatility is not None:
+                lines.append(
+                    f"- separation_thermo: alpha={separation_thermo.relative_volatility.average_alpha:.4f}; "
+                    f"keys={separation_thermo.light_key}/{separation_thermo.heavy_key}; method={separation_thermo.relative_volatility.method}; "
+                    f"activity={separation_thermo.activity_model}"
+                )
             if thermo_method:
                 lines.append(f"- thermo: {thermo_method.decision.selected_candidate_id or 'n/a'}")
             if kinetics_method:
@@ -537,6 +583,10 @@ class PipelineRunner:
             if stream_table:
                 lines.append(
                     f"- composition_states: {len(stream_table.composition_states)}; composition_closures: {len(stream_table.composition_closures)}; phase_split_specs: {len(stream_table.phase_split_specs)}; separator_performances: {len(stream_table.separator_performances)}; convergence_summaries: {len(stream_table.convergence_summaries)}"
+                )
+            if mixture_properties:
+                lines.append(
+                    f"- mixture_packages: {len(mixture_properties.packages)}; blocked_mixture_units: {', '.join(mixture_properties.blocked_unit_ids) or 'none'}"
                 )
             if flowsheet_case:
                 lines.append(
@@ -826,9 +876,35 @@ class PipelineRunner:
     def _run_property_gap_resolution(self) -> StageResult:
         product_profile = self._load("product_profile", ProductProfileArtifact)
         market = self._load("market_assessment", MarketAssessmentArtifact)
+        bundle = self._load("research_bundle", ResearchBundle)
+        route_survey = self._load("route_survey", RouteSurveyArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         artifact = resolve_property_gaps(product_profile, self.config)
+        property_packages = build_property_package_artifact(self.config, bundle, product_profile, route_survey)
+        property_requirements = build_property_requirement_artifact(self.config, property_packages)
         resolved_values = build_resolved_value_artifact(artifact, resolved_sources, self.config)
+        resolved_values = extend_resolved_value_artifact(
+            resolved_values,
+            property_value_records(property_packages),
+            resolved_sources,
+            self.config,
+            "property_engine",
+        )
+        bip_estimates = property_estimates_from_packages(property_packages)
+        if bip_estimates:
+            estimate_index = {
+                item.estimate_id: item
+                for item in resolved_values.property_estimates
+            }
+            estimate_index.update({item.estimate_id: item for item in bip_estimates})
+            resolved_values = resolved_values.model_copy(
+                update={
+                    "property_estimates": sorted(
+                        estimate_index.values(),
+                        key=lambda item: item.property_name.lower(),
+                    )
+                }
+            )
         market_value_records = [
             make_value_record(
                 f"market_{datum.datum_id}",
@@ -846,9 +922,13 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, market_value_records, resolved_sources, self.config, "market_capacity")
         self._save("property_gap", artifact)
         self._save("resolved_values", resolved_values)
+        self._save("property_packages", property_packages)
+        self._save("property_requirements", property_requirements)
         self._refresh_agent_fabric()
         issues = validate_property_gap_artifact(artifact, self.config)
         issues.extend(validate_resolved_value_artifact(resolved_values, self._source_ids(), self.config))
+        issues.extend(validate_property_package_artifact(property_packages, self._source_ids(), self.config))
+        issues.extend(validate_property_requirement_set(property_requirements))
         gate = None
         if self.config.evidence_lock_required and not issues:
             gate = self._gate("evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds.")
@@ -978,7 +1058,17 @@ class PipelineRunner:
         route = self._selected_route()
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
+        property_packages = self._load("property_packages", PropertyPackageArtifact)
+        property_requirements = self._load("property_requirements", PropertyRequirementSet)
         archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
+        separation_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_choice_decision.json", DecisionRecord)
+        property_method = build_property_method_decision(route, property_packages)
+        separation_thermo = build_separation_thermo_artifact(
+            route,
+            property_packages,
+            self.config.basis.target_product,
+            separation_choice.selected_candidate_id if separation_choice else None,
+        )
         method_artifact = build_thermo_method_decision(self.config, route, resolved_values, archetype)
         artifact = self.reasoning.build_thermo_assessment(self.config.basis, route, bundle.sources, bundle.corpus_excerpt)
         method_map = {
@@ -1011,6 +1101,11 @@ class PipelineRunner:
             ),
         ]
         artifact.markdown = (
+            "### Selected Property Basis\n\n"
+            f"{property_method.decision.selected_summary}\n\n"
+            f"{property_method.markdown}\n\n"
+            "### Separation Thermodynamics Basis\n\n"
+            f"{separation_thermo.markdown}\n\n"
             "### Selected Thermodynamic Method\n\n"
             f"{method_artifact.decision.selected_summary}\n\n"
             f"{method_artifact.markdown}\n\n"
@@ -1019,6 +1114,8 @@ class PipelineRunner:
         )
         self._save("thermo_assessment", artifact)
         self._save("thermo_method_decision", method_artifact)
+        self._save("property_method_decision", property_method)
+        self._save("separation_thermo", separation_thermo)
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(resolved_values, artifact.value_records, resolved_sources, self.config, "thermodynamic_feasibility"),
@@ -1037,7 +1134,16 @@ class PipelineRunner:
         )
         issues = (
             validate_route_balance(route)
+            + validate_property_method_decision(property_method)
+            + validate_separation_thermo_artifact(separation_thermo)
             + validate_decision_record(method_artifact.decision, "thermo_method_decision")
+            + validate_property_requirements_for_stage(
+                "thermodynamic_feasibility",
+                property_requirements,
+                property_packages,
+                route,
+                self.config.basis.target_product,
+            )
             + validate_thermo_assessment(artifact)
             + self._value_issues(artifact, "thermo_assessment")
             + self._chapter_issues(chapter)
@@ -1133,6 +1239,349 @@ class PipelineRunner:
         self._save("process_narrative", artifact)
         return artifact
 
+    def _render_solver_process_description(
+        self,
+        route: RouteOption,
+        flowsheet_case: FlowsheetCase,
+        stream_table: StreamTable,
+    ) -> str:
+        unit_rows = [
+            [
+                unit.unit_id,
+                unit.unit_type,
+                unit.service,
+                ", ".join(unit.upstream_stream_ids) or "-",
+                ", ".join(unit.downstream_stream_ids) or "-",
+                unit.closure_status,
+                unit.coverage_status,
+            ]
+            for unit in flowsheet_case.units
+        ]
+        separation_rows = [
+            [
+                separation.separation_id,
+                separation.separation_family,
+                separation.driving_force,
+                ", ".join(separation.product_stream_ids) or "-",
+                ", ".join(separation.recycle_stream_ids) or "-",
+                separation.split_status,
+            ]
+            for separation in flowsheet_case.separations
+        ]
+        recycle_rows = [
+            [
+                loop.loop_id,
+                loop.recycle_source_unit_id or "-",
+                ", ".join(loop.recycle_stream_ids) or "-",
+                ", ".join(loop.purge_stream_ids) or "-",
+                loop.convergence_status,
+            ]
+            for loop in flowsheet_case.recycle_loops
+        ]
+        unit_narrative = [
+            f"- `{unit.unit_id}`: {unit.service}. Inlet streams `{', '.join(unit.upstream_stream_ids) or '-'}` and outlet streams `{', '.join(unit.downstream_stream_ids) or '-'}` with `{unit.closure_status}` closure and `{unit.coverage_status}` coverage."
+            for unit in flowsheet_case.units
+        ]
+        lines = [
+            f"Solver-derived process description for route `{route.route_id}` built from `{len(stream_table.unit_operation_packets)}` solved unit packets.",
+            "",
+            "### Unit Sequence",
+            "",
+            markdown_table(["Unit", "Type", "Service", "Inlet Streams", "Outlet Streams", "Closure", "Coverage"], unit_rows or [["n/a", "n/a", "n/a", "-", "-", "n/a", "n/a"]]),
+            "",
+            "### Separation Architecture",
+            "",
+            markdown_table(["Separation", "Family", "Driving Force", "Product Streams", "Recycle Streams", "Status"], separation_rows or [["n/a", "n/a", "n/a", "-", "-", "n/a"]]),
+            "",
+            "### Recycle Architecture",
+            "",
+            markdown_table(["Loop", "Source Unit", "Recycle Streams", "Purge Streams", "Status"], recycle_rows or [["n/a", "-", "-", "-", "n/a"]]),
+            "",
+            "### Unit Narrative",
+            "",
+            "\n".join(unit_narrative or ["- No solved unit narrative is available."]),
+        ]
+        return "\n".join(lines)
+
+    def _render_solver_material_balance(
+        self,
+        reaction_system: ReactionSystem,
+        stream_table: StreamTable,
+    ) -> str:
+        reaction_rows = [
+            [
+                extent.extent_id,
+                extent.kind,
+                extent.representative_component or "-",
+                f"{extent.extent_fraction_of_converted_feed:.6f}",
+                extent.status,
+            ]
+            for extent in (reaction_system.reaction_extent_set.extents if reaction_system.reaction_extent_set else [])
+        ]
+        byproduct_rows = [
+            [
+                estimate.component_name,
+                estimate.basis,
+                f"{estimate.allocation_fraction:.6f}",
+                estimate.provenance,
+                estimate.status,
+            ]
+            for estimate in (reaction_system.byproduct_closure.estimates if reaction_system.byproduct_closure else [])
+        ]
+        packet_rows = [
+            [
+                packet.unit_id,
+                packet.unit_type,
+                packet.service,
+                ", ".join(packet.inlet_stream_ids) or "-",
+                ", ".join(packet.outlet_stream_ids) or "-",
+                f"{packet.inlet_mass_flow_kg_hr:.3f}",
+                f"{packet.outlet_mass_flow_kg_hr:.3f}",
+                f"{packet.closure_error_pct:.3f}",
+                packet.status,
+                packet.coverage_status,
+            ]
+            for packet in stream_table.unit_operation_packets
+        ]
+        stream_rows: list[list[str]] = []
+        for stream in stream_table.streams:
+            for component in stream.components:
+                stream_rows.append(
+                    [
+                        stream.stream_id,
+                        stream.description,
+                        stream.source_unit_id or "-",
+                        stream.destination_unit_id or "-",
+                        component.name,
+                        f"{component.mass_flow_kg_hr:.3f}",
+                        f"{component.molar_flow_kmol_hr:.6f}",
+                        f"{stream.temperature_c:.1f}",
+                        f"{stream.pressure_bar:.2f}",
+                    ]
+                )
+        return "\n\n".join(
+            [
+                "### Reaction Extent Allocation\n\n"
+                + markdown_table(["Extent", "Kind", "Representative Component", "Fraction of Converted Feed", "Status"], reaction_rows or [["n/a", "n/a", "n/a", "0.0", "n/a"]]),
+                "### Byproduct Closure\n\n"
+                + markdown_table(["Component", "Basis", "Allocation Fraction", "Provenance", "Status"], byproduct_rows or [["n/a", "n/a", "0.0", "n/a", "n/a"]]),
+                "### Unit Packet Balance Summary\n\n"
+                + markdown_table(
+                    ["Unit", "Type", "Service", "Inlet Streams", "Outlet Streams", "Inlet kg/h", "Outlet kg/h", "Closure Error (%)", "Status", "Coverage"],
+                    packet_rows or [["n/a", "n/a", "n/a", "-", "-", "0.0", "0.0", "0.0", "n/a", "n/a"]],
+                ),
+                "### Stream Table\n\n"
+                + markdown_table(["Stream", "Description", "From", "To", "Component", "kg/h", "kmol/h", "T (C)", "P (bar)"], stream_rows),
+            ]
+        )
+
+    def _render_trace_section(self, title: str, traces) -> str:
+        rows = [
+            [
+                trace.title,
+                trace.formula,
+                "; ".join(f"{key}={value}" for key, value in trace.substitutions.items()) or "-",
+                f"{trace.result} {trace.units}".strip(),
+                trace.notes or "-",
+            ]
+            for trace in traces
+        ]
+        return f"### {title}\n\n" + markdown_table(
+            ["Trace", "Formula", "Inputs", "Result", "Notes"],
+            rows or [["n/a", "n/a", "-", "n/a", "-"]],
+        )
+
+    def _render_reactor_design_chapter(
+        self,
+        reactor: ReactorDesign,
+        reactor_basis: ReactorDesignBasis,
+        stream_table: StreamTable,
+        energy: EnergyBalance,
+    ) -> str:
+        reactor_packet = next((packet for packet in stream_table.unit_operation_packets if packet.unit_id == "reactor" or packet.unit_type == "reactor"), None)
+        thermal_packet = next(
+            (
+                packet
+                for packet in energy.unit_thermal_packets
+                if packet.unit_id in {"R-101", "CONV-101", "reactor"}
+            ),
+            None,
+        )
+        basis_rows = [
+            ["Selected reactor type", reactor_basis.selected_reactor_type],
+            ["Design basis", reactor.design_basis],
+            ["Residence time (h)", f"{reactor.residence_time_hr:.3f}"],
+            ["Design volume (m3)", f"{reactor.design_volume_m3:.3f}"],
+            ["Design temperature (C)", f"{reactor.design_temperature_c:.1f}"],
+            ["Design pressure (bar)", f"{reactor.design_pressure_bar:.2f}"],
+        ]
+        packet_rows = [
+            [
+                reactor_packet.packet_id if reactor_packet else "n/a",
+                f"{reactor_packet.inlet_mass_flow_kg_hr:.3f}" if reactor_packet else "n/a",
+                f"{reactor_packet.outlet_mass_flow_kg_hr:.3f}" if reactor_packet else "n/a",
+                f"{reactor_packet.closure_error_pct:.3f}" if reactor_packet else "n/a",
+                reactor_packet.status if reactor_packet else "n/a",
+            ],
+            [
+                thermal_packet.packet_id if thermal_packet else "n/a",
+                f"{thermal_packet.heating_kw:.3f}" if thermal_packet else "n/a",
+                f"{thermal_packet.cooling_kw:.3f}" if thermal_packet else "n/a",
+                f"{thermal_packet.recoverable_duty_kw:.3f}" if thermal_packet else "n/a",
+                ", ".join(thermal_packet.candidate_media) if thermal_packet and thermal_packet.candidate_media else "n/a",
+            ],
+        ]
+        heat_transfer_rows = [
+            ["Heat duty (kW)", f"{reactor.heat_duty_kw:.3f}"],
+            ["Heat-transfer area (m2)", f"{reactor.heat_transfer_area_m2:.3f}"],
+            ["Overall U (W/m2-K)", f"{reactor.overall_u_w_m2_k:.1f}"],
+            ["Reynolds number", f"{reactor.reynolds_number:,.1f}"],
+            ["Prandtl number", f"{reactor.prandtl_number:.3f}"],
+            ["Nusselt number", f"{reactor.nusselt_number:.2f}"],
+            ["Tube count", str(reactor.number_of_tubes)],
+            ["Tube length (m)", f"{reactor.tube_length_m:.3f}"],
+        ]
+        utility_rows = [
+            ["Utility topology", reactor.utility_topology or "standalone utilities"],
+            ["Cooling medium", reactor.cooling_medium],
+            ["Integrated duty (kW)", f"{reactor.integrated_thermal_duty_kw:.3f}"],
+            ["Residual utility duty (kW)", f"{reactor.residual_utility_duty_kw:.3f}"],
+            ["Integrated LMTD (K)", f"{reactor.integrated_lmtd_k:.3f}"],
+            ["Integrated exchange area (m2)", f"{reactor.integrated_exchange_area_m2:.3f}"],
+            ["Coupled service basis", reactor.coupled_service_basis or "none"],
+            ["Selected train steps", ", ".join(reactor.selected_train_step_ids) or "none"],
+        ]
+        return "\n\n".join(
+            [
+                reactor_basis.markdown,
+                "### Governing Equations\n\n" + "\n".join(f"- `{equation}`" for equation in reactor_basis.governing_equations),
+                "### Solver Packet Basis\n\n"
+                + markdown_table(
+                    ["Packet", "Primary Value 1", "Primary Value 2", "Closure / Recoverable", "Status / Media"],
+                    packet_rows,
+                ),
+                "### Reactor Sizing Basis\n\n" + markdown_table(["Parameter", "Value"], basis_rows),
+                "### Heat-Transfer Derivation Basis\n\n" + markdown_table(["Parameter", "Value"], heat_transfer_rows),
+                "### Utility Coupling\n\n" + markdown_table(["Parameter", "Value"], utility_rows),
+                self._render_trace_section("Reactor Calculation Traces", reactor.calc_traces),
+            ]
+        )
+
+    def _render_process_unit_design_chapter(
+        self,
+        column: ColumnDesign,
+        column_hydraulics: ColumnHydraulics,
+        exchanger: HeatExchangerDesign,
+        exchanger_thermal: HeatExchangerThermalDesign,
+        stream_table: StreamTable,
+    ) -> str:
+        process_packets = [
+            packet
+            for packet in stream_table.unit_operation_packets
+            if packet.unit_id in {"concentration", "purification", "regeneration", "filtration", "drying"}
+            or packet.unit_type in {"distillation", "evaporation", "stripping", "filtration", "drying", "extraction"}
+        ]
+        packet_rows = [
+            [
+                packet.packet_id,
+                packet.unit_id,
+                packet.unit_type,
+                f"{packet.inlet_mass_flow_kg_hr:.3f}",
+                f"{packet.outlet_mass_flow_kg_hr:.3f}",
+                f"{packet.closure_error_pct:.3f}",
+                packet.status,
+            ]
+            for packet in process_packets
+        ]
+        column_rows = [
+            ["Service", column.service],
+            ["Light key", column.light_key],
+            ["Heavy key", column.heavy_key],
+            ["Relative volatility", f"{column.relative_volatility:.3f}"],
+            ["Minimum stages", f"{column.min_stages:.3f}"],
+            ["Theoretical stages", f"{column.theoretical_stages:.3f}"],
+            ["Design stages", str(column.design_stages)],
+            ["Tray efficiency", f"{column.tray_efficiency:.3f}"],
+            ["Minimum reflux ratio", f"{column.minimum_reflux_ratio:.3f}"],
+            ["Reflux ratio", f"{column.reflux_ratio:.3f}"],
+            ["R / Rmin", f"{column.reflux_ratio_multiple_of_min:.3f}"],
+            ["Diameter (m)", f"{column.column_diameter_m:.3f}"],
+            ["Height (m)", f"{column.column_height_m:.3f}"],
+            ["Feed stage", str(column.feed_stage)],
+        ]
+        hydraulics_rows = [
+            ["Tray spacing (m)", f"{column.tray_spacing_m:.3f}"],
+            ["Flooding fraction", f"{column.flooding_fraction:.3f}"],
+            ["Downcomer area fraction", f"{column.downcomer_area_fraction:.3f}"],
+            ["Vapor velocity (m/s)", f"{column_hydraulics.vapor_velocity_m_s:.3f}"],
+            ["Allowable vapor velocity (m/s)", f"{column_hydraulics.allowable_vapor_velocity_m_s:.3f}"],
+            ["Capacity factor (m/s)", f"{column_hydraulics.capacity_factor_m_s:.3f}"],
+            ["Active area (m2)", f"{column_hydraulics.active_area_m2:.3f}"],
+            ["Liquid load (m3/h)", f"{column_hydraulics.liquid_load_m3_hr:.3f}"],
+            ["Vapor load (kg/h)", f"{column.vapor_load_kg_hr:.3f}"],
+            ["Liquid density (kg/m3)", f"{column.liquid_density_kg_m3:.3f}"],
+            ["Vapor density (kg/m3)", f"{column.vapor_density_kg_m3:.3f}"],
+            ["Pressure drop per stage (kPa)", f"{column.pressure_drop_per_stage_kpa:.3f}"],
+            ["Top temperature (C)", f"{column.top_temperature_c:.1f}"],
+            ["Bottom temperature (C)", f"{column.bottom_temperature_c:.1f}"],
+        ]
+        utility_rows = [
+            ["Utility topology", column.utility_topology or "standalone utilities"],
+            ["Integrated reboiler duty (kW)", f"{column.integrated_reboiler_duty_kw:.3f}"],
+            ["Residual reboiler utility (kW)", f"{column.residual_reboiler_utility_kw:.3f}"],
+            ["Integrated reboiler LMTD (K)", f"{column.integrated_reboiler_lmtd_k:.3f}"],
+            ["Integrated reboiler area (m2)", f"{column.integrated_reboiler_area_m2:.3f}"],
+            ["Reboiler medium", column.reboiler_medium or "none"],
+            ["Reboiler package type", column.reboiler_package_type or "none"],
+            ["Reboiler circulation ratio", f"{column.reboiler_circulation_ratio:.3f}"],
+            ["Reboiler phase-change load (kg/h)", f"{column.reboiler_phase_change_load_kg_hr:.3f}"],
+            ["Reboiler package items", ", ".join(column.reboiler_package_item_ids) or "none"],
+            ["Condenser recovery duty (kW)", f"{column.condenser_recovery_duty_kw:.3f}"],
+            ["Condenser recovery LMTD (K)", f"{column.condenser_recovery_lmtd_k:.3f}"],
+            ["Condenser recovery area (m2)", f"{column.condenser_recovery_area_m2:.3f}"],
+            ["Condenser recovery medium", column.condenser_recovery_medium or "none"],
+            ["Condenser package type", column.condenser_package_type or "none"],
+            ["Condenser phase-change load (kg/h)", f"{column.condenser_phase_change_load_kg_hr:.3f}"],
+            ["Condenser circulation flow (m3/h)", f"{column.condenser_circulation_flow_m3_hr:.3f}"],
+            ["Condenser package items", ", ".join(column.condenser_package_item_ids) or "none"],
+            ["Selected train steps", ", ".join(column.selected_train_step_ids) or "none"],
+        ]
+        exchanger_rows = [
+            ["Configuration", exchanger_thermal.selected_configuration],
+            ["Heat load (kW)", f"{exchanger.heat_load_kw:.3f}"],
+            ["LMTD (K)", f"{exchanger.lmtd_k:.1f}"],
+            ["Overall U (W/m2-K)", f"{exchanger.overall_u_w_m2_k:.1f}"],
+            ["Area (m2)", f"{exchanger.area_m2:.3f}"],
+            ["Package family", exchanger.package_family or "generic"],
+            ["Selected train step", exchanger.selected_train_step_id or "none"],
+            ["Package roles", ", ".join(exchanger.selected_package_roles) or "none"],
+            ["Selected package items", ", ".join(exchanger.selected_package_item_ids) or "none"],
+            ["Boiling-side coefficient (W/m2-K)", f"{exchanger.boiling_side_coefficient_w_m2_k:.3f}"],
+            ["Condensing-side coefficient (W/m2-K)", f"{exchanger.condensing_side_coefficient_w_m2_k:.3f}"],
+        ]
+        return "\n\n".join(
+            [
+                column_hydraulics.markdown,
+                "### Governing Equations\n\n"
+                + "\n".join(
+                    f"- `{equation}`"
+                    for equation in (
+                        ["Fenske / Underwood / Gilliland equivalents", *exchanger_thermal.governing_equations]
+                    )
+                ),
+                "### Solver Packet Basis\n\n"
+                + markdown_table(
+                    ["Packet", "Unit", "Type", "Inlet kg/h", "Outlet kg/h", "Closure Error (%)", "Status"],
+                    packet_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "n/a"]],
+                ),
+                "### Process-Unit Sizing Basis\n\n" + markdown_table(["Parameter", "Value"], column_rows),
+                "### Hydraulics Basis\n\n" + markdown_table(["Parameter", "Value"], hydraulics_rows),
+                "### Utility Coupling\n\n" + markdown_table(["Parameter", "Value"], utility_rows),
+                "### Heat-Exchanger Thermal Basis\n\n" + markdown_table(["Parameter", "Value"], exchanger_rows),
+                self._render_trace_section("Process-Unit Calculation Traces", column.calc_traces + exchanger.calc_traces),
+            ]
+        )
+
     def _run_block_diagram(self) -> StageResult:
         artifact = self._ensure_process_narrative()
         markdown = f"```mermaid\n{artifact.bfd_mermaid}\n```"
@@ -1168,8 +1617,16 @@ class PipelineRunner:
         route = self._selected_route()
         kinetics = self._load("kinetic_assessment", KineticAssessmentArtifact)
         process_narrative = self._ensure_process_narrative()
+        property_packages = self._load("property_packages", PropertyPackageArtifact)
         reaction_system = build_reaction_system(self.config.basis, route, kinetics, route.citations + kinetics.citations, route.assumptions + kinetics.assumptions)
-        stream_table = build_stream_table(self.config.basis, route, reaction_system, reaction_system.citations, reaction_system.assumptions)
+        stream_table = build_stream_table(
+            self.config.basis,
+            route,
+            reaction_system,
+            reaction_system.citations,
+            reaction_system.assumptions,
+            property_packages,
+        )
         flowsheet_graph = build_flowsheet_graph(
             route,
             stream_table,
@@ -1187,65 +1644,27 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, reaction_system.value_records, resolved_sources, self.config, "material_balance_reaction_system")
         resolved_values = extend_resolved_value_artifact(resolved_values, stream_table.value_records, resolved_sources, self.config, "material_balance_stream_table")
         self._save("resolved_values", resolved_values)
-        stream_rows: list[list[str]] = []
-        for stream in stream_table.streams:
-            for component in stream.components:
-                stream_rows.append(
-                    [
-                        stream.stream_id,
-                        stream.description,
-                        stream.source_unit_id or "-",
-                        stream.destination_unit_id or "-",
-                        component.name,
-                        f"{component.mass_flow_kg_hr:.3f}",
-                        f"{component.molar_flow_kmol_hr:.6f}",
-                        f"{stream.temperature_c:.1f}",
-                        f"{stream.pressure_bar:.2f}",
-                    ]
-                )
-        reaction_rows = []
-        if reaction_system.reaction_extent_set:
-            reaction_rows.extend(
-                [
-                    extent.extent_id,
-                    extent.kind,
-                    extent.representative_component or "-",
-                    f"{extent.extent_fraction_of_converted_feed:.6f}",
-                    extent.status,
-                ]
-                for extent in reaction_system.reaction_extent_set.extents
-            )
-        byproduct_rows = []
-        if reaction_system.byproduct_closure:
-            byproduct_rows.extend(
-                [
-                    estimate.component_name,
-                    estimate.basis,
-                    f"{estimate.allocation_fraction:.6f}",
-                    estimate.provenance,
-                    estimate.status,
-                ]
-                for estimate in reaction_system.byproduct_closure.estimates
-            )
-        markdown = "\n\n".join(
-            [
-                "### Reaction Extent Allocation\n\n"
-                + markdown_table(["Extent", "Kind", "Representative Component", "Fraction of Converted Feed", "Status"], reaction_rows or [["n/a", "n/a", "n/a", "0.0", "n/a"]]),
-                "### Byproduct Closure\n\n"
-                + markdown_table(["Component", "Basis", "Allocation Fraction", "Provenance", "Status"], byproduct_rows or [["n/a", "n/a", "0.0", "n/a", "n/a"]]),
-                "### Stream Table\n\n"
-                + markdown_table(["Stream", "Description", "From", "To", "Component", "kg/h", "kmol/h", "T (C)", "P (bar)"], stream_rows),
-            ]
-        )
+        material_markdown = self._render_solver_material_balance(reaction_system, stream_table)
         chapter = self._chapter(
             "material_balance",
             "Material Balance",
             "material_balance",
-            markdown,
+            material_markdown,
             sorted(set(stream_table.citations + reaction_system.citations)),
             reaction_system.assumptions + stream_table.assumptions,
             ["reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case"],
             required_inputs=["route_selection", "kinetic_assessment", "process_narrative"],
+        )
+        process_description_chapter = self._chapter(
+            "process_description",
+            "Process Description",
+            "material_balance",
+            self._render_solver_process_description(route, flowsheet_case, stream_table),
+            sorted(set(process_narrative.citations + stream_table.citations + reaction_system.citations)),
+            process_narrative.assumptions + reaction_system.assumptions + stream_table.assumptions,
+            ["process_narrative", "flowsheet_case", "stream_table"],
+            required_inputs=["route_selection", "kinetic_assessment", "process_narrative"],
+            summary="Solver-derived process description refreshed from solved unit packets, separation packets, and recycle loops.",
         )
         issues = (
             validate_reaction_system(reaction_system)
@@ -1255,8 +1674,9 @@ class PipelineRunner:
             + self._value_issues(reaction_system, "reaction_system")
             + self._value_issues(stream_table, "stream_table")
             + self._chapter_issues(chapter)
+            + self._chapter_issues(process_description_chapter)
         )
-        return StageResult(chapters=[chapter], issues=issues)
+        return StageResult(chapters=[process_description_chapter, chapter], issues=issues)
 
     def _run_energy_balance(self) -> StageResult:
         route = self._selected_route()
@@ -1264,11 +1684,15 @@ class PipelineRunner:
         thermo = self._load("thermo_assessment", ThermoAssessmentArtifact)
         kinetics = self._load("kinetic_assessment", KineticAssessmentArtifact)
         reaction_system = self._load("reaction_system", ReactionSystem)
-        energy = build_energy_balance(route, stream_table, thermo)
+        property_packages = self._load("property_packages", PropertyPackageArtifact)
+        property_requirements = self._load("property_requirements", PropertyRequirementSet)
+        mixture_properties = build_mixture_property_artifact(stream_table, property_packages)
+        energy = build_energy_balance(route, stream_table, thermo, mixture_properties)
         flowsheet_case = self._load("flowsheet_case", FlowsheetCase)
         solve_result = build_solve_result(flowsheet_case, stream_table, energy)
         self._save("energy_balance", energy)
         self._save("solve_result", solve_result)
+        self._save("mixture_properties", mixture_properties)
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), energy.value_records, self._load("resolved_sources", ResolvedSourceSet), self.config, "energy_balance"),
@@ -1287,6 +1711,16 @@ class PipelineRunner:
         )
         issues = (
             self._value_issues(energy, "energy_balance")
+            + validate_mixture_property_artifact(mixture_properties)
+            + validate_property_requirements_for_stage(
+                "energy_balance",
+                property_requirements,
+                property_packages,
+                route,
+                self.config.basis.target_product,
+                mixture_properties,
+                relevant_unit_ids=["feed_prep", "primary_flash", "primary_separation", "purification", "filtration", "drying"],
+            )
             + validate_energy_balance(energy)
             + validate_phase_feasibility(route, thermo, kinetics, reaction_system, energy)
             + validate_solve_result(solve_result)
@@ -1300,11 +1734,23 @@ class PipelineRunner:
         reaction_system = self._load("reaction_system", ReactionSystem)
         stream_table = self._load("stream_table", StreamTable)
         energy = self._load("energy_balance", EnergyBalance)
+        mixture_properties = self._load("mixture_properties", MixturePropertyArtifact)
+        property_packages = self._load("property_packages", PropertyPackageArtifact)
+        property_requirements = self._load("property_requirements", PropertyRequirementSet)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         reactor_choice = self._load("reactor_choice_decision", DecisionRecord)
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(self._selected_utility_network(), energy)
         self._save("utility_architecture", utility_architecture)
-        reactor = build_reactor_design(self.config.basis, route, reaction_system, stream_table, energy, reactor_choice, utility_architecture)
+        reactor = build_reactor_design(
+            self.config.basis,
+            route,
+            reaction_system,
+            stream_table,
+            energy,
+            mixture_properties,
+            reactor_choice,
+            utility_architecture,
+        )
         reactor_basis = build_reactor_design_basis(reactor)
         self._save("reactor_design", reactor)
         self._save("reactor_design_basis", reactor_basis)
@@ -1312,35 +1758,7 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), reactor.value_records, resolved_sources, self.config, "reactor_design"),
         )
-        markdown = markdown_table(
-            ["Parameter", "Value"],
-            [
-                ["Reactor type", reactor.reactor_type],
-                ["Residence time (h)", f"{reactor.residence_time_hr:.3f}"],
-                ["Liquid holdup (m3)", f"{reactor.liquid_holdup_m3:.3f}"],
-                ["Design volume (m3)", f"{reactor.design_volume_m3:.3f}"],
-                ["Shell diameter (m)", f"{reactor.shell_diameter_m:.3f}"],
-                ["Shell length (m)", f"{reactor.shell_length_m:.3f}"],
-                ["Design temperature (C)", f"{reactor.design_temperature_c:.1f}"],
-                ["Design pressure (bar)", f"{reactor.design_pressure_bar:.2f}"],
-                ["Heat duty (kW)", f"{reactor.heat_duty_kw:.3f}"],
-                ["Heat-transfer area (m2)", f"{reactor.heat_transfer_area_m2:.3f}"],
-                ["Overall U (W/m2-K)", f"{reactor.overall_u_w_m2_k:.1f}"],
-                ["Reynolds number", f"{reactor.reynolds_number:,.1f}"],
-                ["Prandtl number", f"{reactor.prandtl_number:.3f}"],
-                ["Nusselt number", f"{reactor.nusselt_number:.2f}"],
-                ["Tube count", str(reactor.number_of_tubes)],
-                ["Tube length (m)", f"{reactor.tube_length_m:.3f}"],
-                ["Cooling medium", reactor.cooling_medium],
-                ["Utility topology", reactor.utility_topology or "standalone utilities"],
-                ["Integrated thermal duty (kW)", f"{reactor.integrated_thermal_duty_kw:.3f}"],
-                ["Residual utility duty (kW)", f"{reactor.residual_utility_duty_kw:.3f}"],
-                ["Integrated LMTD (K)", f"{reactor.integrated_lmtd_k:.3f}"],
-                ["Integrated exchange area (m2)", f"{reactor.integrated_exchange_area_m2:.3f}"],
-                ["Coupled service basis", reactor.coupled_service_basis or "none"],
-                ["Selected train steps", ", ".join(reactor.selected_train_step_ids) or "none"],
-            ],
-        )
+        markdown = self._render_reactor_design_chapter(reactor, reactor_basis, stream_table, energy)
         chapter = self._chapter(
             "reactor_design",
             "Reactor Design",
@@ -1351,18 +1769,45 @@ class PipelineRunner:
             ["reactor_design", "reactor_design_basis"],
             required_inputs=["reaction_system", "stream_table", "energy_balance"],
         )
-        issues = validate_decision_record(reactor_choice, "reactor_choice_decision") + validate_reactor_design(reactor) + self._value_issues(reactor, "reactor_design") + self._chapter_issues(chapter)
+        issues = (
+            validate_decision_record(reactor_choice, "reactor_choice_decision")
+            + validate_property_requirements_for_stage(
+                "reactor_design",
+                property_requirements,
+                property_packages,
+                route,
+                self.config.basis.target_product,
+                mixture_properties,
+                relevant_unit_ids=["reactor"],
+            )
+            + validate_reactor_design(reactor)
+            + self._value_issues(reactor, "reactor_design")
+            + self._chapter_issues(chapter)
+        )
         return StageResult(chapters=[chapter], issues=issues)
 
     def _run_distillation_design(self) -> StageResult:
         route = self._selected_route()
         stream_table = self._load("stream_table", StreamTable)
         energy = self._load("energy_balance", EnergyBalance)
+        mixture_properties = self._load("mixture_properties", MixturePropertyArtifact)
+        property_packages = self._load("property_packages", PropertyPackageArtifact)
+        property_requirements = self._load("property_requirements", PropertyRequirementSet)
+        separation_thermo = self._load("separation_thermo", SeparationThermoArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         separation_choice = self._load("separation_choice_decision", DecisionRecord)
         exchanger_choice = select_exchanger_configuration(route, energy)
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(self._selected_utility_network(), energy)
-        column = build_column_design(self.config.basis, route, stream_table, energy, separation_choice, utility_architecture)
+        column = build_column_design(
+            self.config.basis,
+            route,
+            stream_table,
+            energy,
+            mixture_properties,
+            separation_choice,
+            utility_architecture,
+            separation_thermo,
+        )
         exchanger = build_heat_exchanger_design(route, energy, exchanger_choice, utility_architecture)
         column_hydraulics = build_column_hydraulics(column)
         exchanger_thermal = build_heat_exchanger_thermal_design(exchanger)
@@ -1376,66 +1821,7 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, column.value_records, resolved_sources, self.config, "distillation_design")
         resolved_values = extend_resolved_value_artifact(resolved_values, exchanger.value_records, resolved_sources, self.config, "heat_exchanger_design")
         self._save("resolved_values", resolved_values)
-        markdown = (
-            "### D-101 Distillation Basis\n\n"
-            + markdown_table(
-                ["Parameter", "Value"],
-                [
-                    ["Service", column.service],
-                    ["Light key", column.light_key],
-                    ["Heavy key", column.heavy_key],
-                    ["Relative volatility", f"{column.relative_volatility:.3f}"],
-                    ["Minimum stages", f"{column.min_stages:.3f}"],
-                    ["Design stages", str(column.design_stages)],
-                    ["Reflux ratio", f"{column.reflux_ratio:.3f}"],
-                    ["Diameter (m)", f"{column.column_diameter_m:.3f}"],
-                    ["Height (m)", f"{column.column_height_m:.3f}"],
-                    ["Feed stage", str(column.feed_stage)],
-                    ["Tray spacing (m)", f"{column.tray_spacing_m:.3f}"],
-                    ["Flooding fraction", f"{column.flooding_fraction:.3f}"],
-                    ["Downcomer area fraction", f"{column.downcomer_area_fraction:.3f}"],
-                    ["Top temperature (C)", f"{column.top_temperature_c:.1f}"],
-                    ["Bottom temperature (C)", f"{column.bottom_temperature_c:.1f}"],
-                    ["Condenser duty (kW)", f"{column.condenser_duty_kw:.3f}"],
-                    ["Reboiler duty (kW)", f"{column.reboiler_duty_kw:.3f}"],
-                    ["Utility topology", column.utility_topology or "standalone utilities"],
-                    ["Integrated reboiler duty (kW)", f"{column.integrated_reboiler_duty_kw:.3f}"],
-                    ["Residual reboiler utility (kW)", f"{column.residual_reboiler_utility_kw:.3f}"],
-                    ["Integrated reboiler LMTD (K)", f"{column.integrated_reboiler_lmtd_k:.3f}"],
-                    ["Integrated reboiler area (m2)", f"{column.integrated_reboiler_area_m2:.3f}"],
-                    ["Reboiler medium", column.reboiler_medium or "none"],
-                    ["Condenser recovery duty (kW)", f"{column.condenser_recovery_duty_kw:.3f}"],
-                    ["Condenser recovery LMTD (K)", f"{column.condenser_recovery_lmtd_k:.3f}"],
-                    ["Condenser recovery area (m2)", f"{column.condenser_recovery_area_m2:.3f}"],
-                    ["Condenser recovery medium", column.condenser_recovery_medium or "none"],
-                    ["Selected train steps", ", ".join(column.selected_train_step_ids) or "none"],
-                ],
-            )
-            + "\n\n### E-101 Heat Exchanger Basis\n\n"
-            + markdown_table(
-                ["Parameter", "Value"],
-                [
-                    ["Service", exchanger.service],
-                    ["Heat load (kW)", f"{exchanger.heat_load_kw:.3f}"],
-                    ["LMTD (K)", f"{exchanger.lmtd_k:.1f}"],
-                    ["Overall U (W/m2-K)", f"{exchanger.overall_u_w_m2_k:.1f}"],
-                    ["Area (m2)", f"{exchanger.area_m2:.3f}"],
-                    ["Exchanger type", exchanger.exchanger_type],
-                    ["Package family", exchanger.package_family or "generic"],
-                    ["Circulation flow (m3/h)", f"{exchanger.circulation_flow_m3_hr:.3f}"],
-                    ["Phase-change load (kg/h)", f"{exchanger.phase_change_load_kg_hr:.3f}"],
-                    ["Package holdup (m3)", f"{exchanger.package_holdup_m3:.3f}"],
-                    ["Shell diameter (m)", f"{exchanger.shell_diameter_m:.3f}"],
-                    ["Tube count", str(exchanger.tube_count)],
-                    ["Tube length (m)", f"{exchanger.tube_length_m:.3f}"],
-                    ["Shell passes", str(exchanger.shell_passes)],
-                    ["Tube passes", str(exchanger.tube_passes)],
-                    ["Utility topology", exchanger.utility_topology or "standalone utilities"],
-                    ["Selected train step", exchanger.selected_train_step_id or "none"],
-                    ["Selected package items", ", ".join(exchanger.selected_package_item_ids) or "none"],
-                ],
-            )
-        )
+        markdown = self._render_process_unit_design_chapter(column, column_hydraulics, exchanger, exchanger_thermal, stream_table)
         chapter = self._chapter(
             "distillation_design",
             "Distillation / Process-Unit Design",
@@ -1449,6 +1835,15 @@ class PipelineRunner:
         issues = (
             validate_decision_record(separation_choice, "separation_choice_decision")
             + validate_decision_record(exchanger_choice, "exchanger_choice_decision")
+            + validate_property_requirements_for_stage(
+                "distillation_design",
+                property_requirements,
+                property_packages,
+                route,
+                self.config.basis.target_product,
+                mixture_properties,
+                relevant_unit_ids=["purification", "concentration", "regeneration", "filtration", "drying"],
+            )
             + validate_column_design(column)
             + self._value_issues(column, "column_design")
             + self._value_issues(exchanger, "heat_exchanger_design")
@@ -2057,13 +2452,18 @@ class PipelineRunner:
         product_profile = self._load("product_profile", ProductProfileArtifact)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
+        property_packages = self.store.maybe_load_model(self.config.project_id, "artifacts/property_packages.json", PropertyPackageArtifact)
+        property_requirements = self.store.maybe_load_model(self.config.project_id, "artifacts/property_requirements.json", PropertyRequirementSet)
+        separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
         agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
         process_archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
         process_synthesis = self.store.maybe_load_model(self.config.project_id, "artifacts/process_synthesis.json", ProcessSynthesisArtifact)
         capacity_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/capacity_decision.json", DecisionRecord)
+        property_method = self.store.maybe_load_model(self.config.project_id, "artifacts/property_method_decision.json", PropertyMethodDecision)
         thermo_method = self.store.maybe_load_model(self.config.project_id, "artifacts/thermo_method_decision.json", MethodSelectionArtifact)
         kinetics_method = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_method_decision.json", MethodSelectionArtifact)
         stream_table = self._load("stream_table", StreamTable)
+        mixture_properties = self.store.maybe_load_model(self.config.project_id, "artifacts/mixture_properties.json", MixturePropertyArtifact)
         flowsheet_graph = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_graph.json", FlowsheetGraph)
         flowsheet_case = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_case.json", FlowsheetCase)
         solve_result = self.store.maybe_load_model(self.config.project_id, "artifacts/solve_result.json", SolveResult)
@@ -2159,10 +2559,14 @@ class PipelineRunner:
             reaction_system,
             property_gap,
             resolved_values,
+            property_packages,
+            property_requirements,
+            separation_thermo,
             process_archetype,
             process_synthesis,
             agent_fabric,
             stream_table,
+            mixture_properties,
             flowsheet_graph,
             flowsheet_case,
             solve_result,
@@ -2192,6 +2596,7 @@ class PipelineRunner:
                 decision
                 for decision in [
                     capacity_decision,
+                    property_method.decision if property_method else None,
                     thermo_method.decision if thermo_method else None,
                     kinetics_method.decision if kinetics_method else None,
                     exchanger_choice,
@@ -2214,6 +2619,7 @@ class PipelineRunner:
             pump_design,
             equipment_datasheets.markdown if equipment_datasheets else None,
             [
+                *(property_value_records(property_packages) if property_packages else []),
                 *getattr(self._load("thermo_assessment", ThermoAssessmentArtifact), "value_records", []),
                 *getattr(self._load("kinetic_assessment", KineticAssessmentArtifact), "value_records", []),
                 *getattr(reaction_system, "value_records", []),

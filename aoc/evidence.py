@@ -118,6 +118,14 @@ def _property_estimates_from_values(values: list[ResolvedValue]) -> list[Propert
     return estimates
 
 
+def _merge_property_estimates(*groups: list[PropertyEstimate]) -> list[PropertyEstimate]:
+    merged: dict[str, PropertyEstimate] = {}
+    for group in groups:
+        for estimate in group:
+            merged[estimate.estimate_id] = estimate
+    return sorted(merged.values(), key=lambda item: item.property_name.lower())
+
+
 def build_resolved_source_set(config: ProjectConfig, bundle: ResearchBundle) -> ResolvedSourceSet:
     grouped = defaultdict(list)
     for source in bundle.sources:
@@ -294,7 +302,7 @@ def build_resolved_value_artifact(
     return ResolvedValueArtifact(
         values=resolved_values,
         unresolved_value_ids=sorted(set(unresolved_value_ids)),
-        property_estimates=_property_estimates_from_values(resolved_values),
+        property_estimates=_merge_property_estimates(_property_estimates_from_values(resolved_values)),
         markdown="\n".join(lines),
         citations=sorted({source_id for value in resolved_values for source_id in value.source_ids}),
         assumptions=property_gap.assumptions,
@@ -351,7 +359,7 @@ def extend_resolved_value_artifact(
     return ResolvedValueArtifact(
         values=values,
         unresolved_value_ids=sorted(unresolved_value_ids),
-        property_estimates=_property_estimates_from_values(values),
+        property_estimates=_merge_property_estimates(existing.property_estimates, _property_estimates_from_values(values)),
         markdown="\n".join(lines),
         citations=sorted({source_id for value in values for source_id in value.source_ids}),
         assumptions=existing.assumptions + [f"Resolved values extended with {context}."],

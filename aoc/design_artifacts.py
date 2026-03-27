@@ -51,8 +51,12 @@ def build_reactor_design_basis(reactor: ReactorDesign) -> ReactorDesignBasis:
 
 
 def build_column_hydraulics(column: ColumnDesign) -> ColumnHydraulics:
-    vapor_velocity = max(column.column_diameter_m, 0.1) * 0.85
-    liquid_load = max(column.reboiler_duty_kw / 220.0, 1.0)
+    vapor_velocity = column.superficial_vapor_velocity_m_s or max(column.column_diameter_m, 0.1) * 0.85
+    liquid_load = column.liquid_load_m3_hr or max(column.reboiler_duty_kw / 220.0, 1.0)
+    active_area = max(
+        (3.14159 * (column.column_diameter_m / 2.0) ** 2) * max(1.0 - column.downcomer_area_fraction, 0.25),
+        0.1,
+    )
     return ColumnHydraulics(
         column_id=column.column_id,
         flooding_fraction=column.flooding_fraction,
@@ -60,9 +64,21 @@ def build_column_hydraulics(column: ColumnDesign) -> ColumnHydraulics:
         downcomer_area_fraction=column.downcomer_area_fraction,
         vapor_velocity_m_s=round(vapor_velocity, 3),
         liquid_load_m3_hr=round(liquid_load, 3),
+        capacity_factor_m_s=round(
+            max(
+                column.allowable_vapor_velocity_m_s
+                / max((max((column.liquid_density_kg_m3 - column.vapor_density_kg_m3) / max(column.vapor_density_kg_m3, 0.05), 0.0) ** 0.5), 1e-6),
+                0.0,
+            ),
+            3,
+        ),
+        allowable_vapor_velocity_m_s=round(column.allowable_vapor_velocity_m_s, 3),
+        active_area_m2=round(active_area, 3),
+        pressure_drop_per_stage_kpa=round(column.pressure_drop_per_stage_kpa, 3),
         markdown=(
             f"Column {column.column_id} hydraulic basis uses tray spacing {column.tray_spacing_m:.3f} m "
-            f"and flooding fraction {column.flooding_fraction:.3f}. "
+            f"and flooding fraction {column.flooding_fraction:.3f}, with superficial vapor velocity "
+            f"{vapor_velocity:.3f} m/s against allowable {column.allowable_vapor_velocity_m_s:.3f} m/s. "
             f"Integrated reboiler duty basis is {column.integrated_reboiler_duty_kw:.3f} kW via {column.utility_topology or 'standalone utilities'}, "
             f"with reboiler area {column.integrated_reboiler_area_m2:.3f} m2 at {column.integrated_reboiler_lmtd_k:.3f} K."
         ),
@@ -78,6 +94,7 @@ def build_heat_exchanger_thermal_design(exchanger: HeatExchangerDesign) -> HeatE
         governing_equations=[
             "Q = U * A * LMTD",
             "A = Q / (U * LMTD)",
+            "m_phase = Q / lambda",
         ],
         thermal_inputs={
             "heat_load_kw": f"{exchanger.heat_load_kw:.3f}",
@@ -89,6 +106,13 @@ def build_heat_exchanger_thermal_design(exchanger: HeatExchangerDesign) -> HeatE
             "package_holdup_m3": f"{exchanger.package_holdup_m3:.3f}",
             "utility_topology": exchanger.utility_topology or "standalone utilities",
             "selected_train_step_id": exchanger.selected_train_step_id or "none",
+            "boiling_side_coefficient_w_m2_k": f"{exchanger.boiling_side_coefficient_w_m2_k:.3f}",
+            "condensing_side_coefficient_w_m2_k": f"{exchanger.condensing_side_coefficient_w_m2_k:.3f}",
+        },
+        package_basis={
+            "package_family": exchanger.package_family or "generic",
+            "selected_package_roles": ", ".join(exchanger.selected_package_roles) or "none",
+            "selected_package_items": ", ".join(exchanger.selected_package_item_ids) or "none",
         },
         markdown=(
             f"Exchanger {exchanger.exchanger_id} uses {exchanger.exchanger_type or 'shell-and-tube'} "
@@ -141,9 +165,14 @@ def build_equipment_datasheets(
             design_data["reactor_utility_topology"] = reactor.utility_topology or "standalone"
         if equipment.equipment_id == column.column_id:
             design_data["design_stages"] = str(column.design_stages)
+            design_data["theoretical_stages"] = f"{column.theoretical_stages:.3f}"
+            design_data["minimum_reflux_ratio"] = f"{column.minimum_reflux_ratio:.3f}"
             design_data["reflux_ratio"] = f"{column.reflux_ratio:.3f}"
+            design_data["tray_efficiency"] = f"{column.tray_efficiency:.3f}"
             design_data["integrated_reboiler_duty_kw"] = f"{column.integrated_reboiler_duty_kw:.3f}"
             design_data["integrated_reboiler_area_m2"] = f"{column.integrated_reboiler_area_m2:.3f}"
+            design_data["reboiler_package_type"] = column.reboiler_package_type or "none"
+            design_data["condenser_package_type"] = column.condenser_package_type or "none"
             design_data["column_utility_topology"] = column.utility_topology or "standalone"
         if equipment.equipment_id == exchanger.exchanger_id:
             design_data["heat_load_kw"] = f"{exchanger.heat_load_kw:.3f}"
@@ -151,6 +180,9 @@ def build_equipment_datasheets(
             design_data["package_family"] = exchanger.package_family or "generic"
             design_data["circulation_flow_m3_hr"] = f"{exchanger.circulation_flow_m3_hr:.3f}"
             design_data["phase_change_load_kg_hr"] = f"{exchanger.phase_change_load_kg_hr:.3f}"
+            design_data["boiling_side_coefficient_w_m2_k"] = f"{exchanger.boiling_side_coefficient_w_m2_k:.3f}"
+            design_data["condensing_side_coefficient_w_m2_k"] = f"{exchanger.condensing_side_coefficient_w_m2_k:.3f}"
+            design_data["selected_package_roles"] = ", ".join(exchanger.selected_package_roles) or "none"
             design_data["selected_train_step_id"] = exchanger.selected_train_step_id or "none"
         if equipment.equipment_id == storage.storage_id:
             design_data["inventory_days"] = f"{storage.inventory_days:.1f}"

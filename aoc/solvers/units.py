@@ -20,12 +20,14 @@ from aoc.models import (
     UnitThermalPacket,
     UtilityArchitectureDecision,
 )
+from aoc.properties.models import MixturePropertyArtifact, SeparationThermoArtifact
 from aoc.solvers.composition import (
     component_mass_fraction,
     composition_state_for_unit,
     estimate_bulk_density_kg_m3,
     estimate_bulk_viscosity_pa_s,
     light_heavy_keys,
+    mixture_package_for_state,
 )
 from aoc.value_engine import make_value_record
 
@@ -136,6 +138,71 @@ def _step_media_summary(steps: list) -> str:
     return " / ".join(media)
 
 
+def _average_molecular_weight_g_mol(state, *, side: str = "outlet", default: float = 28.0) -> float:
+    if state is None:
+        return default
+    if side == "inlet":
+        total_mass = sum(state.inlet_component_mass_kg_hr.values())
+        total_molar = sum(state.inlet_component_molar_kmol_hr.values())
+    else:
+        total_mass = sum(state.outlet_component_mass_kg_hr.values())
+        total_molar = sum(state.outlet_component_molar_kmol_hr.values())
+    if total_molar <= 1e-9:
+        return default
+    return max(total_mass / total_molar, 2.0)
+
+
+def _latent_load_kg_hr(duty_kw: float, latent_kj_kg: float) -> float:
+    if duty_kw <= 0.0 or latent_kj_kg <= 1e-6:
+        return 0.0
+    return duty_kw * 3600.0 / latent_kj_kg
+
+
+def _select_package_item(steps: list, *, role: str = "exchanger", family: str | None = None):
+    candidates = []
+    for step in steps:
+        for item in step.package_items:
+            if item.package_role != role:
+                continue
+            if family is not None and item.package_family != family:
+                continue
+            candidates.append(item)
+    return max(candidates, key=lambda item: max(item.duty_kw, item.heat_transfer_area_m2, item.flow_m3_hr, item.volume_m3), default=None)
+
+
+def _fenske_min_stages(alpha: float, xD_lk: float, xB_lk: float, xD_hk: float, xB_hk: float) -> float:
+    alpha = max(alpha, 1.02)
+    numerator = max((xD_lk / max(xB_lk, 1e-4)) * (xB_hk / max(xD_hk, 1e-4)), 1.0001)
+    return max(math.log(numerator) / math.log(alpha), 2.0)
+
+
+def _underwood_min_reflux_proxy(alpha: float, q: float, xD_lk: float) -> float:
+    alpha = max(alpha, 1.02)
+    q = min(max(q, 0.7), 1.6)
+    return max(((alpha * max(xD_lk, 0.5)) / max(alpha - 1.0, 0.08) - 1.0) * (0.55 + 0.25 * q), 0.15)
+
+
+def _tray_efficiency_proxy(viscosity_pa_s: float, alpha: float, service: str) -> float:
+    viscosity_penalty = min(max(viscosity_pa_s / 0.0035, 0.0), 1.0)
+    volatility_bonus = min(max((alpha - 1.0) / 1.5, 0.0), 1.0)
+    base = 0.58 + 0.18 * volatility_bonus - 0.10 * viscosity_penalty
+    if "absorption" in service.lower():
+        base += 0.05
+    elif "crystallizer" in service.lower() or "dryer" in service.lower():
+        base -= 0.08
+    return min(max(base, 0.42), 0.82)
+
+
+def _gilliland_actual_stages_proxy(nmin: float, rmin: float, reflux_ratio: float) -> float:
+    if reflux_ratio <= 0.0:
+        return max(nmin * 1.6, nmin + 2.0)
+    x = (reflux_ratio - rmin) / max(reflux_ratio + 1.0, 1.0)
+    x = min(max(x, 0.02), 0.95)
+    y = 0.78 * (1.0 - math.exp(-1.35 * x)) + 0.10
+    y = min(max(y, 0.15), 0.92)
+    return max((nmin + y) / max(1.0 - y, 0.08), nmin + 1.0)
+
+
 def _duty_for_prefix(energy_balance: EnergyBalance, prefixes: tuple[str, ...]) -> float:
     matches = [
         max(duty.heating_kw, duty.cooling_kw)
@@ -153,6 +220,7 @@ def build_reactor_design_generic(
     reaction_system: ReactionSystem,
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
+    mixture_properties: MixturePropertyArtifact | None = None,
     reactor_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> ReactorDesign:
@@ -163,6 +231,8 @@ def build_reactor_design_generic(
     density = estimate_bulk_density_kg_m3(
         reactor_state,
         1150.0 if "solid" in reactor_type else 1020.0 if "aqueous" in reactor_type or "hydrator" in reactor_type else 900.0,
+        mixture_properties=mixture_properties,
+        unit_ids=("reactor",),
     )
     volumetric_flow_m3_hr = max(feed_mass / density, 0.1)
     residence_time = reaction_system.excess_ratio * 0.03 + route.residence_time_hr
@@ -215,12 +285,20 @@ def build_reactor_design_generic(
     area = max((reactor_duty * 1000.0) / max(u_value * lmtd, 1.0), 1.0)
     shell_diameter = max((4.0 * design_volume / (math.pi * 5.0)) ** (1.0 / 3.0), 1.1)
     shell_length = max(design_volume / (math.pi * (shell_diameter / 2.0) ** 2), 4.5)
-    viscosity_pa_s = estimate_bulk_viscosity_pa_s(reactor_state, 0.0018 if "hydrator" in reactor_type else 0.0024)
+    viscosity_pa_s = estimate_bulk_viscosity_pa_s(
+        reactor_state,
+        0.0018 if "hydrator" in reactor_type else 0.0024,
+        mixture_properties=mixture_properties,
+        unit_ids=("reactor",),
+    )
+    reactor_mixture = mixture_package_for_state(reactor_state, mixture_properties, unit_ids=("reactor",))
+    thermal_conductivity = reactor_mixture.thermal_conductivity_w_m_k if reactor_mixture and reactor_mixture.thermal_conductivity_w_m_k else 0.18
+    heat_capacity = reactor_mixture.liquid_heat_capacity_kj_kg_k if reactor_mixture and reactor_mixture.liquid_heat_capacity_kj_kg_k else (4.0 if "hydrator" in reactor_type else 2.5)
     hydraulic_diameter_m = 0.032 if "plug_flow" in reactor_type or "hydrator" in reactor_type else 0.055
     velocity_m_s = max((volumetric_flow_m3_hr / 3600.0) / max(math.pi * (shell_diameter / 2.0) ** 2 * 0.55, 1e-6), 0.2)
     reynolds = max((density * velocity_m_s * hydraulic_diameter_m) / max(viscosity_pa_s, 1e-6), 1000.0)
     water_fraction = max(component_mass_fraction(reactor_state, "Water", side="inlet"), component_mass_fraction(reactor_state, "Water"))
-    prandtl = 7.5 + water_fraction * 5.5 if "hydrator" in reactor_type else 6.5 + water_fraction * 4.0
+    prandtl = max((heat_capacity * 1000.0 * viscosity_pa_s) / max(thermal_conductivity, 1e-6), 1.0)
     nusselt = 0.023 * (reynolds ** 0.8) * (prandtl ** 0.4)
     tube_length = max(shell_length * 0.88, 4.0)
     tube_area = math.pi * 0.025 * tube_length
@@ -237,6 +315,19 @@ def build_reactor_design_generic(
         CalcTrace(trace_id="reactor_design_volume", title="Reactor design volume", formula="Vd = V * design_factor", substitutions={"V": f"{liquid_holdup_m3:.3f}", "factor": f"{design_factor:.3f}"}, result=f"{design_volume:.3f}", units="m3"),
         CalcTrace(trace_id="reactor_reynolds", title="Reactor-side Reynolds number", formula="Re = rho * v * Dh / mu", substitutions={"rho": f"{density:.1f}", "v": f"{velocity_m_s:.3f}", "Dh": f"{hydraulic_diameter_m:.3f}", "mu": f"{viscosity_pa_s:.5f}"}, result=f"{reynolds:.1f}", units="-"),
         CalcTrace(trace_id="reactor_nusselt", title="Reactor-side Nusselt number", formula="Nu = 0.023 Re^0.8 Pr^0.4", substitutions={"Re": f"{reynolds:.1f}", "Pr": f"{prandtl:.2f}"}, result=f"{nusselt:.2f}", units="-"),
+        CalcTrace(
+            trace_id="reactor_property_basis",
+            title="Reactor property-package basis",
+            formula="Pr = Cp * mu / k using mixture-property package values when available",
+            substitutions={
+                "Cp": f"{heat_capacity:.3f}",
+                "mu": f"{viscosity_pa_s:.6f}",
+                "k": f"{thermal_conductivity:.4f}",
+                "mixture_package": reactor_mixture.mixture_id if reactor_mixture else "fallback",
+            },
+            result=f"{prandtl:.2f}",
+            units="-",
+        ),
         CalcTrace(
             trace_id="reactor_packet_basis",
             title="Solved reactor packet basis",
@@ -318,8 +409,10 @@ def build_column_design_generic(
     route: RouteOption,
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
+    mixture_properties: MixturePropertyArtifact | None = None,
     separation_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
+    separation_thermo: SeparationThermoArtifact | None = None,
 ) -> ColumnDesign:
     separation_type = separation_choice.selected_candidate_id if separation_choice and separation_choice.selected_candidate_id else "distillation_train"
     if "absorption" in separation_type:
@@ -343,20 +436,25 @@ def build_column_design_generic(
         unit_ids=("purification", "concentration", "regeneration", "filtration", "drying"),
         unit_types=("distillation", "evaporation", "stripping", "filtration", "drying", "extraction"),
     )
+    process_mixture = mixture_package_for_state(
+        process_state,
+        mixture_properties,
+        unit_ids=("purification", "concentration", "regeneration", "filtration", "drying"),
+    )
+    process_density = process_mixture.liquid_density_kg_m3 if process_mixture and process_mixture.liquid_density_kg_m3 else 950.0
+    process_viscosity = process_mixture.liquid_viscosity_pa_s if process_mixture and process_mixture.liquid_viscosity_pa_s else 0.0018
+    process_cp = process_mixture.liquid_heat_capacity_kj_kg_k if process_mixture and process_mixture.liquid_heat_capacity_kj_kg_k else 2.5
     product_mass = (
         max(process_packet.outlet_mass_flow_kg_hr * 0.72, _product_mass(stream_table))
         if process_packet is not None and process_packet.outlet_mass_flow_kg_hr > 0.0
         else _product_mass(stream_table)
     )
+    target_purity = min(max(basis.target_purity_wt_pct / 100.0, 0.85), 0.999)
     if "absorption" in separation_type:
         service = "Absorption tower train"
         light_key = "Offgas"
         heavy_key = "Rich absorbent"
         alpha = 1.08
-        stages = 10
-        reflux = 0.20
-        diameter = max(math.sqrt(product_mass / 9000.0), 1.5)
-        height = 18.0
         reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.18, 1200.0)
         condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.45, 1800.0)
         top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 55.0
@@ -366,10 +464,6 @@ def build_column_design_generic(
         light_key = "Mother liquor"
         heavy_key = "Crystal product"
         alpha = 1.02
-        stages = 4
-        reflux = 0.10
-        diameter = max(math.sqrt(product_mass / 12000.0), 1.2)
-        height = 9.0
         reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.30, 900.0)
         condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.30, 900.0)
         top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 45.0
@@ -379,10 +473,6 @@ def build_column_design_generic(
         light_key = "Solvent-rich phase"
         heavy_key = "Product-rich phase"
         alpha = 1.15
-        stages = 8
-        reflux = 0.35
-        diameter = max(math.sqrt(product_mass / 10000.0), 1.4)
-        height = 14.0
         reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.35, 1000.0)
         condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.40, 950.0)
         top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 62.0
@@ -394,18 +484,64 @@ def build_column_design_generic(
             light_key, heavy_key = "Water", "Ethylene glycol"
         complexity = len(process_state.outlet_component_mole_fraction) if process_state is not None else 2
         alpha = max(1.15, 2.40 - 0.18 * max(complexity - 2, 0))
-        stages = max(10, int(round(product_mass / 5000.0)) + 8)
-        reflux = 1.45
-        diameter = max(math.sqrt(product_mass / 8000.0), 1.8)
-        height = stages * 0.75 + 4.0
         reboiler = max(heating_packet.heating_kw if heating_packet else energy_balance.total_heating_kw * 0.55, 1200.0)
         condenser = max(cooling_packet.cooling_kw if cooling_packet else energy_balance.total_cooling_kw * 0.50, 1100.0)
         top_temp = cooling_packet.hot_target_temp_c if cooling_packet else 92.0
         bottom_temp = heating_packet.cold_target_temp_c if heating_packet else 198.0
+    vle_alpha_top = 0.0
+    vle_alpha_bottom = 0.0
+    vle_method = "route_family_proxy"
+    if separation_thermo is not None and separation_thermo.relative_volatility is not None:
+        if separation_thermo.light_key:
+            light_key = separation_thermo.light_key
+        if separation_thermo.heavy_key:
+            heavy_key = separation_thermo.heavy_key
+        if separation_thermo.relative_volatility.average_alpha > 1.0:
+            alpha = separation_thermo.relative_volatility.average_alpha
+        top_temp = separation_thermo.nominal_top_temp_c or top_temp
+        bottom_temp = separation_thermo.nominal_bottom_temp_c or bottom_temp
+        vle_alpha_top = separation_thermo.relative_volatility.top_alpha
+        vle_alpha_bottom = separation_thermo.relative_volatility.bottom_alpha
+        vle_method = separation_thermo.relative_volatility.method
     process_unit_ids = ("purification", "concentration", "regeneration", "drying", "filtration")
     heating_train_steps = _train_steps_for_units(utility_architecture, sink_unit_ids=process_unit_ids)
     condenser_train_steps = _train_steps_for_units(utility_architecture, source_unit_ids=process_unit_ids)
     heat_stream_lookup = _heat_stream_lookup(utility_architecture)
+    reboiler_package = _select_package_item(heating_train_steps, role="exchanger", family="reboiler")
+    condenser_package = _select_package_item(condenser_train_steps, role="exchanger", family="condenser")
+    top_pressure_bar = max(route.operating_pressure_bar * 0.18, 1.2) if "distillation" in service.lower() else max(route.operating_pressure_bar * 0.45, 1.3)
+    average_mw = _average_molecular_weight_g_mol(process_state, side="outlet", default=32.0)
+    vapor_density = max((top_pressure_bar * 1.0e5) * (average_mw / 1000.0) / (8.314 * max(top_temp + 273.15, 250.0)), 0.35)
+    xD_lk = min(max(0.985 if "distillation" in service.lower() else 0.94, 0.80), 0.999)
+    xB_lk = min(max(1.0 - target_purity, 0.004), 0.12)
+    xB_hk = min(max(target_purity, 0.88), 0.999)
+    xD_hk = min(max(1.0 - xD_lk, 0.0015), 0.10)
+    q_factor = min(max(1.0 + (process_cp * max(bottom_temp - top_temp, 15.0)) / 2200.0, 0.85), 1.35)
+    min_stages = _fenske_min_stages(alpha, xD_lk, xB_lk, xD_hk, xB_hk) if alpha > 1.03 else (6.0 if "absorption" in service.lower() else 3.0)
+    min_reflux = _underwood_min_reflux_proxy(alpha, q_factor, xD_lk) if "distillation" in service.lower() else (0.16 if "absorption" in service.lower() else 0.08 if "crystallizer" in service.lower() else 0.24)
+    reflux = max(
+        min_reflux * (1.32 if "distillation" in service.lower() else 1.20 if "absorption" in service.lower() else 1.12),
+        0.12 if "crystallizer" in service.lower() else 0.20,
+    )
+    theoretical_stages = _gilliland_actual_stages_proxy(min_stages, min_reflux, reflux) if alpha > 1.03 else max(min_stages * 1.18, min_stages + 1.0)
+    tray_efficiency = _tray_efficiency_proxy(process_viscosity, alpha, service)
+    stages = max(int(math.ceil(theoretical_stages / max(tray_efficiency, 0.35))), 4 if "crystallizer" in service.lower() else 6)
+    reboiler_phase_change_load = reboiler_package.phase_change_load_kg_hr if reboiler_package is not None and reboiler_package.phase_change_load_kg_hr > 0.0 else _latent_load_kg_hr(reboiler, 1850.0)
+    condenser_phase_change_load = condenser_package.phase_change_load_kg_hr if condenser_package is not None and condenser_package.phase_change_load_kg_hr > 0.0 else _latent_load_kg_hr(condenser, 2100.0)
+    distillate_mass = max(condenser_phase_change_load / max(reflux + 1.0, 1.0), product_mass * (0.12 if "distillation" in service.lower() else 0.08))
+    liquid_load_m3_hr = max((distillate_mass * (1.0 + reflux)) / max(process_density, 1.0), 0.6)
+    vapor_flow_m3_hr = max(reboiler_phase_change_load / max(vapor_density, 0.1), 1.0)
+    tray_spacing = 0.45 if "distillation" in service.lower() else 0.55 if "absorption" in service.lower() else 0.60
+    capacity_factor = (0.30 if "distillation" in service.lower() else 0.24 if "absorption" in service.lower() else 0.18) * math.sqrt(max(tray_spacing / 0.45, 0.8))
+    allowable_vapor_velocity = max(capacity_factor * math.sqrt(max((process_density - vapor_density) / max(vapor_density, 0.05), 0.2)), 0.35)
+    target_flooding = 0.74 if "distillation" in service.lower() else 0.68 if "absorption" in service.lower() else 0.55
+    active_area = max((vapor_flow_m3_hr / 3600.0) / max(allowable_vapor_velocity * target_flooding, 0.05), 0.5)
+    downcomer_fraction = 0.14 if "distillation" in service.lower() else 0.12 if "absorption" in service.lower() else 0.08
+    diameter = max(math.sqrt((4.0 * active_area) / (math.pi * max(1.0 - downcomer_fraction, 0.25))), 1.2 if "crystallizer" in service.lower() else 1.5)
+    superficial_vapor_velocity = max((vapor_flow_m3_hr / 3600.0) / max((math.pi * (diameter / 2.0) ** 2) * max(1.0 - downcomer_fraction, 0.25), 1e-6), 0.1)
+    flooding_fraction = min(max(superficial_vapor_velocity / max(allowable_vapor_velocity, 0.1), 0.35), 0.88)
+    pressure_drop_per_stage = 0.16 + 0.22 * flooding_fraction + 0.02 * reflux
+    height = max(stages * tray_spacing + 3.5, 8.0 if "crystallizer" in service.lower() else 12.0)
     integrated_reboiler = sum(step.recovered_duty_kw for step in heating_train_steps)
     condenser_recovery = sum(step.recovered_duty_kw for step in condenser_train_steps)
     integrated_reboiler_effective = min(integrated_reboiler, reboiler)
@@ -425,13 +561,86 @@ def build_column_design_generic(
         else 0.0
     )
     feed_stage = max(int(round(stages * 0.55)), 2)
-    tray_spacing = 0.45
-    flooding_fraction = min(max((product_mass / max(diameter ** 2 * 12000.0, 1.0)), 0.45), 0.82)
-    downcomer_fraction = 0.14 if "distillation" in service.lower() else 0.10
     traces = [
         CalcTrace(trace_id="process_unit_service", title="Process-unit family", formula="service = selected separation family", result=service, units=""),
-        CalcTrace(trace_id="process_unit_size", title="Equivalent diameter", formula="D = f(product throughput)", substitutions={"product_mass": f"{product_mass:.3f}"}, result=f"{diameter:.3f}", units="m"),
-        CalcTrace(trace_id="process_unit_flooding", title="Flooding fraction", formula="fraction = superficial load / capacity proxy", substitutions={"product_mass": f"{product_mass:.3f}", "diameter": f"{diameter:.3f}"}, result=f"{flooding_fraction:.3f}", units="-"),
+        CalcTrace(
+            trace_id="column_vle_basis",
+            title="Separation thermodynamics basis",
+            formula="alpha = sqrt(alpha_top * alpha_bottom) from component K-values when a VLE basis exists",
+            substitutions={
+                "light_key": light_key,
+                "heavy_key": heavy_key,
+                "alpha_top": f"{vle_alpha_top:.4f}" if vle_alpha_top > 0.0 else "fallback",
+                "alpha_bottom": f"{vle_alpha_bottom:.4f}" if vle_alpha_bottom > 0.0 else "fallback",
+                "method": vle_method,
+            },
+            result=f"{alpha:.4f}",
+            units="-",
+            notes="Column volatility basis now prefers the separation-thermodynamics artifact built from Antoine / Clausius-Clapeyron K-values when available.",
+        ),
+        CalcTrace(
+            trace_id="column_fenske_min_stages",
+            title="Minimum theoretical stages",
+            formula="Nmin = log[(xD,LK/xB,LK)*(xB,HK/xD,HK)] / log(alpha)",
+            substitutions={
+                "xD,LK": f"{xD_lk:.4f}",
+                "xB,LK": f"{xB_lk:.4f}",
+                "xD,HK": f"{xD_hk:.4f}",
+                "xB,HK": f"{xB_hk:.4f}",
+                "alpha": f"{alpha:.3f}",
+            },
+            result=f"{min_stages:.3f}",
+            units="stages",
+        ),
+        CalcTrace(
+            trace_id="column_underwood_min_reflux",
+            title="Minimum reflux proxy",
+            formula="Rmin = f(alpha, q, xD,LK)",
+            substitutions={"alpha": f"{alpha:.3f}", "q": f"{q_factor:.3f}", "xD,LK": f"{xD_lk:.4f}"},
+            result=f"{min_reflux:.3f}",
+            units="-",
+            notes="This is a screening Underwood-style reflux estimate built from the solved property basis and separation severity.",
+        ),
+        CalcTrace(
+            trace_id="column_gilliland_actual_stages",
+            title="Actual stage proxy",
+            formula="Nactual = g(Nmin, R/Rmin, tray efficiency)",
+            substitutions={
+                "Nmin": f"{min_stages:.3f}",
+                "R": f"{reflux:.3f}",
+                "Rmin": f"{min_reflux:.3f}",
+                "tray_eff": f"{tray_efficiency:.3f}",
+            },
+            result=f"{stages:.3f}",
+            units="actual stages",
+        ),
+        CalcTrace(trace_id="process_unit_size", title="Equivalent diameter", formula="D = sqrt(4*Aactive/[pi*(1-Adc)])", substitutions={"Aactive": f"{active_area:.3f}", "Adc": f"{downcomer_fraction:.3f}"}, result=f"{diameter:.3f}", units="m"),
+        CalcTrace(
+            trace_id="process_unit_hydraulics_capacity",
+            title="Column hydraulic capacity basis",
+            formula="uallow = C * sqrt[(rhoL-rhoV)/rhoV]; uflood = usuperficial/uallow",
+            substitutions={
+                "C": f"{capacity_factor:.3f}",
+                "rhoL": f"{process_density:.3f}",
+                "rhoV": f"{vapor_density:.3f}",
+                "usuperficial": f"{superficial_vapor_velocity:.3f}",
+            },
+            result=f"{flooding_fraction:.3f}",
+            units="-",
+        ),
+        CalcTrace(
+            trace_id="process_unit_property_basis",
+            title="Process-unit property-package basis",
+            formula="Hydraulics proxy uses density, viscosity, and Cp from the mixture-property package",
+            substitutions={
+                "density": f"{process_density:.3f}",
+                "viscosity": f"{process_viscosity:.6f}",
+                "Cp": f"{process_cp:.3f}",
+                "mixture_package": process_mixture.mixture_id if process_mixture else "fallback",
+            },
+            result=f"{process_density:.3f}",
+            units="kg/m3",
+        ),
         CalcTrace(
             trace_id="column_packet_basis",
             title="Solved process-unit packet basis",
@@ -458,6 +667,32 @@ def build_column_design_generic(
             result=f"{integrated_reboiler:.3f}",
             units="kW",
             notes="This captures recovered duty delivered into the reboiler/process unit and heat recovered from condenser-side streams.",
+        ),
+        CalcTrace(
+            trace_id="column_reboiler_package_basis",
+            title="Reboiler package basis",
+            formula="Vboil = Qreb / lambda; circulation from selected train package when available",
+            substitutions={
+                "package": reboiler_package.package_item_id if reboiler_package is not None else "fallback",
+                "package_type": reboiler_package.equipment_type if reboiler_package is not None else "generic",
+                "phase_change_load_kg_hr": f"{reboiler_phase_change_load:.3f}",
+                "circulation_ratio": f"{reboiler_package.circulation_ratio if reboiler_package is not None else 3.0:.3f}",
+            },
+            result=f"{reboiler:.3f}",
+            units="kW",
+        ),
+        CalcTrace(
+            trace_id="column_condenser_package_basis",
+            title="Condenser package basis",
+            formula="mcond = Qcond / lambda; circulation from selected train package when available",
+            substitutions={
+                "package": condenser_package.package_item_id if condenser_package is not None else "fallback",
+                "package_type": condenser_package.equipment_type if condenser_package is not None else "generic",
+                "phase_change_load_kg_hr": f"{condenser_phase_change_load:.3f}",
+                "circulation_flow_m3_hr": f"{condenser_package.flow_m3_hr if condenser_package is not None else liquid_load_m3_hr:.3f}",
+            },
+            result=f"{condenser:.3f}",
+            units="kW",
         ),
         CalcTrace(
             trace_id="column_reboiler_integrated_heat_transfer",
@@ -492,17 +727,28 @@ def build_column_design_generic(
         light_key=light_key,
         heavy_key=heavy_key,
         relative_volatility=round(alpha, 3),
-        min_stages=round(max(stages * 0.6, 2.0), 3),
+        min_stages=round(min_stages, 3),
+        theoretical_stages=round(theoretical_stages, 3),
         design_stages=stages,
+        tray_efficiency=round(tray_efficiency, 3),
+        minimum_reflux_ratio=round(min_reflux, 3),
         reflux_ratio=round(reflux, 3),
+        reflux_ratio_multiple_of_min=round(reflux / max(min_reflux, 1e-6), 3),
         column_diameter_m=round(diameter, 3),
         column_height_m=round(height, 3),
         condenser_duty_kw=round(condenser, 3),
         reboiler_duty_kw=round(reboiler, 3),
+        vapor_load_kg_hr=round(reboiler_phase_change_load, 3),
+        liquid_load_m3_hr=round(liquid_load_m3_hr, 3),
+        vapor_density_kg_m3=round(vapor_density, 3),
+        liquid_density_kg_m3=round(process_density, 3),
         feed_stage=feed_stage,
         tray_spacing_m=tray_spacing,
         flooding_fraction=round(flooding_fraction, 3),
         downcomer_area_fraction=round(downcomer_fraction, 3),
+        allowable_vapor_velocity_m_s=round(allowable_vapor_velocity, 3),
+        superficial_vapor_velocity_m_s=round(superficial_vapor_velocity, 3),
+        pressure_drop_per_stage_kpa=round(pressure_drop_per_stage, 3),
         top_temperature_c=round(top_temp, 1),
         bottom_temperature_c=round(bottom_temp, 1),
         utility_topology=utility_architecture.architecture.topology_summary if utility_architecture else "",
@@ -511,13 +757,22 @@ def build_column_design_generic(
         integrated_reboiler_lmtd_k=round(reboiler_lmtd, 3),
         integrated_reboiler_area_m2=round(reboiler_area, 3),
         reboiler_medium=_step_media_summary(heating_train_steps),
+        reboiler_package_type=reboiler_package.equipment_type if reboiler_package is not None else "",
+        reboiler_circulation_ratio=round(reboiler_package.circulation_ratio if reboiler_package is not None else 3.0, 3),
+        reboiler_phase_change_load_kg_hr=round(reboiler_phase_change_load, 3),
+        reboiler_package_item_ids=[item.package_item_id for step in heating_train_steps for item in step.package_items if item.package_family == "reboiler"],
         condenser_recovery_duty_kw=round(condenser_recovery, 3),
         condenser_recovery_lmtd_k=round(condenser_lmtd, 3),
         condenser_recovery_area_m2=round(condenser_area, 3),
         condenser_recovery_medium=_step_media_summary(condenser_train_steps),
+        condenser_package_type=condenser_package.equipment_type if condenser_package is not None else "",
+        condenser_phase_change_load_kg_hr=round(condenser_phase_change_load, 3),
+        condenser_circulation_flow_m3_hr=round(condenser_package.flow_m3_hr if condenser_package is not None else liquid_load_m3_hr, 3),
+        condenser_package_item_ids=[item.package_item_id for step in condenser_train_steps for item in step.package_items if item.package_family == "condenser"],
         selected_train_step_ids=[step.step_id for step in heating_train_steps + condenser_train_steps],
         calc_traces=traces,
         value_records=[
+            make_value_record("process_unit_relative_volatility", "Process-unit relative volatility", alpha, "-", citations=route.citations, assumptions=route.assumptions, sensitivity=SensitivityLevel.HIGH),
             make_value_record("process_unit_stages", "Process-unit design stages", stages, "stages", citations=route.citations, assumptions=route.assumptions, sensitivity=SensitivityLevel.MEDIUM),
             make_value_record("process_unit_reboiler_duty", "Process-unit heating duty", reboiler, "kW", citations=energy_balance.citations, assumptions=energy_balance.assumptions, sensitivity=SensitivityLevel.HIGH),
         ],
@@ -599,6 +854,15 @@ def build_heat_exchanger_design_generic(
     circulation_flow = exchanger_package.flow_m3_hr if exchanger_package is not None else 0.0
     phase_change_load = exchanger_package.phase_change_load_kg_hr if exchanger_package is not None else 0.0
     package_holdup = exchanger_package.volume_m3 if exchanger_package is not None else max(area * 0.05, 0.5)
+    if package_family == "reboiler":
+        boiling_coeff = 2400.0 if exchanger_package is not None and "kettle" in exchanger_type else 1850.0
+        condensing_coeff = 850.0
+    elif package_family == "condenser":
+        boiling_coeff = 900.0
+        condensing_coeff = 2600.0 if exchanger_package is not None and selected_step is not None and selected_step.medium.lower() == "direct" else 2100.0
+    else:
+        boiling_coeff = 1200.0
+        condensing_coeff = 1200.0
     return HeatExchangerDesign(
         exchanger_id="E-101",
         service=selected_step.service if selected_step is not None else exchanger_type.replace("_", " ").title(),
@@ -616,9 +880,12 @@ def build_heat_exchanger_design_generic(
         circulation_flow_m3_hr=round(circulation_flow, 3),
         phase_change_load_kg_hr=round(phase_change_load, 3),
         package_holdup_m3=round(package_holdup, 3),
+        boiling_side_coefficient_w_m2_k=round(boiling_coeff, 3),
+        condensing_side_coefficient_w_m2_k=round(condensing_coeff, 3),
         utility_topology=utility_architecture.architecture.topology_summary if utility_architecture is not None else "",
         selected_train_step_id=selected_step.step_id if selected_step is not None else None,
         selected_package_item_ids=[item.package_item_id for item in selected_package_items],
+        selected_package_roles=sorted({item.package_role for item in selected_package_items}),
         calc_traces=[
             CalcTrace(trace_id="exchanger_area", title="Exchanger area", formula="A = Q/(U*dTlm)", substitutions={"Q": f"{duty * 1000.0:.1f}", "U": f"{u_value:.1f}", "dTlm": f"{lmtd:.1f}"}, result=f"{area:.3f}", units="m2"),
             CalcTrace(

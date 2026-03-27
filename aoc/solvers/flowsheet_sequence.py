@@ -21,7 +21,13 @@ from aoc.models import (
 )
 from aoc.solvers.convergence import solve_multi_component_recycle_loop
 from aoc.solvers.recycle_network import build_recycle_network_packets
-from aoc.solvers.separators import build_separator_models
+from aoc.solvers.separators import (
+    build_separator_models,
+    henry_retained_fraction_to_liquid,
+    solubility_limit_kg_per_kg_solvent,
+)
+from aoc.properties.models import PropertyPackageArtifact
+from aoc.properties.sources import normalize_chemical_name
 
 
 ComponentKey = tuple[str, Optional[str]]
@@ -572,6 +578,139 @@ def _classify_concentration_recycle_fraction(
     return 0.03
 
 
+def _temperature_basis_c(streams: list[StreamRecord], stream_ids: list[str], fallback: float) -> float:
+    values = [stream.temperature_c for stream in streams if stream.stream_id in set(stream_ids)]
+    return sum(values) / len(values) if values else fallback
+
+
+def _pressure_basis_bar(streams: list[StreamRecord], stream_ids: list[str], fallback: float) -> float:
+    values = [stream.pressure_bar for stream in streams if stream.stream_id in set(stream_ids)]
+    return sum(values) / len(values) if values else fallback
+
+
+def _select_absorption_solvent_keys(
+    state: dict[ComponentKey, float],
+    component_meta: dict[ComponentKey, ComponentMeta],
+) -> list[ComponentKey]:
+    ranked = []
+    for key, molar in state.items():
+        if molar <= 1e-12:
+            continue
+        identifier = normalize_chemical_name(component_meta[key].name)
+        if identifier in {"water", "sulfuric_acid", "spent_acid"}:
+            ranked.append((0, key))
+        elif component_meta[key].phase != "gas":
+            ranked.append((1, key))
+    return [item[1] for item in sorted(ranked, key=lambda item: (item[0], component_meta[item[1]].name.lower()))]
+
+
+def _apply_henry_absorption_split(
+    state: dict[ComponentKey, float],
+    component_meta: dict[ComponentKey, ComponentMeta],
+    property_packages: PropertyPackageArtifact | None,
+    pressure_bar: float,
+) -> tuple[dict[ComponentKey, float], list[str]]:
+    fractions: dict[ComponentKey, float] = {}
+    notes: list[str] = []
+    total_gas = sum(
+        molar
+        for key, molar in state.items()
+        if component_meta[key].phase == "gas" or (component_meta[key].formula or "").upper() in {"SO2", "SO3", "CO2", "NH3", "O2"}
+    )
+    solvent_keys = _select_absorption_solvent_keys(state, component_meta)
+    for key, molar in state.items():
+        if molar <= 0.0:
+            fractions[key] = 0.0
+            continue
+        if component_meta[key].phase == "solid":
+            fractions[key] = 0.0
+            continue
+        is_gas = component_meta[key].phase == "gas" or (component_meta[key].formula or "").upper() in {"SO2", "SO3", "CO2", "NH3", "O2"}
+        default_fraction = 0.88 if is_gas else 0.10
+        if not is_gas or not solvent_keys or total_gas <= 1e-12:
+            fractions[key] = default_fraction if is_gas else 0.0
+            continue
+        best_overhead = default_fraction
+        best_note = ""
+        for solvent_key in solvent_keys:
+            partial_pressure = pressure_bar * (molar / max(total_gas, 1e-9))
+            retained, model, _, fallback, note = henry_retained_fraction_to_liquid(
+                component_meta[key].name,
+                component_meta[solvent_key].name,
+                molar,
+                state.get(solvent_key, 0.0),
+                partial_pressure,
+                property_packages,
+            )
+            candidate_overhead = 1.0 - retained if not fallback else default_fraction
+            if candidate_overhead < best_overhead:
+                best_overhead = candidate_overhead
+                best_note = note
+            elif fallback and not best_note:
+                best_note = note
+        fractions[key] = max(min(best_overhead, 1.0), 0.0)
+        if best_note:
+            notes.append(best_note)
+    return fractions, sorted(set(notes))
+
+
+def _apply_solubility_crystallization_split(
+    state: dict[ComponentKey, float],
+    component_meta: dict[ComponentKey, ComponentMeta],
+    property_packages: PropertyPackageArtifact | None,
+    temperature_c: float,
+    product_key: ComponentKey,
+) -> tuple[dict[ComponentKey, float], dict[ComponentKey, float], list[str]]:
+    mother_liquor: dict[ComponentKey, float] = {}
+    crystal_slurry: dict[ComponentKey, float] = {}
+    notes: list[str] = []
+    solvent_key = next(
+        (
+            key
+            for key in state
+            if normalize_chemical_name(component_meta[key].name) == "water"
+        ),
+        None,
+    )
+    if product_key not in state or solvent_key is None:
+        return {}, dict(state), notes
+    product_meta = component_meta[product_key]
+    solvent_meta = component_meta[solvent_key]
+    solvent_mass = state.get(solvent_key, 0.0) * solvent_meta.molecular_weight_g_mol
+    solute_mass = state.get(product_key, 0.0) * product_meta.molecular_weight_g_mol
+    limit_kg_per_kg, model, _, fallback, note = solubility_limit_kg_per_kg_solvent(
+        product_meta.name,
+        solvent_meta.name,
+        temperature_c,
+        property_packages,
+    )
+    notes.append(note)
+    if fallback or limit_kg_per_kg is None:
+        return {}, dict(state), sorted(set(notes))
+    dissolved_mass = min(solute_mass, solvent_mass * limit_kg_per_kg)
+    precipitated_mass = max(solute_mass - dissolved_mass, 0.0)
+    dissolved_molar = dissolved_mass / max(product_meta.molecular_weight_g_mol, 1e-9)
+    precipitated_molar = precipitated_mass / max(product_meta.molecular_weight_g_mol, 1e-9)
+    for key, molar in state.items():
+        if key == product_key:
+            _add_component(mother_liquor, key, dissolved_molar)
+            _add_component(crystal_slurry, key, precipitated_molar)
+            continue
+        if key == solvent_key:
+            entrained = molar * 0.08
+            _add_component(crystal_slurry, key, entrained)
+            _add_component(mother_liquor, key, molar - entrained)
+            continue
+        if component_meta[key].phase == "solid":
+            _add_component(crystal_slurry, key, molar)
+        else:
+            _add_component(mother_liquor, key, molar)
+    notes.append(
+        f"SLE basis '{model}' dissolved {dissolved_mass:.2f} kg/h of {product_meta.name} in {solvent_meta.name} and precipitated {precipitated_mass:.2f} kg/h."
+    )
+    return mother_liquor, crystal_slurry, sorted(set(notes))
+
+
 def _distribute_purification_outputs(
     state: dict[ComponentKey, float],
     component_meta: dict[ComponentKey, ComponentMeta],
@@ -611,6 +750,7 @@ def build_generic_sequence_streams(
     reaction_system: ReactionSystem,
     citations: list[str],
     assumptions: list[str],
+    property_packages: PropertyPackageArtifact | None = None,
 ) -> SequenceSolveResult:
     family = _stream_family(route)
     participants = route.participants
@@ -766,6 +906,15 @@ def build_generic_sequence_streams(
         key: _classify_primary_overhead_fraction(key, route, component_meta, family, product_key, reactant_keys)
         for key in reactor_state
     }
+    if family == "absorption":
+        absorption_split, absorption_notes = _apply_henry_absorption_split(
+            reactor_state,
+            component_meta,
+            property_packages,
+            max(route.operating_pressure_bar - 0.8, 1.0),
+        )
+        primary_split_fractions.update(absorption_split)
+        assumptions = assumptions + absorption_notes if absorption_notes else assumptions
     primary_overhead, primary_bottoms = _split_state(reactor_state, primary_split_fractions)
     if family in {"distillation", "extraction", "solids"}:
         primary_bottom_destination = "concentration"
@@ -803,19 +952,43 @@ def build_generic_sequence_streams(
     if family in {"distillation", "extraction", "solids"}:
         concentration_split: dict[ComponentKey, float] = {}
         concentration_recycle_targets: dict[ComponentKey, float] = {}
-        for key, molar in primary_bottoms.items():
-            if molar <= 0.0:
-                concentration_split[key] = 0.0
-                continue
-            default_fraction = _classify_concentration_recycle_fraction(key, component_meta, family, reactant_keys)
-            if key == product_key or component_meta[key].phase == "solid":
-                concentration_split[key] = 0.0
-                continue
-            target_recycle = recycle_state.get(key, 0.0)
-            target_fraction = min(target_recycle / molar, 1.0) if target_recycle > 0.0 else default_fraction
-            concentration_split[key] = min(default_fraction, target_fraction)
-            concentration_recycle_targets[key] = molar * concentration_split[key]
-        concentration_recycle, purification_feed = _split_state(primary_bottoms, concentration_split)
+        if family == "solids":
+            concentration_recycle, purification_feed, sle_notes = _apply_solubility_crystallization_split(
+                primary_bottoms,
+                component_meta,
+                property_packages,
+                35.0,
+                product_key,
+            )
+            if not concentration_recycle and purification_feed == primary_bottoms:
+                for key, molar in primary_bottoms.items():
+                    if molar <= 0.0:
+                        concentration_split[key] = 0.0
+                        continue
+                    default_fraction = _classify_concentration_recycle_fraction(key, component_meta, family, reactant_keys)
+                    if key == product_key or component_meta[key].phase == "solid":
+                        concentration_split[key] = 0.0
+                        continue
+                    target_recycle = recycle_state.get(key, 0.0)
+                    target_fraction = min(target_recycle / molar, 1.0) if target_recycle > 0.0 else default_fraction
+                    concentration_split[key] = min(default_fraction, target_fraction)
+                    concentration_recycle_targets[key] = molar * concentration_split[key]
+                concentration_recycle, purification_feed = _split_state(primary_bottoms, concentration_split)
+            assumptions = assumptions + sle_notes if sle_notes else assumptions
+        else:
+            for key, molar in primary_bottoms.items():
+                if molar <= 0.0:
+                    concentration_split[key] = 0.0
+                    continue
+                default_fraction = _classify_concentration_recycle_fraction(key, component_meta, family, reactant_keys)
+                if key == product_key or component_meta[key].phase == "solid":
+                    concentration_split[key] = 0.0
+                    continue
+                target_recycle = recycle_state.get(key, 0.0)
+                target_fraction = min(target_recycle / molar, 1.0) if target_recycle > 0.0 else default_fraction
+                concentration_split[key] = min(default_fraction, target_fraction)
+                concentration_recycle_targets[key] = molar * concentration_split[key]
+            concentration_recycle, purification_feed = _split_state(primary_bottoms, concentration_split)
         streams.append(
             _stream(
                 stream_id="S-301",
@@ -851,6 +1024,17 @@ def build_generic_sequence_streams(
             key: 0.78 if key in reactant_keys or (component_meta[key].formula or "").upper() in {"H2O", "SO2"} else 0.0
             for key in primary_bottoms
         }
+        regeneration_adjustments, regeneration_notes = _apply_henry_absorption_split(
+            primary_bottoms,
+            component_meta,
+            property_packages,
+            1.2,
+        )
+        for key, overhead_fraction in regeneration_adjustments.items():
+            is_gas = component_meta[key].phase == "gas" or (component_meta[key].formula or "").upper() in {"SO2", "SO3", "CO2", "NH3", "O2"}
+            if is_gas:
+                regeneration_split[key] = max(regeneration_split.get(key, 0.0), overhead_fraction)
+        assumptions = assumptions + regeneration_notes if regeneration_notes else assumptions
         regeneration_recycle, product_hold = _split_state(primary_bottoms, regeneration_split)
         streams.append(
             _stream(
@@ -1051,6 +1235,7 @@ def build_generic_sequence_streams(
         unit_operation_packets,
         citations,
         assumptions,
+        property_packages=property_packages,
     )
     recycle_packets, convergence_summaries = build_recycle_network_packets(
         packet_streams,

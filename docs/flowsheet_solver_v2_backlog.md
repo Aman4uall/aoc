@@ -140,7 +140,7 @@ Acceptance:
 ### M7. Solver-Driven Report Integration
 
 Status:
-- planned
+- implemented
 
 Modules:
 - [/Users/ayzaman/.gemini/antigravity/scratch/AoC/aoc/pipeline.py](/Users/ayzaman/.gemini/antigravity/scratch/AoC/aoc/pipeline.py)

@@ -46,6 +46,7 @@ from aoc.models import (
     UtilityNetworkDecision,
     WorkingCapitalModel,
 )
+from aoc.properties.models import MixturePropertyArtifact, PropertyPackageArtifact, SeparationThermoArtifact
 from aoc.solvers import (
     build_column_design_generic,
     build_energy_balance_generic,
@@ -261,8 +262,9 @@ def build_stream_table(
     reaction_system: ReactionSystem,
     citations: list[str],
     assumptions: list[str],
+    property_packages: PropertyPackageArtifact | None = None,
 ) -> StreamTable:
-    return build_stream_table_generic(basis, route, reaction_system, citations, assumptions)
+    return build_stream_table_generic(basis, route, reaction_system, citations, assumptions, property_packages)
 
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA and route.route_id == "eo_hydration":
         product = _participant(route, "product", "ethylene glycol")
@@ -448,8 +450,13 @@ def build_stream_table(
     )
 
 
-def build_energy_balance(route: RouteOption, stream_table: StreamTable, thermo: ThermoAssessmentArtifact) -> EnergyBalance:
-    return build_energy_balance_generic(route, stream_table, thermo)
+def build_energy_balance(
+    route: RouteOption,
+    stream_table: StreamTable,
+    thermo: ThermoAssessmentArtifact,
+    mixture_properties: MixturePropertyArtifact | None = None,
+) -> EnergyBalance:
+    return build_energy_balance_generic(route, stream_table, thermo, mixture_properties)
 
     if route.route_id == "eo_hydration":
         eo_feed = next(stream for stream in stream_table.streams if stream.stream_id == "S-101")
@@ -547,10 +554,20 @@ def build_reactor_design(
     reaction_system: ReactionSystem,
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
+    mixture_properties: MixturePropertyArtifact | None = None,
     reactor_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> ReactorDesign:
-    return build_reactor_design_generic(basis, route, reaction_system, stream_table, energy_balance, reactor_choice, utility_architecture)
+    return build_reactor_design_generic(
+        basis,
+        route,
+        reaction_system,
+        stream_table,
+        energy_balance,
+        mixture_properties,
+        reactor_choice,
+        utility_architecture,
+    )
 
     feed_mass = sum(sum(component.mass_flow_kg_hr for component in stream.components) for stream in stream_table.streams if stream.stream_id in {"S-101", "S-102"})
     density = 1030.0 if route.route_id == "eo_hydration" else 950.0
@@ -613,10 +630,21 @@ def build_column_design(
     route: RouteOption,
     stream_table: StreamTable,
     energy_balance: EnergyBalance,
+    mixture_properties: MixturePropertyArtifact | None = None,
     separation_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
+    separation_thermo: SeparationThermoArtifact | None = None,
 ) -> ColumnDesign:
-    return build_column_design_generic(basis, route, stream_table, energy_balance, separation_choice, utility_architecture)
+    return build_column_design_generic(
+        basis,
+        route,
+        stream_table,
+        energy_balance,
+        mixture_properties,
+        separation_choice,
+        utility_architecture,
+        separation_thermo,
+    )
 
     column_feed = next(stream for stream in stream_table.streams if stream.stream_id in {"S-301", "S-201"})
     total_mass = sum(component.mass_flow_kg_hr for component in column_feed.components)

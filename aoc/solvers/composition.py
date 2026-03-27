@@ -4,6 +4,8 @@ from collections import defaultdict
 from typing import Iterable
 
 from aoc.models import CompositionClosure, StreamRecord, UnitCompositionState, UnitOperationPacket
+from aoc.properties.models import MixturePropertyArtifact
+from aoc.properties.mixtures import mixture_property_for_unit
 
 
 def _aggregate_molar(streams: Iterable[StreamRecord]) -> dict[str, float]:
@@ -174,7 +176,32 @@ def component_mass_fraction(state: UnitCompositionState | None, component_name: 
     return fractions.get(component_name, 0.0)
 
 
-def estimate_bulk_cp_kj_kg_k(state: UnitCompositionState | None, default: float = 2.5) -> float:
+def mixture_package_for_state(
+    state: UnitCompositionState | None,
+    mixture_properties: MixturePropertyArtifact | None = None,
+    *,
+    unit_ids: tuple[str, ...] = (),
+) -> object | None:
+    if state is None:
+        return mixture_property_for_unit(mixture_properties, unit_ids=unit_ids)
+    state_ids = (state.state_id,)
+    return mixture_property_for_unit(
+        mixture_properties,
+        unit_ids=unit_ids or (state.unit_id,),
+        state_ids=state_ids,
+    )
+
+
+def estimate_bulk_cp_kj_kg_k(
+    state: UnitCompositionState | None,
+    default: float = 2.5,
+    *,
+    mixture_properties: MixturePropertyArtifact | None = None,
+    unit_ids: tuple[str, ...] = (),
+) -> float:
+    package = mixture_package_for_state(state, mixture_properties, unit_ids=unit_ids)
+    if package is not None and package.liquid_heat_capacity_kj_kg_k is not None:
+        return package.liquid_heat_capacity_kj_kg_k
     if state is None:
         return default
     water_fraction = max(
@@ -191,7 +218,16 @@ def estimate_bulk_cp_kj_kg_k(state: UnitCompositionState | None, default: float 
     return round(2.20 + water_fraction * 1.8, 3)
 
 
-def estimate_bulk_density_kg_m3(state: UnitCompositionState | None, default: float = 950.0) -> float:
+def estimate_bulk_density_kg_m3(
+    state: UnitCompositionState | None,
+    default: float = 950.0,
+    *,
+    mixture_properties: MixturePropertyArtifact | None = None,
+    unit_ids: tuple[str, ...] = (),
+) -> float:
+    package = mixture_package_for_state(state, mixture_properties, unit_ids=unit_ids)
+    if package is not None and package.liquid_density_kg_m3 is not None:
+        return package.liquid_density_kg_m3
     if state is None:
         return default
     dominant_phase = state.dominant_outlet_phase or state.dominant_inlet_phase
@@ -208,7 +244,16 @@ def estimate_bulk_density_kg_m3(state: UnitCompositionState | None, default: flo
     return round(820.0 + water_fraction * 260.0, 3)
 
 
-def estimate_bulk_viscosity_pa_s(state: UnitCompositionState | None, default: float = 0.0020) -> float:
+def estimate_bulk_viscosity_pa_s(
+    state: UnitCompositionState | None,
+    default: float = 0.0020,
+    *,
+    mixture_properties: MixturePropertyArtifact | None = None,
+    unit_ids: tuple[str, ...] = (),
+) -> float:
+    package = mixture_package_for_state(state, mixture_properties, unit_ids=unit_ids)
+    if package is not None and package.liquid_viscosity_pa_s is not None:
+        return package.liquid_viscosity_pa_s
     if state is None:
         return default
     dominant_phase = state.dominant_outlet_phase or state.dominant_inlet_phase

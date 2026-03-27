@@ -168,6 +168,7 @@ def build_cost_model_v2(
             IndianPriceDatum(datum_id="product", category="product", item_name=basis.target_product, region=site.selected_site, units="INR/kg", value_inr=market.estimated_price_per_kg, reference_year=basis.economic_reference_year, normalization_year=basis.economic_reference_year, citations=citations),
             IndianPriceDatum(datum_id="power", category="utility", item_name="Electricity", region=site.selected_site, units="INR/kWh", value_inr=8.5, reference_year=basis.utility_basis_year, normalization_year=basis.economic_reference_year, citations=citations),
             IndianPriceDatum(datum_id="steam", category="utility", item_name="Steam", region=site.selected_site, units="INR/kg", value_inr=1.8, reference_year=basis.utility_basis_year, normalization_year=basis.economic_reference_year, citations=citations),
+            IndianPriceDatum(datum_id="cooling_water", category="utility", item_name="Cooling water", region=site.selected_site, units="INR/m3", value_inr=utilities.utility_basis.cooling_water_cost_inr_per_m3 if utilities.utility_basis else 8.0, reference_year=basis.utility_basis_year, normalization_year=basis.economic_reference_year, citations=citations),
             IndianPriceDatum(datum_id="labor", category="labor", item_name="Operating labour", region=site.selected_site, units="INR/person-year", value_inr=650000.0, reference_year=basis.labor_basis_year, normalization_year=basis.economic_reference_year, citations=citations),
         ]
     purchase_cost = 0.0
@@ -232,9 +233,21 @@ def build_cost_model_v2(
     ) * annual_hours
     benchmark_raw_material_price = market.estimated_price_per_kg * 0.58
     raw_material_cost = feed_mass * benchmark_raw_material_price
-    utility_price_power = _find_price(price_data, "Electricity", 8.5)
-    utility_price_steam = _find_price(price_data, "Steam", 1.8)
-    utility_price_cw = 8.0
+    utility_price_power = (
+        utilities.utility_basis.power_cost_inr_per_kwh
+        if utilities.utility_basis is not None
+        else _find_price(price_data, "Electricity", 8.5)
+    )
+    utility_price_steam = (
+        utilities.utility_basis.steam_cost_inr_per_kg
+        if utilities.utility_basis is not None
+        else _find_price(price_data, "Steam", 1.8)
+    )
+    utility_price_cw = (
+        utilities.utility_basis.cooling_water_cost_inr_per_m3
+        if utilities.utility_basis is not None
+        else _find_price(price_data, "Cooling water", 8.0)
+    )
     steam_load = next((item.load for item in utilities.items if item.utility_type == "Steam"), 0.0)
     power_load = next((item.load for item in utilities.items if item.utility_type == "Electricity"), 0.0)
     cw_load = next((item.load for item in utilities.items if item.utility_type == "Cooling water"), 0.0)

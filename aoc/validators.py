@@ -44,6 +44,8 @@ from aoc.models import (
     WorkingCapitalModel,
     SensitivityLevel,
 )
+from aoc.properties import active_identifier_ids_for_route, requirement_failures_for_stage
+from aoc.properties.models import MixturePropertyArtifact, PropertyMethodDecision, PropertyPackageArtifact, PropertyRequirementSet, SeparationThermoArtifact
 
 
 def require_source_ids(citation_ids: list[str], available_source_ids: set[str], artifact_ref: str, code: str) -> list[ValidationIssue]:
@@ -165,6 +167,207 @@ def validate_resolved_value_artifact(
                 severity=Severity.BLOCKED,
                 message="Evidence lock cannot pass while unresolved values remain: " + ", ".join(resolved_values.unresolved_value_ids) + ".",
                 artifact_ref="resolved_values",
+            )
+        )
+    return issues
+
+
+def validate_property_package_artifact(
+    property_packages: PropertyPackageArtifact,
+    available_source_ids: set[str],
+    config: ProjectConfig,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not property_packages.packages:
+        issues.append(
+            ValidationIssue(
+                code="missing_property_packages",
+                severity=Severity.BLOCKED,
+                message="Property Engine did not build any component packages.",
+                artifact_ref="property_packages",
+            )
+        )
+        return issues
+    for package in property_packages.packages:
+        for prop in (
+            package.molecular_weight,
+            package.normal_boiling_point,
+            package.melting_point,
+            package.liquid_density,
+            package.liquid_viscosity,
+            package.liquid_heat_capacity,
+            package.heat_of_vaporization,
+            package.thermal_conductivity,
+        ):
+            if prop is None:
+                continue
+            if prop.source_ids:
+                issues.extend(require_source_ids(prop.source_ids, available_source_ids, "property_packages", "missing_property_package_sources"))
+            elif prop.provenance_method in {
+                ProvenanceTag.SOURCED,
+                ProvenanceTag.CALCULATED,
+                ProvenanceTag.ESTIMATED,
+            } and config.strict_citation_policy and not prop.blocking:
+                issues.append(
+                    ValidationIssue(
+                        code="uncited_property_package_value",
+                        severity=Severity.BLOCKED,
+                        message=f"Property package value '{package.identifier.canonical_name} {prop.property_name}' has no source ids.",
+                        artifact_ref="property_packages",
+                    )
+                )
+    for bip in property_packages.binary_interaction_parameters:
+        if bip.source_ids:
+            issues.extend(require_source_ids(bip.source_ids, available_source_ids, "property_packages", "missing_binary_interaction_sources"))
+        elif bip.resolution_status == "resolved" and config.strict_citation_policy:
+            issues.append(
+                ValidationIssue(
+                    code="uncited_binary_interaction_parameter",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Binary interaction parameter '{bip.component_a_name} / {bip.component_b_name}' is marked resolved without source ids."
+                    ),
+                    artifact_ref="property_packages",
+                )
+            )
+    for constant in property_packages.henry_law_constants:
+        if constant.source_ids:
+            issues.extend(require_source_ids(constant.source_ids, available_source_ids, "property_packages", "missing_henry_sources"))
+        elif constant.resolution_status == "resolved" and config.strict_citation_policy:
+            issues.append(
+                ValidationIssue(
+                    code="uncited_henry_constant",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Henry-law constant '{constant.gas_component_name} in {constant.solvent_component_name}' is marked resolved without source ids."
+                    ),
+                    artifact_ref="property_packages",
+                )
+            )
+    for curve in property_packages.solubility_curves:
+        if curve.source_ids:
+            issues.extend(require_source_ids(curve.source_ids, available_source_ids, "property_packages", "missing_solubility_sources"))
+        elif curve.resolution_status == "resolved" and config.strict_citation_policy:
+            issues.append(
+                ValidationIssue(
+                    code="uncited_solubility_curve",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Solubility curve '{curve.solute_component_name} in {curve.solvent_component_name}' is marked resolved without source ids."
+                    ),
+                    artifact_ref="property_packages",
+                )
+            )
+    return issues
+
+
+def validate_property_requirement_set(requirement_set: PropertyRequirementSet) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not requirement_set.requirements:
+        issues.append(
+            ValidationIssue(
+                code="missing_property_requirements",
+                severity=Severity.BLOCKED,
+                message="No property requirement set was generated for downstream stages.",
+                artifact_ref="property_requirements",
+            )
+        )
+    return issues
+
+
+def validate_property_method_decision(property_method: PropertyMethodDecision) -> list[ValidationIssue]:
+    return validate_decision_record(property_method.decision, "property_method_decision")
+
+
+def validate_property_requirements_for_stage(
+    stage_id: str,
+    requirement_set: PropertyRequirementSet,
+    property_packages: PropertyPackageArtifact,
+    route,
+    product_name: str | None = None,
+    mixture_properties: MixturePropertyArtifact | None = None,
+    relevant_unit_ids: list[str] | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    active_ids = active_identifier_ids_for_route(property_packages, route, product_name)
+    failures = requirement_failures_for_stage(requirement_set, stage_id, active_ids)
+    for failure in failures:
+        issues.append(
+            ValidationIssue(
+                code="property_requirement_failure",
+                severity=Severity.BLOCKED,
+                message=(
+                    f"Stage '{stage_id}' is missing a usable '{failure.property_name}' basis for identifier "
+                    f"'{failure.identifier_id}' ({failure.status})."
+                ),
+                artifact_ref=stage_id,
+                source_refs=failure.source_ids,
+            )
+        )
+    blocked_unit_ids = set(mixture_properties.blocked_unit_ids) if mixture_properties is not None else set()
+    if relevant_unit_ids:
+        blocked_unit_ids &= set(relevant_unit_ids)
+    if blocked_unit_ids:
+        blocked_units = ", ".join(sorted(blocked_unit_ids))
+        issues.append(
+            ValidationIssue(
+                code="blocked_mixture_properties",
+                severity=Severity.BLOCKED,
+                message=f"Stage '{stage_id}' has blocked mixture-property packages for units: {blocked_units}.",
+                artifact_ref=stage_id,
+            )
+        )
+    return issues
+
+
+def validate_mixture_property_artifact(mixture_properties: MixturePropertyArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not mixture_properties.packages:
+        issues.append(
+            ValidationIssue(
+                code="missing_mixture_properties",
+                severity=Severity.BLOCKED,
+                message="No mixture-property packages were generated from the solved composition states.",
+                artifact_ref="mixture_properties",
+            )
+        )
+    return issues
+
+
+def validate_separation_thermo_artifact(separation_thermo: SeparationThermoArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if separation_thermo.relative_volatility is None:
+        issues.append(
+            ValidationIssue(
+                code="missing_separation_thermo",
+                severity=Severity.BLOCKED,
+                message="No separation-thermodynamics artifact was generated.",
+                artifact_ref="separation_thermo",
+            )
+        )
+        return issues
+    key_names = {separation_thermo.light_key.lower(), separation_thermo.heavy_key.lower()}
+    blocked_key_components = [
+        item for item in separation_thermo.blocked_component_ids if item.replace("_", " ").lower() in key_names
+    ]
+    if blocked_key_components and separation_thermo.separation_family in {"distillation", "absorption", "extraction"}:
+        issues.append(
+            ValidationIssue(
+                code="blocked_separation_thermo_components",
+                severity=Severity.BLOCKED,
+                message="Separation thermodynamics is blocked for key components: " + ", ".join(blocked_key_components) + ".",
+                artifact_ref="separation_thermo",
+                source_refs=separation_thermo.citations,
+            )
+        )
+    if separation_thermo.relative_volatility.average_alpha <= 1.0 and separation_thermo.separation_family in {"distillation", "absorption", "extraction"}:
+        issues.append(
+            ValidationIssue(
+                code="invalid_relative_volatility",
+                severity=Severity.BLOCKED,
+                message="Relative volatility / partition basis is not usable for the selected separation family.",
+                artifact_ref="separation_thermo",
+                source_refs=separation_thermo.citations,
             )
         )
     return issues

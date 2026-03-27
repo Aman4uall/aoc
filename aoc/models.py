@@ -656,6 +656,9 @@ class PhaseSplitSpec(ProvenancedModel):
     waste_phase_target: str = ""
     recycle_phase_target: str = ""
     side_draw_phase_target: str = ""
+    equilibrium_model: str = ""
+    equilibrium_parameter_ids: list[str] = Field(default_factory=list)
+    equilibrium_fallback: bool = False
     phase_split_status: Literal["complete", "partial", "blocked"] = "partial"
     notes: list[str] = Field(default_factory=list)
 
@@ -680,6 +683,9 @@ class SeparatorPerformance(ProvenancedModel):
     recycle_mass_fraction: float = 0.0
     side_draw_mass_fraction: float = 0.0
     split_closure_pct: float = 0.0
+    equilibrium_model: str = ""
+    equilibrium_parameter_ids: list[str] = Field(default_factory=list)
+    equilibrium_fallback: bool = False
     performance_status: Literal["converged", "estimated", "blocked"] = "estimated"
     notes: list[str] = Field(default_factory=list)
 
@@ -708,6 +714,9 @@ class SeparationPacket(ProvenancedModel):
     recycle_mass_fraction: float = 0.0
     side_draw_mass_fraction: float = 0.0
     split_closure_pct: float = 0.0
+    equilibrium_model: str = ""
+    equilibrium_parameter_ids: list[str] = Field(default_factory=list)
+    equilibrium_fallback: bool = False
     split_status: Literal["converged", "estimated", "blocked"] = "estimated"
     closure_error_pct: float = 0.0
     notes: list[str] = Field(default_factory=list)
@@ -953,16 +962,27 @@ class ColumnDesign(ProvenancedModel):
     heavy_key: str
     relative_volatility: float
     min_stages: float
+    theoretical_stages: float = 0.0
     design_stages: int
+    tray_efficiency: float = 0.0
+    minimum_reflux_ratio: float = 0.0
     reflux_ratio: float
+    reflux_ratio_multiple_of_min: float = 0.0
     column_diameter_m: float
     column_height_m: float
     condenser_duty_kw: float
     reboiler_duty_kw: float
+    vapor_load_kg_hr: float = 0.0
+    liquid_load_m3_hr: float = 0.0
+    vapor_density_kg_m3: float = 0.0
+    liquid_density_kg_m3: float = 0.0
     feed_stage: int = 0
     tray_spacing_m: float = 0.0
     flooding_fraction: float = 0.0
     downcomer_area_fraction: float = 0.0
+    allowable_vapor_velocity_m_s: float = 0.0
+    superficial_vapor_velocity_m_s: float = 0.0
+    pressure_drop_per_stage_kpa: float = 0.0
     top_temperature_c: float = 0.0
     bottom_temperature_c: float = 0.0
     utility_topology: str = ""
@@ -971,10 +991,18 @@ class ColumnDesign(ProvenancedModel):
     integrated_reboiler_lmtd_k: float = 0.0
     integrated_reboiler_area_m2: float = 0.0
     reboiler_medium: str = ""
+    reboiler_package_type: str = ""
+    reboiler_circulation_ratio: float = 0.0
+    reboiler_phase_change_load_kg_hr: float = 0.0
+    reboiler_package_item_ids: list[str] = Field(default_factory=list)
     condenser_recovery_duty_kw: float = 0.0
     condenser_recovery_lmtd_k: float = 0.0
     condenser_recovery_area_m2: float = 0.0
     condenser_recovery_medium: str = ""
+    condenser_package_type: str = ""
+    condenser_phase_change_load_kg_hr: float = 0.0
+    condenser_circulation_flow_m3_hr: float = 0.0
+    condenser_package_item_ids: list[str] = Field(default_factory=list)
     selected_train_step_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
@@ -987,6 +1015,10 @@ class ColumnHydraulics(ProvenancedModel):
     downcomer_area_fraction: float
     vapor_velocity_m_s: float = 0.0
     liquid_load_m3_hr: float = 0.0
+    capacity_factor_m_s: float = 0.0
+    allowable_vapor_velocity_m_s: float = 0.0
+    active_area_m2: float = 0.0
+    pressure_drop_per_stage_kpa: float = 0.0
     markdown: str = ""
 
 
@@ -1007,9 +1039,12 @@ class HeatExchangerDesign(ProvenancedModel):
     circulation_flow_m3_hr: float = 0.0
     phase_change_load_kg_hr: float = 0.0
     package_holdup_m3: float = 0.0
+    boiling_side_coefficient_w_m2_k: float = 0.0
+    condensing_side_coefficient_w_m2_k: float = 0.0
     utility_topology: str = ""
     selected_train_step_id: Optional[str] = None
     selected_package_item_ids: list[str] = Field(default_factory=list)
+    selected_package_roles: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -1019,6 +1054,7 @@ class HeatExchangerThermalDesign(ProvenancedModel):
     selected_configuration: str
     governing_equations: list[str] = Field(default_factory=list)
     thermal_inputs: dict[str, str] = Field(default_factory=dict)
+    package_basis: dict[str, str] = Field(default_factory=dict)
     markdown: str = ""
 
 

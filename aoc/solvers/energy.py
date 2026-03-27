@@ -11,6 +11,7 @@ from aoc.models import (
     UnitDuty,
     UnitThermalPacket,
 )
+from aoc.properties.models import MixturePropertyArtifact
 from aoc.solvers.composition import component_mass_fraction, composition_state_for_unit, estimate_bulk_cp_kj_kg_k
 from aoc.value_engine import make_value_record
 
@@ -193,7 +194,12 @@ def _build_network_candidates(packets: list[UnitThermalPacket], min_approach_tem
     return candidates
 
 
-def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, thermo: ThermoAssessmentArtifact) -> EnergyBalance:
+def build_energy_balance_generic(
+    route: RouteOption,
+    stream_table: StreamTable,
+    thermo: ThermoAssessmentArtifact,
+    mixture_properties: MixturePropertyArtifact | None = None,
+) -> EnergyBalance:
     feed_mass = 0.0
     recycle_mass = 0.0
     for stream in stream_table.streams:
@@ -211,9 +217,24 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
     primary_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("primary_flash", "primary_separation"))
     concentration_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("concentration", "regeneration"))
     purification_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("purification", "filtration", "drying"))
-    feed_cp = estimate_bulk_cp_kj_kg_k(feed_state, 1.8 if family == "solids" else 2.9)
-    primary_cp = estimate_bulk_cp_kj_kg_k(primary_state, 3.0)
-    product_cp = estimate_bulk_cp_kj_kg_k(purification_state, 2.7)
+    feed_cp = estimate_bulk_cp_kj_kg_k(
+        feed_state,
+        1.8 if family == "solids" else 2.9,
+        mixture_properties=mixture_properties,
+        unit_ids=("feed_prep",),
+    )
+    primary_cp = estimate_bulk_cp_kj_kg_k(
+        primary_state,
+        3.0,
+        mixture_properties=mixture_properties,
+        unit_ids=("primary_flash", "primary_separation"),
+    )
+    product_cp = estimate_bulk_cp_kj_kg_k(
+        purification_state,
+        2.7,
+        mixture_properties=mixture_properties,
+        unit_ids=("purification", "filtration", "drying"),
+    )
     concentration_water_fraction = max(
         component_mass_fraction(concentration_state, "Water"),
         component_mass_fraction(primary_state, "Water"),
@@ -330,17 +351,18 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
         CalcTrace(
             trace_id="energy_composition_basis",
             title="Composition-driven thermal basis",
-            formula="Cp and latent-duty basis are derived from solved unit composition states",
+            formula="Cp and latent-duty basis are derived from solved unit composition states and mixture-property packages",
             substitutions={
                 "feed_state": feed_state.state_id if feed_state else "fallback",
                 "primary_state": primary_state.state_id if primary_state else "fallback",
                 "purification_state": purification_state.state_id if purification_state else "fallback",
                 "feed_cp": f"{feed_cp:.3f}",
                 "product_cp": f"{product_cp:.3f}",
+                "mixture_packages": f"{len(mixture_properties.packages) if mixture_properties else 0}",
             },
             result=f"{family}",
             units="family",
-            notes="The energy solver now consumes solved unit composition state before falling back to route-family defaults.",
+            notes="The energy solver now consumes mixture-property packages first and only retains heuristics as a compatibility fallback.",
         ),
     ]
     return EnergyBalance(
