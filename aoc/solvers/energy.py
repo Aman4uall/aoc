@@ -11,6 +11,7 @@ from aoc.models import (
     UnitDuty,
     UnitThermalPacket,
 )
+from aoc.solvers.composition import component_mass_fraction, composition_state_for_unit, estimate_bulk_cp_kj_kg_k
 from aoc.value_engine import make_value_record
 
 
@@ -205,12 +206,28 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
     product_mass = sum(component.mass_flow_kg_hr for component in product_stream.components)
     product_kmol_hr = sum(component.molar_flow_kmol_hr for component in product_stream.components)
     family = _separation_family(route)
+    feed_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("feed_prep",))
+    reactor_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("reactor",))
+    primary_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("primary_flash", "primary_separation"))
+    concentration_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("concentration", "regeneration"))
+    purification_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("purification", "filtration", "drying"))
+    feed_cp = estimate_bulk_cp_kj_kg_k(feed_state, 1.8 if family == "solids" else 2.9)
+    primary_cp = estimate_bulk_cp_kj_kg_k(primary_state, 3.0)
+    product_cp = estimate_bulk_cp_kj_kg_k(purification_state, 2.7)
+    concentration_water_fraction = max(
+        component_mass_fraction(concentration_state, "Water"),
+        component_mass_fraction(primary_state, "Water"),
+    )
+    purification_water_fraction = max(
+        component_mass_fraction(purification_state, "Water"),
+        component_mass_fraction(reactor_state, "Water"),
+    )
     mixed_feed_mass = _stream_mass(stream_table, "S-150") or feed_mass
     flash_bottom_mass = _stream_mass(stream_table, "S-203")
     concentration_overhead_mass = _stream_mass(stream_table, "S-301")
     concentration_bottom_mass = _stream_mass(stream_table, "S-302")
     light_ends_mass = _stream_mass(stream_table, "S-401") if product_stream.stream_id != "S-401" else _stream_mass(stream_table, "S-403")
-    preheat_kw = _sensible_duty_kw(mixed_feed_mass, 2.9 if family != "solids" else 1.8, route.operating_temperature_c - 25.0)
+    preheat_kw = _sensible_duty_kw(mixed_feed_mass, feed_cp, route.operating_temperature_c - 25.0)
     reaction_kw = abs(product_kmol_hr * 1000.0 * thermo.estimated_reaction_enthalpy_kj_per_mol / 3600.0)
     exothermic = thermo.estimated_reaction_enthalpy_kj_per_mol < 0
     duties = [
@@ -226,12 +243,13 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
         ),
     ]
     if family == "distillation":
-        flash_cooler_kw = _sensible_duty_kw(_stream_mass(stream_table, "S-201"), 3.1, max(route.operating_temperature_c - 95.0, 0.0))
-        preconcentrator_kw = _latent_duty_kw(max(concentration_overhead_mass, flash_bottom_mass * 0.35), 2200.0)
+        distillation_latent = 1900.0 + concentration_water_fraction * 350.0
+        flash_cooler_kw = _sensible_duty_kw(_stream_mass(stream_table, "S-201"), primary_cp, max(route.operating_temperature_c - 95.0, 0.0))
+        preconcentrator_kw = _latent_duty_kw(max(concentration_overhead_mass, flash_bottom_mass * 0.35), distillation_latent)
         precondenser_kw = preconcentrator_kw * 0.93
-        reboiler_kw = _latent_duty_kw(max(concentration_bottom_mass * 0.28, product_mass * 0.18), 2150.0)
+        reboiler_kw = _latent_duty_kw(max(concentration_bottom_mass * 0.28, product_mass * 0.18), 1850.0 + purification_water_fraction * 300.0)
         condenser_kw = reboiler_kw * 0.88
-        product_cooler_kw = _sensible_duty_kw(product_mass, 2.7, 75.0)
+        product_cooler_kw = _sensible_duty_kw(product_mass, product_cp, 75.0)
         duties.extend(
             [
                 UnitDuty(unit_id="V-101", heating_kw=0.0, cooling_kw=round(flash_cooler_kw, 3), notes="Reactor effluent trim cooling before primary flash.", duty_type="sensible", hot_stream_id="S-201", cold_stream_id="S-203"),
@@ -242,22 +260,22 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
         )
     elif family == "absorption":
         converter_cooling = reaction_kw * 0.45 if exothermic else reaction_kw * 0.20
-        absorption_cooling = max(product_mass * 0.08, 2500.0)
-        regeneration_heating = max(_stream_mass(stream_table, "S-203") * 0.06, 900.0)
+        absorption_cooling = max(_sensible_duty_kw(_stream_mass(stream_table, "S-203"), primary_cp, 35.0), 2500.0)
+        regeneration_heating = max(_latent_duty_kw(_stream_mass(stream_table, "S-203") * max(concentration_water_fraction, 0.35), 1800.0), 900.0)
         duties.append(UnitDuty(unit_id="ABS-201", heating_kw=0.0, cooling_kw=round(absorption_cooling, 3), notes="Absorption and drying heat-removal duty.", duty_type="sensible", hot_stream_id="S-203"))
         duties.append(UnitDuty(unit_id="STR-201", heating_kw=round(regeneration_heating, 3), cooling_kw=round(regeneration_heating * 0.35, 3), notes="Absorbent regeneration and stripping duty.", duty_type="latent"))
         duties.append(UnitDuty(unit_id="CONV-101", heating_kw=0.0, cooling_kw=round(converter_cooling, 3), notes="Converter cooling or heat recovery duty.", duty_type="reaction"))
     elif family == "solids":
-        crystallizer_kw = max(_sensible_duty_kw(product_mass, 2.1, 35.0), 1500.0)
-        dryer_kw = max(_latent_duty_kw(product_mass * 0.04, 2300.0), 900.0)
+        crystallizer_kw = max(_sensible_duty_kw(product_mass, product_cp, 35.0), 1500.0)
+        dryer_kw = max(_latent_duty_kw(product_mass * max(purification_water_fraction, 0.04), 2300.0), 900.0)
         filter_aux_kw = max(product_mass * 0.015, 120.0)
         duties.append(UnitDuty(unit_id="CRYS-201", heating_kw=0.0, cooling_kw=round(crystallizer_kw, 3), notes="Crystallizer cooling duty.", duty_type="sensible", hot_stream_id="S-203"))
         duties.append(UnitDuty(unit_id="FILT-201", heating_kw=0.0, cooling_kw=round(filter_aux_kw, 3), notes="Filter wash and slurry handling auxiliary duty.", duty_type="sensible"))
         duties.append(UnitDuty(unit_id="DRY-301", heating_kw=round(dryer_kw, 3), cooling_kw=0.0, notes="Dryer heating duty.", duty_type="latent", cold_stream_id=product_stream.stream_id))
     elif family == "extraction":
-        extractor_kw = max(product_mass * 0.04, 250.0)
-        solvent_recovery_kw = max(product_mass * 0.12, 500.0)
-        phase_split_kw = max(light_ends_mass * 0.05, 160.0)
+        extractor_kw = max(_sensible_duty_kw(product_mass, product_cp, 18.0), 250.0)
+        solvent_recovery_kw = max(_latent_duty_kw(max(product_mass * 0.12, light_ends_mass * 0.10), 1600.0 + concentration_water_fraction * 250.0), 500.0)
+        phase_split_kw = max(_sensible_duty_kw(light_ends_mass, primary_cp, 12.0), 160.0)
         duties.append(UnitDuty(unit_id="EXT-201", heating_kw=round(extractor_kw, 3), cooling_kw=round(extractor_kw * 0.25, 3), notes="Extraction conditioning duty.", duty_type="sensible"))
         duties.append(UnitDuty(unit_id="DEC-201", heating_kw=0.0, cooling_kw=round(phase_split_kw, 3), notes="Phase disengagement and solvent conditioning duty.", duty_type="sensible"))
         duties.append(UnitDuty(unit_id="SR-301", heating_kw=round(solvent_recovery_kw, 3), cooling_kw=round(solvent_recovery_kw * 0.60, 3), notes="Solvent recovery duty.", duty_type="latent"))
@@ -309,6 +327,21 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
             units="candidates",
             notes="These candidates seed utility-architecture selection and detailed exchanger sizing.",
         ),
+        CalcTrace(
+            trace_id="energy_composition_basis",
+            title="Composition-driven thermal basis",
+            formula="Cp and latent-duty basis are derived from solved unit composition states",
+            substitutions={
+                "feed_state": feed_state.state_id if feed_state else "fallback",
+                "primary_state": primary_state.state_id if primary_state else "fallback",
+                "purification_state": purification_state.state_id if purification_state else "fallback",
+                "feed_cp": f"{feed_cp:.3f}",
+                "product_cp": f"{product_cp:.3f}",
+            },
+            result=f"{family}",
+            units="family",
+            notes="The energy solver now consumes solved unit composition state before falling back to route-family defaults.",
+        ),
     ]
     return EnergyBalance(
         duties=duties,
@@ -323,5 +356,5 @@ def build_energy_balance_generic(route: RouteOption, stream_table: StreamTable, 
             make_value_record("energy_reaction_duty", "Reaction duty", reaction_kw, "kW", citations=thermo.citations, assumptions=thermo.assumptions, sensitivity=SensitivityLevel.HIGH),
         ],
         citations=thermo.citations,
-        assumptions=thermo.assumptions + [f"Generic energy solver inferred `{family}` separation duty from route metadata."],
+        assumptions=thermo.assumptions + [f"Generic energy solver inferred `{family}` duty structure from route metadata and composition-propagated unit state."],
     )

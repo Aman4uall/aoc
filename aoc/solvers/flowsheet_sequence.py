@@ -1,19 +1,27 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Optional
 
 from aoc.models import (
+    ByproductEstimate,
     CalcTrace,
+    ConvergenceSummary,
+    PhaseSplitSpec,
     ReactionParticipant,
+    ReactionSystem,
     RecyclePacket,
     RouteOption,
     SeparationPacket,
+    SeparatorPerformance,
     StreamComponentFlow,
     StreamRecord,
     UnitOperationPacket,
 )
 from aoc.solvers.convergence import solve_multi_component_recycle_loop
+from aoc.solvers.recycle_network import build_recycle_network_packets
+from aoc.solvers.separators import build_separator_models
 
 
 ComponentKey = tuple[str, Optional[str]]
@@ -52,8 +60,11 @@ class SequenceSolveResult:
     sequence_family: str = "generic"
     stage_labels: list[str] = field(default_factory=list)
     unit_operation_packets: list[UnitOperationPacket] = field(default_factory=list)
+    phase_split_specs: list[PhaseSplitSpec] = field(default_factory=list)
+    separator_performances: list[SeparatorPerformance] = field(default_factory=list)
     separation_packets: list[SeparationPacket] = field(default_factory=list)
     recycle_packets: list[RecyclePacket] = field(default_factory=list)
+    convergence_summaries: list[ConvergenceSummary] = field(default_factory=list)
 
 
 def _component_key(name: str, formula: Optional[str]) -> ComponentKey:
@@ -74,6 +85,26 @@ def _add_component(
     state[key] = state.get(key, 0.0) + delta_kmol_hr
     if abs(state[key]) <= 1e-10:
         state.pop(key, None)
+
+
+def _add_byproduct_estimate(
+    state: dict[ComponentKey, float],
+    component_meta: dict[ComponentKey, ComponentMeta],
+    estimate: ByproductEstimate,
+    allocated_mass_kg_hr: float,
+) -> None:
+    if allocated_mass_kg_hr <= 1e-10:
+        return
+    key = _component_key(estimate.component_name, estimate.formula)
+    if key not in component_meta:
+        component_meta[key] = ComponentMeta(
+            name=estimate.component_name,
+            formula=estimate.formula,
+            molecular_weight_g_mol=max(estimate.molecular_weight_g_mol, 1.0),
+            phase=estimate.phase or "liquid",
+        )
+    molecular_weight = max(component_meta[key].molecular_weight_g_mol, 1e-9)
+    _add_component(state, key, allocated_mass_kg_hr / molecular_weight)
 
 
 def _split_state(
@@ -225,11 +256,55 @@ def _stream(
     )
 
 
+def _aggregate_component_molar(streams: list[StreamRecord], stream_ids: list[str] | None = None) -> dict[str, float]:
+    if stream_ids is None:
+        selected_ids: set[str] | None = None
+    else:
+        selected_ids = set(stream_ids)
+    state: dict[str, float] = {}
+    for stream in streams:
+        if selected_ids is not None and stream.stream_id not in selected_ids:
+            continue
+        for component in stream.components:
+            state[component.name] = state.get(component.name, 0.0) + component.molar_flow_kmol_hr
+    return state
+
+
+def _dominant_phase(streams: list[StreamRecord], stream_ids: list[str]) -> str:
+    if not stream_ids:
+        return ""
+    phase_totals: dict[str, float] = {}
+    selected = set(stream_ids)
+    for stream in streams:
+        if stream.stream_id not in selected:
+            continue
+        total_mass = sum(component.mass_flow_kg_hr for component in stream.components)
+        phase = stream.phase_hint or "mixed"
+        phase_totals[phase] = phase_totals.get(phase, 0.0) + total_mass
+    if not phase_totals:
+        return ""
+    return max(phase_totals.items(), key=lambda item: item[1])[0]
+
+
+def _component_split_fractions(
+    inlet_state: dict[str, float],
+    outlet_state: dict[str, float],
+) -> dict[str, float]:
+    split: dict[str, float] = {}
+    for component_name, inlet_molar in inlet_state.items():
+        if inlet_molar <= 1e-10:
+            continue
+        split[component_name] = round(outlet_state.get(component_name, 0.0) / inlet_molar, 6)
+    return split
+
+
 def _stream_family(route: RouteOption) -> str:
     text = " ".join(route.separations).lower()
+    product_phases = {(participant.phase or "").lower() for participant in route.participants if participant.role == "product"}
+    has_solid_product = "solid" in product_phases
     if "absor" in text or "strip" in text:
         return "absorption"
-    if "crystal" in text or "filter" in text or "dry" in text:
+    if has_solid_product and ("crystal" in text or "filter" in text or "dry" in text):
         return "solids"
     if "extract" in text:
         return "extraction"
@@ -293,16 +368,39 @@ def _build_unit_operation_packets(
         outlet_streams = [stream for stream in streams if stream.source_unit_id == unit_id]
         if unit_type == "recycle" and (not inlet_streams or not outlet_streams):
             continue
+        missing_source_stream_ids = sorted(stream.stream_id for stream in inlet_streams if not stream.source_unit_id)
+        missing_destination_stream_ids = sorted(stream.stream_id for stream in outlet_streams if not stream.destination_unit_id)
         inlet_mass = sum(sum(component.mass_flow_kg_hr for component in stream.components) for stream in inlet_streams)
         outlet_mass = sum(sum(component.mass_flow_kg_hr for component in stream.components) for stream in outlet_streams)
         closure_error_pct = 0.0 if max(inlet_mass, outlet_mass, 0.0) <= 0.0 else abs(outlet_mass - inlet_mass) / max(inlet_mass, outlet_mass, 1.0) * 100.0
         notes: list[str] = []
+        unresolved_sensitivities: list[str] = []
         if not inlet_streams:
             notes.append("No inlet streams detected for this unit in the solved sequence.")
+            unresolved_sensitivities.append("missing inlet stream coverage")
         if not outlet_streams:
             notes.append("No outlet streams detected for this unit in the solved sequence.")
+            unresolved_sensitivities.append("missing outlet stream coverage")
+        if missing_source_stream_ids:
+            notes.append(f"Missing upstream source references on streams: {', '.join(missing_source_stream_ids)}.")
+            unresolved_sensitivities.append("missing upstream source references")
+        if missing_destination_stream_ids:
+            notes.append(f"Missing downstream destination references on streams: {', '.join(missing_destination_stream_ids)}.")
+            unresolved_sensitivities.append("missing downstream destination references")
+        if any(not stream.phase_hint or stream.phase_hint == "mixed" for stream in inlet_streams + outlet_streams):
+            unresolved_sensitivities.append("mixed or unresolved phase basis remains in solved streams")
+        if any(not stream.components for stream in inlet_streams + outlet_streams):
+            unresolved_sensitivities.append("empty component list on solved stream")
         if closure_error_pct > 2.0:
             notes.append(f"Unit closure is {closure_error_pct:.3f}%, so this unit needs review before detailed design.")
+            unresolved_sensitivities.append("material closure above converged range")
+        coverage_status = (
+            "blocked"
+            if not inlet_streams or not outlet_streams or missing_source_stream_ids or missing_destination_stream_ids
+            else "partial"
+            if unresolved_sensitivities
+            else "complete"
+        )
         packets.append(
             UnitOperationPacket(
                 packet_id=f"{unit_id}_unit_packet",
@@ -314,58 +412,15 @@ def _build_unit_operation_packets(
                 inlet_mass_flow_kg_hr=round(inlet_mass, 6),
                 outlet_mass_flow_kg_hr=round(outlet_mass, 6),
                 closure_error_pct=round(closure_error_pct, 6),
-                status=_packet_status(closure_error_pct, inlet_count=len(inlet_streams), outlet_count=len(outlet_streams)),
-                notes=notes,
-                citations=citations,
-                assumptions=assumptions,
-            )
-        )
-    return packets
-
-
-def _build_separation_packets(
-    streams: list[StreamRecord],
-    family: str,
-    unit_packets: list[UnitOperationPacket],
-    citations: list[str],
-    assumptions: list[str],
-) -> list[SeparationPacket]:
-    separation_unit_ids = {"primary_flash", "primary_separation", "concentration", "purification", "filtration", "regeneration"}
-    packet_index = {packet.unit_id: packet for packet in unit_packets}
-    packets: list[SeparationPacket] = []
-    for unit_id in separation_unit_ids:
-        packet = packet_index.get(unit_id)
-        if packet is None:
-            continue
-        inlet_stream_ids = packet.inlet_stream_ids
-        outlet_streams = [stream for stream in streams if stream.source_unit_id == unit_id]
-        if not outlet_streams:
-            continue
-        product_stream_ids = [stream.stream_id for stream in outlet_streams if stream.destination_unit_id not in {"feed_prep", "waste_treatment"}]
-        waste_stream_ids = [stream.stream_id for stream in outlet_streams if stream.destination_unit_id == "waste_treatment"]
-        recycle_stream_ids = [stream.stream_id for stream in outlet_streams if stream.destination_unit_id == "feed_prep"]
-        side_draw_stream_ids = [
-            stream.stream_id
-            for stream in outlet_streams
-            if stream.stream_id not in product_stream_ids and stream.stream_id not in waste_stream_ids and stream.stream_id not in recycle_stream_ids
-        ]
-        unit_type, _ = _unit_metadata(unit_id, family)
-        driving_force = "temperature/volatility" if unit_type in {"flash", "distillation", "evaporation", "drying"} else "solubility/phase split"
-        notes: list[str] = []
-        if not product_stream_ids and not recycle_stream_ids and not waste_stream_ids:
-            notes.append("No explicit split outlets were detected for this separation packet.")
-        packets.append(
-            SeparationPacket(
-                packet_id=f"{unit_id}_separation_packet",
-                unit_id=unit_id,
-                separation_family=unit_type,
-                driving_force=driving_force,
-                inlet_stream_ids=inlet_stream_ids,
-                product_stream_ids=product_stream_ids,
-                waste_stream_ids=waste_stream_ids,
-                recycle_stream_ids=recycle_stream_ids,
-                side_draw_stream_ids=side_draw_stream_ids,
-                closure_error_pct=packet.closure_error_pct,
+                coverage_status=coverage_status,
+                missing_source_stream_ids=missing_source_stream_ids,
+                missing_destination_stream_ids=missing_destination_stream_ids,
+                status=(
+                    "blocked"
+                    if coverage_status == "blocked"
+                    else _packet_status(closure_error_pct, inlet_count=len(inlet_streams), outlet_count=len(outlet_streams))
+                ),
+                unresolved_sensitivities=sorted(dict.fromkeys(unresolved_sensitivities)),
                 notes=notes,
                 citations=citations,
                 assumptions=assumptions,
@@ -397,12 +452,33 @@ def _build_recycle_packets(
     component_fresh = {name: round(float(result["fresh_flow"]), 6) for name, result in recycle_solution.items()}
     component_recycle = {name: round(float(result["recycle_flow"]), 6) for name, result in recycle_solution.items()}
     component_purge = {name: round(float(result["purge_flow"]), 6) for name, result in recycle_solution.items()}
+    actual_recycle = _aggregate_component_molar(streams, recycle_stream_ids)
+    actual_purge = _aggregate_component_molar(streams, purge_stream_ids)
+    component_errors: dict[str, float] = {}
+    component_iterations = {name: int(result["iterations"]) for name, result in recycle_solution.items()}
+    for name in recycle_solution:
+        recycle_target = component_recycle.get(name, 0.0)
+        purge_target = component_purge.get(name, 0.0)
+        recycle_error = abs(actual_recycle.get(name, 0.0) - recycle_target) / max(recycle_target, actual_recycle.get(name, 0.0), 1e-9) * 100.0
+        target_recovery_ratio = recycle_target / max(recycle_target + purge_target, 1e-9)
+        actual_recovery_ratio = actual_recycle.get(name, 0.0) / max(actual_recycle.get(name, 0.0) + actual_purge.get(name, 0.0), 1e-9)
+        recovery_ratio_error = abs(actual_recovery_ratio - target_recovery_ratio) * 100.0
+        component_errors[name] = round(max(recycle_error, recovery_ratio_error), 6)
     max_iterations = max(int(result["iterations"]) for result in recycle_solution.values()) if recycle_solution else 0
     converged = all(bool(result["converged"]) for result in recycle_solution.values())
-    status = "converged" if converged and overall_closure_error_pct <= 2.0 else "estimated" if overall_closure_error_pct <= 5.0 else "blocked"
+    max_component_error = max(component_errors.values(), default=0.0)
+    status = (
+        "converged"
+        if converged and overall_closure_error_pct <= 2.0 and max_component_error <= 2.0
+        else "estimated"
+        if overall_closure_error_pct <= 5.0 and max_component_error <= 95.0
+        else "blocked"
+    )
     notes = []
     if not purge_stream_ids:
         notes.append("Recycle loop has no explicit purge stream; verify inert and impurity handling manually.")
+    if max_component_error > 10.0:
+        notes.append(f"Component recycle/purge error reaches {max_component_error:.3f}% in the current solved loop.")
     return [
         RecyclePacket(
             packet_id="main_recycle_packet",
@@ -413,6 +489,8 @@ def _build_recycle_packets(
             component_fresh_kmol_hr=component_fresh,
             component_recycle_kmol_hr=component_recycle,
             component_purge_kmol_hr=component_purge,
+            component_convergence_error_pct=component_errors,
+            component_iterations=component_iterations,
             convergence_status=status,
             closure_error_pct=round(overall_closure_error_pct, 6),
             max_iterations=max_iterations,
@@ -427,11 +505,18 @@ def _default_recovery_fractions(route: RouteOption, participant: ReactionPartici
     text = " ".join(route.separations).lower()
     name = participant.name.lower()
     formula = (participant.formula or "").upper()
+    family = _stream_family(route)
     if formula == "H2O" or "water" in name:
         if "distill" in text or "vacuum" in text or route.route_id == "eo_hydration":
             return 0.96, 0.03
         return 0.82, 0.08
     if participant.phase == "gas" or formula in {"CO", "CO2", "SO2", "SO3", "O2", "NH3", "C2H4"}:
+        if family == "absorption":
+            return 0.72, 0.12
+        if family == "solids":
+            return 0.01, 0.10
+        if family == "distillation":
+            return 0.08, 0.15
         return 0.72, 0.12
     if participant.phase == "solid":
         return 0.35, 0.20
@@ -523,9 +608,7 @@ def _distribute_purification_outputs(
 def build_generic_sequence_streams(
     product_mass_kg_hr: float,
     route: RouteOption,
-    conversion_fraction: float,
-    selectivity_fraction: float,
-    excess_ratio: float,
+    reaction_system: ReactionSystem,
     citations: list[str],
     assumptions: list[str],
 ) -> SequenceSolveResult:
@@ -533,7 +616,6 @@ def build_generic_sequence_streams(
     participants = route.participants
     reactants = [item for item in participants if item.role == "reactant"]
     products = [item for item in participants if item.role == "product"]
-    byproducts = [item for item in participants if item.role == "byproduct"]
     if not products:
         raise ValueError(f"Route '{route.route_id}' has no product participant.")
     product = products[0]
@@ -550,8 +632,8 @@ def build_generic_sequence_streams(
 
     product_kmol_hr = product_mass_kg_hr / max(product.molecular_weight_g_mol, 1e-9)
     main_extent = product_kmol_hr / max(product.coefficient, 1e-9)
-    reacted_extent = main_extent / max(selectivity_fraction, 1e-9)
-    feed_extent = reacted_extent / max(conversion_fraction, 1e-9)
+    reacted_extent = main_extent / max(reaction_system.selectivity_fraction, 1e-9)
+    feed_extent = reacted_extent / max(reaction_system.conversion_fraction, 1e-9)
     byproduct_extent = max(reacted_extent - main_extent, 0.0)
 
     target_total_by_reactant: dict[str, float] = {}
@@ -571,8 +653,8 @@ def build_generic_sequence_streams(
     for reactant in reactants:
         key = reactant.name
         total_feed_kmol_hr = feed_extent * reactant.coefficient
-        if recycle_candidate_key == _participant_key(reactant) and excess_ratio > 1.0:
-            total_feed_kmol_hr *= excess_ratio
+        if recycle_candidate_key == _participant_key(reactant) and reaction_system.excess_ratio > 1.0:
+            total_feed_kmol_hr *= reaction_system.excess_ratio
         target_total_by_reactant[key] = total_feed_kmol_hr
         consumed_by_reactant[key] = reacted_extent * reactant.coefficient
         recovery, purge = _default_recovery_fractions(route, reactant)
@@ -642,22 +724,29 @@ def build_generic_sequence_streams(
         consumed_reactant_mass_kg_hr += reacted_extent * reactant.coefficient * reactant.molecular_weight_g_mol
         _add_component(reactor_state, _participant_key(reactant), -(reacted_extent * reactant.coefficient))
     _add_component(reactor_state, product_key, product_kmol_hr)
-    explicit_byproduct_mass_kg_hr = 0.0
-    for byproduct in byproducts:
-        byproduct_kmol_hr = byproduct_extent * byproduct.coefficient
-        explicit_byproduct_mass_kg_hr += byproduct_kmol_hr * byproduct.molecular_weight_g_mol
-        _add_component(reactor_state, _participant_key(byproduct), byproduct_kmol_hr)
-    if byproduct_extent > 0.0 and not byproducts:
+    byproduct_estimates = reaction_system.byproduct_closure.estimates if reaction_system.byproduct_closure else []
+    residual_byproduct_mass_kg_hr = max(consumed_reactant_mass_kg_hr - (product_kmol_hr * product.molecular_weight_g_mol), 0.0)
+    if byproduct_extent > 0.0 and byproduct_estimates:
+        allocation_total = sum(max(item.allocation_fraction, 0.0) for item in byproduct_estimates) or 1.0
+        for estimate in byproduct_estimates:
+            if residual_byproduct_mass_kg_hr <= 0.0:
+                break
+            _add_byproduct_estimate(
+                reactor_state,
+                component_meta,
+                estimate,
+                residual_byproduct_mass_kg_hr * (max(estimate.allocation_fraction, 0.0) / allocation_total),
+            )
+    if byproduct_extent > 0.0 and not byproduct_estimates:
         pseudo_key = _component_key("Heavy ends", None)
         pseudo_mw = max(product.molecular_weight_g_mol * 1.1, 1.0)
-        pseudo_mass_kg_hr = max(consumed_reactant_mass_kg_hr - (product_kmol_hr * product.molecular_weight_g_mol) - explicit_byproduct_mass_kg_hr, 0.0)
         component_meta[pseudo_key] = ComponentMeta(
             name="Heavy ends",
             formula=None,
             molecular_weight_g_mol=pseudo_mw,
             phase="liquid",
         )
-        _add_component(reactor_state, pseudo_key, pseudo_mass_kg_hr / pseudo_mw)
+        _add_component(reactor_state, pseudo_key, residual_byproduct_mass_kg_hr / pseudo_mw)
 
     streams.append(
         _stream(
@@ -776,23 +865,35 @@ def build_generic_sequence_streams(
                 phase_hint="gas",
             )
         )
+        product_state: dict[ComponentKey, float] = {}
+        absorption_waste_state = {}
+        if product_hold:
+            _add_component(product_state, product_key, product_hold.get(product_key, 0.0))
+            for key, molar in product_hold.items():
+                if key == product_key:
+                    continue
+                formula = (component_meta[key].formula or "").upper()
+                if formula == "H2O":
+                    retained_water = molar * 0.15
+                    _add_component(product_state, key, retained_water)
+                    _add_component(absorption_waste_state, key, molar - retained_water)
+                    continue
+                _add_component(absorption_waste_state, key, molar)
+        else:
+            _add_component(product_state, product_key, reactor_state.get(product_key, 0.0))
         streams.append(
             _stream(
                 stream_id="S-401",
                 description="Product acid stream",
                 temperature_c=45.0,
                 pressure_bar=1.1,
-                state=product_hold if product_hold else {product_key: reactor_state.get(product_key, 0.0)},
+                state=product_state,
                 component_meta=component_meta,
                 source_unit_id="regeneration",
                 destination_unit_id="storage",
                 phase_hint="liquid",
             )
         )
-        absorption_waste_state = {}
-        for key, molar in product_hold.items():
-            if key != product_key:
-                _add_component(absorption_waste_state, key, molar)
         if absorption_waste_state:
             streams.append(
                 _stream(
@@ -808,7 +909,6 @@ def build_generic_sequence_streams(
                 )
             )
         purification_recycle: dict[ComponentKey, float] = {}
-        product_state = product_hold
         waste_state = absorption_waste_state
         remaining_recycle_targets = {}
     else:
@@ -861,6 +961,20 @@ def build_generic_sequence_streams(
                 )
             )
         if family == "solids":
+            if purification_recycle:
+                streams.append(
+                    _stream(
+                        stream_id="S-351",
+                        description="Filtrate recycle / mother liquor recovery",
+                        temperature_c=35.0,
+                        pressure_bar=1.02,
+                        state=purification_recycle,
+                        component_meta=component_meta,
+                        source_unit_id="filtration",
+                        destination_unit_id="feed_prep",
+                        phase_hint="liquid",
+                    )
+                )
             wet_cake_state: dict[ComponentKey, float] = {}
             dry_product_state: dict[ComponentKey, float] = {}
             for key, molar in product_state.items():
@@ -929,13 +1043,42 @@ def build_generic_sequence_streams(
         )
         waste_state = combined_waste
 
+    packet_streams = deepcopy(streams)
+    unit_operation_packets = _build_unit_operation_packets(packet_streams, family, citations, assumptions)
+    phase_split_specs, separator_performances, separation_packets = build_separator_models(
+        packet_streams,
+        family,
+        unit_operation_packets,
+        citations,
+        assumptions,
+    )
+    recycle_packets, convergence_summaries = build_recycle_network_packets(
+        packet_streams,
+        recycle_solution,
+        0.0,
+        citations,
+        assumptions,
+    )
+
     total_external_out = _reconcile_external_closure(streams, component_meta, total_fresh_feed_mass, product_key)
     closure_error_pct = 0.0
     if total_fresh_feed_mass > 0.0:
         closure_error_pct = abs(total_fresh_feed_mass - total_external_out) / total_fresh_feed_mass * 100.0
-    unit_operation_packets = _build_unit_operation_packets(streams, family, citations, assumptions)
-    separation_packets = _build_separation_packets(streams, family, unit_operation_packets, citations, assumptions)
-    recycle_packets = _build_recycle_packets(streams, recycle_solution, closure_error_pct, citations, assumptions)
+    for packet in recycle_packets:
+        packet.closure_error_pct = round(closure_error_pct, 6)
+        if packet.convergence_status == "converged" and closure_error_pct > 2.0:
+            packet.convergence_status = "estimated"
+            packet.notes.append("Overall external closure remains above the converged range after reconciliation.")
+        elif packet.convergence_status != "blocked" and closure_error_pct > 5.0:
+            packet.convergence_status = "blocked"
+            packet.notes.append("Overall external closure is too high after reconciliation.")
+    for summary in convergence_summaries:
+        if summary.convergence_status == "converged" and closure_error_pct > 2.0:
+            summary.convergence_status = "estimated"
+            summary.notes.append("Overall external closure remains above the converged range after reconciliation.")
+        elif summary.convergence_status != "blocked" and closure_error_pct > 5.0:
+            summary.convergence_status = "blocked"
+            summary.notes.append("Overall external closure is too high after reconciliation.")
 
     traces = [
         CalcTrace(
@@ -951,11 +1094,24 @@ def build_generic_sequence_streams(
             title="Feed extent with conversion/selectivity",
             formula="feed_extent = (product_kmol / nu_product) / (selectivity * conversion)",
             substitutions={
-                "selectivity": f"{selectivity_fraction:.4f}",
-                "conversion": f"{conversion_fraction:.4f}",
+                "selectivity": f"{reaction_system.selectivity_fraction:.4f}",
+                "conversion": f"{reaction_system.conversion_fraction:.4f}",
             },
             result=f"{feed_extent:.6f}",
             units="kmol/h",
+        ),
+        CalcTrace(
+            trace_id="sequence_byproduct_closure",
+            title="Byproduct closure allocation",
+            formula="Residual byproduct mass is allocated across explicit byproduct-closure estimates",
+            substitutions={
+                "closure_status": reaction_system.byproduct_closure.closure_status if reaction_system.byproduct_closure else "fallback",
+                "estimate_count": str(len(byproduct_estimates)),
+                "residual_mass_kg_hr": f"{residual_byproduct_mass_kg_hr:.3f}",
+            },
+            result=f"{len(byproduct_estimates)} estimates",
+            units="items",
+            notes="This replaces the older implicit heavy-ends fallback whenever the reaction system carries a byproduct-closure artifact.",
         ),
         CalcTrace(
             trace_id="sequence_recycle_components",
@@ -999,6 +1155,9 @@ def build_generic_sequence_streams(
         sequence_family=family,
         stage_labels=stage_labels,
         unit_operation_packets=unit_operation_packets,
+        phase_split_specs=phase_split_specs,
+        separator_performances=separator_performances,
         separation_packets=separation_packets,
         recycle_packets=recycle_packets,
+        convergence_summaries=convergence_summaries,
     )

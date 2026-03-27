@@ -58,3 +58,24 @@ def solve_multi_component_recycle_loop(
             max_iterations=max_iterations,
         )
     return results
+
+
+def solve_multi_loop_recycle_network(
+    loop_targets: dict[str, dict[str, float]],
+    loop_consumed: dict[str, dict[str, float]],
+    loop_recovery: dict[str, dict[str, float]],
+    loop_purge: dict[str, dict[str, float]],
+    tolerance: float = 1e-6,
+    max_iterations: int = 50,
+) -> dict[str, dict[str, dict[str, float | int | bool]]]:
+    results: dict[str, dict[str, dict[str, float | int | bool]]] = {}
+    for loop_id, targets in loop_targets.items():
+        results[loop_id] = solve_multi_component_recycle_loop(
+            target_total_flows=targets,
+            consumed_flows=loop_consumed.get(loop_id, {}),
+            recovery_fractions=loop_recovery.get(loop_id, {}),
+            purge_fractions=loop_purge.get(loop_id, {}),
+            tolerance=tolerance,
+            max_iterations=max_iterations,
+        )
+    return results

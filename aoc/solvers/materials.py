@@ -8,6 +8,7 @@ from aoc.models import (
     SensitivityLevel,
     StreamTable,
 )
+from aoc.solvers.composition import build_unit_composition_artifacts
 from aoc.solvers.flowsheet_sequence import build_generic_sequence_streams
 from aoc.value_engine import make_value_record
 
@@ -26,15 +27,20 @@ def build_stream_table_generic(
     solve_result = build_generic_sequence_streams(
         product_mass_kg_hr=_hourly_output_kg(basis),
         route=route,
-        conversion_fraction=reaction_system.conversion_fraction,
-        selectivity_fraction=reaction_system.selectivity_fraction,
-        excess_ratio=reaction_system.excess_ratio,
+        reaction_system=reaction_system,
         citations=citations,
         assumptions=assumptions,
+    )
+    composition_states, composition_closures = build_unit_composition_artifacts(
+        solve_result.streams,
+        solve_result.unit_operation_packets,
+        citations,
+        assumptions,
     )
     extra_assumptions = [
         "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
         f"Sequence family inferred as `{solve_result.sequence_family}` from route separations and expanded into the stage path: {', '.join(solve_result.stage_labels)}.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
     ]
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
         extra_assumptions.append("Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.")
@@ -80,9 +86,14 @@ def build_stream_table_generic(
                 sensitivity=SensitivityLevel.HIGH,
             ),
         ],
+        composition_states=composition_states,
+        composition_closures=composition_closures,
         unit_operation_packets=solve_result.unit_operation_packets,
+        phase_split_specs=solve_result.phase_split_specs,
+        separator_performances=solve_result.separator_performances,
         separation_packets=solve_result.separation_packets,
         recycle_packets=solve_result.recycle_packets,
+        convergence_summaries=solve_result.convergence_summaries,
         citations=citations,
         assumptions=assumptions + extra_assumptions,
     )

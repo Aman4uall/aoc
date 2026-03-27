@@ -179,6 +179,7 @@ from aoc.validators import (
     validate_route_balance,
     validate_stream_table,
     validate_thermo_assessment,
+    validate_utility_architecture,
     validate_utility_network_decision,
     validate_value_records,
     validate_working_capital,
@@ -259,6 +260,43 @@ def validate_reaction_system(reaction_system: ReactionSystem) -> list[Validation
                 artifact_ref="reaction_system",
             )
         )
+    if reaction_system.reaction_extent_set is None:
+        issues.append(
+            ValidationIssue(
+                code="missing_reaction_extent_set",
+                severity=Severity.BLOCKED,
+                message="Reaction-system extent set is missing.",
+                artifact_ref="reaction_system",
+            )
+        )
+    if reaction_system.byproduct_closure is None:
+        issues.append(
+            ValidationIssue(
+                code="missing_byproduct_closure",
+                severity=Severity.BLOCKED,
+                message="Reaction-system byproduct closure is missing.",
+                artifact_ref="reaction_system",
+            )
+        )
+        return issues
+    if reaction_system.byproduct_closure.closure_status == "blocked" or reaction_system.byproduct_closure.blocking:
+        issues.append(
+            ValidationIssue(
+                code="blocked_byproduct_closure",
+                severity=Severity.BLOCKED,
+                message="Byproduct closure remains blocked: " + ", ".join(reaction_system.byproduct_closure.unresolved_byproducts or ["unspecified side reactions"]) + ".",
+                artifact_ref="reaction_system",
+            )
+        )
+    if reaction_system.reaction_extent_set and reaction_system.reaction_extent_set.unallocated_selectivity_fraction > 1e-4:
+        issues.append(
+            ValidationIssue(
+                code="reaction_extent_unallocated_fraction",
+                severity=Severity.BLOCKED,
+                message=f"Reaction extent set leaves {reaction_system.reaction_extent_set.unallocated_selectivity_fraction:.6f} of converted feed unallocated.",
+                artifact_ref="reaction_system",
+            )
+        )
     return issues
 
 
@@ -298,13 +336,14 @@ class PipelineRunner:
             state.run_status = RunStatus.RUNNING
             self.store.save_run_state(state)
             result = getattr(self, f"_run_{stage.id}")()
-            if result.issues:
+            blocking_issues = [issue for issue in result.issues if issue.severity == Severity.BLOCKED]
+            if blocking_issues:
                 state.run_status = RunStatus.BLOCKED
                 state.blocked_stage_id = stage.id
-                apply_state_issues(state, result.issues, result.missing_india_coverage, result.stale_source_groups)
+                apply_state_issues(state, blocking_issues, result.missing_india_coverage, result.stale_source_groups)
                 for chapter in result.chapters:
                     chapter.status = ChapterStatus.BLOCKED
-                    chapter.blockers.extend(result.issues)
+                    chapter.blockers.extend(blocking_issues)
                     self.store.save_chapter(self.config.project_id, chapter)
                     state.chapter_index[chapter.chapter_id] = chapter.status
                 self.store.save_run_state(state)
@@ -410,6 +449,8 @@ class PipelineRunner:
         kinetics_method = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_method_decision.json", MethodSelectionArtifact)
         layout_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/layout_decision.json", LayoutDecisionArtifact)
         heat_study = self.store.maybe_load_model(self.config.project_id, "artifacts/heat_integration_study.json", HeatIntegrationStudyArtifact)
+        reaction_system = self.store.maybe_load_model(self.config.project_id, "artifacts/reaction_system.json", ReactionSystem)
+        stream_table = self.store.maybe_load_model(self.config.project_id, "artifacts/stream_table.json", StreamTable)
         flowsheet_case = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_case.json", FlowsheetCase)
         solve_result = self.store.maybe_load_model(self.config.project_id, "artifacts/solve_result.json", SolveResult)
         utility_architecture = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_architecture.json", UtilityArchitectureDecision)
@@ -462,6 +503,19 @@ class PipelineRunner:
                 lines.append(f"- thermo: {thermo_method.decision.selected_candidate_id or 'n/a'}")
             if kinetics_method:
                 lines.append(f"- kinetics: {kinetics_method.decision.selected_candidate_id or 'n/a'}")
+        if reaction_system and (reaction_system.byproduct_closure or reaction_system.reaction_extent_set):
+            lines.append("")
+            lines.append("reaction_network:")
+            if reaction_system.byproduct_closure:
+                lines.append(
+                    f"- byproduct_closure: status={reaction_system.byproduct_closure.closure_status}; blocking={'yes' if reaction_system.byproduct_closure.blocking else 'no'}; estimates={len(reaction_system.byproduct_closure.estimates)}"
+                )
+                if reaction_system.byproduct_closure.unresolved_byproducts:
+                    lines.append(f"- unresolved_byproducts: {', '.join(reaction_system.byproduct_closure.unresolved_byproducts[:6])}")
+            if reaction_system.reaction_extent_set:
+                lines.append(
+                    f"- extents: {len(reaction_system.reaction_extent_set.extents)}; unallocated_fraction={reaction_system.reaction_extent_set.unallocated_selectivity_fraction:.6f}; status={reaction_system.reaction_extent_set.closure_status}"
+                )
         if process_synthesis and process_synthesis.alternative_sets:
             lines.append("")
             lines.append("alternative_sets:")
@@ -480,6 +534,10 @@ class PipelineRunner:
         if flowsheet_case or solve_result:
             lines.append("")
             lines.append("flowsheet_solver:")
+            if stream_table:
+                lines.append(
+                    f"- composition_states: {len(stream_table.composition_states)}; composition_closures: {len(stream_table.composition_closures)}; phase_split_specs: {len(stream_table.phase_split_specs)}; separator_performances: {len(stream_table.separator_performances)}; convergence_summaries: {len(stream_table.convergence_summaries)}"
+                )
             if flowsheet_case:
                 lines.append(
                     f"- units: {len(flowsheet_case.units)}; streams: {len(flowsheet_case.streams)}; separations: {len(flowsheet_case.separations)}; recycle_loops: {len(flowsheet_case.recycle_loops)}"
@@ -488,6 +546,35 @@ class PipelineRunner:
                 lines.append(
                     f"- convergence: {solve_result.convergence_status}; closure_error_pct: {solve_result.overall_closure_error_pct:.3f}; critic_messages: {len(solve_result.critic_messages)}"
                 )
+                blocked_units = [unit_id for unit_id, status in solve_result.unitwise_status.items() if status == "blocked"]
+                estimated_units = [unit_id for unit_id, status in solve_result.unitwise_status.items() if status == "estimated"]
+                partial_coverage_units = [
+                    unit_id for unit_id, status in solve_result.unitwise_coverage_status.items() if status == "partial"
+                ]
+                if blocked_units:
+                    lines.append(f"- blocked_units: {', '.join(blocked_units[:6])}")
+                if estimated_units:
+                    lines.append(f"- estimated_units: {', '.join(estimated_units[:6])}")
+                if partial_coverage_units:
+                    lines.append(f"- partial_coverage_units: {', '.join(partial_coverage_units[:6])}")
+                if solve_result.unitwise_blockers:
+                    for unit_id, blockers in list(solve_result.unitwise_blockers.items())[:5]:
+                        lines.append(f"- unit_blocker[{unit_id}]: {'; '.join(blockers[:2])}")
+                if solve_result.unitwise_unresolved_sensitivities:
+                    for unit_id, sensitivities in list(solve_result.unitwise_unresolved_sensitivities.items())[:5]:
+                        lines.append(f"- unit_unresolved[{unit_id}]: {', '.join(sensitivities[:3])}")
+                if solve_result.composition_status:
+                    blocked_comp = [unit_id for unit_id, status in solve_result.composition_status.items() if status == "blocked"]
+                    estimated_comp = [unit_id for unit_id, status in solve_result.composition_status.items() if status == "estimated"]
+                    if blocked_comp:
+                        lines.append(f"- blocked_composition_units: {', '.join(blocked_comp[:6])}")
+                    if estimated_comp:
+                        lines.append(f"- estimated_composition_units: {', '.join(estimated_comp[:6])}")
+                if solve_result.convergence_summaries:
+                    for summary in solve_result.convergence_summaries[:5]:
+                        lines.append(
+                            f"- recycle_summary[{summary.loop_id}]: status={summary.convergence_status}; max_error={summary.max_component_error_pct:.3f}%; purge_families={', '.join(sorted(summary.purge_policy_by_family)) or 'none'}"
+                        )
         if heat_study:
             lines.append("")
             lines.append("heat_integration:")
@@ -502,6 +589,7 @@ class PipelineRunner:
             lines.append(f"- topology: {utility_architecture.architecture.topology_summary}")
             lines.append(f"- selected_case: {utility_architecture.architecture.selected_case_id or 'n/a'}")
             lines.append(f"- train_steps: {len(utility_architecture.architecture.selected_train_steps)}")
+            lines.append(f"- package_items: {len(utility_architecture.architecture.selected_package_items)}")
         if layout_decision:
             lines.append("")
             lines.append("layout:")
@@ -1115,7 +1203,40 @@ class PipelineRunner:
                         f"{stream.pressure_bar:.2f}",
                     ]
                 )
-        markdown = markdown_table(["Stream", "Description", "From", "To", "Component", "kg/h", "kmol/h", "T (C)", "P (bar)"], stream_rows)
+        reaction_rows = []
+        if reaction_system.reaction_extent_set:
+            reaction_rows.extend(
+                [
+                    extent.extent_id,
+                    extent.kind,
+                    extent.representative_component or "-",
+                    f"{extent.extent_fraction_of_converted_feed:.6f}",
+                    extent.status,
+                ]
+                for extent in reaction_system.reaction_extent_set.extents
+            )
+        byproduct_rows = []
+        if reaction_system.byproduct_closure:
+            byproduct_rows.extend(
+                [
+                    estimate.component_name,
+                    estimate.basis,
+                    f"{estimate.allocation_fraction:.6f}",
+                    estimate.provenance,
+                    estimate.status,
+                ]
+                for estimate in reaction_system.byproduct_closure.estimates
+            )
+        markdown = "\n\n".join(
+            [
+                "### Reaction Extent Allocation\n\n"
+                + markdown_table(["Extent", "Kind", "Representative Component", "Fraction of Converted Feed", "Status"], reaction_rows or [["n/a", "n/a", "n/a", "0.0", "n/a"]]),
+                "### Byproduct Closure\n\n"
+                + markdown_table(["Component", "Basis", "Allocation Fraction", "Provenance", "Status"], byproduct_rows or [["n/a", "n/a", "0.0", "n/a", "n/a"]]),
+                "### Stream Table\n\n"
+                + markdown_table(["Stream", "Description", "From", "To", "Component", "kg/h", "kmol/h", "T (C)", "P (bar)"], stream_rows),
+            ]
+        )
         chapter = self._chapter(
             "material_balance",
             "Material Balance",
@@ -1214,6 +1335,9 @@ class PipelineRunner:
                 ["Utility topology", reactor.utility_topology or "standalone utilities"],
                 ["Integrated thermal duty (kW)", f"{reactor.integrated_thermal_duty_kw:.3f}"],
                 ["Residual utility duty (kW)", f"{reactor.residual_utility_duty_kw:.3f}"],
+                ["Integrated LMTD (K)", f"{reactor.integrated_lmtd_k:.3f}"],
+                ["Integrated exchange area (m2)", f"{reactor.integrated_exchange_area_m2:.3f}"],
+                ["Coupled service basis", reactor.coupled_service_basis or "none"],
                 ["Selected train steps", ", ".join(reactor.selected_train_step_ids) or "none"],
             ],
         )
@@ -1277,7 +1401,13 @@ class PipelineRunner:
                     ["Utility topology", column.utility_topology or "standalone utilities"],
                     ["Integrated reboiler duty (kW)", f"{column.integrated_reboiler_duty_kw:.3f}"],
                     ["Residual reboiler utility (kW)", f"{column.residual_reboiler_utility_kw:.3f}"],
+                    ["Integrated reboiler LMTD (K)", f"{column.integrated_reboiler_lmtd_k:.3f}"],
+                    ["Integrated reboiler area (m2)", f"{column.integrated_reboiler_area_m2:.3f}"],
+                    ["Reboiler medium", column.reboiler_medium or "none"],
                     ["Condenser recovery duty (kW)", f"{column.condenser_recovery_duty_kw:.3f}"],
+                    ["Condenser recovery LMTD (K)", f"{column.condenser_recovery_lmtd_k:.3f}"],
+                    ["Condenser recovery area (m2)", f"{column.condenser_recovery_area_m2:.3f}"],
+                    ["Condenser recovery medium", column.condenser_recovery_medium or "none"],
                     ["Selected train steps", ", ".join(column.selected_train_step_ids) or "none"],
                 ],
             )
@@ -1291,6 +1421,10 @@ class PipelineRunner:
                     ["Overall U (W/m2-K)", f"{exchanger.overall_u_w_m2_k:.1f}"],
                     ["Area (m2)", f"{exchanger.area_m2:.3f}"],
                     ["Exchanger type", exchanger.exchanger_type],
+                    ["Package family", exchanger.package_family or "generic"],
+                    ["Circulation flow (m3/h)", f"{exchanger.circulation_flow_m3_hr:.3f}"],
+                    ["Phase-change load (kg/h)", f"{exchanger.phase_change_load_kg_hr:.3f}"],
+                    ["Package holdup (m3)", f"{exchanger.package_holdup_m3:.3f}"],
                     ["Shell diameter (m)", f"{exchanger.shell_diameter_m:.3f}"],
                     ["Tube count", str(exchanger.tube_count)],
                     ["Tube length (m)", f"{exchanger.tube_length_m:.3f}"],
@@ -1298,6 +1432,7 @@ class PipelineRunner:
                     ["Tube passes", str(exchanger.tube_passes)],
                     ["Utility topology", exchanger.utility_topology or "standalone utilities"],
                     ["Selected train step", exchanger.selected_train_step_id or "none"],
+                    ["Selected package items", ", ".join(exchanger.selected_package_item_ids) or "none"],
                 ],
             )
         )
@@ -1334,18 +1469,24 @@ class PipelineRunner:
         exchanger = self._load("heat_exchanger_design", HeatExchangerDesign)
         reactor_choice = self._load("reactor_choice_decision", DecisionRecord)
         separation_choice = self._load("separation_choice_decision", DecisionRecord)
+        energy = self._load("energy_balance", EnergyBalance)
         utility_network = self._selected_utility_network()
+        utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(utility_network, energy)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         storage_choice = select_storage_configuration(self.config.basis, archetype)
         moc_choice = select_moc_configuration(route, archetype)
         storage = build_storage_design(self.config.basis, density_kg_m3, product_profile.citations, product_profile.assumptions, storage_choice)
         pump_design = build_pump_design(storage)
         self._save("storage_design", storage)
-        energy = self._load("energy_balance", EnergyBalance)
-        equipment_items = build_equipment_list(route, reactor, column, exchanger, storage, energy, moc_choice)
-        artifact = EquipmentListArtifact(items=equipment_items, citations=sorted(set(reactor.citations + column.citations + exchanger.citations + storage.citations)), assumptions=reactor.assumptions + column.assumptions + exchanger.assumptions + storage.assumptions)
+        equipment_items = build_equipment_list(route, reactor, column, exchanger, storage, energy, moc_choice, utility_architecture)
+        artifact = EquipmentListArtifact(
+            items=equipment_items,
+            citations=sorted(set(reactor.citations + column.citations + exchanger.citations + storage.citations + utility_architecture.citations)),
+            assumptions=reactor.assumptions + column.assumptions + exchanger.assumptions + storage.assumptions + utility_architecture.assumptions,
+        )
         datasheets = build_equipment_datasheets(artifact, reactor, column, exchanger, storage)
         self._save("equipment_list", artifact)
+        self._save("utility_architecture", utility_architecture)
         self._save("pump_design", pump_design)
         self._save(
             "equipment_datasheets",
@@ -1425,7 +1566,23 @@ class PipelineRunner:
             "mechanical_design_moc",
             "Mechanical Design and MoC",
             "mechanical_design_moc",
-            artifact.markdown,
+            artifact.markdown
+            + "\n\n"
+            + markdown_table(
+                ["Equipment", "Support Load (kN)", "Anchor Bolt (mm)", "Base Plate (mm)", "Thermal Growth (mm)"],
+                [
+                    [
+                        item.equipment_id,
+                        f"{item.support_design.support_load_basis_kn:.3f}",
+                        f"{item.support_design.anchor_bolt_diameter_mm:.3f}",
+                        f"{item.support_design.base_plate_thickness_mm:.3f}",
+                        f"{item.support_design.thermal_growth_mm:.3f}",
+                    ]
+                    for item in vessel_designs
+                    if item.support_design is not None
+                ]
+                or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+            ),
             artifact.citations or equipment.citations,
             artifact.assumptions + ["Mechanical chapter now uses deterministic screening calculations for shell thickness, nozzles, and supports."],
             ["mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs"],
@@ -1519,6 +1676,7 @@ class PipelineRunner:
         )
         issues = (
             validate_decision_record(utility_basis_decision, "utility_basis_decision")
+            + validate_utility_architecture(utility_architecture)
             + self._value_issues(utility_basis, "utility_basis")
             + self._value_issues(artifact, "utility_summary")
             + self._chapter_issues(chapter)
@@ -1998,6 +2156,7 @@ class PipelineRunner:
             benchmark_manifest,
             resolved_sources,
             product_profile,
+            reaction_system,
             property_gap,
             resolved_values,
             process_archetype,

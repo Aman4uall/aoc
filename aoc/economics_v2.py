@@ -15,7 +15,6 @@ from aoc.models import (
     FinancialModel,
     FinancialSchedule,
     FinancialScheduleLine,
-    HeatExchangerTrainStep,
     IndianPriceDatum,
     MarketAssessmentArtifact,
     PlantCostSummary,
@@ -78,47 +77,44 @@ def _utility_train_cost_items(
     citations: list[str],
     assumptions: list[str],
 ) -> tuple[list[EquipmentCostItem], float]:
-    if utility_architecture is None or not utility_architecture.architecture.selected_train_steps:
+    if utility_architecture is None or not utility_architecture.architecture.selected_package_items:
         return [], 0.0
     items: list[EquipmentCostItem] = []
     installed_total = 0.0
-    for step in utility_architecture.architecture.selected_train_steps:
-        direct = step.medium.lower() == "direct"
-        base_cost = (2_500_000.0 if direct else 4_500_000.0) + step.recovered_duty_kw * (2600.0 if direct else 3400.0)
-        installed_cost = base_cost * (2.10 if direct else 2.45)
+    for package_item in utility_architecture.architecture.selected_package_items:
+        role = package_item.package_role
+        if role == "exchanger":
+            base_cost = max(2_250_000.0, package_item.duty_kw * 3150.0)
+            install_factor = 2.20 if "htm" in package_item.equipment_type.lower() else 2.05
+        elif role == "circulation":
+            base_cost = 1_600_000.0 + package_item.power_kw * 185000.0
+            install_factor = 1.85
+        elif role == "expansion":
+            base_cost = 1_250_000.0 + package_item.volume_m3 * 780000.0
+            install_factor = 2.00
+        elif role == "relief":
+            base_cost = 950_000.0 + package_item.volume_m3 * 620000.0
+            install_factor = 1.75
+        else:
+            base_cost = 650_000.0 + max(package_item.design_pressure_bar, 1.0) * 85000.0
+            install_factor = 1.60
+        installed_cost = base_cost * install_factor
         installed_total += installed_cost
         items.append(
             EquipmentCostItem(
-                equipment_id=step.exchanger_id,
-                equipment_type="Heat integration exchanger" if direct else "HTM loop exchanger",
-                service=step.service,
-                basis=f"{step.topology}; medium={step.medium}; recovered duty={step.recovered_duty_kw:.3f} kW",
+                equipment_id=package_item.equipment_id,
+                equipment_type=package_item.equipment_type,
+                service=package_item.service,
+                basis=(
+                    f"role={package_item.package_role}; duty={package_item.duty_kw:.3f} kW; "
+                    f"power={package_item.power_kw:.3f} kW; volume={package_item.volume_m3:.3f} m3"
+                ),
                 bare_cost_inr=round(base_cost, 2),
                 installed_cost_inr=round(installed_cost, 2),
                 spares_cost_inr=round(base_cost * 0.02, 2),
-                notes="Utility-train equipment item derived from the selected packet-level exchanger train.",
-                citations=sorted(set(citations + step.citations)),
-                assumptions=sorted(set(assumptions + step.assumptions)),
-            )
-        )
-    indirect_steps = [step for step in utility_architecture.architecture.selected_train_steps if step.medium.lower() != "direct"]
-    if indirect_steps:
-        total_htm_duty = sum(step.recovered_duty_kw for step in indirect_steps)
-        package_bare_cost = 8_000_000.0 + total_htm_duty * 550.0
-        package_installed = package_bare_cost * 2.20
-        installed_total += package_installed
-        items.append(
-            EquipmentCostItem(
-                equipment_id="UTL-HTM-PKG",
-                equipment_type="HTM loop package",
-                service="Hot-transfer-medium circulation and expansion package",
-                basis=f"{len(indirect_steps)} indirect train steps; total HTM duty={total_htm_duty:.3f} kW",
-                bare_cost_inr=round(package_bare_cost, 2),
-                installed_cost_inr=round(package_installed, 2),
-                spares_cost_inr=round(package_bare_cost * 0.025, 2),
-                notes="Added when the selected utility train uses HTM-mediated recovery.",
-                citations=citations,
-                assumptions=assumptions,
+                notes="Utility-train package cost item derived from the selected package inventory.",
+                citations=sorted(set(citations + package_item.citations)),
+                assumptions=sorted(set(assumptions + package_item.assumptions)),
             )
         )
     return items, round(installed_total, 2)
@@ -176,7 +172,13 @@ def build_cost_model_v2(
         ]
     purchase_cost = 0.0
     equipment_cost_items: list[EquipmentCostItem] = []
+    utility_package_ids = {
+        package_item.equipment_id
+        for package_item in (utility_architecture.architecture.selected_package_items if utility_architecture is not None else [])
+    }
     for item in equipment:
+        if item.equipment_id in utility_package_ids:
+            continue
         equipment_factor = {
             "reactor": 700000.0,
             "process unit": 280000.0,
@@ -187,6 +189,10 @@ def build_cost_model_v2(
             "flash drum": 190000.0,
             "heat exchanger": 420000.0,
             "storage tank": 120000.0,
+            "htm circulation skid": 280000.0,
+            "htm expansion tank": 160000.0,
+            "htm relief package": 140000.0,
+            "utility control package": 90000.0,
         }.get(item.equipment_type.lower(), 220000.0)
         bare_cost = max(2_500_000.0, item.volume_m3 * equipment_factor + item.duty_kw * 1800.0)
         installed_item_cost = bare_cost * (2.00 if "storage" in item.equipment_type.lower() else 2.25)

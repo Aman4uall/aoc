@@ -36,6 +36,7 @@ from aoc.models import (
     PropertyGapArtifact,
     ProductProfileArtifact,
     ReactorDesignBasis,
+    ReactionSystem,
     ProjectBasis,
     ResolvedSourceSet,
     ResolvedValueArtifact,
@@ -158,6 +159,7 @@ def annexures_markdown(
     benchmark_manifest: BenchmarkManifest | None,
     resolved_sources: ResolvedSourceSet | None,
     product_profile: ProductProfileArtifact,
+    reaction_system: ReactionSystem | None,
     property_gap: PropertyGapArtifact | None,
     resolved_values: ResolvedValueArtifact | None,
     process_archetype: ProcessArchetype | None,
@@ -205,6 +207,26 @@ def annexures_markdown(
         [item.name, item.value, item.units, item.method.value, ", ".join(item.supporting_sources or item.citations)]
         for item in product_profile.properties
     ]
+    reaction_extent_rows = [
+        [
+            extent.extent_id,
+            extent.kind,
+            extent.representative_component or "-",
+            f"{extent.extent_fraction_of_converted_feed:.6f}",
+            extent.status,
+        ]
+        for extent in (reaction_system.reaction_extent_set.extents if reaction_system and reaction_system.reaction_extent_set else [])
+    ]
+    byproduct_closure_rows = [
+        [
+            estimate.component_name,
+            estimate.basis,
+            f"{estimate.allocation_fraction:.6f}",
+            estimate.provenance,
+            estimate.status,
+        ]
+        for estimate in (reaction_system.byproduct_closure.estimates if reaction_system and reaction_system.byproduct_closure else [])
+    ]
     stream_rows: list[list[str]] = []
     for stream in stream_table.streams:
         for component in stream.components:
@@ -215,7 +237,18 @@ def annexures_markdown(
     ]
     utility_rows = [[item.utility_type, f"{item.load:.3f}", item.units, item.basis] for item in utility_summary.items]
     mechanical_rows = [
-        [item.equipment_id, item.equipment_type, f"{item.shell_thickness_mm:.2f}", f"{item.head_thickness_mm:.2f}", f"{item.nozzle_diameter_mm:.1f}", item.support_type, f"{item.support_thickness_mm:.2f}"]
+        [
+            item.equipment_id,
+            item.equipment_type,
+            f"{item.shell_thickness_mm:.2f}",
+            f"{item.head_thickness_mm:.2f}",
+            f"{item.nozzle_diameter_mm:.1f}",
+            item.support_type,
+            f"{item.support_thickness_mm:.2f}",
+            f"{item.operating_load_kn:.2f}",
+            f"{item.thermal_growth_mm:.2f}",
+            f"{item.nozzle_reinforcement_area_mm2:.1f}",
+        ]
         for item in (mechanical_design.items if mechanical_design else [])
     ]
     value_rows = [
@@ -286,12 +319,85 @@ def annexures_markdown(
         for node in (flowsheet_graph.nodes if flowsheet_graph else [])
     ]
     flowsheet_case_rows = [
-        [unit.unit_id, unit.unit_type, ", ".join(unit.upstream_stream_ids) or "-", ", ".join(unit.downstream_stream_ids) or "-", unit.closure_status]
+        [
+            unit.unit_id,
+            unit.unit_type,
+            ", ".join(unit.upstream_stream_ids) or "-",
+            ", ".join(unit.downstream_stream_ids) or "-",
+            unit.closure_status,
+            unit.coverage_status,
+            ", ".join(unit.unresolved_sensitivities[:3]) or "-",
+        ]
         for unit in (flowsheet_case.units if flowsheet_case else [])
     ]
+    composition_state_rows = [
+        [
+            state.unit_id,
+            state.unit_type,
+            state.dominant_inlet_phase or "-",
+            state.dominant_outlet_phase or "-",
+            ", ".join(name for name, _ in sorted(state.outlet_component_mole_fraction.items(), key=lambda item: item[1], reverse=True)[:3]) or "-",
+            state.status,
+        ]
+        for state in (stream_table.composition_states if stream_table else [])
+    ]
+    composition_closure_rows = [
+        [
+            closure.unit_id,
+            "yes" if closure.reactive else "no",
+            f"{closure.inlet_fraction_sum:.6f}",
+            f"{closure.outlet_fraction_sum:.6f}",
+            f"{closure.composition_error_pct:.6f}",
+            closure.closure_status,
+        ]
+        for closure in (stream_table.composition_closures if stream_table else [])
+    ]
     solve_rows = [
-        [unit_id, f"{closure:.6f}"]
+        [
+            unit_id,
+            f"{closure:.6f}",
+            solve_result.unitwise_status.get(unit_id, "estimated"),
+            solve_result.unitwise_coverage_status.get(unit_id, "partial"),
+            ", ".join(solve_result.unitwise_unresolved_sensitivities.get(unit_id, [])[:3]) or "-",
+        ]
         for unit_id, closure in (solve_result.unitwise_closure.items() if solve_result else {})
+    ]
+    phase_split_rows = [
+        [
+            spec.unit_id,
+            spec.separation_family,
+            spec.mechanism,
+            ", ".join(spec.inlet_phases) or "-",
+            spec.product_phase_target or "-",
+            spec.waste_phase_target or "-",
+            spec.recycle_phase_target or "-",
+            spec.phase_split_status,
+        ]
+        for spec in (stream_table.phase_split_specs if stream_table else [])
+    ]
+    separator_performance_rows = [
+        [
+            perf.unit_id,
+            perf.separation_family,
+            perf.performance_status,
+            f"{perf.product_mass_fraction:.6f}",
+            f"{perf.waste_mass_fraction:.6f}",
+            f"{perf.recycle_mass_fraction:.6f}",
+            f"{perf.split_closure_pct:.6f}",
+        ]
+        for perf in (stream_table.separator_performances if stream_table else [])
+    ]
+    recycle_convergence_rows = [
+        [
+            summary.loop_id,
+            summary.recycle_source_unit_id or "-",
+            summary.convergence_status,
+            f"{summary.max_component_error_pct:.6f}",
+            f"{summary.mean_component_error_pct:.6f}",
+            str(summary.max_iterations),
+            ", ".join(f"{family}={value:.3f}" for family, value in sorted(summary.purge_policy_by_family.items())) or "-",
+        ]
+        for summary in (stream_table.convergence_summaries if stream_table else [])
     ]
     benchmark_rows = []
     if benchmark_manifest:
@@ -395,6 +501,26 @@ def annexures_markdown(
         ]
         for step in (utility_architecture.architecture.selected_train_steps if utility_architecture else [])
     ]
+    utility_package_rows = [
+        [
+            item.parent_step_id,
+            item.equipment_id,
+            item.package_role,
+            item.package_family,
+            item.equipment_type,
+            item.service,
+            f"{item.design_temperature_c:.1f}",
+            f"{item.design_pressure_bar:.2f}",
+            f"{item.volume_m3:.3f}",
+            f"{item.duty_kw:.3f}",
+            f"{item.power_kw:.3f}",
+            f"{item.flow_m3_hr:.3f}",
+            f"{item.lmtd_k:.3f}",
+            f"{item.heat_transfer_area_m2:.3f}",
+            f"{item.phase_change_load_kg_hr:.3f}",
+        ]
+        for item in (utility_architecture.architecture.selected_package_items if utility_architecture else [])
+    ]
     agent_packet_rows = [
         [
             packet.packet_id,
@@ -489,6 +615,12 @@ def annexures_markdown(
         "### Property Estimate Register",
         markdown_table(["Property", "Selected Method", "Candidate Methods", "Selected Source", "Sensitivity", "Blocking"], property_estimate_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
+        "### Reaction Extent Set",
+        markdown_table(["Extent", "Kind", "Representative Component", "Fraction of Converted Feed", "Status"], reaction_extent_rows or [["n/a", "n/a", "n/a", "0.0", "n/a"]]),
+        "",
+        "### Byproduct Closure Register",
+        markdown_table(["Component", "Basis", "Allocation Fraction", "Provenance", "Status"], byproduct_closure_rows or [["n/a", "n/a", "0.0", "n/a", "n/a"]]),
+        "",
         "### Process Archetype",
         markdown_table(["Field", "Value"], archetype_rows or [["n/a", "n/a"]]),
         "",
@@ -505,16 +637,52 @@ def annexures_markdown(
         markdown_table(["Node", "Unit Type", "Upstream", "Downstream", "Representative Streams"], flowsheet_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Flowsheet Case",
-        markdown_table(["Unit", "Type", "Inlet Streams", "Outlet Streams", "Closure Status"], flowsheet_case_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(
+            ["Unit", "Type", "Inlet Streams", "Outlet Streams", "Closure Status", "Coverage", "Unresolved Sensitivities"],
+            flowsheet_case_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        "### Unit Composition States",
+        markdown_table(
+            ["Unit", "Type", "Inlet Phase", "Outlet Phase", "Top Outlet Components", "Status"],
+            composition_state_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        "### Composition Closures",
+        markdown_table(
+            ["Unit", "Reactive", "Inlet Fraction Sum", "Outlet Fraction Sum", "Composition Error (%)", "Status"],
+            composition_closure_rows or [["n/a", "n/a", "0", "0", "0", "n/a"]],
+        ),
         "",
         "### Solve Result",
-        markdown_table(["Unit", "Closure Error (%)"], solve_rows or [["n/a", "n/a"]]),
+        markdown_table(
+            ["Unit", "Closure Error (%)", "Solve Status", "Coverage", "Unresolved Sensitivities"],
+            solve_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        "### Phase Split Specs",
+        markdown_table(
+            ["Unit", "Family", "Mechanism", "Inlet Phases", "Product Phase", "Waste Phase", "Recycle Phase", "Status"],
+            phase_split_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        "### Separator Performance",
+        markdown_table(
+            ["Unit", "Family", "Status", "Product Mass Frac", "Waste Mass Frac", "Recycle Mass Frac", "Split Closure (%)"],
+            separator_performance_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        "### Recycle Convergence Summaries",
+        markdown_table(
+            ["Loop", "Source Unit", "Status", "Max Component Error (%)", "Mean Component Error (%)", "Max Iterations", "Purge Policy"],
+            recycle_convergence_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "-"]],
+        ),
         "",
         "### Equipment Table",
         markdown_table(["ID", "Type", "Service", "Volume (m3)", "Design Temp (C)", "Design Pressure (bar)", "MoC"], equipment_rows),
         "",
         "### Mechanical Design Table",
-        markdown_table(["Equipment", "Type", "Shell t (mm)", "Head t (mm)", "Nozzle (mm)", "Support", "Support t (mm)"], mechanical_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Equipment", "Type", "Shell t (mm)", "Head t (mm)", "Nozzle (mm)", "Support", "Support t (mm)", "Load (kN)", "Thermal Growth (mm)", "Reinforcement (mm2)"], mechanical_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Utility Table",
         markdown_table(["Utility", "Load", "Units", "Basis"], utility_rows),
@@ -565,6 +733,9 @@ def annexures_markdown(
         "",
         "### Selected Utility Train",
         markdown_table(["Exchanger", "Topology", "Service", "Hot Unit", "Cold Unit", "Recovered Duty (kW)", "Medium"], utility_train_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Utility Train Packages",
+        markdown_table(["Step", "Equipment", "Role", "Family", "Type", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "Duty (kW)", "Power (kW)", "Flow (m3/h)", "LMTD (K)", "Area (m2)", "Phase Load (kg/h)"], utility_package_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         _decision_markdown("Operating Mode Decision", process_synthesis.operating_mode_decision if process_synthesis else None),
         "",

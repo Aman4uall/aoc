@@ -38,6 +38,7 @@ from aoc.models import (
     StreamTable,
     ThermoAssessmentArtifact,
     UtilitySummaryArtifact,
+    UtilityArchitectureDecision,
     UtilityNetworkDecision,
     ValidationIssue,
     WorkingCapitalModel,
@@ -284,21 +285,156 @@ def validate_route_balance(route) -> list[ValidationIssue]:
 
 
 def validate_stream_table(stream_table: StreamTable, tolerance_pct: float = 2.0) -> list[ValidationIssue]:
-    if stream_table.closure_error_pct <= tolerance_pct:
-        return []
-    return [
-        ValidationIssue(
-            code="stream_closure",
-            severity=Severity.BLOCKED,
-            message=f"Stream table closure error {stream_table.closure_error_pct:.3f}% exceeds tolerance {tolerance_pct:.3f}%.",
-            artifact_ref="stream_table",
+    issues: list[ValidationIssue] = []
+    if stream_table.closure_error_pct > tolerance_pct:
+        issues.append(
+            ValidationIssue(
+                code="stream_closure",
+                severity=Severity.BLOCKED,
+                message=f"Stream table closure error {stream_table.closure_error_pct:.3f}% exceeds tolerance {tolerance_pct:.3f}%.",
+                artifact_ref="stream_table",
+            )
         )
-    ]
+    if stream_table.unit_operation_packets and not stream_table.composition_states:
+        issues.append(
+            ValidationIssue(
+                code="missing_composition_states",
+                severity=Severity.BLOCKED,
+                message="Stream table exposes unit packets but no unitwise composition states.",
+                artifact_ref="stream_table",
+            )
+        )
+    if stream_table.unit_operation_packets and not stream_table.composition_closures:
+        issues.append(
+            ValidationIssue(
+                code="missing_composition_closures",
+                severity=Severity.BLOCKED,
+                message="Stream table exposes unit packets but no composition-closure summaries.",
+                artifact_ref="stream_table",
+            )
+        )
+    if stream_table.separation_packets and not stream_table.phase_split_specs:
+        issues.append(
+            ValidationIssue(
+                code="missing_phase_split_specs",
+                severity=Severity.BLOCKED,
+                message="Stream table exposes separator packets but no phase-split specs.",
+                artifact_ref="stream_table",
+            )
+        )
+    if stream_table.separation_packets and not stream_table.separator_performances:
+        issues.append(
+            ValidationIssue(
+                code="missing_separator_performances",
+                severity=Severity.BLOCKED,
+                message="Stream table exposes separator packets but no separator performance records.",
+                artifact_ref="stream_table",
+            )
+        )
+    if stream_table.recycle_packets and not stream_table.convergence_summaries:
+        issues.append(
+            ValidationIssue(
+                code="missing_convergence_summaries",
+                severity=Severity.BLOCKED,
+                message="Stream table exposes recycle packets but no recycle convergence summaries.",
+                artifact_ref="stream_table",
+            )
+        )
+    for spec in stream_table.phase_split_specs:
+        if spec.phase_split_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="phase_split_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Separator '{spec.unit_id}' has a blocked phase-split spec.",
+                    artifact_ref="stream_table",
+                )
+            )
+        elif spec.phase_split_status == "partial":
+            issues.append(
+                ValidationIssue(
+                    code="phase_split_partial",
+                    severity=Severity.WARNING,
+                    message=f"Separator '{spec.unit_id}' retains partial phase-split coverage.",
+                    artifact_ref="stream_table",
+                )
+            )
+    for performance in stream_table.separator_performances:
+        if performance.performance_status == "blocked" or performance.split_closure_pct > 25.0:
+            issues.append(
+                ValidationIssue(
+                    code="separator_performance_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Separator '{performance.unit_id}' has blocked performance with split closure {performance.split_closure_pct:.3f}%.",
+                    artifact_ref="stream_table",
+                )
+            )
+        elif performance.performance_status == "estimated":
+            issues.append(
+                ValidationIssue(
+                    code="separator_performance_estimated",
+                    severity=Severity.WARNING,
+                    message=f"Separator '{performance.unit_id}' remains estimated with split closure {performance.split_closure_pct:.3f}%.",
+                    artifact_ref="stream_table",
+                )
+            )
+    for summary in stream_table.convergence_summaries:
+        if not summary.purge_policy_by_family:
+            issues.append(
+                ValidationIssue(
+                    code="convergence_summary_missing_purge_policy",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{summary.loop_id}' has no explicit purge policy by impurity family.",
+                    artifact_ref="stream_table",
+                )
+            )
+        if summary.convergence_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="convergence_summary_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{summary.loop_id}' has a blocked convergence summary.",
+                    artifact_ref="stream_table",
+                )
+            )
+    for state in stream_table.composition_states:
+        if state.status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="composition_state_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{state.unit_id}' has blocked composition propagation state.",
+                    artifact_ref="stream_table",
+                )
+            )
+    for closure in stream_table.composition_closures:
+        if closure.closure_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="composition_closure_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{closure.unit_id}' has blocked composition closure.",
+                    artifact_ref="stream_table",
+                )
+            )
+        elif closure.closure_status == "estimated":
+            issues.append(
+                ValidationIssue(
+                    code="composition_closure_estimated",
+                    severity=Severity.WARNING,
+                    message=f"Unit '{closure.unit_id}' retains estimated composition closure.",
+                    artifact_ref="stream_table",
+                )
+            )
+    return issues
 
 
 def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     stream_ids = {stream.stream_id for stream in flowsheet_case.streams}
+    summary_index = {summary.loop_id: summary for summary in flowsheet_case.convergence_summaries}
+    composition_state_index = {state.unit_id: state for state in flowsheet_case.composition_states}
+    composition_closure_index = {closure.unit_id: closure for closure in flowsheet_case.composition_closures}
     if not flowsheet_case.units:
         issues.append(
             ValidationIssue(
@@ -316,6 +452,62 @@ def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIss
                     code="flowsheet_unit_blocked",
                     severity=Severity.BLOCKED,
                     message=f"Unit '{unit.unit_id}' is blocked in the flowsheet case with closure error {unit.closure_error_pct:.3f}%.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if unit.missing_source_stream_ids:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_unit_missing_source",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Unit '{unit.unit_id}' has inlet streams without upstream source references: "
+                        f"{', '.join(unit.missing_source_stream_ids)}."
+                    ),
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if unit.missing_destination_stream_ids:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_unit_missing_destination",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Unit '{unit.unit_id}' has outlet streams without downstream destination references: "
+                        f"{', '.join(unit.missing_destination_stream_ids)}."
+                    ),
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if unit.unresolved_sensitivities and unit.closure_status != "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_unit_unresolved_basis",
+                    severity=Severity.WARNING,
+                    message=(
+                        f"Unit '{unit.unit_id}' still carries unresolved basis items: "
+                        f"{', '.join(unit.unresolved_sensitivities[:3])}."
+                    ),
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if unit.unit_type in {"storage", "waste_handling", "recycle"}:
+            continue
+        if unit.unit_id not in composition_state_index:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_unit_missing_composition_state",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{unit.unit_id}' has no composition state in the flowsheet case.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if unit.unit_id not in composition_closure_index:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_unit_missing_composition_closure",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{unit.unit_id}' has no composition closure in the flowsheet case.",
                     artifact_ref="flowsheet_case",
                 )
             )
@@ -357,6 +549,36 @@ def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIss
                     artifact_ref="flowsheet_case",
                 )
             )
+        if separation.split_status == "blocked" or separation.split_closure_pct > 25.0:
+            issues.append(
+                ValidationIssue(
+                    code="separation_split_blocked",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Separation '{separation.separation_id}' has blocked split performance with "
+                        f"split closure {separation.split_closure_pct:.3f}%."
+                    ),
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        for component_name in set(separation.component_split_to_product) | set(separation.component_split_to_waste) | set(separation.component_split_to_recycle):
+            split_total = (
+                separation.component_split_to_product.get(component_name, 0.0)
+                + separation.component_split_to_waste.get(component_name, 0.0)
+                + separation.component_split_to_recycle.get(component_name, 0.0)
+            )
+            if split_total > 1.10 or split_total < 0.75:
+                issues.append(
+                    ValidationIssue(
+                        code="separation_component_split_unbalanced",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Separation '{separation.separation_id}' has weak component split closure for "
+                            f"'{component_name}' with total split {split_total:.3f}."
+                        ),
+                        artifact_ref="flowsheet_case",
+                    )
+                )
     for loop in flowsheet_case.recycle_loops:
         if not loop.recycle_stream_ids:
             issues.append(
@@ -388,6 +610,44 @@ def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIss
                         artifact_ref="flowsheet_case",
                     )
                 )
+        if max(loop.component_convergence_error_pct.values(), default=0.0) > 95.0:
+            issues.append(
+                ValidationIssue(
+                    code="recycle_component_convergence_high",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop.loop_id}' has component convergence error above 95.0%.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        summary = summary_index.get(loop.loop_id)
+        if summary is None:
+            issues.append(
+                ValidationIssue(
+                    code="recycle_loop_missing_summary",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop.loop_id}' has no convergence summary.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+            continue
+        if not summary.purge_policy_by_family:
+            issues.append(
+                ValidationIssue(
+                    code="recycle_loop_missing_purge_policy",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop.loop_id}' has no explicit purge policy by impurity family.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if summary.convergence_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="recycle_loop_summary_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop.loop_id}' has a blocked convergence summary.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
     return issues
 
 
@@ -412,6 +672,56 @@ def validate_solve_result(solve_result: SolveResult) -> list[ValidationIssue]:
                     artifact_ref="solve_result",
                 )
             )
+    for unit_id, blockers in solve_result.unitwise_blockers.items():
+        for blocker in blockers:
+            issues.append(
+                ValidationIssue(
+                    code="unitwise_packet_coverage_blocked",
+                    severity=Severity.BLOCKED,
+                    message=blocker,
+                    artifact_ref="solve_result",
+                )
+            )
+    for unit_id, status in solve_result.composition_status.items():
+        if status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="composition_convergence_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit '{unit_id}' is blocked in composition propagation.",
+                    artifact_ref="solve_result",
+                )
+            )
+    for separation_id, status in solve_result.separation_status.items():
+        if status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="separation_convergence_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Separation '{separation_id}' is blocked in the solve result.",
+                    artifact_ref="solve_result",
+                )
+            )
+    for loop_id, status in solve_result.recycle_status.items():
+        if status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="recycle_convergence_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop_id}' is blocked in the solve result.",
+                artifact_ref="solve_result",
+            )
+        )
+    for summary in solve_result.convergence_summaries:
+        if summary.convergence_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="recycle_summary_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{summary.loop_id}' is blocked in the convergence summary.",
+                    artifact_ref="solve_result",
+                )
+            )
     for message in solve_result.critic_messages:
         lowered = message.lower()
         if (
@@ -419,6 +729,7 @@ def validate_solve_result(solve_result: SolveResult) -> list[ValidationIssue]:
             and "too high" not in lowered
             and "no usable" not in lowered
             and "no unit thermal packet" not in lowered
+            and "weak component split closure" not in lowered
         ):
             continue
         issues.append(
@@ -710,6 +1021,54 @@ def validate_utility_network_decision(utility_network_decision: UtilityNetworkDe
                         severity=Severity.BLOCKED,
                         message=f"Indirect heat match '{match.match_id}' has no usable thermal lift from the selected hot stream.",
                         artifact_ref="utility_network_decision",
+                    )
+                )
+    return issues
+
+
+def validate_utility_architecture(utility_architecture: UtilityArchitectureDecision) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    selected_steps = utility_architecture.architecture.selected_train_steps
+    selected_package_items = utility_architecture.architecture.selected_package_items
+    if not selected_steps:
+        return issues
+    package_index: dict[str, set[str]] = {}
+    for package_item in selected_package_items:
+        package_index.setdefault(package_item.parent_step_id, set()).add(package_item.package_role)
+    for step in selected_steps:
+        roles = package_index.get(step.step_id, set())
+        if "exchanger" not in roles or "controls" not in roles:
+            issues.append(
+                ValidationIssue(
+                    code="incomplete_utility_train_package",
+                    severity=Severity.BLOCKED,
+                    message=f"Selected train step '{step.step_id}' is missing mandatory exchanger/control package items.",
+                    artifact_ref="utility_architecture",
+                )
+            )
+        if step.medium.lower() != "direct":
+            missing_roles = {"circulation", "expansion", "relief"} - roles
+            if missing_roles:
+                issues.append(
+                    ValidationIssue(
+                        code="incomplete_htm_package",
+                        severity=Severity.BLOCKED,
+                        message=f"Selected HTM train step '{step.step_id}' is missing package roles: {', '.join(sorted(missing_roles))}.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+    for package_item in selected_package_items:
+        if package_item.package_role == "exchanger" and package_item.package_family in {"reboiler", "condenser"}:
+            if package_item.heat_transfer_area_m2 <= 0.0 or package_item.lmtd_k <= 0.0:
+                issues.append(
+                    ValidationIssue(
+                        code="underspecified_reboiler_condenser_package",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Utility package '{package_item.package_item_id}' must include positive area and LMTD "
+                            f"for {package_item.package_family} sizing."
+                        ),
+                        artifact_ref="utility_architecture",
                     )
                 )
     return issues
@@ -1214,6 +1573,6 @@ def validate_cross_chapter_consistency(
 
 
 def apply_state_issues(state: ProjectRunState, issues: list[ValidationIssue], missing_india_coverage: list[str], stale_source_groups: list[str]) -> None:
-    state.blocking_issues = issues
+    state.blocking_issues = [issue for issue in issues if issue.severity == Severity.BLOCKED]
     state.missing_india_coverage = missing_india_coverage
     state.stale_source_groups = stale_source_groups

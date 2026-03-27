@@ -12,6 +12,7 @@ from aoc.models import (
     ThermoAssessmentArtifact,
 )
 from aoc.solver_architecture import build_flowsheet_case, build_solve_result
+from aoc.solvers.flowsheet_sequence import _build_unit_operation_packets
 from aoc.validators import validate_flowsheet_case, validate_solve_result
 
 
@@ -83,16 +84,29 @@ class SolverArchitectureTests(unittest.TestCase):
         solve_result = build_solve_result(flowsheet_case, stream_table, energy)
 
         self.assertTrue(stream_table.unit_operation_packets)
+        self.assertTrue(stream_table.composition_states)
+        self.assertTrue(stream_table.composition_closures)
         self.assertTrue(stream_table.separation_packets)
         self.assertTrue(stream_table.recycle_packets)
         self.assertTrue(flowsheet_case.unit_operation_packets)
+        self.assertTrue(flowsheet_case.composition_states)
+        self.assertTrue(flowsheet_case.composition_closures)
         self.assertTrue(flowsheet_case.separations)
         self.assertTrue(flowsheet_case.recycle_loops)
+        self.assertTrue(flowsheet_case.convergence_summaries)
+        self.assertTrue(flowsheet_case.separations[0].component_split_to_product)
+        self.assertTrue(flowsheet_case.recycle_loops[0].component_convergence_error_pct)
+        self.assertTrue(flowsheet_case.recycle_loops[0].purge_policy_by_family)
         self.assertTrue(energy.unit_thermal_packets)
         self.assertTrue(energy.network_candidates)
         self.assertIn("reactor", solve_result.unitwise_status)
         self.assertIn(solve_result.unitwise_status["reactor"], {"converged", "estimated"})
-        self.assertFalse(validate_flowsheet_case(flowsheet_case))
+        self.assertIn("reactor", solve_result.unitwise_coverage_status)
+        self.assertIn("reactor", solve_result.composition_status)
+        self.assertTrue(solve_result.separation_status)
+        self.assertTrue(solve_result.recycle_status)
+        self.assertTrue(solve_result.convergence_summaries)
+        self.assertFalse([issue for issue in validate_flowsheet_case(flowsheet_case) if issue.severity.value == "blocked"])
         self.assertFalse([issue for issue in validate_solve_result(solve_result) if issue.severity.value == "blocked"])
 
     def test_validate_flowsheet_case_blocks_invalid_recycle_destination(self):
@@ -123,6 +137,35 @@ class SolverArchitectureTests(unittest.TestCase):
                 stream.destination_unit_id = "purification"
         issues = validate_flowsheet_case(flowsheet_case)
         self.assertTrue(any(issue.code == "recycle_stream_destination_invalid" for issue in issues))
+
+    def test_unit_packet_coverage_blocks_missing_destination_reference(self):
+        basis = self._eg_basis()
+        route = self._eg_route()
+        kinetics = KineticAssessmentArtifact(
+            feasible=True,
+            activation_energy_kj_per_mol=73.0,
+            pre_exponential_factor=4.8e8,
+            apparent_order=1.0,
+            design_residence_time_hr=0.75,
+            markdown="seed",
+            citations=["s1"],
+        )
+        reaction_system = build_reaction_system(basis, route, kinetics, ["s1"], [])
+        stream_table = build_stream_table(basis, route, reaction_system, ["s1"], [])
+        for stream in stream_table.streams:
+            if stream.stream_id == "S-203":
+                stream.destination_unit_id = None
+        stream_table.unit_operation_packets = _build_unit_operation_packets(stream_table.streams, "distillation", ["s1"], [])
+        graph = build_flowsheet_graph(
+            route,
+            stream_table,
+            reaction_system,
+            ProcessNarrativeArtifact(bfd_mermaid="graph TD\nA-->B", markdown="seed", citations=["s1"]),
+            basis.operating_mode,
+        )
+        flowsheet_case = build_flowsheet_case(route.route_id, basis.operating_mode, stream_table, graph)
+        issues = validate_flowsheet_case(flowsheet_case)
+        self.assertTrue(any(issue.code == "flowsheet_unit_missing_destination" for issue in issues))
 
 
 if __name__ == "__main__":

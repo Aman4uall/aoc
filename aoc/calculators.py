@@ -55,6 +55,7 @@ from aoc.solvers import (
     build_storage_design_generic,
     build_stream_table_generic,
 )
+from aoc.solvers.reaction_network import build_reaction_network
 from aoc.value_engine import make_value_record
 
 
@@ -135,10 +136,12 @@ def build_reaction_system(
     citations: list[str],
     assumptions: list[str],
 ) -> ReactionSystem:
+    extent_set, byproduct_closure = build_reaction_network(route, min(max(route.selectivity_fraction, 0.0), 1.0))
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA and route.route_id == "eo_hydration":
         conversion = 0.985
         selectivity = min(max(route.selectivity_fraction, 0.85), 0.98)
         excess_ratio = 20.0
+        extent_set, byproduct_closure = build_reaction_network(route, selectivity)
         traces = [
             CalcTrace(
                 trace_id="rxn_conv",
@@ -165,6 +168,15 @@ def build_reaction_system(
                 units="mol/mol",
                 notes="Chosen to reflect dilute hydration conditions used to favor MEG over higher glycols.",
             ),
+            CalcTrace(
+                trace_id="rxn_byproduct_gap",
+                title="Byproduct selectivity gap",
+                formula="Gap = 1 - S",
+                substitutions={"S": f"{selectivity:.4f}"},
+                result=f"{byproduct_closure.selectivity_gap_fraction:.4f}",
+                units="fraction of converted feed",
+                notes="Gap is allocated explicitly across side products through the reaction-network closure artifact.",
+            ),
         ]
         return ReactionSystem(
             route_id=route.route_id,
@@ -174,29 +186,72 @@ def build_reaction_system(
             selectivity_fraction=selectivity,
             excess_ratio=excess_ratio,
             notes="EG template uses direct hydration with high water dilution to limit heavy glycol formation.",
+            reaction_extent_set=extent_set,
+            byproduct_closure=byproduct_closure,
             calc_traces=traces,
             value_records=[
                 make_value_record("rxn_conversion", "Reaction conversion", conversion, "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
                 make_value_record("rxn_selectivity", "Reaction selectivity", selectivity, "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
                 make_value_record("rxn_water_excess_ratio", "Water excess ratio", excess_ratio, "mol/mol", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
+                make_value_record(
+                    "rxn_byproduct_gap_fraction",
+                    "Byproduct selectivity gap",
+                    byproduct_closure.selectivity_gap_fraction,
+                    "fraction",
+                    citations=citations,
+                    assumptions=assumptions,
+                    sensitivity=SensitivityLevel.HIGH,
+                    blocking=byproduct_closure.blocking,
+                ),
             ],
             citations=citations,
-            assumptions=assumptions + [f"Residence time basis retained at {kinetics.design_residence_time_hr:.2f} h."],
+            assumptions=assumptions
+            + [f"Residence time basis retained at {kinetics.design_residence_time_hr:.2f} h."]
+            + byproduct_closure.notes,
         )
+    conversion = min(max(route.yield_fraction, 0.5), 0.98)
+    selectivity = min(max(route.selectivity_fraction, 0.5), 0.99)
+    extent_set, byproduct_closure = build_reaction_network(route, selectivity)
     return ReactionSystem(
         route_id=route.route_id,
         main_reaction=route.reaction_equation,
-        conversion_fraction=min(max(route.yield_fraction, 0.5), 0.98),
-        selectivity_fraction=min(max(route.selectivity_fraction, 0.5), 0.99),
+        side_reactions=[f"Byproduct allocation to {item.component_name}" for item in byproduct_closure.estimates],
+        conversion_fraction=conversion,
+        selectivity_fraction=selectivity,
         excess_ratio=1.05,
         notes="Fallback reaction system uses route yield/selectivity as preliminary conversion basis.",
+        reaction_extent_set=extent_set,
+        byproduct_closure=byproduct_closure,
+        calc_traces=[
+            CalcTrace(
+                trace_id="rxn_byproduct_gap",
+                title="Byproduct selectivity gap",
+                formula="Gap = 1 - S",
+                substitutions={"S": f"{selectivity:.4f}"},
+                result=f"{byproduct_closure.selectivity_gap_fraction:.4f}",
+                units="fraction of converted feed",
+                notes="Gap is allocated explicitly across the reaction-network closure artifact before stream solving.",
+            ),
+        ],
         value_records=[
-            make_value_record("rxn_conversion", "Reaction conversion", min(max(route.yield_fraction, 0.5), 0.98), "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
-            make_value_record("rxn_selectivity", "Reaction selectivity", min(max(route.selectivity_fraction, 0.5), 0.99), "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
+            make_value_record("rxn_conversion", "Reaction conversion", conversion, "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
+            make_value_record("rxn_selectivity", "Reaction selectivity", selectivity, "fraction", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.HIGH),
             make_value_record("rxn_excess_ratio", "Excess ratio", 1.05, "mol/mol", citations=citations, assumptions=assumptions, sensitivity=SensitivityLevel.MEDIUM),
+            make_value_record(
+                "rxn_byproduct_gap_fraction",
+                "Byproduct selectivity gap",
+                byproduct_closure.selectivity_gap_fraction,
+                "fraction",
+                citations=citations,
+                assumptions=assumptions,
+                sensitivity=SensitivityLevel.HIGH,
+                blocking=byproduct_closure.blocking,
+            ),
         ],
         citations=citations,
-        assumptions=assumptions + [f"Residence time basis retained at {kinetics.design_residence_time_hr:.2f} h."],
+        assumptions=assumptions
+        + [f"Residence time basis retained at {kinetics.design_residence_time_hr:.2f} h."]
+        + byproduct_closure.notes,
     )
 
 
@@ -728,8 +783,9 @@ def build_equipment_list(
     storage: StorageDesign,
     energy_balance: EnergyBalance,
     moc_decision: DecisionRecord | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
 ) -> list[EquipmentSpec]:
-    return build_equipment_list_generic(route, reactor, column, exchanger, storage, energy_balance, moc_decision)
+    return build_equipment_list_generic(route, reactor, column, exchanger, storage, energy_balance, moc_decision, utility_architecture)
 
     flash_volume = max(reactor.design_volume_m3 * 0.12, 5.0) if route.route_id == "eo_hydration" else max(reactor.design_volume_m3 * 0.3, 1.0)
     return [
@@ -839,6 +895,7 @@ def compute_utilities(
 ) -> UtilitySummaryArtifact:
     selected_case = _selected_utility_case(utility_network_decision)
     selected_train_steps = utility_architecture.architecture.selected_train_steps if utility_architecture is not None else []
+    selected_package_items = utility_architecture.architecture.selected_package_items if utility_architecture is not None else []
     effective_heating_kw = selected_case.residual_hot_utility_kw if selected_case else energy_balance.total_heating_kw
     effective_cooling_kw = selected_case.residual_cold_utility_kw if selected_case else energy_balance.total_cooling_kw
     steam_kg_hr = effective_heating_kw * 3600.0 / 2200.0
@@ -848,11 +905,15 @@ def compute_utilities(
     if selected_case and selected_case.case_id.endswith("pinch_htm"):
         electrical_kw += max(selected_case.recovered_duty_kw / 3500.0, 15.0)
     train_aux_power_kw = 0.0
-    if selected_train_steps:
+    if selected_package_items:
+        train_aux_power_kw += sum(item.power_kw for item in selected_package_items)
+        train_aux_power_kw += len([item for item in selected_package_items if item.package_role == "controls"]) * 0.35
+    elif selected_train_steps:
         direct_steps = [step for step in selected_train_steps if step.medium.lower() == "direct"]
         indirect_steps = [step for step in selected_train_steps if step.medium.lower() != "direct"]
         train_aux_power_kw += len(direct_steps) * 1.5
         train_aux_power_kw += len(indirect_steps) * 4.5 + sum(step.recovered_duty_kw for step in indirect_steps) / 5000.0
+    if train_aux_power_kw > 0.0:
         electrical_kw += train_aux_power_kw
     dm_water_m3_hr = max(hourly_output_kg(basis) / 25000.0, 2.0)
     nitrogen_nm3_hr = max(hourly_output_kg(basis) / 7000.0, 3.0)
@@ -883,6 +944,10 @@ def compute_utilities(
     if selected_train_steps:
         utility_assumptions.append(
             f"Utility loads include {len(selected_train_steps)} selected train steps with {sum(step.recovered_duty_kw for step in selected_train_steps):.1f} kW packet-derived recovery basis."
+        )
+    if selected_package_items:
+        utility_assumptions.append(
+            f"Utility auxiliary power includes {len(selected_package_items)} selected package items with {sum(item.power_kw for item in selected_package_items):.1f} kW explicit package power."
         )
     utility_assumptions.append("Cooling water rise fixed at 10 K and steam latent heat at 2200 kJ/kg for preliminary utility sizing.")
     return UtilitySummaryArtifact(

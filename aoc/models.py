@@ -484,6 +484,52 @@ class RouteOption(ProvenancedModel):
     rationale: str
 
 
+class ReactionExtent(ProvenancedModel):
+    extent_id: str
+    reaction_label: str
+    kind: Literal["main", "side", "byproduct"]
+    representative_component: str = ""
+    representative_formula: Optional[str] = None
+    representative_molecular_weight_g_mol: float = 0.0
+    representative_phase: str = ""
+    extent_fraction_of_converted_feed: float = 0.0
+    status: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class ReactionExtentSet(ProvenancedModel):
+    route_id: str
+    extents: list[ReactionExtent] = Field(default_factory=list)
+    unallocated_selectivity_fraction: float = 0.0
+    closure_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class ByproductEstimate(ProvenancedModel):
+    estimate_id: str
+    component_name: str
+    formula: Optional[str] = None
+    molecular_weight_g_mol: float
+    phase: str = ""
+    allocation_fraction: float = 0.0
+    basis: str
+    provenance: Literal["explicit_participant", "declared_trace", "family_surrogate"] = "declared_trace"
+    status: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class ByproductClosure(ProvenancedModel):
+    route_id: str
+    declared_byproducts: list[str] = Field(default_factory=list)
+    explicit_byproduct_components: list[str] = Field(default_factory=list)
+    estimates: list[ByproductEstimate] = Field(default_factory=list)
+    unresolved_byproducts: list[str] = Field(default_factory=list)
+    selectivity_gap_fraction: float = 0.0
+    closure_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    blocking: bool = False
+    notes: list[str] = Field(default_factory=list)
+
+
 class SiteOption(ProvenancedModel):
     name: str
     state: str
@@ -528,9 +574,14 @@ class StreamTable(ProvenancedModel):
     closure_error_pct: float
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
+    composition_states: list["UnitCompositionState"] = Field(default_factory=list)
+    composition_closures: list["CompositionClosure"] = Field(default_factory=list)
     unit_operation_packets: list["UnitOperationPacket"] = Field(default_factory=list)
+    phase_split_specs: list["PhaseSplitSpec"] = Field(default_factory=list)
+    separator_performances: list["SeparatorPerformance"] = Field(default_factory=list)
     separation_packets: list["SeparationPacket"] = Field(default_factory=list)
     recycle_packets: list["RecyclePacket"] = Field(default_factory=list)
+    convergence_summaries: list["ConvergenceSummary"] = Field(default_factory=list)
 
 
 class StreamSpec(ProvenancedModel):
@@ -543,6 +594,39 @@ class StreamSpec(ProvenancedModel):
     component_names: list[str] = Field(default_factory=list)
 
 
+class UnitCompositionState(ProvenancedModel):
+    state_id: str
+    unit_id: str
+    unit_type: str
+    inlet_stream_ids: list[str] = Field(default_factory=list)
+    outlet_stream_ids: list[str] = Field(default_factory=list)
+    inlet_component_molar_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    outlet_component_molar_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    inlet_component_mass_kg_hr: dict[str, float] = Field(default_factory=dict)
+    outlet_component_mass_kg_hr: dict[str, float] = Field(default_factory=dict)
+    inlet_component_mole_fraction: dict[str, float] = Field(default_factory=dict)
+    outlet_component_mole_fraction: dict[str, float] = Field(default_factory=dict)
+    inlet_component_mass_fraction: dict[str, float] = Field(default_factory=dict)
+    outlet_component_mass_fraction: dict[str, float] = Field(default_factory=dict)
+    dominant_inlet_phase: str = ""
+    dominant_outlet_phase: str = ""
+    status: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class CompositionClosure(ProvenancedModel):
+    closure_id: str
+    unit_id: str
+    reactive: bool = False
+    inlet_fraction_sum: float = 0.0
+    outlet_fraction_sum: float = 0.0
+    new_outlet_components: list[str] = Field(default_factory=list)
+    missing_outlet_components: list[str] = Field(default_factory=list)
+    composition_error_pct: float = 0.0
+    closure_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
 class UnitOperationPacket(ProvenancedModel):
     packet_id: str
     unit_id: str
@@ -553,7 +637,50 @@ class UnitOperationPacket(ProvenancedModel):
     inlet_mass_flow_kg_hr: float = 0.0
     outlet_mass_flow_kg_hr: float = 0.0
     closure_error_pct: float = 0.0
+    coverage_status: Literal["complete", "partial", "blocked"] = "complete"
+    missing_source_stream_ids: list[str] = Field(default_factory=list)
+    missing_destination_stream_ids: list[str] = Field(default_factory=list)
     status: Literal["converged", "estimated", "blocked"] = "estimated"
+    unresolved_sensitivities: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class PhaseSplitSpec(ProvenancedModel):
+    spec_id: str
+    unit_id: str
+    separation_family: str
+    split_basis: str
+    mechanism: str
+    inlet_phases: list[str] = Field(default_factory=list)
+    product_phase_target: str = ""
+    waste_phase_target: str = ""
+    recycle_phase_target: str = ""
+    side_draw_phase_target: str = ""
+    phase_split_status: Literal["complete", "partial", "blocked"] = "partial"
+    notes: list[str] = Field(default_factory=list)
+
+
+class SeparatorPerformance(ProvenancedModel):
+    performance_id: str
+    unit_id: str
+    separation_family: str
+    inlet_stream_ids: list[str] = Field(default_factory=list)
+    product_stream_ids: list[str] = Field(default_factory=list)
+    waste_stream_ids: list[str] = Field(default_factory=list)
+    recycle_stream_ids: list[str] = Field(default_factory=list)
+    side_draw_stream_ids: list[str] = Field(default_factory=list)
+    component_split_to_product: dict[str, float] = Field(default_factory=dict)
+    component_split_to_waste: dict[str, float] = Field(default_factory=dict)
+    component_split_to_recycle: dict[str, float] = Field(default_factory=dict)
+    dominant_product_phase: str = ""
+    dominant_waste_phase: str = ""
+    dominant_recycle_phase: str = ""
+    product_mass_fraction: float = 0.0
+    waste_mass_fraction: float = 0.0
+    recycle_mass_fraction: float = 0.0
+    side_draw_mass_fraction: float = 0.0
+    split_closure_pct: float = 0.0
+    performance_status: Literal["converged", "estimated", "blocked"] = "estimated"
     notes: list[str] = Field(default_factory=list)
 
 
@@ -567,19 +694,59 @@ class SeparationPacket(ProvenancedModel):
     waste_stream_ids: list[str] = Field(default_factory=list)
     recycle_stream_ids: list[str] = Field(default_factory=list)
     side_draw_stream_ids: list[str] = Field(default_factory=list)
+    phase_split_spec_id: str = ""
+    separator_performance_id: str = ""
+    split_basis: str = ""
+    component_split_to_product: dict[str, float] = Field(default_factory=dict)
+    component_split_to_waste: dict[str, float] = Field(default_factory=dict)
+    component_split_to_recycle: dict[str, float] = Field(default_factory=dict)
+    dominant_product_phase: str = ""
+    dominant_waste_phase: str = ""
+    dominant_recycle_phase: str = ""
+    product_mass_fraction: float = 0.0
+    waste_mass_fraction: float = 0.0
+    recycle_mass_fraction: float = 0.0
+    side_draw_mass_fraction: float = 0.0
+    split_closure_pct: float = 0.0
+    split_status: Literal["converged", "estimated", "blocked"] = "estimated"
     closure_error_pct: float = 0.0
+    notes: list[str] = Field(default_factory=list)
+
+
+class ConvergenceSummary(ProvenancedModel):
+    summary_id: str
+    loop_id: str
+    recycle_source_unit_id: Optional[str] = None
+    recycle_stream_ids: list[str] = Field(default_factory=list)
+    purge_stream_ids: list[str] = Field(default_factory=list)
+    component_count: int = 0
+    converged_components: list[str] = Field(default_factory=list)
+    estimated_components: list[str] = Field(default_factory=list)
+    blocked_components: list[str] = Field(default_factory=list)
+    max_component_error_pct: float = 0.0
+    mean_component_error_pct: float = 0.0
+    max_iterations: int = 0
+    purge_policy_by_family: dict[str, float] = Field(default_factory=dict)
+    impurity_family_components: dict[str, list[str]] = Field(default_factory=dict)
+    convergence_status: Literal["converged", "estimated", "blocked"] = "estimated"
     notes: list[str] = Field(default_factory=list)
 
 
 class RecyclePacket(ProvenancedModel):
     packet_id: str
     loop_id: str
+    recycle_source_unit_id: Optional[str] = None
     recycle_stream_ids: list[str] = Field(default_factory=list)
     purge_stream_ids: list[str] = Field(default_factory=list)
     component_targets_kmol_hr: dict[str, float] = Field(default_factory=dict)
     component_fresh_kmol_hr: dict[str, float] = Field(default_factory=dict)
     component_recycle_kmol_hr: dict[str, float] = Field(default_factory=dict)
     component_purge_kmol_hr: dict[str, float] = Field(default_factory=dict)
+    component_convergence_error_pct: dict[str, float] = Field(default_factory=dict)
+    component_iterations: dict[str, int] = Field(default_factory=dict)
+    purge_policy_by_family: dict[str, float] = Field(default_factory=dict)
+    impurity_family_components: dict[str, list[str]] = Field(default_factory=dict)
+    convergence_summary_id: str = ""
     convergence_status: Literal["converged", "estimated", "blocked"] = "estimated"
     closure_error_pct: float = 0.0
     max_iterations: int = 0
@@ -594,6 +761,9 @@ class UnitSpec(ProvenancedModel):
     downstream_stream_ids: list[str] = Field(default_factory=list)
     closure_error_pct: float = 0.0
     closure_status: Literal["converged", "estimated", "blocked"] = "estimated"
+    coverage_status: Literal["complete", "partial", "blocked"] = "complete"
+    missing_source_stream_ids: list[str] = Field(default_factory=list)
+    missing_destination_stream_ids: list[str] = Field(default_factory=list)
     unresolved_sensitivities: list[str] = Field(default_factory=list)
 
 
@@ -606,15 +776,36 @@ class SeparationSpec(ProvenancedModel):
     waste_stream_ids: list[str] = Field(default_factory=list)
     recycle_stream_ids: list[str] = Field(default_factory=list)
     side_draw_stream_ids: list[str] = Field(default_factory=list)
+    phase_split_spec_id: str = ""
+    separator_performance_id: str = ""
+    split_basis: str = ""
+    component_split_to_product: dict[str, float] = Field(default_factory=dict)
+    component_split_to_waste: dict[str, float] = Field(default_factory=dict)
+    component_split_to_recycle: dict[str, float] = Field(default_factory=dict)
+    dominant_product_phase: str = ""
+    dominant_waste_phase: str = ""
+    dominant_recycle_phase: str = ""
+    product_mass_fraction: float = 0.0
+    waste_mass_fraction: float = 0.0
+    recycle_mass_fraction: float = 0.0
+    side_draw_mass_fraction: float = 0.0
+    split_closure_pct: float = 0.0
+    split_status: Literal["converged", "estimated", "blocked"] = "estimated"
     closure_error_pct: float = 0.0
 
 
 class RecycleLoop(ProvenancedModel):
     loop_id: str
+    recycle_source_unit_id: Optional[str] = None
     recycle_stream_ids: list[str] = Field(default_factory=list)
     purge_stream_ids: list[str] = Field(default_factory=list)
+    component_convergence_error_pct: dict[str, float] = Field(default_factory=dict)
+    purge_policy_by_family: dict[str, float] = Field(default_factory=dict)
+    impurity_family_components: dict[str, list[str]] = Field(default_factory=dict)
+    convergence_summary_id: str = ""
     convergence_status: Literal["converged", "estimated", "blocked"] = "estimated"
     closure_error_pct: float = 0.0
+    max_iterations: int = 0
 
 
 class FlowsheetCase(ProvenancedModel):
@@ -623,8 +814,11 @@ class FlowsheetCase(ProvenancedModel):
     operating_mode: str
     units: list[UnitSpec] = Field(default_factory=list)
     streams: list[StreamSpec] = Field(default_factory=list)
+    composition_states: list[UnitCompositionState] = Field(default_factory=list)
+    composition_closures: list[CompositionClosure] = Field(default_factory=list)
     separations: list[SeparationSpec] = Field(default_factory=list)
     recycle_loops: list[RecycleLoop] = Field(default_factory=list)
+    convergence_summaries: list[ConvergenceSummary] = Field(default_factory=list)
     unit_operation_packets: list[UnitOperationPacket] = Field(default_factory=list)
     markdown: str = ""
 
@@ -635,6 +829,13 @@ class SolveResult(ProvenancedModel):
     overall_closure_error_pct: float = 0.0
     unitwise_closure: dict[str, float] = Field(default_factory=dict)
     unitwise_status: dict[str, Literal["converged", "estimated", "blocked"]] = Field(default_factory=dict)
+    unitwise_coverage_status: dict[str, Literal["complete", "partial", "blocked"]] = Field(default_factory=dict)
+    unitwise_blockers: dict[str, list[str]] = Field(default_factory=dict)
+    unitwise_unresolved_sensitivities: dict[str, list[str]] = Field(default_factory=dict)
+    composition_status: dict[str, Literal["converged", "estimated", "blocked"]] = Field(default_factory=dict)
+    separation_status: dict[str, Literal["converged", "estimated", "blocked"]] = Field(default_factory=dict)
+    recycle_status: dict[str, Literal["converged", "estimated", "blocked"]] = Field(default_factory=dict)
+    convergence_summaries: list[ConvergenceSummary] = Field(default_factory=list)
     unresolved_sensitivities: list[str] = Field(default_factory=list)
     critic_messages: list[str] = Field(default_factory=list)
     markdown: str = ""
@@ -648,6 +849,8 @@ class ReactionSystem(ProvenancedModel):
     selectivity_fraction: float
     excess_ratio: float
     notes: str
+    reaction_extent_set: Optional[ReactionExtentSet] = None
+    byproduct_closure: Optional[ByproductClosure] = None
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -726,6 +929,9 @@ class ReactorDesign(ProvenancedModel):
     utility_topology: str = ""
     integrated_thermal_duty_kw: float = 0.0
     residual_utility_duty_kw: float = 0.0
+    integrated_lmtd_k: float = 0.0
+    integrated_exchange_area_m2: float = 0.0
+    coupled_service_basis: str = ""
     selected_train_step_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
@@ -762,7 +968,13 @@ class ColumnDesign(ProvenancedModel):
     utility_topology: str = ""
     integrated_reboiler_duty_kw: float = 0.0
     residual_reboiler_utility_kw: float = 0.0
+    integrated_reboiler_lmtd_k: float = 0.0
+    integrated_reboiler_area_m2: float = 0.0
+    reboiler_medium: str = ""
     condenser_recovery_duty_kw: float = 0.0
+    condenser_recovery_lmtd_k: float = 0.0
+    condenser_recovery_area_m2: float = 0.0
+    condenser_recovery_medium: str = ""
     selected_train_step_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
@@ -791,8 +1003,13 @@ class HeatExchangerDesign(ProvenancedModel):
     tube_length_m: float = 0.0
     shell_passes: int = 1
     tube_passes: int = 1
+    package_family: str = ""
+    circulation_flow_m3_hr: float = 0.0
+    phase_change_load_kg_hr: float = 0.0
+    package_holdup_m3: float = 0.0
     utility_topology: str = ""
     selected_train_step_id: Optional[str] = None
+    selected_package_item_ids: list[str] = Field(default_factory=list)
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
 
@@ -862,6 +1079,9 @@ class MechanicalComponentDesign(ProvenancedModel):
     nozzle_diameter_mm: float = 0.0
     support_type: str = ""
     support_thickness_mm: float = 0.0
+    operating_load_kn: float = 0.0
+    thermal_growth_mm: float = 0.0
+    nozzle_reinforcement_area_mm2: float = 0.0
     notes: str = ""
     calc_traces: list[CalcTrace] = Field(default_factory=list)
     value_records: list[ValueRecord] = Field(default_factory=list)
@@ -881,6 +1101,9 @@ class SupportDesign(ProvenancedModel):
     support_type: str
     support_load_basis_kn: float
     support_thickness_mm: float
+    operating_load_kn: float = 0.0
+    overturning_moment_kn_m: float = 0.0
+    thermal_growth_mm: float = 0.0
     anchor_bolt_diameter_mm: float = 0.0
     base_plate_thickness_mm: float = 0.0
     markdown: str = ""
@@ -891,6 +1114,8 @@ class NozzleSchedule(ProvenancedModel):
     nozzle_count: int
     nozzle_diameters_mm: list[float] = Field(default_factory=list)
     nozzle_services: list[str] = Field(default_factory=list)
+    reinforcement_area_mm2: list[float] = Field(default_factory=list)
+    nozzle_pressure_class: str = ""
     markdown: str = ""
 
 
@@ -1035,6 +1260,28 @@ class HeatNetworkCase(ProvenancedModel):
     markdown: str = ""
 
 
+class UtilityTrainPackageItem(ProvenancedModel):
+    package_item_id: str
+    parent_step_id: str
+    package_role: Literal["exchanger", "circulation", "expansion", "relief", "controls"]
+    equipment_id: str
+    equipment_type: str
+    service: str
+    package_family: str = ""
+    design_temperature_c: float
+    design_pressure_bar: float
+    volume_m3: float = 0.0
+    duty_kw: float = 0.0
+    power_kw: float = 0.0
+    flow_m3_hr: float = 0.0
+    lmtd_k: float = 0.0
+    heat_transfer_area_m2: float = 0.0
+    phase_change_load_kg_hr: float = 0.0
+    circulation_ratio: float = 0.0
+    material_of_construction: str = ""
+    notes: str = ""
+
+
 class HeatExchangerTrainStep(ProvenancedModel):
     step_id: str
     exchanger_id: str
@@ -1046,6 +1293,7 @@ class HeatExchangerTrainStep(ProvenancedModel):
     sink_unit_id: str
     recovered_duty_kw: float
     medium: str
+    package_items: list[UtilityTrainPackageItem] = Field(default_factory=list)
     notes: str = ""
 
 
@@ -1055,6 +1303,7 @@ class HeatNetworkArchitecture(ProvenancedModel):
     heat_stream_set: Optional[HeatStreamSet] = None
     cases: list[HeatNetworkCase] = Field(default_factory=list)
     selected_train_steps: list[HeatExchangerTrainStep] = Field(default_factory=list)
+    selected_package_items: list[UtilityTrainPackageItem] = Field(default_factory=list)
     topology_summary: str = ""
     markdown: str = ""
 

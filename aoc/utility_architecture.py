@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 from aoc.models import (
     EnergyBalance,
     HeatExchangerTrainStep,
@@ -9,6 +11,7 @@ from aoc.models import (
     HeatNetworkCase,
     HeatStream,
     HeatStreamSet,
+    UtilityTrainPackageItem,
     UtilityArchitectureDecision,
     UtilityNetworkDecision,
 )
@@ -110,6 +113,28 @@ def _as_heat_match(candidate: HeatMatchCandidate) -> HeatMatch:
     )
 
 
+def _step_lmtd_k(hot_stream: HeatStream | None, cold_stream: HeatStream | None) -> float:
+    if hot_stream is None or cold_stream is None:
+        return 18.0
+    dt1 = max(hot_stream.supply_temp_c - cold_stream.target_temp_c, 8.0)
+    dt2 = max(hot_stream.target_temp_c - cold_stream.supply_temp_c, 8.0)
+    if abs(dt1 - dt2) <= 1e-6:
+        return dt1
+    ratio = max(dt1 / max(dt2, 1e-6), 1.0001)
+    return max((dt1 - dt2) / math.log(ratio), 8.0)
+
+
+def _package_family(step: HeatExchangerTrainStep) -> str:
+    service = step.service.lower()
+    if "reboiler" in service or any(token in step.sink_unit_id.lower() for token in ("purification", "concentration", "regeneration", "drying")):
+        return "reboiler"
+    if "condenser" in service or any(token in step.source_unit_id.lower() for token in ("purification", "concentration", "regeneration", "drying")):
+        return "condenser"
+    if any(token in step.source_unit_id.lower() for token in ("r-101", "conv-101", "reactor")):
+        return "reactor_coupling"
+    return "process_exchange"
+
+
 def _train_step(
     case_id: str,
     index: int,
@@ -136,6 +161,154 @@ def _train_step(
         citations=sorted(set(match.citations + (hot_stream.citations if hot_stream else []) + (cold_stream.citations if cold_stream else []))),
         assumptions=sorted(set(match.assumptions + (hot_stream.assumptions if hot_stream else []) + (cold_stream.assumptions if cold_stream else []))),
     )
+
+
+def _package_items_for_step(
+    step: HeatExchangerTrainStep,
+    heat_stream_lookup: dict[str, HeatStream],
+) -> list[UtilityTrainPackageItem]:
+    hot_stream = heat_stream_lookup.get(step.hot_stream_id)
+    cold_stream = heat_stream_lookup.get(step.cold_stream_id)
+    family = _package_family(step)
+    max_temp = max(
+        hot_stream.supply_temp_c if hot_stream else 120.0,
+        cold_stream.target_temp_c if cold_stream else 90.0,
+    )
+    direct = step.medium.lower() == "direct"
+    lmtd_k = _step_lmtd_k(hot_stream, cold_stream)
+    if family == "reboiler":
+        u_value = 700.0 if direct else 600.0
+        latent_kj_kg = 1850.0
+        phase_change_load = step.recovered_duty_kw * 3600.0 / latent_kj_kg
+        circulation_ratio = 3.2 if direct else 4.5
+        circulation_flow = max((phase_change_load * circulation_ratio) / 880.0, 1.5)
+    elif family == "condenser":
+        u_value = 820.0 if direct else 660.0
+        latent_kj_kg = 2100.0
+        phase_change_load = step.recovered_duty_kw * 3600.0 / latent_kj_kg
+        circulation_ratio = 1.0
+        circulation_flow = max(phase_change_load / 940.0, 1.0)
+    else:
+        u_value = 560.0 if direct else 470.0
+        cp_kj_kg_k = 2.6 if not direct else 3.2
+        delta_t = max((hot_stream.supply_temp_c - hot_stream.target_temp_c) if hot_stream else 18.0, 12.0)
+        phase_change_load = 0.0
+        circulation_ratio = 1.0 if direct else 2.2
+        circulation_flow = max((step.recovered_duty_kw * 3600.0 / max(cp_kj_kg_k * delta_t, 1.0)) / 950.0 * circulation_ratio, 0.8)
+    exchanger_area = max((step.recovered_duty_kw * 1000.0) / max(u_value * lmtd_k, 1.0), 1.0)
+    exchanger_volume = max(exchanger_area * (0.085 if family == "reboiler" else 0.070 if family == "condenser" else 0.060), 0.6)
+    exchanger = UtilityTrainPackageItem(
+        package_item_id=f"{step.step_id}_exchanger",
+        parent_step_id=step.step_id,
+        package_role="exchanger",
+        equipment_id=step.exchanger_id,
+        equipment_type=(
+            "Kettle reboiler package"
+            if family == "reboiler" and direct
+            else "HTM reboiler package"
+            if family == "reboiler"
+            else "Surface condenser package"
+            if family == "condenser" and direct
+            else "HTM condenser package"
+            if family == "condenser"
+            else "Heat integration exchanger"
+            if direct
+            else "HTM loop exchanger"
+        ),
+        service=step.service,
+        package_family=family,
+        design_temperature_c=round(max_temp + (12.0 if direct else 18.0), 2),
+        design_pressure_bar=round(6.5 if direct else 11.0, 2),
+        volume_m3=round(exchanger_volume, 3),
+        duty_kw=round(step.recovered_duty_kw, 3),
+        flow_m3_hr=round(circulation_flow, 3),
+        lmtd_k=round(lmtd_k, 3),
+        heat_transfer_area_m2=round(exchanger_area, 3),
+        phase_change_load_kg_hr=round(phase_change_load, 3),
+        circulation_ratio=round(circulation_ratio, 3),
+        material_of_construction="SS316" if direct else "Carbon steel",
+        notes="Primary exchanger item derived from selected utility-train step.",
+        citations=step.citations,
+        assumptions=step.assumptions,
+    )
+    controls = UtilityTrainPackageItem(
+        package_item_id=f"{step.step_id}_controls",
+        parent_step_id=step.step_id,
+        package_role="controls",
+        equipment_id=f"{step.exchanger_id}-CTRL",
+        equipment_type="Utility control package",
+        service=f"{step.service} control valves, instrumentation, and bypass station",
+        package_family=family,
+        design_temperature_c=round(max_temp + 8.0, 2),
+        design_pressure_bar=round(5.0 if direct else 9.0, 2),
+        volume_m3=0.15,
+        flow_m3_hr=round(circulation_flow, 3),
+        material_of_construction="Carbon steel",
+        notes="Includes control valve station, bypass, and instrumentation package for the selected train step.",
+        citations=step.citations,
+        assumptions=step.assumptions,
+    )
+    items = [exchanger, controls]
+    if not direct:
+        circulation_power_kw = max(step.recovered_duty_kw / 2200.0, 2.5)
+        items.extend(
+            [
+                UtilityTrainPackageItem(
+                    package_item_id=f"{step.step_id}_circulation",
+                    parent_step_id=step.step_id,
+                    package_role="circulation",
+                    equipment_id=f"{step.exchanger_id}-PMP",
+                    equipment_type="HTM circulation skid",
+                    service=f"{step.service} circulation loop",
+                    package_family=family,
+                    design_temperature_c=round(max_temp + 10.0, 2),
+                    design_pressure_bar=12.0,
+                    volume_m3=0.25,
+                    power_kw=round(circulation_power_kw, 3),
+                    flow_m3_hr=round(circulation_flow, 3),
+                    circulation_ratio=round(circulation_ratio, 3),
+                    material_of_construction="Carbon steel",
+                    notes="HTM circulation skid sized from recovered duty and selected train topology.",
+                    citations=step.citations,
+                    assumptions=step.assumptions,
+                ),
+                UtilityTrainPackageItem(
+                    package_item_id=f"{step.step_id}_expansion",
+                    parent_step_id=step.step_id,
+                    package_role="expansion",
+                    equipment_id=f"{step.exchanger_id}-EXP",
+                    equipment_type="HTM expansion tank",
+                    service=f"{step.service} HTM expansion and inventory hold-up",
+                    package_family=family,
+                    design_temperature_c=round(max_temp + 15.0, 2),
+                    design_pressure_bar=6.0,
+                    volume_m3=round(max(step.recovered_duty_kw / 14000.0, 1.0), 3),
+                    flow_m3_hr=round(circulation_flow, 3),
+                    material_of_construction="Carbon steel",
+                    notes="Expansion volume estimated from recovered duty and HTM loop inventory basis.",
+                    citations=step.citations,
+                    assumptions=step.assumptions,
+                ),
+                UtilityTrainPackageItem(
+                    package_item_id=f"{step.step_id}_relief",
+                    parent_step_id=step.step_id,
+                    package_role="relief",
+                    equipment_id=f"{step.exchanger_id}-RV",
+                    equipment_type="HTM relief package",
+                    service=f"{step.service} thermal relief and collection package",
+                    package_family=family,
+                    design_temperature_c=round(max_temp + 18.0, 2),
+                    design_pressure_bar=13.5,
+                    volume_m3=round(max(step.recovered_duty_kw / 26000.0, 0.35), 3),
+                    flow_m3_hr=round(circulation_flow, 3),
+                    material_of_construction="Carbon steel",
+                    notes="Relief package includes relief device and small knock-out volume for HTM overpressure screening.",
+                    citations=step.citations,
+                    assumptions=step.assumptions,
+                ),
+            ]
+        )
+    return items
 
 
 def _synthesize_selected_train(
@@ -196,10 +369,11 @@ def _synthesize_selected_train(
         if allocated is not None:
             selected_matches.append(allocated)
 
-    train_steps = [
-        _train_step(case_id, index, topology, match, heat_stream_lookup)
-        for index, match in enumerate(selected_matches, start=1)
-    ]
+    train_steps = []
+    for index, match in enumerate(selected_matches, start=1):
+        step = _train_step(case_id, index, topology, match, heat_stream_lookup)
+        step.package_items = _package_items_for_step(step, heat_stream_lookup)
+        train_steps.append(step)
     return selected_matches, train_steps
 
 
@@ -302,6 +476,7 @@ def build_utility_architecture_decision(
         heat_stream_set=heat_stream_set,
         cases=network_cases,
         selected_train_steps=selected_case.selected_train_steps if selected_case else [],
+        selected_package_items=[item for step in (selected_case.selected_train_steps if selected_case else []) for item in step.package_items],
         topology_summary=selected_case.topology if selected_case else "no architecture selected",
         markdown="\n".join(
             [
@@ -311,6 +486,7 @@ def build_utility_architecture_decision(
                 f"Residual hot utility: {selected_case.residual_hot_utility_kw:.3f} kW" if selected_case else "Residual hot utility: n/a",
                 f"Packet-level thermal candidates: {len(packet_candidates)}" if energy_balance is not None else "",
                 f"Selected exchanger train steps: {len(selected_case.selected_train_steps)}" if selected_case else "Selected exchanger train steps: 0",
+                f"Selected package items: {sum(len(step.package_items) for step in (selected_case.selected_train_steps if selected_case else []))}",
                 *[
                     f"- {step.exchanger_id}: {step.service} via {step.medium}, {step.recovered_duty_kw:.3f} kW"
                     for step in (selected_case.selected_train_steps if selected_case else [])

@@ -40,6 +40,7 @@ class FlowsheetSequenceTests(unittest.TestCase):
             residence_time_hr=0.75,
             yield_fraction=0.92,
             selectivity_fraction=0.93,
+            byproducts=["Diethylene glycol", "Triethylene glycol"],
             catalysts=["none"],
             separations=["EO flash", "Water removal", "Vacuum distillation", "Heavy glycol split"],
             scale_up_notes="",
@@ -63,7 +64,22 @@ class FlowsheetSequenceTests(unittest.TestCase):
         self.assertTrue(any(stream.stream_id == "S-301" for stream in recycle_streams))
         self.assertLess(stream_table.closure_error_pct, 2.0)
         self.assertTrue(any(trace.trace_id == "sequence_recycle_components" for trace in stream_table.calc_traces))
+        self.assertTrue(any(trace.trace_id == "sequence_byproduct_closure" for trace in stream_table.calc_traces))
         self.assertGreaterEqual(len(stream_table.streams), 9)
+        component_names = {component.name for stream in stream_table.streams for component in stream.components}
+        self.assertTrue({"Diethylene glycol", "Triethylene glycol"} & component_names)
+        self.assertNotIn("Heavy ends", component_names)
+        self.assertTrue(stream_table.phase_split_specs)
+        self.assertTrue(stream_table.separator_performances)
+        self.assertTrue(stream_table.separation_packets[0].component_split_to_product)
+        self.assertTrue(stream_table.separation_packets[0].dominant_product_phase)
+        self.assertIn(stream_table.separation_packets[0].split_status, {"converged", "estimated"})
+        self.assertGreaterEqual(len(stream_table.recycle_packets), 2)
+        self.assertEqual(len(stream_table.convergence_summaries), len(stream_table.recycle_packets))
+        self.assertTrue({"concentration_recycle_loop", "purification_recycle_loop"}.issubset({packet.loop_id for packet in stream_table.recycle_packets}))
+        self.assertTrue(all(packet.purge_policy_by_family for packet in stream_table.recycle_packets))
+        self.assertTrue(stream_table.recycle_packets[0].component_convergence_error_pct)
+        self.assertTrue(all(error <= 95.0 for error in stream_table.recycle_packets[0].component_convergence_error_pct.values()))
 
     def test_solids_family_sequence_preserves_solids_path(self):
         basis = ProjectBasis(
@@ -108,6 +124,7 @@ class FlowsheetSequenceTests(unittest.TestCase):
         stream_table = build_stream_table(basis, route, reaction_system, ["s1"], [])
         product_stream = next(stream for stream in stream_table.streams if stream.stream_id == "S-402")
         self.assertEqual(product_stream.phase_hint, "solid")
+        self.assertTrue(any(spec.mechanism == "solid_liquid_partition" for spec in stream_table.phase_split_specs))
         self.assertTrue(any(stream.stream_id == "S-301" and stream.destination_unit_id == "feed_prep" for stream in stream_table.streams))
         self.assertLess(stream_table.closure_error_pct, 5.0)
 

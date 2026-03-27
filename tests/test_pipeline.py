@@ -10,8 +10,11 @@ from aoc.models import (
     DecisionRecord,
     DebtSchedule,
     EnergyBalance,
+    HeatExchangerDesign,
+    EquipmentListArtifact,
     FinancialSchedule,
     FlowsheetCase,
+    MechanicalDesignArtifact,
     PlantCostSummary,
     ReactorDesign,
     ColumnDesign,
@@ -74,6 +77,15 @@ class PipelineTests(unittest.TestCase):
         state = runner.run()
         self.assertEqual(state.run_status.value, "completed")
         inspect_text = runner.inspect()
+        self.assertIn("reaction_network:", inspect_text)
+        self.assertIn("flowsheet_solver:", inspect_text)
+        self.assertIn("composition_states:", inspect_text)
+        self.assertIn("phase_split_specs:", inspect_text)
+        self.assertIn("convergence_summaries:", inspect_text)
+        self.assertIn("recycle_summary[", inspect_text)
+        self.assertTrue(
+            any(token in inspect_text for token in ["estimated_units:", "partial_coverage_units:", "blocked_units:"])
+        )
         self.assertEqual(
             runner._load("route_decision", DecisionRecord).selected_candidate_id,
             runner._load("route_selection", RouteSelectionArtifact).selected_route_id,
@@ -94,16 +106,48 @@ class PipelineTests(unittest.TestCase):
         cost_model = runner._load("cost_model", CostModel)
         reactor_design = runner._load("reactor_design", ReactorDesign)
         column_design = runner._load("column_design", ColumnDesign)
+        exchanger_design = runner._load("heat_exchanger_design", HeatExchangerDesign)
+        equipment_list = runner._load("equipment_list", EquipmentListArtifact)
+        mechanical_design = runner._load("mechanical_design", MechanicalDesignArtifact)
         self.assertTrue(energy_balance.unit_thermal_packets)
         if "utility-only" not in utility_architecture.architecture.topology_summary.lower():
             self.assertGreaterEqual(len(utility_architecture.architecture.selected_train_steps), 1)
+            self.assertGreaterEqual(len(utility_architecture.architecture.selected_package_items), len(utility_architecture.architecture.selected_train_steps) * 2)
             self.assertGreater(cost_model.integration_capex_inr, 0.0)
             self.assertTrue(reactor_design.utility_topology)
             self.assertTrue(column_design.utility_topology)
+            self.assertGreaterEqual(reactor_design.integrated_exchange_area_m2, 0.0)
+            self.assertGreaterEqual(column_design.integrated_reboiler_area_m2, 0.0)
+            self.assertTrue(exchanger_design.selected_package_item_ids)
+            self.assertIn(exchanger_design.package_family, {"reboiler", "condenser", "reactor_coupling", "process_exchange", "generic"})
             self.assertTrue(
                 any(
-                    item.equipment_id.startswith("HX-") or item.equipment_id == "UTL-HTM-PKG"
+                    item.package_role == "controls"
+                    for item in utility_architecture.architecture.selected_package_items
+                )
+            )
+            self.assertTrue(
+                any(
+                    item.equipment_id.startswith("HX-")
+                    or item.equipment_type in {"HTM circulation skid", "HTM expansion tank", "HTM relief package", "Utility control package"}
                     for item in cost_model.equipment_cost_items
+                )
+            )
+            package_ids = {item.equipment_id for item in utility_architecture.architecture.selected_package_items}
+            self.assertTrue(package_ids.issubset({item.equipment_id for item in equipment_list.items}))
+            self.assertTrue(package_ids & {item.equipment_id for item in mechanical_design.items})
+            self.assertTrue(
+                any(
+                    item.package_family in {"reboiler", "condenser"} and item.heat_transfer_area_m2 > 0.0 and item.lmtd_k > 0.0
+                    for item in utility_architecture.architecture.selected_package_items
+                    if item.package_role == "exchanger"
+                )
+            )
+            self.assertTrue(
+                all(
+                    item.operating_load_kn >= 0.0 and item.nozzle_reinforcement_area_mm2 >= 0.0
+                    for item in mechanical_design.items
+                    if item.equipment_id in package_ids
                 )
             )
         self.assertTrue(
@@ -121,10 +165,12 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("archetype:", inspect_text)
         self.assertIn("alternative_sets:", inspect_text)
         self.assertIn("method_decisions:", inspect_text)
+        self.assertIn("byproduct_closure:", inspect_text)
         self.assertIn("agent_fabric:", inspect_text)
         self.assertIn("flowsheet_solver:", inspect_text)
         self.assertIn("utility_architecture:", inspect_text)
         self.assertIn("train_steps:", inspect_text)
+        self.assertIn("package_items:", inspect_text)
         self.assertIn("economics_v3:", inspect_text)
         pdf_path = runner.render()
         self.assertTrue(Path(pdf_path).exists())
