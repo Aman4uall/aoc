@@ -43,6 +43,7 @@ def build_stream_table_generic(
     extra_assumptions = [
         "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
         f"Sequence family inferred as `{solve_result.sequence_family}` from route separations and expanded into the stage path: {', '.join(solve_result.stage_labels)}.",
+        f"Sectioned flowsheet topology is now emitted explicitly with {len(solve_result.sections)} solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
         "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
     ]
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
@@ -97,6 +98,7 @@ def build_stream_table_generic(
         separation_packets=solve_result.separation_packets,
         recycle_packets=solve_result.recycle_packets,
         convergence_summaries=solve_result.convergence_summaries,
+        sections=solve_result.sections,
         citations=citations,
         assumptions=assumptions + extra_assumptions,
     )

@@ -45,6 +45,8 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                 source_unit_id=stream.source_unit_id,
                 destination_unit_id=stream.destination_unit_id,
                 phase_hint=stream.phase_hint,
+                stream_role=stream.stream_role,
+                section_id=stream.section_id,
                 total_mass_flow_kg_hr=round(total_mass, 6),
                 total_molar_flow_kmol_hr=round(total_molar, 6),
                 component_names=[component.name for component in stream.components],
@@ -113,6 +115,7 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                     component_split_to_product=packet.component_split_to_product,
                     component_split_to_waste=packet.component_split_to_waste,
                     component_split_to_recycle=packet.component_split_to_recycle,
+                    component_split_to_side_draw=packet.component_split_to_side_draw,
                     dominant_product_phase=packet.dominant_product_phase,
                     dominant_waste_phase=packet.dominant_waste_phase,
                     dominant_recycle_phase=packet.dominant_recycle_phase,
@@ -135,7 +138,7 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                 stream_id
                 for stream_id in outgoing_by_unit.get(node.node_id, [])
                 if any(
-                    stream.stream_id == stream_id and stream.destination_unit_id == "feed_prep"
+                    stream.stream_id == stream_id and (stream.stream_role == "recycle" or stream.destination_unit_id == "feed_prep")
                     for stream in stream_table.streams
                 )
             ]
@@ -143,7 +146,7 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                 stream_id
                 for stream_id in outgoing_by_unit.get(node.node_id, [])
                 if any(
-                    stream.stream_id == stream_id and stream.destination_unit_id in {"waste_treatment", "battery_limits"}
+                    stream.stream_id == stream_id and (stream.stream_role in {"purge", "waste", "vent"} or stream.destination_unit_id in {"waste_treatment", "battery_limits"})
                     for stream in stream_table.streams
                 )
             ]
@@ -151,6 +154,12 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                 stream_id
                 for stream_id in outgoing_by_unit.get(node.node_id, [])
                 if stream_id not in recycle_stream_ids and stream_id not in waste_stream_ids
+                and not any(stream.stream_id == stream_id and stream.stream_role == "side_draw" for stream in stream_table.streams)
+            ]
+            side_draw_stream_ids = [
+                stream_id
+                for stream_id in outgoing_by_unit.get(node.node_id, [])
+                if any(stream.stream_id == stream_id and stream.stream_role == "side_draw" for stream in stream_table.streams)
             ]
             separation_specs.append(
                 SeparationSpec(
@@ -165,6 +174,7 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                     product_stream_ids=product_stream_ids,
                     waste_stream_ids=waste_stream_ids,
                     recycle_stream_ids=recycle_stream_ids,
+                    side_draw_stream_ids=side_draw_stream_ids,
                     citations=flowsheet_graph.citations,
                     assumptions=flowsheet_graph.assumptions,
                 )
@@ -178,6 +188,9 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                 RecycleLoop(
                     loop_id=packet.loop_id,
                     recycle_source_unit_id=packet.recycle_source_unit_id,
+                    recycle_target_unit_id=packet.recycle_target_unit_id,
+                    source_section_id=packet.source_section_id,
+                    target_section_id=packet.target_section_id,
                     recycle_stream_ids=sorted(set(packet.recycle_stream_ids)),
                     purge_stream_ids=sorted(set(packet.purge_stream_ids)),
                     component_convergence_error_pct=packet.component_convergence_error_pct,
@@ -195,18 +208,27 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
         recycle_stream_ids = [
             stream.stream_id
             for stream in stream_table.streams
-            if stream.destination_unit_id == "feed_prep"
+            if stream.stream_role == "recycle" or stream.destination_unit_id == "feed_prep"
         ]
         purge_stream_ids = [
             stream.stream_id
             for stream in stream_table.streams
-            if "purge" in stream.description.lower() or stream.destination_unit_id == "waste_treatment"
+            if stream.stream_role in {"purge", "waste", "vent"} or "purge" in stream.description.lower() or stream.destination_unit_id == "waste_treatment"
         ]
         if recycle_stream_ids or purge_stream_ids:
             loop_id = f"{route_id}_main_recycle"
+            target_unit_id = next(
+                (
+                    stream.destination_unit_id
+                    for stream in stream_table.streams
+                    if stream.stream_id in recycle_stream_ids and stream.destination_unit_id
+                ),
+                None,
+            )
             recycle_loops.append(
                 RecycleLoop(
                     loop_id=loop_id,
+                    recycle_target_unit_id=target_unit_id,
                     recycle_stream_ids=sorted(set(recycle_stream_ids)),
                     purge_stream_ids=sorted(set(purge_stream_ids)),
                     convergence_status="converged" if stream_table.closure_error_pct <= 2.0 else "estimated",
@@ -219,6 +241,7 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
                 ConvergenceSummary(
                     summary_id=f"{loop_id}_summary",
                     loop_id=loop_id,
+                    recycle_target_unit_id=target_unit_id,
                     recycle_stream_ids=sorted(set(recycle_stream_ids)),
                     purge_stream_ids=sorted(set(purge_stream_ids)),
                     component_count=0,
@@ -244,6 +267,18 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
         markdown_lines.append(
             f"| {unit.unit_id} | {unit.unit_type} | {', '.join(unit.upstream_stream_ids) or '-'} | {', '.join(unit.downstream_stream_ids) or '-'} | {unit.closure_error_pct:.3f} |"
         )
+    if stream_table.sections:
+        markdown_lines.extend(
+            [
+                "",
+                "| Section | Type | Units | Inlet Streams | Outlet Streams | Status |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for section in stream_table.sections:
+            markdown_lines.append(
+                f"| {section.section_id} | {section.section_type} | {', '.join(section.unit_ids) or '-'} | {', '.join(section.inlet_stream_ids) or '-'} | {', '.join(section.outlet_stream_ids) or '-'} | {section.status} |"
+            )
     return FlowsheetCase(
         case_id=f"{route_id}_flowsheet_case",
         route_id=route_id,
@@ -256,6 +291,7 @@ def build_flowsheet_case(route_id: str, operating_mode: str, stream_table: Strea
         recycle_loops=recycle_loops,
         convergence_summaries=convergence_summaries,
         unit_operation_packets=stream_table.unit_operation_packets,
+        sections=stream_table.sections,
         markdown="\n".join(markdown_lines),
         citations=sorted(set(stream_table.citations + flowsheet_graph.citations)),
         assumptions=stream_table.assumptions + flowsheet_graph.assumptions,
@@ -271,6 +307,7 @@ def build_solve_result(flowsheet_case: FlowsheetCase, stream_table: StreamTable,
     unitwise_coverage_status: dict[str, str] = {}
     unitwise_blockers: dict[str, list[str]] = {}
     unitwise_unresolved_sensitivities: dict[str, list[str]] = {}
+    section_status: dict[str, str] = {}
     composition_status: dict[str, str] = {}
     separation_status: dict[str, str] = {}
     recycle_status: dict[str, str] = {}
@@ -365,11 +402,17 @@ def build_solve_result(flowsheet_case: FlowsheetCase, stream_table: StreamTable,
                 f"Separation '{separation.separation_id}' split closure is {separation.split_closure_pct:.3f}%, which is too high for a defendable separator basis."
             )
             split_status = "blocked"
-        for component_name in set(separation.component_split_to_product) | set(separation.component_split_to_waste) | set(separation.component_split_to_recycle):
+        for component_name in (
+            set(separation.component_split_to_product)
+            | set(separation.component_split_to_waste)
+            | set(separation.component_split_to_recycle)
+            | set(separation.component_split_to_side_draw)
+        ):
             split_total = (
                 separation.component_split_to_product.get(component_name, 0.0)
                 + separation.component_split_to_waste.get(component_name, 0.0)
                 + separation.component_split_to_recycle.get(component_name, 0.0)
+                + separation.component_split_to_side_draw.get(component_name, 0.0)
             )
             if split_total > 1.10 or split_total < 0.75:
                 critic_messages.append(
@@ -377,6 +420,21 @@ def build_solve_result(flowsheet_case: FlowsheetCase, stream_table: StreamTable,
                 )
                 split_status = "estimated" if split_status == "converged" else split_status
         separation_status[separation.separation_id] = split_status if split_status != "converged" or separation.closure_error_pct <= 2.0 else "estimated"
+    for section in flowsheet_case.sections:
+        status = section.status
+        if not section.unit_ids:
+            critic_messages.append(f"Section '{section.section_id}' has no active unit ids.")
+            status = "blocked"
+        elif not section.inlet_stream_ids or not section.outlet_stream_ids:
+            critic_messages.append(f"Section '{section.section_id}' has incomplete inlet or outlet continuity.")
+            status = "blocked"
+        else:
+            section_unit_statuses = [unitwise_status.get(unit_id, "estimated") for unit_id in section.unit_ids]
+            if any(item == "blocked" for item in section_unit_statuses):
+                status = "blocked"
+            elif any(item == "estimated" for item in section_unit_statuses) and status == "converged":
+                status = "estimated"
+        section_status[section.section_id] = status
     stream_ids = {stream.stream_id for stream in flowsheet_case.streams}
     for loop in flowsheet_case.recycle_loops:
         loop_status = loop.convergence_status
@@ -385,6 +443,21 @@ def build_solve_result(flowsheet_case: FlowsheetCase, stream_table: StreamTable,
         if missing_recycle or missing_purge:
             critic_messages.append(
                 f"Recycle loop '{loop.loop_id}' references missing streams: recycle={missing_recycle or ['-']}, purge={missing_purge or ['-']}."
+            )
+            loop_status = "blocked"
+        recycle_destinations = sorted(
+            {
+                stream_index[stream_id].destination_unit_id
+                for stream_id in loop.recycle_stream_ids
+                if stream_id in stream_index and stream_index[stream_id].destination_unit_id
+            }
+        )
+        if not recycle_destinations:
+            critic_messages.append(f"Recycle loop '{loop.loop_id}' has no resolved recycle return destination.")
+            loop_status = "blocked"
+        elif loop.recycle_target_unit_id and recycle_destinations != [loop.recycle_target_unit_id]:
+            critic_messages.append(
+                f"Recycle loop '{loop.loop_id}' mixes recycle destinations {recycle_destinations} against expected target '{loop.recycle_target_unit_id}'."
             )
             loop_status = "blocked"
         if loop.convergence_status == "blocked":
@@ -427,6 +500,7 @@ def build_solve_result(flowsheet_case: FlowsheetCase, stream_table: StreamTable,
     max_closure = max(unitwise_closure.values(), default=0.0)
     if (
         any(status == "blocked" for status in unitwise_status.values())
+        or any(status == "blocked" for status in section_status.values())
         or any(status == "blocked" for status in composition_status.values())
         or any(loop.convergence_status == "blocked" for loop in flowsheet_case.recycle_loops)
     ):
@@ -446,6 +520,7 @@ def build_solve_result(flowsheet_case: FlowsheetCase, stream_table: StreamTable,
         unitwise_coverage_status=unitwise_coverage_status,
         unitwise_blockers=unitwise_blockers,
         unitwise_unresolved_sensitivities=unitwise_unresolved_sensitivities,
+        section_status=section_status,
         composition_status=composition_status,
         separation_status=separation_status,
         recycle_status=recycle_status,

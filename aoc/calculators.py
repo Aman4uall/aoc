@@ -10,6 +10,7 @@ from aoc.economics_v2 import (
     build_logistics_basis_decision,
     build_procurement_basis_decision,
     build_working_capital_model_v2,
+    evaluate_financing_basis_decision,
 )
 from aoc.models import (
     CalcTrace,
@@ -23,6 +24,7 @@ from aoc.models import (
     IndianPriceDatum,
     KineticAssessmentArtifact,
     MarketAssessmentArtifact,
+    OperationsPlanningArtifact,
     ProcessTemplate,
     ProjectBasis,
     ReactionParticipant,
@@ -557,6 +559,7 @@ def build_reactor_design(
     mixture_properties: MixturePropertyArtifact | None = None,
     reactor_choice: DecisionRecord | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
+    kinetics: KineticAssessmentArtifact | None = None,
 ) -> ReactorDesign:
     return build_reactor_design_generic(
         basis,
@@ -567,6 +570,7 @@ def build_reactor_design(
         mixture_properties,
         reactor_choice,
         utility_architecture,
+        kinetics,
     )
 
     feed_mass = sum(sum(component.mass_flow_kg_hr for component in stream.components) for stream in stream_table.streams if stream.stream_id in {"S-101", "S-102"})
@@ -771,8 +775,9 @@ def build_storage_design(
     citations: list[str],
     assumptions: list[str],
     storage_choice: DecisionRecord | None = None,
+    operations_planning: OperationsPlanningArtifact | None = None,
 ) -> StorageDesign:
-    return build_storage_design_generic(basis, product_density_kg_m3, citations, assumptions, storage_choice)
+    return build_storage_design_generic(basis, product_density_kg_m3, citations, assumptions, storage_choice, operations_planning)
 
     inventory_days = 7.0 if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA else 3.0
     working_volume_m3 = hourly_output_kg(basis) * inventory_days * 24.0 / product_density_kg_m3
@@ -1279,8 +1284,9 @@ def build_working_capital_model(
     market_price_per_kg: float,
     citations: list[str],
     assumptions: list[str],
+    operations_planning: OperationsPlanningArtifact | None = None,
 ) -> WorkingCapitalModel:
-    return build_working_capital_model_v2(basis, cost_model, market_price_per_kg, citations, assumptions)
+    return build_working_capital_model_v2(basis, cost_model, market_price_per_kg, citations, assumptions, operations_planning)
 
     revenue = annual_output_kg(basis) * market_price_per_kg
     raw_material_days = 20.0
@@ -1341,7 +1347,21 @@ def build_financial_model(
     assumptions: list[str],
     financing_basis: DecisionRecord | None = None,
 ) -> FinancialModel:
-    financing_basis = financing_basis or build_financing_basis_decision(basis, SiteSelectionArtifact(candidates=[], selected_site="India", markdown="", citations=citations, assumptions=assumptions))
+    if financing_basis is None:
+        financing_seed = build_financing_basis_decision(
+            basis,
+            SiteSelectionArtifact(candidates=[], selected_site="India", markdown="", citations=citations, assumptions=assumptions),
+        )
+        _, financial_model = evaluate_financing_basis_decision(
+            basis,
+            market_price_per_kg,
+            cost_model,
+            working_capital,
+            citations,
+            assumptions,
+            financing_seed,
+        )
+        return financial_model
     return build_financial_model_v2(basis, market_price_per_kg, cost_model, working_capital, citations, assumptions, financing_basis)
 
     annual_revenue = annual_output_kg(basis) * market_price_per_kg

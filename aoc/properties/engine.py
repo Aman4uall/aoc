@@ -17,6 +17,7 @@ from aoc.models import (
     RouteSurveyArtifact,
     ScenarioStability,
     SensitivityLevel,
+    SparseDataPolicyArtifact,
 )
 from aoc.properties.models import (
     BinaryInteractionParameter,
@@ -939,5 +940,6 @@ def build_property_method_decision(
 def build_property_requirement_artifact(
     config: ProjectConfig,
     property_packages: PropertyPackageArtifact,
+    sparse_policy: SparseDataPolicyArtifact | None = None,
 ):
-    return build_property_requirement_set(config, property_packages)
+    return build_property_requirement_set(config, property_packages, sparse_policy)

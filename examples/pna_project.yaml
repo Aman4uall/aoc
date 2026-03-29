@@ -11,6 +11,9 @@ basis:
     - Greenfield specialty chemical manufacturing site.
     - Site should support solvent handling and wastewater segregation.
 strict_citation_policy: true
+compound_family_hint: mixed
+phase_system_hint: liquid_solid
+benchmark_profile: para_nitroanisole
 preferred_route_id: route_pncb_methoxylation
 user_documents:
   - label: Product profile notes
@@ -23,4 +26,3 @@ model:
   backend: mock
   model_name: gemini-3.1-pro-preview
   temperature: 0.2
-

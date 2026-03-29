@@ -74,6 +74,11 @@ class FlowsheetSequenceTests(unittest.TestCase):
         self.assertTrue(stream_table.separation_packets[0].component_split_to_product)
         self.assertTrue(stream_table.separation_packets[0].dominant_product_phase)
         self.assertIn(stream_table.separation_packets[0].split_status, {"converged", "estimated"})
+        self.assertTrue(stream_table.sections)
+        self.assertTrue(any(section.section_id.startswith("purification") for section in stream_table.sections))
+        self.assertTrue(any("Vacuum distillation" in section.label for section in stream_table.sections))
+        self.assertTrue(any(stream.stream_role == "side_draw" for stream in stream_table.streams))
+        self.assertTrue(any(packet.side_draw_stream_ids for packet in stream_table.separation_packets))
         self.assertGreaterEqual(len(stream_table.recycle_packets), 2)
         self.assertEqual(len(stream_table.convergence_summaries), len(stream_table.recycle_packets))
         self.assertTrue({"concentration_recycle_loop", "purification_recycle_loop"}.issubset({packet.loop_id for packet in stream_table.recycle_packets}))
@@ -126,7 +131,59 @@ class FlowsheetSequenceTests(unittest.TestCase):
         self.assertEqual(product_stream.phase_hint, "solid")
         self.assertTrue(any(spec.mechanism == "solid_liquid_partition" for spec in stream_table.phase_split_specs))
         self.assertTrue(any(stream.stream_id == "S-301" and stream.destination_unit_id == "feed_prep" for stream in stream_table.streams))
+        self.assertTrue(any(stream.stream_id == "S-351" and stream.destination_unit_id == "concentration" for stream in stream_table.streams))
+        self.assertTrue(any(packet.recycle_target_unit_id == "concentration" for packet in stream_table.recycle_packets))
         self.assertLess(stream_table.closure_error_pct, 5.0)
+
+    def test_generic_cleanup_route_expands_descriptor_driven_topology(self):
+        basis = ProjectBasis(
+            target_product="Ethylene Glycol",
+            capacity_tpa=200000,
+            target_purity_wt_pct=99.9,
+            process_template=ProcessTemplate.ETHYLENE_GLYCOL_INDIA,
+            india_only=True,
+        )
+        route = RouteOption(
+            route_id="omega_catalytic",
+            name="OMEGA catalytic route",
+            reaction_equation="C2H4O + H2O -> C2H6O2",
+            participants=[
+                ReactionParticipant(name="Ethylene oxide", formula="C2H4O", coefficient=1, role="reactant", molecular_weight_g_mol=44.05, phase="liquid"),
+                ReactionParticipant(name="Water", formula="H2O", coefficient=1, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"),
+                ReactionParticipant(name="Ethylene glycol", formula="C2H6O2", coefficient=1, role="product", molecular_weight_g_mol=62.07, phase="liquid"),
+            ],
+            operating_temperature_c=185,
+            operating_pressure_bar=20,
+            residence_time_hr=1.0,
+            yield_fraction=0.96,
+            selectivity_fraction=0.97,
+            byproducts=["Trace heavy glycols"],
+            catalysts=["CO2 catalytic loop"],
+            separations=["Carbonate loop cleanup", "Hydrolysis", "Low-water purification"],
+            scale_up_notes="",
+            route_score=9.4,
+            rationale="",
+            citations=["s1"],
+        )
+        kinetics = KineticAssessmentArtifact(
+            feasible=True,
+            activation_energy_kj_per_mol=62.0,
+            pre_exponential_factor=3.5e7,
+            apparent_order=1.0,
+            design_residence_time_hr=1.0,
+            markdown="seed",
+            citations=["s1"],
+        )
+        reaction_system = build_reaction_system(basis, route, kinetics, ["s1"], [])
+        stream_table = build_stream_table(basis, route, reaction_system, ["s1"], [])
+
+        self.assertTrue(any(section.section_id.startswith("recycle_recovery") for section in stream_table.sections))
+        self.assertTrue(any("Carbonate loop cleanup" in section.label for section in stream_table.sections))
+        self.assertTrue(any(stream.stream_id == "S-203" and stream.destination_unit_id == "recycle_recovery" for stream in stream_table.streams))
+        self.assertTrue(any(stream.stream_id == "S-301" and stream.destination_unit_id == "purification" for stream in stream_table.streams))
+        purification_packet = next(packet for packet in stream_table.separation_packets if packet.unit_id == "purification")
+        self.assertIn(purification_packet.split_status, {"converged", "estimated"})
+        self.assertLess(purification_packet.split_closure_pct, 5.0)
 
 
 if __name__ == "__main__":

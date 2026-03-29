@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aoc.models import ProjectConfig, SensitivityLevel
+from aoc.models import ProjectConfig, SensitivityLevel, SparseDataPolicyArtifact
 from aoc.properties.models import (
     PropertyPackageArtifact,
     PropertyRequirement,
@@ -40,6 +40,7 @@ _DEFAULT_STAGE_REQUIREMENTS: dict[str, list[tuple[str, bool, bool, str]]] = {
 def build_property_requirement_set(
     config: ProjectConfig,
     property_packages: PropertyPackageArtifact,
+    sparse_policy: SparseDataPolicyArtifact | None = None,
 ) -> PropertyRequirementSet:
     requirements: list[PropertyRequirement] = []
     coverage: list[PropertyRequirementCoverage] = []
@@ -50,16 +51,32 @@ def build_property_requirement_set(
 
     for stage_id, entries in _DEFAULT_STAGE_REQUIREMENTS.items():
         for property_name, allow_estimated, optional, note in entries:
+            policy_rule = next(
+                (
+                    item
+                    for item in (sparse_policy.rules if sparse_policy else [])
+                    if item.stage_id == stage_id and item.subject == property_name
+                ),
+                None,
+            )
             requirement = PropertyRequirement(
                 requirement_id=f"{stage_id}_{property_name}",
                 stage_id=stage_id,
                 unit_family=stage_id,
                 property_name=property_name,
-                allow_estimated=allow_estimated,
+                allow_estimated=policy_rule.allow_estimated if policy_rule is not None else allow_estimated,
                 optional=optional,
                 sensitivity=SensitivityLevel.HIGH if not optional else SensitivityLevel.MEDIUM,
-                blocking=not optional,
-                notes=note,
+                blocking=policy_rule.block_when_missing if policy_rule is not None else not optional,
+                notes=(
+                    note
+                    + (
+                        f" Sparse-data policy minimum confidence is {policy_rule.minimum_confidence:.2f}; "
+                        f"analogy {'allowed' if policy_rule.allow_analogy else 'not allowed'}."
+                        if policy_rule is not None
+                        else ""
+                    )
+                ),
                 citations=property_packages.citations,
                 assumptions=property_packages.assumptions,
             )
@@ -90,15 +107,15 @@ def build_property_requirement_set(
                         identifier_id=identifier_id,
                         property_name=property_name,
                         status=status,
-                        allow_estimated=allow_estimated,
-                        blocking=not optional,
+                        allow_estimated=requirement.allow_estimated,
+                        blocking=requirement.blocking,
                         source_ids=sources,
                         notes=notes,
                         citations=sources,
                         assumptions=property_packages.assumptions,
                     )
                 )
-                if status in {"blocked", "missing"} or (status == "estimated" and not allow_estimated):
+                if status in {"blocked", "missing"} or (status == "estimated" and not requirement.allow_estimated):
                     if not optional:
                         blocked_requirement_ids.append(requirement.requirement_id)
                         blocked_stage_ids.add(stage_id)

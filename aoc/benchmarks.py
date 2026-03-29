@@ -97,6 +97,24 @@ def _benchmark_definitions() -> dict[str, BenchmarkManifest]:
             required_public_source_domains=common_domains,
             notes="Benchmark for solids-heavy processing with filtration, drying, and solids handling.",
         ),
+        "para_nitroanisole": BenchmarkManifest(
+            benchmark_id="para_nitroanisole",
+            target_product="para-Nitroanisole",
+            archetype_family="specialty_aromatic_separation_intensive",
+            required_chapters=DEFAULT_REQUIRED_CHAPTERS,
+            expected_decisions=DEFAULT_EXPECTED_DECISIONS,
+            required_public_source_domains=common_domains,
+            notes="Benchmark for specialty aromatic substitution routes where route logic is plausible but sparse public property coverage should force an honest evidence-lock block unless the property basis improves.",
+        ),
+        "phenol": BenchmarkManifest(
+            benchmark_id="phenol",
+            target_product="Phenol",
+            archetype_family="oxidation_recovery_liquid_organic",
+            required_chapters=DEFAULT_REQUIRED_CHAPTERS,
+            expected_decisions=DEFAULT_EXPECTED_DECISIONS,
+            required_public_source_domains=common_domains,
+            notes="Benchmark for oxidation-led liquid-organic service with offgas handling, recovery distillation, and route-family coverage beyond the current core benchmark set.",
+        ),
     }
 
 
@@ -120,4 +138,3 @@ def build_benchmark_manifest(config: ProjectConfig) -> BenchmarkManifest:
         ],
         notes="Custom benchmark profile derived from project config. It uses the common any-compound chapter and decision expectations.",
     )
-

@@ -50,18 +50,58 @@ class MethodAndBenchmarkTests(unittest.TestCase):
             self.assertNotEqual(state.run_status.value, "blocked", msg=runner.inspect())
         return runner.inspect()
 
+    def _run_expected_block(self, example_name: str) -> tuple[object, str]:
+        config = load_project_config(str(Path(example_name).resolve()))
+        config.output_root = self.temp_dir
+        runner = PipelineRunner(config)
+        while True:
+            state = runner.run()
+            if state.awaiting_gate_id:
+                runner.approve_gate(state.awaiting_gate_id, notes="auto-approved in benchmark test")
+                continue
+            if state.run_status.value in {"completed", "blocked"}:
+                return state, runner.inspect()
+
     def test_acetic_acid_and_sulfuric_acid_complete_generic_pipeline(self):
         acetic_inspect = self._run_benchmark("examples/acetic_acid_india_mock.yaml")
         sulfuric_inspect = self._run_benchmark("examples/sulfuric_acid_india_mock.yaml")
         self.assertIn("method_decisions:", acetic_inspect)
         self.assertIn("method_decisions:", sulfuric_inspect)
+        self.assertIn("family_adapter:", acetic_inspect)
+        self.assertIn("family_adapter:", sulfuric_inspect)
+        self.assertIn("sparse_data_policy:", acetic_inspect)
+        self.assertIn("sparse_data_policy:", sulfuric_inspect)
         self.assertIn("capacity_case", acetic_inspect)
         self.assertIn("capacity_case", sulfuric_inspect)
 
     def test_sodium_bicarbonate_uses_solids_layout_and_decisions(self):
         inspect_text = self._run_benchmark("examples/sodium_bicarbonate_india_mock.yaml")
+        self.assertIn("solids_crystallization_train", inspect_text)
         self.assertIn("storage_choice", inspect_text)
         self.assertIn("layout:", inspect_text)
+
+    def test_phenol_completes_with_oxidation_route_family_coverage(self):
+        inspect_text = self._run_benchmark("examples/phenol_india_mock.yaml")
+        self.assertIn("benchmark:", inspect_text)
+        self.assertIn("phenol", inspect_text)
+        self.assertIn("route[cumene_oxidation_cleavage]: family=oxidation_recovery_train", inspect_text)
+        self.assertIn("route_family_id: oxidation_recovery_train", inspect_text)
+        self.assertIn("trickle_bed_oxidizer", inspect_text)
+        self.assertIn("critic_registry:", inspect_text)
+
+    def test_para_nitroanisole_blocks_honestly_at_evidence_lock(self):
+        state, inspect_text = self._run_expected_block("examples/pna_project.yaml")
+        self.assertEqual(state.run_status.value, "blocked")
+        self.assertEqual(state.current_stage_id, "property_gap_resolution")
+        self.assertEqual(state.blocked_stage_id, "property_gap_resolution")
+        self.assertIn("benchmark:", inspect_text)
+        self.assertIn("para_nitroanisole", inspect_text)
+        self.assertIn("specialty_aromatic_separation_intensive", inspect_text)
+        self.assertIn("evidence_lock_unresolved", inspect_text)
+        self.assertIn("property_requirement_stage_failures:", inspect_text)
+        self.assertIn("unresolved_identifiers:", inspect_text)
+        self.assertIn("agent_fabric:", inspect_text)
+        self.assertIn("critic_registry:", inspect_text)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from aoc.benchmarks import build_benchmark_manifest
 from aoc.config import load_project_config
 from aoc.decision_engine import resolve_property_gaps
 from aoc.evidence import build_resolved_source_set, build_resolved_value_artifact
+from aoc.family_adapters import build_chemistry_family_adapter
 from aoc.reasoning import build_reasoning_service
 from aoc.research import ResearchManager
 
@@ -43,8 +44,12 @@ class KernelTests(unittest.TestCase):
         property_gap = resolve_property_gaps(profile, config)
         route_survey = reasoning.survey_routes(config.basis, bundle.sources, bundle.corpus_excerpt)
         archetype = classify_process_archetype(config, route_survey, property_gap)
+        adapter = build_chemistry_family_adapter(config, route_survey, property_gap, archetype)
         alternative_sets = build_alternative_sets(config, archetype, route_survey)
         self.assertEqual(archetype.compound_family, "organic")
+        self.assertEqual(adapter.adapter_id, "continuous_liquid_organic_train")
+        self.assertIn("binary_interaction_parameters", adapter.property_priority_order)
+        self.assertIn("distillation_train", adapter.preferred_separation_candidates)
         self.assertIn("continuous", archetype.operating_mode_candidates)
         self.assertTrue(any(item.set_id == "route_screen" for item in alternative_sets))
         self.assertTrue(all(item.selected_candidate_id for item in alternative_sets))

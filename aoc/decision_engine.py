@@ -22,6 +22,8 @@ from aoc.models import (
     ReactionParticipant,
     RoughAlternativeCase,
     RoughAlternativeSummaryArtifact,
+    RouteFamilyArtifact,
+    RouteFamilyProfile,
     RouteSelectionArtifact,
     RouteSurveyArtifact,
     ScenarioResult,
@@ -33,6 +35,7 @@ from aoc.models import (
     UtilityTarget,
     ValueRecord,
 )
+from aoc.route_families import build_route_family_artifact, profile_for_route
 from aoc.value_engine import make_value_record
 
 
@@ -58,68 +61,22 @@ def _route_product(route) -> ReactionParticipant:
     raise ValueError(f"Route '{route.route_id}' has no product participant.")
 
 
-def _is_eo_hydration(route_id: str) -> bool:
-    lowered = route_id.lower()
-    return "eo_hydration" in lowered or ("hydration" in lowered and "oxide" in lowered)
+def _route_profile(route, route_families: RouteFamilyArtifact | None = None) -> RouteFamilyProfile:
+    return profile_for_route(route_families, route.route_id) or build_route_family_artifact(
+        RouteSurveyArtifact(routes=[route], markdown="", citations=route.citations, assumptions=route.assumptions)
+    ).profiles[0]
 
 
-def _is_omega(route_id: str) -> bool:
-    lowered = route_id.lower()
-    return "omega" in lowered or "carbonate" in lowered
-
-
-def _is_chlorinated(route_id: str) -> bool:
-    return "chlor" in route_id.lower()
-
-
-def _route_water_ratio(route_id: str) -> float:
-    if _is_eo_hydration(route_id):
+def _route_water_ratio(profile: RouteFamilyProfile) -> float:
+    if profile.route_family_id == "liquid_hydration_train":
         return 20.0
-    if _is_omega(route_id):
-        return 1.2
-    if _is_chlorinated(route_id):
+    if profile.route_family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"}:
+        return 1.3
+    if profile.route_family_id == "chlorinated_hydrolysis_train":
         return 3.5
+    if profile.route_family_id == "gas_absorption_converter_train":
+        return 0.8
     return 2.0
-
-
-def _route_reactor_class(route_id: str) -> str:
-    if _is_eo_hydration(route_id):
-        return "Tubular plug-flow hydrator"
-    if _is_omega(route_id):
-        return "Catalytic carbonate loop with hydrolyzer"
-    if _is_chlorinated(route_id):
-        return "Agitated hydrolysis CSTR train"
-    return "Jacketed stirred reactor"
-
-
-def _route_separation_train(route_id: str) -> str:
-    if _is_eo_hydration(route_id):
-        return "EO flash -> water removal -> vacuum glycol distillation"
-    if _is_omega(route_id):
-        return "Carbonate loop cleanup -> hydrolysis -> low-water purification"
-    if _is_chlorinated(route_id):
-        return "Salt removal -> brine handling -> water removal -> purification"
-    return "Primary separation -> product finishing"
-
-
-def _route_maturity_score(route_id: str) -> float:
-    if _is_eo_hydration(route_id):
-        return 92.0
-    if _is_omega(route_id):
-        return 84.0
-    if _is_chlorinated(route_id):
-        return 18.0
-    return 70.0
-
-
-def _route_india_fit_score(route_id: str) -> float:
-    if _is_eo_hydration(route_id):
-        return 90.0
-    if _is_omega(route_id):
-        return 82.0
-    if _is_chlorinated(route_id):
-        return 20.0
-    return 65.0
 
 
 def _route_safety_score(route) -> float:
@@ -129,10 +86,8 @@ def _route_safety_score(route) -> float:
     return min(severity_rank.get(hazard.severity, 45.0) for hazard in route.hazards)
 
 
-def _route_regulatory_block(route_id: str) -> str | None:
-    if _is_chlorinated(route_id):
-        return "Route generates chloride-heavy waste and is blocked for India EG deployment."
-    return None
+def _route_regulatory_block(profile: RouteFamilyProfile) -> str | None:
+    return profile.india_deployment_blocker or None
 
 
 def _route_byproduct_credit(route) -> float:
@@ -140,6 +95,171 @@ def _route_byproduct_credit(route) -> float:
     if "diethylene glycol" in byproducts or "triethylene glycol" in byproducts:
         return 12.0
     return 0.0
+
+
+def _candidate_id(label: str) -> str:
+    sanitized = []
+    for char in label.lower():
+        sanitized.append(char if char.isalnum() else "_")
+    return "_".join(part for part in "".join(sanitized).split("_") if part)
+
+
+def _family_heat_signature(case: RoughAlternativeCase) -> dict[str, float]:
+    family_id = case.route_family_id or "generic_mixed_train"
+    signatures = {
+        "liquid_hydration_train": {
+            "reactor_hot_supply_c": 195.0,
+            "reactor_hot_target_c": 135.0,
+            "condensing_hot_supply_c": 150.0,
+            "reboiler_cold_supply_c": 110.0,
+            "reboiler_cold_target_c": 175.0,
+            "feed_cold_target_c": 120.0,
+            "recoverability": 0.78,
+            "pinch_temp_c": 153.0,
+            "multi_effect_fraction": 0.44,
+            "multi_effect_capex_inr": 2.2e8,
+            "htm_fraction": 0.80,
+            "htm_capex_inr": 5.8e8,
+        },
+        "carbonylation_liquid_train": {
+            "reactor_hot_supply_c": 188.0,
+            "reactor_hot_target_c": 132.0,
+            "condensing_hot_supply_c": 145.0,
+            "reboiler_cold_supply_c": 102.0,
+            "reboiler_cold_target_c": 162.0,
+            "feed_cold_target_c": 112.0,
+            "recoverability": 0.64,
+            "pinch_temp_c": 146.0,
+            "multi_effect_fraction": 0.34,
+            "multi_effect_capex_inr": 1.9e8,
+            "htm_fraction": 0.66,
+            "htm_capex_inr": 4.8e8,
+        },
+        "gas_absorption_converter_train": {
+            "reactor_hot_supply_c": 185.0,
+            "reactor_hot_target_c": 118.0,
+            "condensing_hot_supply_c": 140.0,
+            "reboiler_cold_supply_c": 88.0,
+            "reboiler_cold_target_c": 142.0,
+            "feed_cold_target_c": 92.0,
+            "recoverability": 0.56,
+            "pinch_temp_c": 132.0,
+            "multi_effect_fraction": 0.28,
+            "multi_effect_capex_inr": 1.6e8,
+            "htm_fraction": 0.54,
+            "htm_capex_inr": 4.0e8,
+        },
+        "solids_carboxylation_train": {
+            "reactor_hot_supply_c": 122.0,
+            "reactor_hot_target_c": 78.0,
+            "condensing_hot_supply_c": 96.0,
+            "reboiler_cold_supply_c": 82.0,
+            "reboiler_cold_target_c": 118.0,
+            "feed_cold_target_c": 74.0,
+            "recoverability": 0.26,
+            "pinch_temp_c": 92.0,
+            "multi_effect_fraction": 0.24,
+            "multi_effect_capex_inr": 1.2e8,
+            "htm_fraction": 0.22,
+            "htm_capex_inr": 2.6e8,
+        },
+        "integrated_solvay_liquor_train": {
+            "reactor_hot_supply_c": 128.0,
+            "reactor_hot_target_c": 82.0,
+            "condensing_hot_supply_c": 102.0,
+            "reboiler_cold_supply_c": 86.0,
+            "reboiler_cold_target_c": 122.0,
+            "feed_cold_target_c": 78.0,
+            "recoverability": 0.32,
+            "pinch_temp_c": 96.0,
+            "multi_effect_fraction": 0.27,
+            "multi_effect_capex_inr": 1.3e8,
+            "htm_fraction": 0.28,
+            "htm_capex_inr": 2.9e8,
+        },
+        "oxidation_recovery_train": {
+            "reactor_hot_supply_c": 172.0,
+            "reactor_hot_target_c": 116.0,
+            "condensing_hot_supply_c": 132.0,
+            "reboiler_cold_supply_c": 92.0,
+            "reboiler_cold_target_c": 148.0,
+            "feed_cold_target_c": 96.0,
+            "recoverability": 0.46,
+            "pinch_temp_c": 124.0,
+            "multi_effect_fraction": 0.30,
+            "multi_effect_capex_inr": 1.55e8,
+            "htm_fraction": 0.58,
+            "htm_capex_inr": 4.2e8,
+        },
+        "chlorinated_hydrolysis_train": {
+            "reactor_hot_supply_c": 142.0,
+            "reactor_hot_target_c": 88.0,
+            "condensing_hot_supply_c": 108.0,
+            "reboiler_cold_supply_c": 84.0,
+            "reboiler_cold_target_c": 126.0,
+            "feed_cold_target_c": 82.0,
+            "recoverability": 0.20,
+            "pinch_temp_c": 90.0,
+            "multi_effect_fraction": 0.22,
+            "multi_effect_capex_inr": 1.1e8,
+            "htm_fraction": 0.18,
+            "htm_capex_inr": 2.3e8,
+        },
+        "regeneration_loop_train": {
+            "reactor_hot_supply_c": 168.0,
+            "reactor_hot_target_c": 112.0,
+            "condensing_hot_supply_c": 126.0,
+            "reboiler_cold_supply_c": 90.0,
+            "reboiler_cold_target_c": 146.0,
+            "feed_cold_target_c": 94.0,
+            "recoverability": 0.42,
+            "pinch_temp_c": 118.0,
+            "multi_effect_fraction": 0.29,
+            "multi_effect_capex_inr": 1.45e8,
+            "htm_fraction": 0.40,
+            "htm_capex_inr": 3.2e8,
+        },
+        "extraction_recovery_train": {
+            "reactor_hot_supply_c": 156.0,
+            "reactor_hot_target_c": 104.0,
+            "condensing_hot_supply_c": 124.0,
+            "reboiler_cold_supply_c": 92.0,
+            "reboiler_cold_target_c": 138.0,
+            "feed_cold_target_c": 90.0,
+            "recoverability": 0.38,
+            "pinch_temp_c": 112.0,
+            "multi_effect_fraction": 0.26,
+            "multi_effect_capex_inr": 1.35e8,
+            "htm_fraction": 0.44,
+            "htm_capex_inr": 3.1e8,
+        },
+    }
+    return signatures.get(
+        family_id,
+        {
+            "reactor_hot_supply_c": 110.0,
+            "reactor_hot_target_c": 70.0,
+            "condensing_hot_supply_c": 95.0,
+            "reboiler_cold_supply_c": 85.0,
+            "reboiler_cold_target_c": 120.0,
+            "feed_cold_target_c": 80.0,
+            "recoverability": 0.18,
+            "pinch_temp_c": 95.0,
+            "multi_effect_fraction": 0.24,
+            "multi_effect_capex_inr": 1.4e8,
+            "htm_fraction": 0.32,
+            "htm_capex_inr": 3.0e8,
+        },
+    )
+
+
+def _supports_htm_topology(case: RoughAlternativeCase) -> bool:
+    return case.heat_recovery_style in {
+        "condenser_reboiler_cluster",
+        "shared_htm_island_network",
+        "staged_utility_header_network",
+        "waste_heat_boiler",
+    }
 
 
 def _normalize_scores(values: dict[str, float], reverse: bool = False) -> dict[str, float]:
@@ -298,11 +418,19 @@ def _operating_mode_decision(config: ProjectConfig, citations: list[str]) -> Dec
     )
 
 
-def build_process_synthesis(config: ProjectConfig, route_survey: RouteSurveyArtifact, property_gap: PropertyGapArtifact) -> ProcessSynthesisArtifact:
+def build_process_synthesis(
+    config: ProjectConfig,
+    route_survey: RouteSurveyArtifact,
+    property_gap: PropertyGapArtifact,
+    operating_mode_decision: DecisionRecord | None = None,
+    route_families: RouteFamilyArtifact | None = None,
+) -> ProcessSynthesisArtifact:
     citations = sorted(set(route_survey.citations + property_gap.citations))
-    operating_mode_decision = _operating_mode_decision(config, citations)
+    operating_mode_decision = operating_mode_decision or _operating_mode_decision(config, citations)
+    route_families = route_families or build_route_family_artifact(route_survey)
     alternatives: list[AlternativeOption] = []
     for route in route_survey.routes:
+        profile = _route_profile(route, route_families)
         alternatives.append(
             AlternativeOption(
                 candidate_id=f"alt_{route.route_id}",
@@ -311,27 +439,31 @@ def build_process_synthesis(config: ProjectConfig, route_survey: RouteSurveyArti
                 inputs={
                     "route_id": route.route_id,
                     "operating_mode": operating_mode_decision.selected_candidate_id or "continuous",
-                    "reactor_class": _route_reactor_class(route.route_id),
+                    "route_family": profile.route_family_id,
+                    "reactor_class": profile.primary_reactor_class,
                 },
                 outputs={
-                    "separation_train": _route_separation_train(route.route_id),
-                    "maturity_score": _format_score(_route_maturity_score(route.route_id)),
-                    "india_fit_score": _format_score(_route_india_fit_score(route.route_id)),
+                    "separation_train": profile.primary_separation_train,
+                    "heat_recovery_style": profile.heat_recovery_style,
+                    "maturity_score": _format_score(profile.maturity_score),
+                    "india_fit_score": _format_score(profile.india_fit_score),
                 },
-                rejected_reasons=[_route_regulatory_block(route.route_id)] if _route_regulatory_block(route.route_id) else [],
+                rejected_reasons=[profile.india_deployment_blocker] if profile.india_deployment_blocker else [],
                 score_breakdown={
-                    "maturity": _route_maturity_score(route.route_id),
-                    "india_fit": _route_india_fit_score(route.route_id),
+                    "maturity": profile.maturity_score,
+                    "india_fit": profile.india_fit_score,
                     "safety": _route_safety_score(route),
+                    "operability": profile.operability_score,
                 },
                 total_score=(
-                    0.45 * _route_maturity_score(route.route_id)
-                    + 0.30 * _route_india_fit_score(route.route_id)
-                    + 0.25 * _route_safety_score(route)
+                    0.35 * profile.maturity_score
+                    + 0.25 * profile.india_fit_score
+                    + 0.20 * _route_safety_score(route)
+                    + 0.20 * profile.operability_score
                 ),
-                feasible=_route_regulatory_block(route.route_id) is None and reaction_is_balanced(route),
+                feasible=profile.india_deployment_blocker == "" and reaction_is_balanced(route),
                 citations=route.citations,
-                assumptions=route.assumptions,
+                assumptions=route.assumptions + [f"Route family `{profile.route_family_id}` drives first-pass synthesis scoring."],
             )
         )
     rows = [
@@ -423,75 +555,108 @@ def build_site_selection_decision(config: ProjectConfig, site_selection: SiteSel
     )
 
 
-def _rough_case_for_route(config: ProjectConfig, route, market) -> RoughAlternativeCase:
+def _rough_case_for_route(config: ProjectConfig, route, market, route_families: RouteFamilyArtifact | None = None) -> RoughAlternativeCase:
     basis = config.basis
     product = _route_product(route)
+    profile = _route_profile(route, route_families)
     annual_hours = operating_hours_per_year(basis)
     product_mass_kg_hr = hourly_output_kg(basis)
     product_kmol_hr = product_mass_kg_hr / max(product.molecular_weight_g_mol, 1.0)
-    water_ratio = _route_water_ratio(route.route_id)
+    water_ratio = _route_water_ratio(profile)
     reactant_ratio = max(route.selectivity_fraction * route.yield_fraction, 0.35)
     feed_extent_kmol_hr = product_kmol_hr / reactant_ratio
     dehydration_burden_kw = max((water_ratio - 1.0) * feed_extent_kmol_hr * 18.015 * 2200.0 / 3600.0, 0.0)
-    if _is_omega(route.route_id):
+    if profile.route_family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"}:
         dehydration_burden_kw *= 0.30
-    elif _is_chlorinated(route.route_id):
+    elif profile.route_family_id == "chlorinated_hydrolysis_train":
         dehydration_burden_kw *= 0.55
-    reaction_cooling_kw = abs(product_kmol_hr * 1000.0 * (90.0 if _is_eo_hydration(route.route_id) else 75.0 if _is_omega(route.route_id) else 55.0) / 3600.0)
-    polishing_heating_kw = product_mass_kg_hr * (0.06 if _is_eo_hydration(route.route_id) else 0.10 if _is_omega(route.route_id) else 0.12)
+    reaction_intensity = {
+        "liquid_hydration_train": 90.0,
+        "carbonylation_liquid_train": 70.0,
+        "gas_absorption_converter_train": 82.0,
+        "solids_carboxylation_train": 48.0,
+        "integrated_solvay_liquor_train": 54.0,
+        "oxidation_recovery_train": 62.0,
+        "chlorinated_hydrolysis_train": 55.0,
+        "regeneration_loop_train": 68.0,
+    }.get(profile.route_family_id, 58.0)
+    polishing_factor = {
+        "liquid_hydration_train": 0.06,
+        "carbonylation_liquid_train": 0.07,
+        "gas_absorption_converter_train": 0.08,
+        "solids_carboxylation_train": 0.05,
+        "integrated_solvay_liquor_train": 0.09,
+        "oxidation_recovery_train": 0.10,
+        "chlorinated_hydrolysis_train": 0.12,
+        "regeneration_loop_train": 0.11,
+    }.get(profile.route_family_id, 0.09)
+    cooling_multiplier = {
+        "liquid_hydration_train": 0.72,
+        "carbonylation_liquid_train": 0.64,
+        "gas_absorption_converter_train": 0.58,
+        "solids_carboxylation_train": 0.42,
+        "integrated_solvay_liquor_train": 0.47,
+        "oxidation_recovery_train": 0.52,
+        "chlorinated_hydrolysis_train": 0.40,
+        "regeneration_loop_train": 0.50,
+    }.get(profile.route_family_id, 0.50)
+    reaction_cooling_kw = abs(product_kmol_hr * 1000.0 * reaction_intensity / 3600.0)
+    polishing_heating_kw = product_mass_kg_hr * polishing_factor
     estimated_heating_kw = dehydration_burden_kw + polishing_heating_kw
-    estimated_cooling_kw = reaction_cooling_kw + estimated_heating_kw * (0.72 if _is_eo_hydration(route.route_id) else 0.55 if _is_omega(route.route_id) else 0.40)
+    estimated_cooling_kw = reaction_cooling_kw + estimated_heating_kw * cooling_multiplier
     steam_price = _price_lookup(market.india_price_data, "Steam", 1.8)
     cooling_water_price = _price_lookup(market.india_price_data, "Cooling water", 8.0)
     power_price = _price_lookup(market.india_price_data, "Electricity", 8.5)
     steam_cost = estimated_heating_kw * 3600.0 / 2200.0 * steam_price * annual_hours
     cooling_cost = estimated_cooling_kw * 3600.0 / (4.18 * 10.0 * 1000.0) * cooling_water_price * annual_hours
-    power_cost = product_mass_kg_hr * (0.010 if _is_eo_hydration(route.route_id) else 0.013 if _is_omega(route.route_id) else 0.020) * power_price * annual_hours
+    power_cost = product_mass_kg_hr * (0.010 + max(profile.utility_intensity_factor - 0.9, 0.0) * 0.015) * power_price * annual_hours
     estimated_annual_utility_cost_inr = steam_cost + cooling_cost + power_cost
-    base_capex = (
-        7.8e9
-        if _is_eo_hydration(route.route_id)
-        else 9.4e9
-        if _is_omega(route.route_id)
-        else 1.15e10
-    )
+    base_capex = 7.4e9 * profile.capex_intensity_factor
     estimated_capex_inr = base_capex + estimated_heating_kw * 8500.0 + estimated_cooling_kw * 6200.0
-    feedstock_factor = 5.4e9 if _is_eo_hydration(route.route_id) else 5.1e9 if _is_omega(route.route_id) else 6.2e9
+    feedstock_factor = 5.0e9 * (0.90 + profile.capex_intensity_factor * 0.12)
     estimated_annual_total_opex_inr = feedstock_factor + estimated_annual_utility_cost_inr
     note = (
-        "High-water thermal hydration carries a very large dehydration duty."
-        if _is_eo_hydration(route.route_id)
-        else "Carbonate-loop route starts with lower dehydration duty but higher catalytic/process complexity."
-        if _is_omega(route.route_id)
-        else "Legacy chlorohydrin route is penalized on waste and caustic handling."
+        f"{profile.family_label} rough balance uses route-family factors for utility and CAPEX intensity. "
+        + (" ".join(profile.critic_flags[:2]) if profile.critic_flags else "No special critic penalties were triggered.")
     )
     return RoughAlternativeCase(
         candidate_id=f"alt_{route.route_id}",
         route_id=route.route_id,
         route_name=route.name,
+        route_family_id=profile.route_family_id,
+        route_family_label=profile.family_label,
         operating_mode=config.basis.operating_mode,
-        reactor_class=_route_reactor_class(route.route_id),
-        separation_train=_route_separation_train(route.route_id),
+        reactor_class=profile.primary_reactor_class,
+        separation_train=profile.primary_separation_train,
+        heat_recovery_style=profile.heat_recovery_style,
         estimated_heating_kw=round(estimated_heating_kw, 3),
         estimated_cooling_kw=round(estimated_cooling_kw, 3),
         estimated_capex_inr=round(estimated_capex_inr, 2),
         estimated_annual_utility_cost_inr=round(estimated_annual_utility_cost_inr, 2),
         estimated_annual_total_opex_inr=round(estimated_annual_total_opex_inr, 2),
+        critic_flags=profile.critic_flags,
         notes=note,
         citations=route.citations + market.citations,
-        assumptions=route.assumptions + market.assumptions,
+        assumptions=route.assumptions + market.assumptions + [f"Route family `{profile.route_family_id}` drives rough utility/CAPEX screening."],
     )
 
 
-def build_rough_alternatives(config: ProjectConfig, route_survey: RouteSurveyArtifact, synthesis: ProcessSynthesisArtifact, market) -> RoughAlternativeSummaryArtifact:
-    cases = [_rough_case_for_route(config, route, market) for route in route_survey.routes]
+def build_rough_alternatives(
+    config: ProjectConfig,
+    route_survey: RouteSurveyArtifact,
+    synthesis: ProcessSynthesisArtifact,
+    market,
+    route_families: RouteFamilyArtifact | None = None,
+) -> RoughAlternativeSummaryArtifact:
+    route_families = route_families or build_route_family_artifact(route_survey)
+    cases = [_rough_case_for_route(config, route, market, route_families) for route in route_survey.routes]
     rows = [
-        "| Route | Heating (kW) | Cooling (kW) | CAPEX (INR bn) | Utility OPEX (INR bn/y) |",
-        "| --- | --- | --- | --- | --- |",
+        "| Route | Family | Heating (kW) | Cooling (kW) | CAPEX (INR bn) | Utility OPEX (INR bn/y) |",
+        "| --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         rows.append(
-            f"| {case.route_id} | {case.estimated_heating_kw:.1f} | {case.estimated_cooling_kw:.1f} | {case.estimated_capex_inr / 1e9:.2f} | {case.estimated_annual_utility_cost_inr / 1e9:.2f} |"
+            f"| {case.route_id} | {case.route_family_label} | {case.estimated_heating_kw:.1f} | {case.estimated_cooling_kw:.1f} | {case.estimated_capex_inr / 1e9:.2f} | {case.estimated_annual_utility_cost_inr / 1e9:.2f} |"
         )
     return RoughAlternativeSummaryArtifact(
         cases=cases,
@@ -503,14 +668,15 @@ def build_rough_alternatives(config: ProjectConfig, route_survey: RouteSurveyArt
 
 def _build_heat_streams(case: RoughAlternativeCase) -> list[HeatStream]:
     route_id = case.route_id
+    signature = _family_heat_signature(case)
     hot_streams = [
         HeatStream(
             stream_id=f"{route_id}_hot_reactor",
             name="Reactor exotherm",
             kind="hot",
             source_unit_id="R-rough",
-            supply_temp_c=195.0 if _is_eo_hydration(route_id) else 180.0 if _is_omega(route_id) else 110.0,
-            target_temp_c=135.0 if _is_eo_hydration(route_id) else 130.0 if _is_omega(route_id) else 70.0,
+            supply_temp_c=signature["reactor_hot_supply_c"],
+            target_temp_c=signature["reactor_hot_target_c"],
             duty_kw=round(case.estimated_cooling_kw * 0.62, 3),
             notes="Dominant recoverable hot stream from reactor or hydrolyzer section.",
             citations=case.citations,
@@ -521,7 +687,7 @@ def _build_heat_streams(case: RoughAlternativeCase) -> list[HeatStream]:
             name="Condensing overhead / hot product stream",
             kind="hot",
             source_unit_id="D-rough",
-            supply_temp_c=150.0 if _is_eo_hydration(route_id) else 135.0 if _is_omega(route_id) else 95.0,
+            supply_temp_c=signature["condensing_hot_supply_c"],
             target_temp_c=60.0,
             duty_kw=round(case.estimated_cooling_kw * 0.38, 3),
             notes="Secondary hot stream available for feed and water preheat.",
@@ -535,8 +701,8 @@ def _build_heat_streams(case: RoughAlternativeCase) -> list[HeatStream]:
             name="Primary dehydration / reboiler duty",
             kind="cold",
             source_unit_id="D-rough",
-            supply_temp_c=110.0 if _is_eo_hydration(route_id) else 95.0 if _is_omega(route_id) else 85.0,
-            target_temp_c=175.0 if _is_eo_hydration(route_id) else 150.0 if _is_omega(route_id) else 120.0,
+            supply_temp_c=signature["reboiler_cold_supply_c"],
+            target_temp_c=signature["reboiler_cold_target_c"],
             duty_kw=round(case.estimated_heating_kw * 0.78, 3),
             notes="Largest cold sink and first target for heat recovery.",
             citations=case.citations,
@@ -548,7 +714,7 @@ def _build_heat_streams(case: RoughAlternativeCase) -> list[HeatStream]:
             kind="cold",
             source_unit_id="E-rough",
             supply_temp_c=30.0,
-            target_temp_c=120.0 if _is_eo_hydration(route_id) else 105.0 if _is_omega(route_id) else 80.0,
+            target_temp_c=signature["feed_cold_target_c"],
             duty_kw=round(case.estimated_heating_kw * 0.22, 3),
             notes="Secondary cold sink for direct or indirect recovery.",
             citations=case.citations,
@@ -579,8 +745,9 @@ def _build_heat_cases(config: ProjectConfig, case: RoughAlternativeCase, market,
     annual_hours = operating_hours_per_year(config.basis)
     base_hot = case.estimated_heating_kw
     base_cold = case.estimated_cooling_kw
-    recoverable = min(base_hot, base_cold) * (0.78 if _is_eo_hydration(case.route_id) else 0.52 if _is_omega(case.route_id) else 0.18)
-    pinch_temp = 153.0 if _is_eo_hydration(case.route_id) else 138.0 if _is_omega(case.route_id) else 95.0
+    signature = _family_heat_signature(case)
+    recoverable = min(base_hot, base_cold) * signature["recoverability"]
+    pinch_temp = signature["pinch_temp_c"]
     utility_target = UtilityTarget(
         base_hot_utility_kw=round(base_hot, 3),
         base_cold_utility_kw=round(base_cold, 3),
@@ -629,8 +796,8 @@ def _build_heat_cases(config: ProjectConfig, case: RoughAlternativeCase, market,
         citations=case.citations,
         assumptions=case.assumptions,
     )
-    multi_effect_recovered = min(recoverable * (0.44 if _is_eo_hydration(case.route_id) else 0.30), base_hot)
-    multi_effect_capex = 2.2e8 if _is_eo_hydration(case.route_id) else 1.4e8
+    multi_effect_recovered = min(recoverable * signature["multi_effect_fraction"], base_hot)
+    multi_effect_capex = signature["multi_effect_capex_inr"]
     multi_effect_savings = annual_savings_for_recovered_duty(multi_effect_recovered)
     multi_effect = HeatIntegrationCase(
         case_id=f"{case.route_id}_multi_effect",
@@ -662,8 +829,8 @@ def _build_heat_cases(config: ProjectConfig, case: RoughAlternativeCase, market,
         citations=case.citations,
         assumptions=case.assumptions,
     )
-    htm_recovered = min(recoverable * (0.80 if _is_eo_hydration(case.route_id) else 0.48), base_hot)
-    htm_capex = 5.8e8 if _is_eo_hydration(case.route_id) else 3.6e8
+    htm_recovered = min(recoverable * signature["htm_fraction"], base_hot)
+    htm_capex = signature["htm_capex_inr"]
     htm_savings = annual_savings_for_recovered_duty(htm_recovered)
     htm_case = HeatIntegrationCase(
         case_id=f"{case.route_id}_pinch_htm",
@@ -676,7 +843,12 @@ def _build_heat_cases(config: ProjectConfig, case: RoughAlternativeCase, market,
         payback_years=round(htm_capex / max(htm_savings, 1.0), 3),
         operability_penalty=14.0,
         safety_penalty=8.0,
-        feasible=config.heat_integration.allow_htm_loops and htm_recovered >= config.heat_integration.min_recoverable_duty_kw and direct_possible,
+        feasible=(
+            config.heat_integration.allow_htm_loops
+            and _supports_htm_topology(case)
+            and htm_recovered >= config.heat_integration.min_recoverable_duty_kw
+            and direct_possible
+        ),
         heat_matches=[
             HeatMatch(
                 match_id=f"{case.route_id}_htm_reboiler",
@@ -1125,10 +1297,12 @@ def select_route_architecture(
     rough_summary: RoughAlternativeSummaryArtifact,
     heat_study: HeatIntegrationStudyArtifact,
     market,
+    route_families: RouteFamilyArtifact | None = None,
 ) -> tuple[RouteSelectionArtifact, DecisionRecord, DecisionRecord, DecisionRecord, UtilityNetworkDecision]:
     routes_by_id = {route.route_id: route for route in route_survey.routes}
     rough_by_route = {case.route_id: case for case in rough_summary.cases}
     utility_by_route = {decision.route_id: decision for decision in heat_study.route_decisions}
+    route_families = route_families or build_route_family_artifact(route_survey)
     revenue_base = hourly_output_kg(config.basis) * operating_hours_per_year(config.basis) * market.estimated_price_per_kg
 
     utility_scores = _normalize_scores(
@@ -1164,13 +1338,15 @@ def select_route_architecture(
     base_ranking: list[tuple[float, str]] = []
     conservative_ranking: list[tuple[float, str]] = []
     for route_id, route in routes_by_id.items():
-        block_reason = _route_regulatory_block(route_id)
+        profile = _route_profile(route, route_families)
+        block_reason = _route_regulatory_block(profile)
         selected_case = selected_heat_case(utility_by_route[route_id])
         if selected_case is None:
             continue
-        maturity = _route_maturity_score(route_id)
+        rough_case = rough_by_route[route_id]
+        maturity = profile.maturity_score
         selectivity = route.selectivity_fraction * 100.0
-        india_fit = _route_india_fit_score(route_id) + _route_byproduct_credit(route)
+        india_fit = profile.india_fit_score + _route_byproduct_credit(route)
         score_breakdown = {
             "Economic margin": economic_scores[route_id],
             "Utility intensity": utility_scores[route_id],
@@ -1199,18 +1375,21 @@ def select_route_architecture(
             AlternativeOption(
                 candidate_id=route_id,
                 candidate_type="route_selection",
-                description=f"{route.name} with {selected_case.title}",
+                description=f"{route.name} ({profile.family_label}) with {selected_case.title}",
                 outputs={
+                    "route_family": profile.route_family_id,
                     "selected_heat_case": selected_case.case_id,
                     "economic_margin_inr": f"{margin_scores[route_id]:.2f}",
                     "residual_hot_utility_kw": f"{selected_case.residual_hot_utility_kw:.3f}",
+                    "reactor_basis": rough_case.reactor_class,
+                    "separation_train": rough_case.separation_train,
                 },
-                rejected_reasons=[block_reason] if block_reason else [],
+                rejected_reasons=[*([block_reason] if block_reason else []), *profile.critic_flags[:2]],
                 score_breakdown=score_breakdown,
                 total_score=round(total_score, 3),
                 feasible=feasible,
                 citations=route.citations + utility_by_route[route_id].citations,
-                assumptions=route.assumptions + utility_by_route[route_id].assumptions,
+                assumptions=route.assumptions + utility_by_route[route_id].assumptions + [f"Route family `{profile.route_family_id}` feeds final route ranking."],
             )
         )
         if feasible:
@@ -1222,6 +1401,7 @@ def select_route_architecture(
         raise RuntimeError("No feasible route alternatives remained after decision evaluation.")
     selected_route_id = base_ranking[0][1]
     selected_route = routes_by_id[selected_route_id]
+    selected_profile = _route_profile(selected_route, route_families)
     selected_utility = utility_by_route[selected_route_id]
     conservative_route_id = conservative_ranking[0][1] if conservative_ranking else selected_route_id
     scenario_stability = ScenarioStability.STABLE if conservative_route_id == selected_route_id else ScenarioStability.BORDERLINE
@@ -1234,8 +1414,14 @@ def select_route_architecture(
         criteria=criteria,
         alternatives=alternatives,
         selected_candidate_id=selected_route_id,
-        selected_summary=f"{selected_route.name} is selected after comparing residual utility burden, route maturity, selectivity, and India deployment fit.",
-        hard_constraint_results=["Chlorohydrin route blocked for India EG deployment.", "Selected route must remain atom-balanced."],
+        selected_summary=(
+            f"{selected_route.name} is selected within the `{selected_profile.family_label}` family because it combines the strongest "
+            "margin, residual utility burden, maturity, and India deployment fit under the selected recovery architecture."
+        ),
+        hard_constraint_results=(
+            [f"{profile.route_id}: {profile.india_deployment_blocker}" for profile in route_families.profiles if profile.india_deployment_blocker]
+            + ["Selected route must remain atom-balanced."]
+        ),
         confidence=0.88 if scenario_stability == ScenarioStability.STABLE else 0.69,
         scenario_stability=scenario_stability,
         approval_required=True,
@@ -1246,20 +1432,22 @@ def select_route_architecture(
     route_selection_artifact = RouteSelectionArtifact(
         selected_route_id=selected_route_id,
         justification=(
-            f"{selected_route.name} is selected because the chosen heat-integration case `{selected_heat_case_obj.case_id if selected_heat_case_obj else 'none'}` "
-            "reduces the residual utility burden enough for the route to remain competitive on margin while preserving industrial maturity and India fit."
+            f"{selected_route.name} is selected because the `{selected_profile.family_label}` route family stays economically competitive after "
+            f"the chosen heat-integration case `{selected_heat_case_obj.case_id if selected_heat_case_obj else 'none'}`, while retaining credible "
+            "industrial maturity and India fit."
         ),
         comparison_markdown=(
-            "| Route | Total score | Residual hot utility (kW) | Heat case | Scenario stability |\n"
-            "| --- | --- | --- | --- | --- |\n"
+            "| Route | Family | Total score | Residual hot utility (kW) | Heat case | Scenario stability |\n"
+            "| --- | --- | --- | --- | --- | --- |\n"
             + "\n".join(
-                f"| {option.candidate_id} | {option.total_score:.2f} | {option.outputs.get('residual_hot_utility_kw', 'n/a')} | {option.outputs.get('selected_heat_case', 'n/a')} | {route_decision.scenario_stability.value if option.candidate_id == selected_route_id else 'reviewed'} |"
+                f"| {option.candidate_id} | {option.outputs.get('route_family', 'n/a')} | {option.total_score:.2f} | {option.outputs.get('residual_hot_utility_kw', 'n/a')} | {option.outputs.get('selected_heat_case', 'n/a')} | {route_decision.scenario_stability.value if option.candidate_id == selected_route_id else 'reviewed'} |"
                 for option in alternatives
             )
         ),
         citations=selected_route.citations + selected_utility.citations,
         assumptions=route_decision.assumptions,
     )
+    reactor_candidate_id = _candidate_id(selected_profile.primary_reactor_class)
     reactor_choice = DecisionRecord(
         decision_id="reactor_choice",
         context="Selected-route reactor choice",
@@ -1270,24 +1458,25 @@ def select_route_architecture(
         ],
         alternatives=[
             AlternativeOption(
-                candidate_id=_route_reactor_class(selected_route_id).lower().replace(" ", "_"),
+                candidate_id=reactor_candidate_id,
                 candidate_type="reactor_choice",
-                description=_route_reactor_class(selected_route_id),
-                outputs={"selected_route": selected_route_id},
+                description=selected_profile.primary_reactor_class,
+                outputs={"selected_route": selected_route_id, "route_family": selected_profile.route_family_id},
                 score_breakdown={"Heat removal fit": 92.0, "Residence-time fit": 88.0, "Operability": 82.0},
                 total_score=87.8,
                 citations=selected_route.citations,
                 assumptions=selected_route.assumptions,
             )
         ],
-        selected_candidate_id=_route_reactor_class(selected_route_id).lower().replace(" ", "_"),
-        selected_summary=f"{_route_reactor_class(selected_route_id)} is retained as the conceptual reactor basis for the selected route.",
+        selected_candidate_id=reactor_candidate_id,
+        selected_summary=f"{selected_profile.primary_reactor_class} is retained as the conceptual reactor basis for the selected `{selected_profile.family_label}` route family.",
         confidence=0.84,
         scenario_stability=ScenarioStability.STABLE,
         approval_required=False,
         citations=selected_route.citations,
         assumptions=selected_route.assumptions,
     )
+    separation_candidate_id = _candidate_id(selected_profile.primary_separation_train)
     separation_choice = DecisionRecord(
         decision_id="separation_choice",
         context="Selected-route separation choice",
@@ -1298,18 +1487,18 @@ def select_route_architecture(
         ],
         alternatives=[
             AlternativeOption(
-                candidate_id=selected_route_id,
+                candidate_id=separation_candidate_id,
                 candidate_type="separation_choice",
-                description=_route_separation_train(selected_route_id),
-                outputs={"selected_route": selected_route_id},
+                description=selected_profile.primary_separation_train,
+                outputs={"selected_route": selected_route_id, "route_family": selected_profile.route_family_id},
                 score_breakdown={"Purification tractability": 90.0, "Heat-integration compatibility": 88.0, "India operability": 82.0},
                 total_score=87.4,
                 citations=selected_route.citations,
                 assumptions=selected_route.assumptions,
             )
         ],
-        selected_candidate_id=selected_route_id,
-        selected_summary=f"The separation train `{_route_separation_train(selected_route_id)}` is selected for the chosen route.",
+        selected_candidate_id=separation_candidate_id,
+        selected_summary=f"The separation train `{selected_profile.primary_separation_train}` is selected for the chosen `{selected_profile.family_label}` route family.",
         confidence=0.83,
         scenario_stability=ScenarioStability.STABLE,
         approval_required=False,

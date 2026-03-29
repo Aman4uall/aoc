@@ -58,14 +58,39 @@ def _group_streams_by_source(streams: list[StreamRecord], *, recycle: bool) -> d
     grouped: dict[str, list[StreamRecord]] = defaultdict(list)
     for stream in streams:
         if recycle:
-            if stream.destination_unit_id != "feed_prep" or stream.source_unit_id in {None, "battery_limits"}:
+            is_recycle = stream.stream_role == "recycle" or stream.destination_unit_id == "feed_prep"
+            if not is_recycle or stream.source_unit_id in {None, "battery_limits"}:
                 continue
         else:
-            is_purge = stream.destination_unit_id in {"waste_treatment", "battery_limits"} or "purge" in stream.description.lower()
+            is_purge = stream.stream_role in {"purge", "waste", "vent"} or stream.destination_unit_id in {"waste_treatment", "battery_limits"} or "purge" in stream.description.lower()
             if not is_purge or not stream.source_unit_id:
                 continue
         grouped[stream.source_unit_id].append(stream)
     return dict(grouped)
+
+
+def _recommended_min_purge_fraction(section_id: str, family: str) -> float:
+    section = section_id.lower()
+    if section in {"purification", "primary_recovery"}:
+        if family == "heavy_byproducts":
+            return 0.12
+        if family == "mixed_impurities":
+            return 0.06
+        if family == "light_inerts":
+            return 0.04
+    if section in {"crystallization", "solids_finishing"}:
+        if family == "solids_bleed":
+            return 0.10
+        if family == "heavy_byproducts":
+            return 0.06
+        if family == "aqueous_diluent":
+            return 0.02
+    if section in {"primary_absorption", "regeneration"}:
+        if family == "light_inerts":
+            return 0.10
+        if family == "recoverable_reactants":
+            return 0.02
+    return 0.0
 
 
 def build_recycle_network_packets(
@@ -94,6 +119,15 @@ def build_recycle_network_packets(
         purge_streams = purge_groups.get(source_unit_id, [])
         if not purge_streams and loop_count == 1:
             purge_streams = [stream for group in purge_groups.values() for stream in group]
+        recycle_targets = sorted({stream.destination_unit_id for stream in recycle_streams if stream.destination_unit_id})
+        recycle_target_unit_id = recycle_targets[0] if len(recycle_targets) == 1 else None
+        source_section_id = next((stream.section_id for stream in recycle_streams if stream.section_id), "")
+        target_section_id = ""
+        if recycle_target_unit_id:
+            target_section_id = next(
+                (stream.section_id for stream in streams if stream.destination_unit_id == recycle_target_unit_id and stream.section_id),
+                "",
+            )
         actual_recycle = _aggregate_component_molar(recycle_streams)
         actual_purge = _aggregate_component_molar(purge_streams)
         loop_id = f"{source_unit_id}_recycle_loop"
@@ -104,6 +138,9 @@ def build_recycle_network_packets(
         loop_purge[loop_id] = {}
         loop_metadata[loop_id] = {
             "source_unit_id": source_unit_id,
+            "target_unit_id": recycle_target_unit_id,
+            "source_section_id": source_section_id,
+            "target_section_id": target_section_id,
             "recycle_stream_ids": [stream.stream_id for stream in recycle_streams],
             "purge_stream_ids": [stream.stream_id for stream in purge_streams],
             "actual_recycle": actual_recycle,
@@ -125,6 +162,10 @@ def build_recycle_network_packets(
                 target_sum = loop_target_recycle + loop_target_purge
                 recovery_fraction = loop_target_recycle / target_sum if target_sum > 1e-9 else 0.0
                 purge_fraction = loop_target_purge / target_sum if target_sum > 1e-9 else 0.0
+            impurity_family = _classify_impurity_family(component_name)
+            min_purge = _recommended_min_purge_fraction(source_section_id, impurity_family)
+            purge_fraction = max(purge_fraction, min_purge)
+            recovery_fraction = min(recovery_fraction, max(1.0 - purge_fraction, 0.0))
             loop_targets[loop_id][component_name] = round(loop_target_total, 6)
             loop_consumed[loop_id][component_name] = round(max(loop_target_total - actual_sum, 0.0), 6)
             loop_recovery[loop_id][component_name] = round(max(0.0, min(recovery_fraction, 0.999)), 6)
@@ -183,6 +224,13 @@ def build_recycle_network_packets(
             notes.append("No explicit purge stream is present for this recycle loop; purge policy is structural and should be reviewed.")
         if max_component_error > 10.0:
             notes.append(f"Loop max component error is {max_component_error:.3f}% and needs manual review.")
+        if metadata["source_section_id"]:
+            notes.append(
+                f"Loop purge policy is biased by section topology: source section `{metadata['source_section_id']}` returning to `{metadata['target_unit_id'] or 'mixed targets'}`."
+            )
+        if metadata["target_unit_id"] is None:
+            notes.append("Recycle loop fans into multiple target units; keep this loop at estimated status until routing is simplified.")
+            status = "estimated" if status == "converged" else status
 
         summary_id = f"{loop_id}_summary"
         packets.append(
@@ -190,6 +238,9 @@ def build_recycle_network_packets(
                 packet_id=f"{loop_id}_packet",
                 loop_id=loop_id,
                 recycle_source_unit_id=metadata["source_unit_id"],
+                recycle_target_unit_id=metadata["target_unit_id"],
+                source_section_id=metadata["source_section_id"],
+                target_section_id=metadata["target_section_id"],
                 recycle_stream_ids=metadata["recycle_stream_ids"],
                 purge_stream_ids=metadata["purge_stream_ids"],
                 component_targets_kmol_hr=component_targets,
@@ -214,6 +265,9 @@ def build_recycle_network_packets(
                 summary_id=summary_id,
                 loop_id=loop_id,
                 recycle_source_unit_id=metadata["source_unit_id"],
+                recycle_target_unit_id=metadata["target_unit_id"],
+                source_section_id=metadata["source_section_id"],
+                target_section_id=metadata["target_section_id"],
                 recycle_stream_ids=metadata["recycle_stream_ids"],
                 purge_stream_ids=metadata["purge_stream_ids"],
                 component_count=len(component_errors),

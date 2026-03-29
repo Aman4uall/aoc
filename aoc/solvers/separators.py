@@ -182,13 +182,35 @@ def _infer_split_basis(unit_type: str, family: str) -> tuple[str, str, str]:
 
 def _outlet_groups(streams: list[StreamRecord], unit_id: str) -> tuple[list[str], list[str], list[str], list[str]]:
     outlet_streams = [stream for stream in streams if stream.source_unit_id == unit_id]
-    product_stream_ids = [stream.stream_id for stream in outlet_streams if stream.destination_unit_id not in {"feed_prep", "waste_treatment"}]
-    waste_stream_ids = [stream.stream_id for stream in outlet_streams if stream.destination_unit_id == "waste_treatment"]
-    recycle_stream_ids = [stream.stream_id for stream in outlet_streams if stream.destination_unit_id == "feed_prep"]
+    product_stream_ids = [
+        stream.stream_id
+        for stream in outlet_streams
+        if stream.stream_role == "product"
+        or (
+            stream.stream_role == "intermediate"
+            and stream.destination_unit_id not in {"feed_prep", "waste_treatment", "battery_limits"}
+        )
+    ]
+    waste_stream_ids = [
+        stream.stream_id
+        for stream in outlet_streams
+        if stream.stream_role in {"waste", "purge", "vent"} or stream.destination_unit_id == "waste_treatment"
+    ]
+    recycle_stream_ids = [
+        stream.stream_id
+        for stream in outlet_streams
+        if stream.stream_role == "recycle" or stream.destination_unit_id == "feed_prep"
+    ]
     side_draw_stream_ids = [
         stream.stream_id
         for stream in outlet_streams
-        if stream.stream_id not in product_stream_ids and stream.stream_id not in waste_stream_ids and stream.stream_id not in recycle_stream_ids
+        if stream.stream_role == "side_draw"
+        or (
+            stream.stream_id not in product_stream_ids
+            and stream.stream_id not in waste_stream_ids
+            and stream.stream_id not in recycle_stream_ids
+            and stream.destination_unit_id == "battery_limits"
+        )
     ]
     return product_stream_ids, waste_stream_ids, recycle_stream_ids, side_draw_stream_ids
 
@@ -354,6 +376,7 @@ def build_separator_models(
             component_split_to_product=product_split,
             component_split_to_waste=waste_split,
             component_split_to_recycle=recycle_split,
+            component_split_to_side_draw=side_draw_split,
             dominant_product_phase=product_phase,
             dominant_waste_phase=waste_phase,
             dominant_recycle_phase=recycle_phase,
@@ -389,6 +412,7 @@ def build_separator_models(
                 component_split_to_product=product_split,
                 component_split_to_waste=waste_split,
                 component_split_to_recycle=recycle_split,
+                component_split_to_side_draw=side_draw_split,
                 dominant_product_phase=product_phase,
                 dominant_waste_phase=waste_phase,
                 dominant_recycle_phase=recycle_phase,

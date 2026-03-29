@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass, field
+import re
 from typing import Optional
 
 from aoc.models import (
     ByproductEstimate,
     CalcTrace,
     ConvergenceSummary,
+    FlowsheetSection,
     PhaseSplitSpec,
     ReactionParticipant,
     ReactionSystem,
@@ -71,6 +73,17 @@ class SequenceSolveResult:
     separation_packets: list[SeparationPacket] = field(default_factory=list)
     recycle_packets: list[RecyclePacket] = field(default_factory=list)
     convergence_summaries: list[ConvergenceSummary] = field(default_factory=list)
+    sections: list[FlowsheetSection] = field(default_factory=list)
+
+
+@dataclass
+class SectionBlueprint:
+    section_id: str
+    section_type: str
+    label: str
+    unit_ids: list[str]
+    notes: list[str] = field(default_factory=list)
+    allows_side_draw: bool = False
 
 
 def _component_key(name: str, formula: Optional[str]) -> ComponentKey:
@@ -124,6 +137,14 @@ def _split_state(
         _add_component(first, key, molar * fraction)
         _add_component(second, key, molar * (1.0 - fraction))
     return first, second
+
+
+def _merge_states(*states: dict[ComponentKey, float]) -> dict[ComponentKey, float]:
+    merged: dict[ComponentKey, float] = {}
+    for state in states:
+        for key, molar in state.items():
+            _add_component(merged, key, molar)
+    return merged
 
 
 def _state_mass(state: dict[ComponentKey, float], component_meta: dict[ComponentKey, ComponentMeta]) -> float:
@@ -249,6 +270,8 @@ def _stream(
     source_unit_id: Optional[str],
     destination_unit_id: Optional[str],
     phase_hint: str,
+    stream_role: str = "intermediate",
+    section_id: str = "",
 ) -> StreamRecord:
     return StreamRecord(
         stream_id=stream_id,
@@ -259,6 +282,8 @@ def _stream(
         source_unit_id=source_unit_id,
         destination_unit_id=destination_unit_id,
         phase_hint=phase_hint,
+        stream_role=stream_role,
+        section_id=section_id,
     )
 
 
@@ -317,6 +342,372 @@ def _stream_family(route: RouteOption) -> str:
     if "flash" in text or "distill" in text or "vacuum" in text:
         return "distillation"
     return "generic"
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+    return slug or "section"
+
+
+def _descriptor_to_unit(route: RouteOption, family: str, descriptor: str, occurrence_index: int) -> tuple[str | None, str | None, bool]:
+    text = descriptor.lower()
+    if "conversion" in text or "reaction" in text or "hydrolys" in text:
+        return None, None, False
+    if "cleanup" in text and ("loop" in text or "recovery" in text or family == "generic"):
+        return "recycle_recovery", "recycle_recovery", False
+    if family == "absorption":
+        if "absor" in text or "scrub" in text:
+            return ("primary_separation" if occurrence_index == 0 else "regeneration"), "gas_liquid_recovery", False
+        if "strip" in text or "regen" in text or "recovery" in text:
+            return "regeneration", "regeneration", False
+    if "flash" in text or "vent" in text or "quench" in text:
+        return "primary_flash", "primary_recovery", False
+    if "evap" in text or "water removal" in text or "concentr" in text or "mother liquor" in text:
+        if family == "solids":
+            return "concentration", "crystallization", False
+        return "concentration", "concentration", False
+    if "crystal" in text:
+        return "concentration", "crystallization", False
+    if "filter" in text or "filtrat" in text or "clarif" in text:
+        return "filtration", "solids_finishing", False
+    if "dry" in text:
+        return "drying", "solids_finishing", False
+    if "extract" in text:
+        return "purification", "purification", False
+    if any(token in text for token in {"distill", "fraction", "polish", "cleanup"}):
+        return "purification", "purification", False
+    if any(token in text for token in {"split", "heavy", "light", "cut"}):
+        return "purification", "purification", True
+    if "recovery" in text:
+        return "recycle_recovery", "recycle_recovery", False
+    return None, None, False
+
+
+def _section_order_for_family(family: str) -> list[str]:
+    if family == "absorption":
+        return ["feed_prep", "reactor", "primary_separation", "regeneration"]
+    if family == "solids":
+        return ["feed_prep", "reactor", "primary_flash", "concentration", "filtration", "drying"]
+    if family in {"distillation", "extraction"}:
+        return ["feed_prep", "reactor", "primary_flash", "concentration", "purification", "recycle_recovery"]
+    return ["feed_prep", "reactor", "primary_flash", "purification", "recycle_recovery"]
+
+
+def _build_route_section_blueprints(route: RouteOption, family: str) -> list[SectionBlueprint]:
+    section_map: dict[str, SectionBlueprint] = {
+        "feed_prep": SectionBlueprint(
+            section_id="feed_handling",
+            section_type="feed_preparation",
+            label="Feed handling",
+            unit_ids=["feed_prep"],
+            notes=["Fresh feeds and recycle returns are mixed here before entering the reactor train."],
+        ),
+        "reactor": SectionBlueprint(
+            section_id="reaction",
+            section_type="reaction",
+            label="Reaction",
+            unit_ids=["reactor"],
+            notes=["Reaction section basis starts from the selected route and kinetics package."],
+        ),
+    }
+    ordered_unit_ids: list[str] = ["feed_prep", "reactor"]
+    descriptor_occurrences: dict[str, int] = {}
+    for descriptor in route.separations:
+        descriptor_key = descriptor.lower()
+        occurrence_index = descriptor_occurrences.get(descriptor_key, 0)
+        descriptor_occurrences[descriptor_key] = occurrence_index + 1
+        unit_id, section_type, allows_side_draw = _descriptor_to_unit(route, family, descriptor, occurrence_index)
+        if unit_id is None:
+            if "conversion" in descriptor_key or "reaction" in descriptor_key:
+                section_map["reactor"].notes.append(f"Route descriptor `{descriptor}` is absorbed into the reaction section.")
+            continue
+        if unit_id in section_map:
+            existing = section_map[unit_id]
+            if descriptor not in existing.notes:
+                existing.notes.append(f"Route descriptor: {descriptor}.")
+            if allows_side_draw:
+                existing.allows_side_draw = True
+            if descriptor.lower() not in existing.label.lower():
+                existing.label = f"{existing.label} + {descriptor}"
+            continue
+        if unit_id not in ordered_unit_ids:
+            ordered_unit_ids.append(unit_id)
+        section_map[unit_id] = SectionBlueprint(
+            section_id=f"{unit_id}_{_slugify(descriptor)}",
+            section_type=section_type or unit_id,
+            label=descriptor,
+            unit_ids=[unit_id],
+            notes=[f"Derived directly from route separation descriptor `{descriptor}`."],
+            allows_side_draw=allows_side_draw,
+        )
+
+    # Ensure a minimal workable topology exists even for sparse route descriptors.
+    if family == "absorption":
+        section_map.setdefault(
+            "primary_separation",
+            SectionBlueprint("primary_absorption", "gas_liquid_recovery", "Primary absorption", ["primary_separation"], ["Fallback absorber section added because route descriptors were sparse."]),
+        )
+        section_map.setdefault(
+            "regeneration",
+            SectionBlueprint("regeneration", "regeneration", "Regeneration", ["regeneration"], ["Fallback regeneration section added because route descriptors were sparse."]),
+        )
+    elif family == "solids":
+        section_map.setdefault(
+            "primary_flash",
+            SectionBlueprint("primary_recovery", "primary_recovery", "Primary recovery", ["primary_flash"], ["Fallback primary-recovery section added because route descriptors were sparse."]),
+        )
+        section_map.setdefault(
+            "concentration",
+            SectionBlueprint("concentration", "crystallization", "Crystallization", ["concentration"], ["Fallback crystallization section added because route descriptors were sparse."]),
+        )
+        section_map.setdefault(
+            "filtration",
+            SectionBlueprint("filtration", "solids_finishing", "Filtration", ["filtration"], ["Fallback filtration section added because route descriptors were sparse."]),
+        )
+        section_map.setdefault(
+            "drying",
+            SectionBlueprint("drying", "solids_finishing", "Drying", ["drying"], ["Fallback drying section added because route descriptors were sparse."]),
+        )
+    else:
+        section_map.setdefault(
+            "primary_flash",
+            SectionBlueprint("primary_recovery", "primary_recovery", "Primary recovery", ["primary_flash"], ["Fallback primary-recovery section added because route descriptors were sparse."]),
+        )
+        if family in {"distillation", "extraction"}:
+            section_map.setdefault(
+                "concentration",
+                SectionBlueprint("concentration", "concentration", "Concentration", ["concentration"], ["Fallback concentration section added because route descriptors were sparse."]),
+            )
+        section_map.setdefault(
+            "purification",
+            SectionBlueprint("purification", "purification", "Purification", ["purification"], ["Fallback purification section added because route descriptors were sparse."]),
+        )
+
+    def _insert_before(unit_id: str, before_unit_id: str) -> None:
+        if unit_id not in section_map or unit_id in ordered_unit_ids:
+            return
+        if before_unit_id in ordered_unit_ids:
+            ordered_unit_ids.insert(ordered_unit_ids.index(before_unit_id), unit_id)
+        else:
+            ordered_unit_ids.append(unit_id)
+
+    if family != "absorption" and "primary_flash" in section_map and "primary_flash" not in ordered_unit_ids:
+        reactor_index = ordered_unit_ids.index("reactor") if "reactor" in ordered_unit_ids else 0
+        ordered_unit_ids.insert(reactor_index + 1, "primary_flash")
+
+    if "recycle_recovery" in section_map and "recycle_recovery" not in ordered_unit_ids and "purification" in ordered_unit_ids:
+        _insert_before("recycle_recovery", "purification")
+    if "concentration" in section_map and "concentration" not in ordered_unit_ids:
+        if "purification" in ordered_unit_ids:
+            _insert_before("concentration", "purification")
+        elif "filtration" in ordered_unit_ids:
+            _insert_before("concentration", "filtration")
+    if "filtration" in section_map and "filtration" not in ordered_unit_ids and "drying" in ordered_unit_ids:
+        _insert_before("filtration", "drying")
+
+    for unit_id in _section_order_for_family(family):
+        if unit_id in section_map and unit_id not in ordered_unit_ids:
+            ordered_unit_ids.append(unit_id)
+    for unit_id in section_map:
+        if unit_id not in ordered_unit_ids:
+            ordered_unit_ids.append(unit_id)
+    return [section_map[unit_id] for unit_id in ordered_unit_ids if unit_id in section_map]
+
+
+def _blueprint_by_unit(blueprints: list[SectionBlueprint]) -> dict[str, SectionBlueprint]:
+    return {unit_id: blueprint for blueprint in blueprints for unit_id in blueprint.unit_ids}
+
+
+def _section_id_for_unit(blueprints: list[SectionBlueprint], unit_id: str, fallback: str) -> str:
+    blueprint = _blueprint_by_unit(blueprints).get(unit_id)
+    return blueprint.section_id if blueprint is not None else fallback
+
+
+def _downstream_unit_after(blueprints: list[SectionBlueprint], unit_id: str) -> str | None:
+    ordered_units = [section.unit_ids[0] for section in blueprints if section.unit_ids]
+    if unit_id not in ordered_units:
+        return None
+    index = ordered_units.index(unit_id)
+    for candidate in ordered_units[index + 1 :]:
+        if candidate not in {"feed_prep", "reactor"}:
+            return candidate
+    return None
+
+
+def _recycle_target_for(blueprints: list[SectionBlueprint], source_unit_id: str) -> str:
+    if source_unit_id == "filtration":
+        return "concentration" if "concentration" in _blueprint_by_unit(blueprints) else "feed_prep"
+    if source_unit_id == "recycle_recovery":
+        return "purification" if "purification" in _blueprint_by_unit(blueprints) else "feed_prep"
+    return "feed_prep"
+
+
+def _allow_side_draw(blueprints: list[SectionBlueprint], unit_id: str) -> bool:
+    blueprint = _blueprint_by_unit(blueprints).get(unit_id)
+    return bool(blueprint and blueprint.allows_side_draw)
+
+
+def _infer_phase_hint(
+    state: dict[ComponentKey, float],
+    component_meta: dict[ComponentKey, ComponentMeta],
+    fallback: str,
+) -> str:
+    if not state:
+        return fallback
+    phase_mass: dict[str, float] = {}
+    for key, molar in state.items():
+        if molar <= 1e-12 or key not in component_meta:
+            continue
+        meta = component_meta[key]
+        phase = (meta.phase or fallback or "mixed").lower()
+        if phase not in {"gas", "liquid", "solid", "slurry", "mixed"}:
+            phase = fallback or "mixed"
+        phase_mass[phase] = phase_mass.get(phase, 0.0) + molar * meta.molecular_weight_g_mol
+    if not phase_mass:
+        return fallback
+    if phase_mass.get("solid", 0.0) > 0.0 and phase_mass.get("liquid", 0.0) > 0.0:
+        return "slurry"
+    total = sum(phase_mass.values())
+    dominant_phase, dominant_mass = max(phase_mass.items(), key=lambda item: item[1])
+    if dominant_phase == "mixed":
+        return fallback or "mixed"
+    if total <= 1e-12:
+        return fallback
+    return dominant_phase if dominant_mass / total >= 0.65 else fallback
+
+
+def _extract_side_draw_components(
+    state: dict[ComponentKey, float],
+    component_meta: dict[ComponentKey, ComponentMeta],
+    route: RouteOption,
+    product_key: ComponentKey,
+    reactant_keys: set[ComponentKey],
+    allow_generic_split: bool,
+) -> tuple[dict[ComponentKey, float], dict[ComponentKey, float], list[str]]:
+    if not state:
+        return {}, {}, []
+    route_byproduct_names = {normalize_chemical_name(name) for name in route.byproducts}
+    side_draw: dict[ComponentKey, float] = {}
+    retained: dict[ComponentKey, float] = {}
+    notes: list[str] = []
+    for key, molar in state.items():
+        meta = component_meta[key]
+        identifier = normalize_chemical_name(meta.name)
+        if key == product_key or key in reactant_keys or molar <= 1e-12:
+            _add_component(retained, key, molar)
+            continue
+        if meta.phase == "gas" or identifier == "water":
+            _add_component(retained, key, molar)
+            continue
+        is_byproduct = identifier in route_byproduct_names or ("byproduct" in meta.name.lower())
+        candidate_fraction = 0.0
+        if is_byproduct:
+            candidate_fraction = 0.92
+        elif allow_generic_split and ("acid" in identifier or "glycol" in identifier or "salt" in identifier or "oligomer" in identifier):
+            candidate_fraction = 0.55
+        if candidate_fraction <= 0.0:
+            _add_component(retained, key, molar)
+            continue
+        draw = molar * candidate_fraction
+        _add_component(side_draw, key, draw)
+        _add_component(retained, key, molar - draw)
+    if side_draw:
+        notes.append(
+            "Purification section now exposes an explicit side draw for resolved byproduct or heavy-cut components instead of burying them inside the generic waste stream."
+        )
+    return side_draw, retained, notes
+
+
+def _build_flowsheet_sections(
+    route: RouteOption,
+    family: str,
+    streams: list[StreamRecord],
+    unit_operation_packets: list[UnitOperationPacket],
+    recycle_packets: list[RecyclePacket],
+    citations: list[str],
+    assumptions: list[str],
+) -> list[FlowsheetSection]:
+    stream_index = {stream.stream_id: stream for stream in streams}
+    packet_index = {packet.unit_id: packet for packet in unit_operation_packets}
+    sections: list[FlowsheetSection] = []
+    for index, blueprint in enumerate(_build_route_section_blueprints(route, family), start=1):
+        section_id = blueprint.section_id
+        section_type = blueprint.section_type
+        label = blueprint.label
+        candidate_unit_ids = blueprint.unit_ids
+        notes = blueprint.notes
+        active_unit_ids = [
+            unit_id
+            for unit_id in candidate_unit_ids
+            if any(stream.source_unit_id == unit_id or stream.destination_unit_id == unit_id for stream in streams)
+        ]
+        if not active_unit_ids:
+            continue
+        active_set = set(active_unit_ids)
+        inlet_stream_ids = sorted(
+            {
+                stream.stream_id
+                for stream in streams
+                if stream.destination_unit_id in active_set and stream.source_unit_id not in active_set
+            }
+        )
+        outlet_stream_ids = sorted(
+            {
+                stream.stream_id
+                for stream in streams
+                if stream.source_unit_id in active_set and stream.destination_unit_id not in active_set
+            }
+        )
+        side_draw_stream_ids = sorted(
+            {
+                stream.stream_id
+                for stream in streams
+                if stream.source_unit_id in active_set and stream.stream_role == "side_draw"
+            }
+        )
+        section_recycle_loop_ids = sorted(
+            {
+                packet.loop_id
+                for packet in recycle_packets
+                if packet.recycle_source_unit_id in active_set
+            }
+        )
+        statuses = [packet_index[unit_id].status for unit_id in active_unit_ids if unit_id in packet_index]
+        coverage_warnings = [
+            f"Unit `{unit_id}` retains {packet_index[unit_id].coverage_status} packet coverage."
+            for unit_id in active_unit_ids
+            if unit_id in packet_index and packet_index[unit_id].coverage_status != "complete"
+        ]
+        status = (
+            "blocked"
+            if not inlet_stream_ids or not outlet_stream_ids or any(item == "blocked" for item in statuses)
+            else "estimated"
+            if any(item == "estimated" for item in statuses) or coverage_warnings
+            else "converged"
+        )
+        section_notes = list(notes) + coverage_warnings
+        if side_draw_stream_ids:
+            section_notes.append(f"Section emits explicit side-draw streams: {', '.join(side_draw_stream_ids)}.")
+        if any(stream_index[stream_id].stream_role == "recycle" for stream_id in outlet_stream_ids if stream_id in stream_index):
+            section_notes.append("Section contains one or more recycle return streams.")
+        sections.append(
+            FlowsheetSection(
+                section_id=section_id,
+                section_type=section_type,
+                label=label,
+                sequence_index=index,
+                unit_ids=active_unit_ids,
+                inlet_stream_ids=inlet_stream_ids,
+                outlet_stream_ids=outlet_stream_ids,
+                side_draw_stream_ids=side_draw_stream_ids,
+                recycle_loop_ids=section_recycle_loop_ids,
+                status=status,
+                notes=section_notes,
+                citations=citations,
+                assumptions=assumptions,
+            )
+        )
+    return sections
 
 
 def _unit_metadata(unit_id: str, family: str) -> tuple[str, str]:
@@ -445,12 +836,12 @@ def _build_recycle_packets(
     recycle_stream_ids = [
         stream.stream_id
         for stream in streams
-        if stream.destination_unit_id == "feed_prep" and stream.source_unit_id != "battery_limits"
+        if stream.stream_role == "recycle" and stream.source_unit_id != "battery_limits"
     ]
     purge_stream_ids = [
         stream.stream_id
         for stream in streams
-        if stream.destination_unit_id == "waste_treatment" or "purge" in stream.description.lower()
+        if stream.stream_role in {"purge", "waste", "vent"} or stream.destination_unit_id == "waste_treatment" or "purge" in stream.description.lower()
     ]
     if not recycle_stream_ids and not purge_stream_ids:
         return []
@@ -489,6 +880,7 @@ def _build_recycle_packets(
         RecyclePacket(
             packet_id="main_recycle_packet",
             loop_id="main_recycle",
+            recycle_target_unit_id=next((stream.destination_unit_id for stream in streams if stream.stream_id in recycle_stream_ids), None),
             recycle_stream_ids=recycle_stream_ids,
             purge_stream_ids=purge_stream_ids,
             component_targets_kmol_hr=component_targets,
@@ -753,6 +1145,8 @@ def build_generic_sequence_streams(
     property_packages: PropertyPackageArtifact | None = None,
 ) -> SequenceSolveResult:
     family = _stream_family(route)
+    section_blueprints = _build_route_section_blueprints(route, family)
+    section_lookup = _blueprint_by_unit(section_blueprints)
     participants = route.participants
     reactants = [item for item in participants if item.role == "reactant"]
     products = [item for item in participants if item.role == "product"]
@@ -841,6 +1235,8 @@ def build_generic_sequence_streams(
                 source_unit_id="battery_limits",
                 destination_unit_id="feed_prep",
                 phase_hint=reactant.phase or "mixed",
+                stream_role="feed",
+                section_id=_section_id_for_unit(section_blueprints, "feed_prep", "feed_handling"),
             )
         )
 
@@ -854,7 +1250,9 @@ def build_generic_sequence_streams(
             component_meta=component_meta,
             source_unit_id="feed_prep",
             destination_unit_id="reactor",
-            phase_hint="mixed",
+            phase_hint=_infer_phase_hint(feed_state, component_meta, "mixed"),
+            stream_role="intermediate",
+            section_id=_section_id_for_unit(section_blueprints, "reactor", "reaction"),
         )
     )
 
@@ -897,8 +1295,16 @@ def build_generic_sequence_streams(
             state=reactor_state,
             component_meta=component_meta,
             source_unit_id="reactor",
-            destination_unit_id="primary_flash" if family != "absorption" else "primary_separation",
-            phase_hint="mixed",
+            destination_unit_id=(
+                "primary_separation"
+                if family == "absorption"
+                else "primary_flash"
+                if "primary_flash" in section_lookup
+                else (_downstream_unit_after(section_blueprints, "reactor") or "purification")
+            ),
+            phase_hint=_infer_phase_hint(reactor_state, component_meta, "mixed"),
+            stream_role="intermediate",
+            section_id=_section_id_for_unit(section_blueprints, "reactor", "reaction"),
         )
     )
 
@@ -916,12 +1322,10 @@ def build_generic_sequence_streams(
         primary_split_fractions.update(absorption_split)
         assumptions = assumptions + absorption_notes if absorption_notes else assumptions
     primary_overhead, primary_bottoms = _split_state(reactor_state, primary_split_fractions)
-    if family in {"distillation", "extraction", "solids"}:
-        primary_bottom_destination = "concentration"
-    elif family == "absorption":
-        primary_bottom_destination = "regeneration"
-    else:
-        primary_bottom_destination = "purification"
+    primary_unit_id = "primary_separation" if family == "absorption" else "primary_flash"
+    primary_bottom_destination = _downstream_unit_after(section_blueprints, primary_unit_id) or (
+        "regeneration" if family == "absorption" else "purification"
+    )
     streams.append(
         _stream(
             stream_id="S-202",
@@ -932,7 +1336,9 @@ def build_generic_sequence_streams(
             component_meta=component_meta,
             source_unit_id="primary_flash" if family != "absorption" else "primary_separation",
             destination_unit_id="waste_treatment",
-            phase_hint="gas",
+            phase_hint=_infer_phase_hint(primary_overhead, component_meta, "gas"),
+            stream_role="vent" if family != "solids" else "waste",
+            section_id=_section_id_for_unit(section_blueprints, primary_unit_id, "primary_absorption" if family == "absorption" else "primary_recovery"),
         )
     )
     streams.append(
@@ -945,7 +1351,9 @@ def build_generic_sequence_streams(
             component_meta=component_meta,
             source_unit_id="primary_flash" if family != "absorption" else "primary_separation",
             destination_unit_id=primary_bottom_destination,
-            phase_hint="liquid" if family != "solids" else "slurry",
+            phase_hint=_infer_phase_hint(primary_bottoms, component_meta, "liquid" if family != "solids" else "slurry"),
+            stream_role="intermediate",
+            section_id=_section_id_for_unit(section_blueprints, primary_unit_id, "primary_absorption" if family == "absorption" else "primary_recovery"),
         )
     )
 
@@ -998,8 +1406,10 @@ def build_generic_sequence_streams(
                 state=concentration_recycle,
                 component_meta=component_meta,
                 source_unit_id="concentration",
-                destination_unit_id="feed_prep",
-                phase_hint="vapor" if family == "distillation" else "liquid",
+                destination_unit_id=_recycle_target_for(section_blueprints, "concentration"),
+                phase_hint=_infer_phase_hint(concentration_recycle, component_meta, "vapor" if family == "distillation" else "liquid"),
+                stream_role="recycle",
+                section_id=_section_id_for_unit(section_blueprints, "concentration", "concentration"),
             )
         )
         streams.append(
@@ -1011,8 +1421,10 @@ def build_generic_sequence_streams(
                 state=purification_feed,
                 component_meta=component_meta,
                 source_unit_id="concentration",
-                destination_unit_id="purification" if family != "solids" else "filtration",
-                phase_hint="liquid" if family != "solids" else "slurry",
+                destination_unit_id=_downstream_unit_after(section_blueprints, "concentration") or ("purification" if family != "solids" else "filtration"),
+                phase_hint=_infer_phase_hint(purification_feed, component_meta, "liquid" if family != "solids" else "slurry"),
+                stream_role="intermediate",
+                section_id=_section_id_for_unit(section_blueprints, "concentration", "concentration"),
             )
         )
         remaining_recycle_targets = {
@@ -1045,8 +1457,10 @@ def build_generic_sequence_streams(
                 state=regeneration_recycle,
                 component_meta=component_meta,
                 source_unit_id="regeneration",
-                destination_unit_id="feed_prep",
-                phase_hint="gas",
+                destination_unit_id=_recycle_target_for(section_blueprints, "regeneration"),
+                phase_hint=_infer_phase_hint(regeneration_recycle, component_meta, "gas"),
+                stream_role="recycle",
+                section_id=_section_id_for_unit(section_blueprints, "regeneration", "regeneration"),
             )
         )
         product_state: dict[ComponentKey, float] = {}
@@ -1075,7 +1489,9 @@ def build_generic_sequence_streams(
                 component_meta=component_meta,
                 source_unit_id="regeneration",
                 destination_unit_id="storage",
-                phase_hint="liquid",
+                phase_hint=_infer_phase_hint(product_state, component_meta, "liquid"),
+                stream_role="product",
+                section_id=_section_id_for_unit(section_blueprints, "regeneration", "regeneration"),
             )
         )
         if absorption_waste_state:
@@ -1089,28 +1505,54 @@ def build_generic_sequence_streams(
                     component_meta=component_meta,
                     source_unit_id="regeneration",
                     destination_unit_id="waste_treatment",
-                    phase_hint="mixed",
+                    phase_hint=_infer_phase_hint(absorption_waste_state, component_meta, "mixed"),
+                    stream_role="waste",
+                    section_id=_section_id_for_unit(section_blueprints, "regeneration", "regeneration"),
                 )
             )
         purification_recycle: dict[ComponentKey, float] = {}
         waste_state = absorption_waste_state
         remaining_recycle_targets = {}
     else:
-        streams.append(
-            _stream(
-                stream_id="S-301",
-                description="Recovered recycle stream",
-                temperature_c=max(route.operating_temperature_c - 25.0, 30.0),
-                pressure_bar=max(route.operating_pressure_bar - 1.0, 1.0),
-                state=recycle_state,
-                component_meta=component_meta,
-                source_unit_id="recycle_recovery",
-                destination_unit_id="feed_prep",
-                phase_hint="mixed",
-            )
+        recycle_recovery_target = _recycle_target_for(section_blueprints, "recycle_recovery")
+        recycle_recovery_feed = (
+            primary_bottoms if primary_bottom_destination == "recycle_recovery" else {}
         )
-        purification_feed = primary_bottoms
-        remaining_recycle_targets = {}
+        recycle_recovery_stream = (
+            _merge_states(recycle_state, recycle_recovery_feed)
+            if recycle_recovery_target == "purification"
+            else dict(recycle_state)
+        )
+        if recycle_recovery_stream:
+            streams.append(
+                _stream(
+                    stream_id="S-301",
+                    description=(
+                        "Cleanup / recycle recovery stream"
+                        if recycle_recovery_feed
+                        else "Recovered recycle stream"
+                    ),
+                    temperature_c=max(route.operating_temperature_c - 25.0, 30.0),
+                    pressure_bar=max(route.operating_pressure_bar - 1.0, 1.0),
+                    state=recycle_recovery_stream,
+                    component_meta=component_meta,
+                    source_unit_id="recycle_recovery",
+                    destination_unit_id=recycle_recovery_target,
+                    phase_hint=_infer_phase_hint(recycle_recovery_stream, component_meta, "mixed"),
+                    stream_role="recycle",
+                    section_id=_section_id_for_unit(section_blueprints, "recycle_recovery", "purification"),
+                )
+            )
+        if recycle_recovery_target == "purification":
+            purification_feed = (
+                recycle_recovery_stream
+                if recycle_recovery_feed
+                else _merge_states(primary_bottoms, recycle_state)
+            )
+            remaining_recycle_targets = dict(recycle_state)
+        else:
+            purification_feed = primary_bottoms
+            remaining_recycle_targets = {}
 
     if family != "absorption":
         purification_recycle, product_state, waste_state = _distribute_purification_outputs(
@@ -1140,8 +1582,10 @@ def build_generic_sequence_streams(
                     state=purification_recycle,
                     component_meta=component_meta,
                     source_unit_id="purification" if family != "solids" else "filtration",
-                    destination_unit_id="feed_prep",
-                    phase_hint="mixed",
+                    destination_unit_id=_recycle_target_for(section_blueprints, "purification"),
+                    phase_hint=_infer_phase_hint(purification_recycle, component_meta, "mixed"),
+                    stream_role="recycle",
+                    section_id=_section_id_for_unit(section_blueprints, "purification", "purification"),
                 )
             )
         if family == "solids":
@@ -1155,8 +1599,10 @@ def build_generic_sequence_streams(
                         state=purification_recycle,
                         component_meta=component_meta,
                         source_unit_id="filtration",
-                        destination_unit_id="feed_prep",
-                        phase_hint="liquid",
+                        destination_unit_id=_recycle_target_for(section_blueprints, "filtration"),
+                        phase_hint=_infer_phase_hint(purification_recycle, component_meta, "liquid"),
+                        stream_role="recycle",
+                        section_id=_section_id_for_unit(section_blueprints, "filtration", "solids_finishing"),
                     )
                 )
             wet_cake_state: dict[ComponentKey, float] = {}
@@ -1180,8 +1626,10 @@ def build_generic_sequence_streams(
                     state=wet_cake_state,
                     component_meta=component_meta,
                     source_unit_id="filtration",
-                    destination_unit_id="drying",
-                    phase_hint="solid",
+                    destination_unit_id=_downstream_unit_after(section_blueprints, "filtration") or "storage",
+                    phase_hint=_infer_phase_hint(wet_cake_state, component_meta, "solid"),
+                    stream_role="intermediate",
+                    section_id=_section_id_for_unit(section_blueprints, "filtration", "solids_finishing"),
                 )
             )
             streams.append(
@@ -1194,10 +1642,39 @@ def build_generic_sequence_streams(
                     component_meta=component_meta,
                     source_unit_id="drying",
                     destination_unit_id="storage",
-                    phase_hint="solid",
+                    phase_hint=_infer_phase_hint(dry_product_state, component_meta, "solid"),
+                    stream_role="product",
+                    section_id=_section_id_for_unit(section_blueprints, "drying", "solids_finishing"),
                 )
             )
         else:
+            side_draw_state: dict[ComponentKey, float] = {}
+            if family in {"distillation", "extraction", "generic"} and _allow_side_draw(section_blueprints, "purification"):
+                side_draw_state, waste_state, side_draw_notes = _extract_side_draw_components(
+                    waste_state,
+                    component_meta,
+                    route,
+                    product_key,
+                    reactant_keys,
+                    allow_generic_split=True,
+                )
+                assumptions = assumptions + side_draw_notes if side_draw_notes else assumptions
+                if side_draw_state:
+                    streams.append(
+                        _stream(
+                            stream_id="S-404",
+                            description="Purification side draw / coproduct cut",
+                            temperature_c=50.0,
+                            pressure_bar=1.08,
+                            state=side_draw_state,
+                            component_meta=component_meta,
+                            source_unit_id="purification",
+                            destination_unit_id="battery_limits",
+                            phase_hint=_infer_phase_hint(side_draw_state, component_meta, "liquid"),
+                            stream_role="side_draw",
+                            section_id=_section_id_for_unit(section_blueprints, "purification", "purification"),
+                        )
+                    )
             streams.append(
                 _stream(
                     stream_id="S-402",
@@ -1208,7 +1685,9 @@ def build_generic_sequence_streams(
                     component_meta=component_meta,
                     source_unit_id="purification",
                     destination_unit_id="storage",
-                    phase_hint="liquid",
+                    phase_hint=_infer_phase_hint(product_state, component_meta, "liquid"),
+                    stream_role="product",
+                    section_id=_section_id_for_unit(section_blueprints, "purification", "purification"),
                 )
             )
         combined_waste = dict(waste_state)
@@ -1222,7 +1701,9 @@ def build_generic_sequence_streams(
                 component_meta=component_meta,
                 source_unit_id="purification" if family != "solids" else "filtration",
                 destination_unit_id="waste_treatment",
-                phase_hint="mixed",
+                phase_hint=_infer_phase_hint(combined_waste, component_meta, "mixed"),
+                stream_role="waste",
+                section_id=_section_id_for_unit(section_blueprints, "filtration" if family == "solids" else "purification", "solids_finishing" if family == "solids" else "purification"),
             )
         )
         waste_state = combined_waste
@@ -1241,6 +1722,15 @@ def build_generic_sequence_streams(
         packet_streams,
         recycle_solution,
         0.0,
+        citations,
+        assumptions,
+    )
+    sections = _build_flowsheet_sections(
+        route,
+        family,
+        packet_streams,
+        unit_operation_packets,
+        recycle_packets,
         citations,
         assumptions,
     )
@@ -1324,13 +1814,7 @@ def build_generic_sequence_streams(
             units="%",
         ),
     ]
-    stage_labels = ["feed_prep", "reactor", "primary_separation"]
-    if family in {"distillation", "extraction", "solids"}:
-        stage_labels.extend(["concentration", "purification"])
-    elif family == "absorption":
-        stage_labels.extend(["regeneration", "product_recovery"])
-    else:
-        stage_labels.append("purification")
+    stage_labels = [section.section_id for section in sections]
     return SequenceSolveResult(
         streams=streams,
         total_fresh_feed_mass_kg_hr=round(total_fresh_feed_mass, 6),
@@ -1345,4 +1829,5 @@ def build_generic_sequence_streams(
         separation_packets=separation_packets,
         recycle_packets=recycle_packets,
         convergence_summaries=convergence_summaries,
+        sections=sections,
     )

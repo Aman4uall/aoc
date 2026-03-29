@@ -13,6 +13,7 @@ from aoc.models import (
     ColumnHydraulics,
     ControlArchitectureDecision,
     CostModel,
+    CriticRegistryArtifact,
     DebtSchedule,
     DecisionRecord,
     EconomicScenarioModel,
@@ -28,6 +29,7 @@ from aoc.models import (
     IndianLocationDatum,
     MechanicalDesignArtifact,
     MechanicalDesignBasis,
+    OperationsPlanningArtifact,
     PlantCostSummary,
     PumpDesign,
     ProcessArchetype,
@@ -40,13 +42,16 @@ from aoc.models import (
     ProjectBasis,
     ResolvedSourceSet,
     ResolvedValueArtifact,
+    RouteFamilyArtifact,
     SolveResult,
+    SparseDataPolicyArtifact,
     SourceRecord,
     StreamTable,
     TaxDepreciationBasis,
     UtilitySummaryArtifact,
     UtilityArchitectureDecision,
     UtilityNetworkDecision,
+    UnitOperationFamilyArtifact,
     WorkingCapitalModel,
 )
 from aoc.properties.models import MixturePropertyArtifact, PropertyPackageArtifact, PropertyRequirementSet, SeparationThermoArtifact
@@ -167,8 +172,13 @@ def annexures_markdown(
     property_requirements: PropertyRequirementSet | None,
     separation_thermo: SeparationThermoArtifact | None,
     process_archetype: ProcessArchetype | None,
+    route_families: RouteFamilyArtifact | None,
+    unit_operation_family: UnitOperationFamilyArtifact | None,
+    sparse_data_policy: SparseDataPolicyArtifact | None,
     process_synthesis: ProcessSynthesisArtifact | None,
+    operations_planning: OperationsPlanningArtifact | None,
     agent_fabric: AgentDecisionFabricArtifact | None,
+    critic_registry: CriticRegistryArtifact | None,
     stream_table: StreamTable,
     mixture_properties: MixturePropertyArtifact | None,
     flowsheet_graph: FlowsheetGraph | None,
@@ -247,12 +257,28 @@ def annexures_markdown(
             item.equipment_type,
             f"{item.shell_thickness_mm:.2f}",
             f"{item.head_thickness_mm:.2f}",
+            item.pressure_class,
+            f"{item.hydrotest_pressure_bar:.2f}",
             f"{item.nozzle_diameter_mm:.1f}",
             item.support_type,
+            item.support_load_case,
             f"{item.support_thickness_mm:.2f}",
             f"{item.operating_load_kn:.2f}",
+            f"{item.wind_load_kn:.2f}",
+            f"{item.seismic_load_kn:.2f}",
+            f"{item.piping_load_kn:.2f}",
             f"{item.thermal_growth_mm:.2f}",
             f"{item.nozzle_reinforcement_area_mm2:.1f}",
+            item.support_variant or item.support_type,
+            str(item.anchor_group_count),
+            f"{item.foundation_footprint_m2:.2f}",
+            f"{item.maintenance_clearance_m:.2f}",
+            "yes" if item.access_ladder_required else "no",
+            "yes" if item.lifting_lug_required else "no",
+            item.nozzle_reinforcement_family or "n/a",
+            f"{item.local_shell_load_interaction_factor:.2f}",
+            "yes" if item.maintenance_platform_required else "no",
+            f"{item.platform_area_m2:.2f}",
         ]
         for item in (mechanical_design.items if mechanical_design else [])
     ]
@@ -464,6 +490,61 @@ def annexures_markdown(
             ["Hazard intensity", process_archetype.hazard_intensity],
             ["Benchmark profile", process_archetype.benchmark_profile or "custom"],
         ]
+    route_family_rows = [
+        [
+            profile.route_id,
+            profile.family_label,
+            profile.primary_reactor_class,
+            profile.primary_separation_train,
+            profile.heat_recovery_style,
+            f"{profile.maturity_score:.2f}",
+            f"{profile.india_fit_score:.2f}",
+            ", ".join(profile.critic_flags[:3]) or "-",
+            profile.india_deployment_blocker or "none",
+        ]
+        for profile in (route_families.profiles if route_families else [])
+    ]
+    unit_operation_family_rows = [
+        [candidate.service_group, candidate.candidate_id, candidate.applicability_status, f"{candidate.applicability_score:.2f}", candidate.description]
+        for candidate in ([*(unit_operation_family.reactor_candidates if unit_operation_family else []), *(unit_operation_family.separation_candidates if unit_operation_family else [])])
+    ]
+    unit_operation_support_rows = [
+        ["Route", unit_operation_family.route_id if unit_operation_family else "n/a"],
+        ["Route family", unit_operation_family.route_family_label if unit_operation_family else "n/a"],
+        ["Dominant phase pattern", unit_operation_family.dominant_phase_pattern if unit_operation_family else "n/a"],
+        ["Supporting operations", ", ".join(unit_operation_family.supporting_unit_operations) if unit_operation_family else "n/a"],
+        ["Applicability critics", ", ".join(unit_operation_family.applicability_critics) if unit_operation_family else "n/a"],
+    ]
+    sparse_policy_rows = [
+        [
+            rule.stage_id,
+            rule.subject,
+            rule.artifact_family,
+            "yes" if rule.allow_estimated else "no",
+            "yes" if rule.allow_analogy else "no",
+            "yes" if rule.allow_heuristic_fallback else "no",
+            f"{rule.minimum_confidence:.2f}",
+            rule.current_status,
+            ", ".join(rule.triggered_items[:3]) or "-",
+        ]
+        for rule in (sparse_data_policy.rules if sparse_data_policy else [])
+    ]
+    operations_rows = [
+        ["Service family", operations_planning.service_family],
+        ["Recommended mode", operations_planning.recommended_operating_mode],
+        ["Availability policy", operations_planning.availability_policy_label],
+        ["Raw-material buffer (d)", f"{operations_planning.raw_material_buffer_days:.3f}"],
+        ["Finished-goods buffer (d)", f"{operations_planning.finished_goods_buffer_days:.3f}"],
+        ["Operating stock (d)", f"{operations_planning.operating_stock_days:.3f}"],
+        ["Restart buffer (d)", f"{operations_planning.restart_buffer_days:.3f}"],
+        ["Startup ramp (d)", f"{operations_planning.startup_ramp_days:.3f}"],
+        ["Campaign length (d)", f"{operations_planning.campaign_length_days:.3f}"],
+        ["Cleaning cycle (d)", f"{operations_planning.cleaning_cycle_days:.3f}"],
+        ["Cleaning downtime (d)", f"{operations_planning.cleaning_downtime_days:.3f}"],
+        ["Throughput loss fraction", f"{operations_planning.throughput_loss_fraction:.6f}"],
+        ["Restart loss fraction", f"{operations_planning.restart_loss_fraction:.6f}"],
+        ["Annual restart loss (kg/y)", f"{operations_planning.annual_restart_loss_kg:,.3f}"],
+    ] if operations_planning else []
     flowsheet_rows = [
         [node.node_id, node.unit_type, ", ".join(node.upstream_nodes) or "-", ", ".join(node.downstream_nodes) or "-", ", ".join(node.representative_stream_ids) or "-"]
         for node in (flowsheet_graph.nodes if flowsheet_graph else [])
@@ -587,11 +668,63 @@ def annexures_markdown(
                 ]
             )
     scenario_rows = [
-        [item.scenario_name, f"{item.annual_utility_cost_inr:,.2f}", f"{item.annual_operating_cost_inr:,.2f}", f"{item.annual_revenue_inr:,.2f}", f"{item.gross_margin_inr:,.2f}"]
+        [
+            item.scenario_name,
+            f"{item.annual_utility_cost_inr:,.2f}",
+            f"{item.annual_transport_service_cost_inr:,.2f}",
+            f"{item.annual_utility_island_operating_burden_inr:,.2f}",
+            f"{item.annual_operating_cost_inr:,.2f}",
+            f"{item.annual_revenue_inr:,.2f}",
+            f"{item.gross_margin_inr:,.2f}",
+        ]
         for item in cost_model.scenario_results
     ]
+    utility_island_economic_rows = [
+        [
+            item.island_id,
+            item.topology,
+            f"{item.shared_htm_inventory_m3:.3f}",
+            f"{item.header_design_pressure_bar:.2f}",
+            f"{item.condenser_reboiler_pair_score:.3f}",
+            f"{item.control_complexity_factor:.3f}",
+            f"{item.maintenance_cycle_years:.2f}",
+            f"{item.replacement_event_cost_inr:,.2f}",
+            f"{item.annualized_replacement_cost_inr:,.2f}",
+            f"{item.planned_turnaround_days:.2f}",
+            f"{item.project_capex_burden_inr:,.2f}",
+            f"{item.annual_allocated_utility_cost_inr:,.2f}",
+            f"{item.annual_service_cost_inr:,.2f}",
+            f"{item.annual_operating_burden_inr:,.2f}",
+            f"{item.utility_cost_share_fraction:.3f}",
+            f"{item.capex_share_fraction:.3f}",
+        ]
+        for item in cost_model.utility_island_costs
+    ]
+    utility_island_scenario_rows = [
+        [
+            scenario.scenario_name,
+            impact.island_id,
+            f"{impact.project_capex_burden_inr:,.2f}",
+            f"{impact.annual_allocated_utility_cost_inr:,.2f}",
+            f"{impact.annual_service_cost_inr:,.2f}",
+            f"{impact.annual_replacement_cost_inr:,.2f}",
+            f"{impact.annual_operating_burden_inr:,.2f}",
+        ]
+        for scenario in cost_model.scenario_results
+        for impact in scenario.utility_island_impacts
+    ]
     equipment_cost_rows = [
-        [item.equipment_id, item.equipment_type, f"{item.bare_cost_inr:,.2f}", f"{item.installed_cost_inr:,.2f}", f"{item.spares_cost_inr:,.2f}", item.basis]
+        [
+            item.equipment_id,
+            item.equipment_type,
+            f"{item.bare_cost_inr:,.2f}",
+            f"{item.installed_cost_inr:,.2f}",
+            f"{item.spares_cost_inr:,.2f}",
+            item.procurement_package_family or "n/a",
+            f"{item.procurement_lead_time_months:.2f}",
+            f"{item.import_duty_inr:,.2f}",
+            item.basis,
+        ]
         for item in cost_model.equipment_cost_items
     ]
     plant_cost_rows = [
@@ -605,13 +738,47 @@ def annexures_markdown(
         ]
         for item in (plant_cost_summary.equipment_breakdowns if plant_cost_summary else [])
     ]
+    procurement_rows = [
+        [
+            str(item.get("package_family", "")),
+            str(item.get("milestone", "")),
+            f"{float(item.get('month', 0.0)):.1f}",
+            f"{float(item.get('draw_fraction', 0.0)):.3f}",
+            f"{float(item.get('capex_draw_inr', 0.0)):,.2f}",
+        ]
+        for item in cost_model.procurement_schedule
+    ]
+    procurement_package_rows = [
+        [
+            item.package_id,
+            item.equipment_type,
+            item.package_family,
+            f"{item.lead_time_months:.2f}",
+            f"{item.award_month:.2f}",
+            f"{item.delivery_month:.2f}",
+            f"{item.import_content_fraction:.3f}",
+            f"{item.import_duty_fraction:.3f}",
+            f"{item.import_duty_inr:,.2f}",
+            f"{item.capex_burden_inr:,.2f}",
+        ]
+        for item in cost_model.procurement_package_impacts
+    ]
     schedule_rows = [
         [
             str(item["year"]),
             f'{item["capacity_utilization_pct"]:.2f}',
+            f'{item.get("availability_pct", 0.0):.2f}',
+            f'{item.get("revenue_loss_from_outages_inr", 0.0):,.2f}',
             f'{item["revenue_inr"]:,.2f}',
             f'{item["operating_cost_inr"]:,.2f}',
+            f'{item.get("utility_island_service_cost_inr", 0.0):,.2f}',
+            f'{item.get("utility_island_replacement_cost_inr", 0.0):,.2f}',
+            f'{item.get("utility_island_turnaround_cost_inr", 0.0):,.2f}',
+            f'{item.get("principal_repayment_inr", 0.0):,.2f}',
             f'{item["interest_inr"]:,.2f}',
+            f'{item.get("debt_service_inr", 0.0):,.2f}',
+            f'{item.get("cfads_inr", 0.0):,.2f}',
+            f'{item.get("dscr", 0.0):.3f}',
             f'{item["depreciation_inr"]:,.2f}',
             f'{item["profit_before_tax_inr"]:,.2f}',
             f'{item["tax_inr"]:,.2f}',
@@ -634,6 +801,9 @@ def annexures_markdown(
         [
             str(item.year),
             f"{item.capacity_utilization_pct:.2f}",
+            f"{item.availability_pct:.2f}",
+            f"{item.dscr:.3f}",
+            f"{item.cfads_inr:,.2f}",
             f"{item.revenue_inr:,.2f}",
             f"{item.operating_cost_inr:,.2f}",
             f"{item.profit_before_tax_inr:,.2f}",
@@ -644,9 +814,14 @@ def annexures_markdown(
     utility_architecture_rows = [
         [
             case.case_id,
+            case.base_case_id or "-",
             case.topology,
+            case.architecture_family,
             f"{case.recovered_duty_kw:.3f}",
             f"{case.residual_hot_utility_kw:.3f}",
+            str(case.header_count),
+            str(case.shared_htm_island_count),
+            str(case.condenser_reboiler_cluster_count),
             str(case.exchanger_count),
         ]
         for case in (utility_architecture.architecture.cases if utility_architecture else [])
@@ -654,6 +829,9 @@ def annexures_markdown(
     utility_train_rows = [
         [
             step.exchanger_id,
+            step.island_id or "-",
+            step.cluster_id or "-",
+            str(step.header_level or 0),
             step.topology,
             step.service,
             step.source_unit_id,
@@ -663,8 +841,60 @@ def annexures_markdown(
         ]
         for step in (utility_architecture.architecture.selected_train_steps if utility_architecture else [])
     ]
+    utility_island_rows = [
+        [
+            island.island_id,
+            island.topology,
+            island.architecture_role,
+            str(island.header_level or 0),
+            island.cluster_id or "-",
+            ", ".join(island.unit_ids),
+            f"{island.target_recovered_duty_kw:.3f}",
+            f"{island.recoverable_potential_kw:.3f}",
+            f"{island.recovered_duty_kw:.3f}",
+            f"{island.residual_hot_utility_kw:.3f}",
+            f"{island.residual_cold_utility_kw:.3f}",
+            str(island.candidate_match_count),
+            str(island.direct_match_count),
+            str(island.indirect_match_count),
+            f"{island.shared_htm_inventory_m3:.3f}",
+            f"{island.header_design_pressure_bar:.2f}",
+            f"{island.condenser_reboiler_pair_score:.3f}",
+            f"{island.control_complexity_factor:.3f}",
+        ]
+        for island in (
+            next(
+                (
+                    case.utility_islands
+                    for case in utility_architecture.architecture.cases
+                    if case.case_id == utility_architecture.architecture.selected_case_id
+                ),
+                [],
+            )
+            if utility_architecture
+            else []
+        )
+    ]
+    composite_interval_rows = [
+        [
+            interval.interval_id,
+            f"{interval.shifted_upper_temp_c:.1f}",
+            f"{interval.shifted_lower_temp_c:.1f}",
+            f"{interval.hot_duty_kw:.3f}",
+            f"{interval.cold_duty_kw:.3f}",
+            f"{interval.net_duty_kw:.3f}",
+        ]
+        for interval in (
+            utility_architecture.architecture.heat_stream_set.composite_intervals
+            if utility_architecture and utility_architecture.architecture.heat_stream_set
+            else []
+        )
+    ]
     utility_package_rows = [
         [
+            item.island_id or "-",
+            item.cluster_id or "-",
+            str(item.header_level or 0),
             item.parent_step_id,
             item.equipment_id,
             item.package_role,
@@ -691,6 +921,17 @@ def annexures_markdown(
             packet.critic_verdicts[0].status if packet.critic_verdicts else "-",
         ]
         for packet in (agent_fabric.packets if agent_fabric else [])
+    ]
+    critic_rows = [
+        [
+            finding.stage_id,
+            finding.critic_family,
+            finding.severity.value,
+            finding.code,
+            finding.artifact_ref or "-",
+            finding.recommended_action or "-",
+        ]
+        for finding in (critic_registry.findings if critic_registry else [])
     ]
     rejected_rows: list[list[str]] = []
     for decision in [
@@ -821,8 +1062,34 @@ def annexures_markdown(
         "### Process Archetype",
         markdown_table(["Field", "Value"], archetype_rows or [["n/a", "n/a"]]),
         "",
+        "### Route Family Profiles",
+        markdown_table(
+            ["Route", "Family", "Reactor Basis", "Separation Train", "Heat Style", "Maturity", "India Fit", "Critic Flags", "India Blocker"],
+            route_family_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        "### Unit-Operation Family Expansion",
+        markdown_table(
+            ["Service Group", "Candidate", "Status", "Score", "Description"],
+            unit_operation_family_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+        ),
+        "",
+        markdown_table(["Field", "Value"], unit_operation_support_rows),
+        "",
+        "### Sparse-Data Policy",
+        markdown_table(
+            ["Stage", "Subject", "Artifact Family", "Allow Estimated", "Allow Analogy", "Allow Heuristic Fallback", "Min Confidence", "Status", "Triggered Items"],
+            sparse_policy_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "0.00", "n/a", "-"]],
+        ),
+        "",
+        "### Operations Planning Basis",
+        markdown_table(["Field", "Value"], operations_rows or [["n/a", "n/a"]]),
+        "",
         "### Specialist Decision Fabric",
         markdown_table(["Packet", "Specialist", "Selected", "Critic Status"], agent_packet_rows or [["n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Critic Registry",
+        markdown_table(["Stage", "Family", "Severity", "Code", "Artifact", "Recommended Action"], critic_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Alternative Set Summary",
         markdown_table(["Set", "Candidate", "Description", "Score", "Selected"], alternative_set_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
@@ -885,7 +1152,38 @@ def annexures_markdown(
         markdown_table(["ID", "Type", "Service", "Volume (m3)", "Design Temp (C)", "Design Pressure (bar)", "MoC"], equipment_rows),
         "",
         "### Mechanical Design Table",
-        markdown_table(["Equipment", "Type", "Shell t (mm)", "Head t (mm)", "Nozzle (mm)", "Support", "Support t (mm)", "Load (kN)", "Thermal Growth (mm)", "Reinforcement (mm2)"], mechanical_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(
+            [
+                "Equipment",
+                "Type",
+                "Shell t (mm)",
+                "Head t (mm)",
+                "Class",
+                "Hydrotest (bar)",
+                "Nozzle (mm)",
+                "Support",
+                "Load Case",
+                "Support t (mm)",
+                "Load (kN)",
+                "Wind (kN)",
+                "Seismic (kN)",
+                "Piping (kN)",
+                "Thermal Growth (mm)",
+                "Reinforcement (mm2)",
+                "Support Variant",
+                "Anchor Groups",
+                "Footprint (m2)",
+                "Clearance (m)",
+                "Ladder",
+                "Lifting Lugs",
+                "Reinf. Family",
+                "Shell Factor",
+                "Platform",
+                "Platform Area (m2)",
+            ],
+            mechanical_rows
+            or [["n/a"] * 26],
+        ),
         "",
         "### Utility Table",
         markdown_table(["Utility", "Load", "Units", "Basis"], utility_rows),
@@ -904,26 +1202,115 @@ def annexures_markdown(
                 ["Annual Opex", f"{financial.currency} {financial.annual_operating_cost:,.2f}"],
                 ["Gross Profit", f"{financial.currency} {financial.gross_profit:,.2f}"],
                 ["Working Capital", f"INR {working_capital.working_capital_inr:,.2f}"],
+                ["Peak Working Capital", f"INR {financial.peak_working_capital_inr:,.2f}"],
+                ["Peak Working-Capital Month", f"{financial.peak_working_capital_month:.2f}"],
+                ["Total Import Duty", f"INR {cost_model.total_import_duty_inr:,.2f}"],
+                ["IDC", f"{financial.currency} {financial.construction_interest_during_construction_inr:,.2f}"],
+                ["Minimum DSCR", f"{financial.minimum_dscr:.3f}"],
+                ["Average DSCR", f"{financial.average_dscr:.3f}"],
+                ["LLCR", f"{financial.llcr:.3f}"],
+                ["PLCR", f"{financial.plcr:.3f}"],
+                ["Selected Financing Option", financial.selected_financing_candidate_id or "n/a"],
+                ["Downside Scenario", financial.downside_scenario_name or "n/a"],
+                ["Downside-Preferred Financing Option", financial.downside_financing_candidate_id or "n/a"],
+                ["Scenario Reversal", "yes" if financial.financing_scenario_reversal else "no"],
+                ["Covenant Breaches", ", ".join(financial.covenant_breach_codes) or "none"],
                 ["Payback (y)", f"{financial.payback_years:.3f}"],
                 ["NPV", f"{financial.currency} {financial.npv:,.2f}"],
                 ["IRR (%)", f"{financial.irr:.2f}"],
             ],
         ),
         "",
+        "### Lender Coverage Screening",
+        markdown_table(
+            ["Metric", "Value"],
+            [
+                ["Minimum DSCR", f"{financial.minimum_dscr:.3f}"],
+                ["Average DSCR", f"{financial.average_dscr:.3f}"],
+                ["LLCR", f"{financial.llcr:.3f}"],
+                ["PLCR", f"{financial.plcr:.3f}"],
+                ["Downside Scenario", financial.downside_scenario_name or "n/a"],
+                ["Downside-Preferred Financing Option", financial.downside_financing_candidate_id or "n/a"],
+                ["Scenario Reversal", "yes" if financial.financing_scenario_reversal else "no"],
+            ],
+        ),
+        "",
+        "### Covenant Warnings",
+        ("\n".join(f"- {warning}" for warning in financial.covenant_warnings) if financial.covenant_warnings else "- No covenant warnings under the current screening basis."),
+        "",
         "### Equipment Cost Breakdown",
-        markdown_table(["Equipment", "Type", "Bare Cost (INR)", "Installed Cost (INR)", "Spares (INR)", "Basis"], equipment_cost_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Equipment", "Type", "Bare Cost (INR)", "Installed Cost (INR)", "Spares (INR)", "Package Family", "Lead (mo)", "Import Duty (INR)", "Basis"], equipment_cost_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Plant Cost Summary",
         markdown_table(["Equipment", "Bare", "Installation", "Piping", "Instrumentation", "Total Installed"], plant_cost_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
+        "### Procurement Timing Schedule",
+        markdown_table(["Package Family", "Milestone", "Month", "Draw Fraction", "CAPEX Draw (INR)"], procurement_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Procurement Package Detail",
+        markdown_table(["Equipment", "Type", "Package Family", "Lead (mo)", "Award Month", "Delivery Month", "Import Content", "Duty Fraction", "Import Duty (INR)", "CAPEX Burden (INR)"], procurement_package_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Working-Capital Timing Basis",
+        markdown_table(
+            ["Metric", "Value"],
+            [
+                ["Procurement Timing Factor", f"{working_capital.procurement_timing_factor:.3f}"],
+                ["Pre-commissioning Inventory Days", f"{working_capital.precommissioning_inventory_days:.2f}"],
+                ["Pre-commissioning Inventory Month", f"{working_capital.precommissioning_inventory_month:.2f}"],
+                ["Pre-commissioning Inventory", f"INR {working_capital.precommissioning_inventory_inr:,.2f}"],
+                ["Peak Working-Capital Month", f"{working_capital.peak_working_capital_month:.2f}"],
+                ["Peak Working Capital", f"INR {working_capital.peak_working_capital_inr:,.2f}"],
+            ],
+        ),
+        "",
+        "### Mechanical Screening Table",
+        markdown_table(
+            [
+                "Equipment",
+                "Type",
+                "Shell t (mm)",
+                "Head t (mm)",
+                "Class",
+                "Hydrotest (bar)",
+                "Nozzle (mm)",
+                "Support",
+                "Load Case",
+                "Support t (mm)",
+                "Load (kN)",
+                "Wind (kN)",
+                "Seismic (kN)",
+                "Piping (kN)",
+                "Thermal Growth (mm)",
+                "Reinforcement (mm2)",
+                "Support Variant",
+                "Anchor Groups",
+                "Footprint (m2)",
+                "Clearance (m)",
+                "Ladder",
+                "Lifting Lugs",
+                "Reinf. Family",
+                "Shell Factor",
+                "Platform",
+                "Platform Area (m2)",
+            ],
+            mechanical_rows
+            or [["n/a"] * 26],
+        ),
+        "",
+        "### Utility Island Economics",
+        markdown_table(["Island", "Topology", "HTM Inventory (m3)", "Header Pressure (bar)", "Pair Score", "Control Factor", "Cycle (y)", "Replacement Event (INR)", "Replacement Avg (INR/y)", "Turnaround (d)", "Project CAPEX Burden (INR)", "Allocated Utility (INR/y)", "Service (INR/y)", "Operating Burden (INR/y)", "Utility Share", "CAPEX Share"], utility_island_economic_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Utility Island Scenario Breakdown",
+        markdown_table(["Scenario", "Island", "Capex Burden (INR)", "Allocated Utility (INR/y)", "Service (INR/y)", "Replacement (INR/y)", "Operating Burden (INR/y)"], utility_island_scenario_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
         "### Scenario Comparison Table",
-        markdown_table(["Scenario", "Utility Cost (INR/y)", "Operating Cost (INR/y)", "Revenue (INR/y)", "Gross Margin (INR/y)"], scenario_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Scenario", "Utility Cost (INR/y)", "Transport/Service (INR/y)", "Utility-Island Burden (INR/y)", "Operating Cost (INR/y)", "Revenue (INR/y)", "Gross Margin (INR/y)"], scenario_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Multi-Year Financial Schedule",
-        markdown_table(["Year", "Capacity Utilization (%)", "Revenue (INR)", "Operating Cost (INR)", "Interest (INR)", "Depreciation (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)", "Cash Accrual (INR)"], schedule_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Year", "Capacity Utilization (%)", "Availability (%)", "Revenue Loss (INR)", "Revenue (INR)", "Operating Cost (INR)", "Utility-Island Service (INR)", "Utility-Island Replacement (INR)", "Utility-Island Turnaround (INR)", "Principal (INR)", "Interest (INR)", "Debt Service (INR)", "CFADS (INR)", "DSCR", "Depreciation (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)", "Cash Accrual (INR)"], schedule_rows or [["n/a"] * 19]),
         "",
         "### Typed Financial Schedule",
-        markdown_table(["Year", "Capacity Utilization (%)", "Revenue", "Opex", "PBT", "Cash Accrual"], financial_schedule_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Year", "Capacity Utilization (%)", "Availability (%)", "DSCR", "CFADS", "Revenue", "Opex", "PBT", "Cash Accrual"], financial_schedule_rows or [["n/a"] * 9]),
         "",
         "### Debt Schedule",
         markdown_table(["Year", "Opening Debt", "Principal", "Interest", "Closing Debt"], debt_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
@@ -932,13 +1319,19 @@ def annexures_markdown(
         markdown_table(["Route", "Case ID", "Title", "Recovered Duty (kW)", "Residual Hot Utility (kW)", "Annual Savings (INR)", "Payback (y)", "Feasible"], heat_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Utility Architecture",
-        markdown_table(["Case", "Topology", "Recovered Duty (kW)", "Residual Hot Utility (kW)", "Exchanger Count"], utility_architecture_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Case", "Base Case", "Topology", "Family", "Recovered Duty (kW)", "Residual Hot Utility (kW)", "Header Levels", "Shared HTM Islands", "Cond-Reb Clusters", "Exchanger Count"], utility_architecture_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Composite Thermal Intervals",
+        markdown_table(["Interval", "Shifted Upper (C)", "Shifted Lower (C)", "Hot Duty (kW)", "Cold Duty (kW)", "Net Duty (kW)"], composite_interval_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "### Utility Islands",
+        markdown_table(["Island", "Topology", "Role", "Header", "Cluster", "Units", "Target Duty (kW)", "Potential (kW)", "Recovered Duty (kW)", "Residual Hot Utility (kW)", "Residual Cold Utility (kW)", "Candidates", "Direct Matches", "Indirect Matches", "HTM Inventory (m3)", "Header Pressure (bar)", "Pair Score", "Control Factor"], utility_island_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Selected Utility Train",
-        markdown_table(["Exchanger", "Topology", "Service", "Hot Unit", "Cold Unit", "Recovered Duty (kW)", "Medium"], utility_train_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Exchanger", "Island", "Cluster", "Header", "Topology", "Service", "Hot Unit", "Cold Unit", "Recovered Duty (kW)", "Medium"], utility_train_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Utility Train Packages",
-        markdown_table(["Step", "Equipment", "Role", "Family", "Type", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "Duty (kW)", "Power (kW)", "Flow (m3/h)", "LMTD (K)", "Area (m2)", "Phase Load (kg/h)"], utility_package_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        markdown_table(["Island", "Cluster", "Header", "Step", "Equipment", "Role", "Family", "Type", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "Duty (kW)", "Power (kW)", "Flow (m3/h)", "LMTD (K)", "Area (m2)", "Phase Load (kg/h)"], utility_package_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         _decision_markdown("Operating Mode Decision", process_synthesis.operating_mode_decision if process_synthesis else None),
         "",
@@ -990,6 +1383,12 @@ def annexures_markdown(
                 ["Design pressure basis", mechanical_design_basis.design_pressure_basis],
                 ["Design temperature basis", mechanical_design_basis.design_temperature_basis],
                 ["Corrosion allowance (mm)", f"{mechanical_design_basis.corrosion_allowance_mm:.2f}"],
+                ["Support design basis", mechanical_design_basis.support_design_basis],
+                ["Load case basis", mechanical_design_basis.load_case_basis],
+                ["Foundation basis", mechanical_design_basis.foundation_basis],
+                ["Nozzle load basis", mechanical_design_basis.nozzle_load_basis],
+                ["Connection rating basis", mechanical_design_basis.connection_rating_basis],
+                ["Access platform basis", mechanical_design_basis.access_platform_basis],
             ] if mechanical_design_basis else [["n/a", "n/a"]],
         ),
         "",

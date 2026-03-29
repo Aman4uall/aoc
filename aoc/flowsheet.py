@@ -82,6 +82,15 @@ def build_flowsheet_graph(
 ) -> FlowsheetGraph:
     stream_ids = [stream.stream_id for stream in stream_table.streams]
     separation_type = _separation_unit_type(route)
+    section_by_unit = {
+        unit_id: section
+        for section in stream_table.sections
+        for unit_id in section.unit_ids
+    }
+    recycle_loops_by_source: dict[str, list[str]] = {}
+    for packet in stream_table.recycle_packets:
+        if packet.recycle_source_unit_id:
+            recycle_loops_by_source.setdefault(packet.recycle_source_unit_id, []).append(packet.loop_id)
     ordered_unit_ids: list[str] = []
     for stream in stream_table.streams:
         for unit_id in (stream.source_unit_id, stream.destination_unit_id):
@@ -93,26 +102,48 @@ def build_flowsheet_graph(
     nodes: list[FlowsheetNode] = []
     for unit_id in ordered_unit_ids:
         unit_type, label = _unit_metadata(unit_id, separation_type)
+        section = section_by_unit.get(unit_id)
         upstream_nodes = []
         downstream_nodes = []
         representative_stream_ids = []
+        stream_roles: list[str] = []
+        side_draw_stream_ids: list[str] = []
         for stream in stream_table.streams:
             if stream.destination_unit_id == unit_id and stream.source_unit_id and stream.source_unit_id != "battery_limits":
                 if stream.source_unit_id not in upstream_nodes:
                     upstream_nodes.append(stream.source_unit_id)
                 representative_stream_ids.append(stream.stream_id)
+                if stream.stream_role and stream.stream_role not in stream_roles:
+                    stream_roles.append(stream.stream_role)
             if stream.source_unit_id == unit_id and stream.destination_unit_id:
                 if stream.destination_unit_id not in downstream_nodes:
                     downstream_nodes.append(stream.destination_unit_id)
                 representative_stream_ids.append(stream.stream_id)
+                if stream.stream_role and stream.stream_role not in stream_roles:
+                    stream_roles.append(stream.stream_role)
+                if stream.stream_role == "side_draw":
+                    side_draw_stream_ids.append(stream.stream_id)
+        node_notes: list[str] = []
+        if section is not None:
+            node_notes.append(f"Section `{section.section_id}` / `{section.section_type}`.")
+            if section.side_draw_stream_ids:
+                node_notes.append(f"Section side draws: {', '.join(section.side_draw_stream_ids)}.")
+        if recycle_loops_by_source.get(unit_id):
+            node_notes.append(f"Recycle loops: {', '.join(recycle_loops_by_source[unit_id])}.")
         nodes.append(
             FlowsheetNode(
                 node_id=unit_id,
                 unit_type=unit_type,
                 label=label,
+                section_id=section.section_id if section is not None else "",
+                section_type=section.section_type if section is not None else "",
                 upstream_nodes=upstream_nodes,
                 downstream_nodes=downstream_nodes,
                 representative_stream_ids=sorted(dict.fromkeys(representative_stream_ids)),
+                stream_roles=stream_roles,
+                recycle_loop_ids=sorted(recycle_loops_by_source.get(unit_id, [])),
+                side_draw_stream_ids=sorted(dict.fromkeys(side_draw_stream_ids)),
+                notes=" ".join(node_notes),
             )
         )
     unit_models = [
@@ -125,9 +156,14 @@ def build_flowsheet_graph(
                     trace_id=f"{node.node_id}_basis",
                     title=f"{node.label} basis",
                     formula="seeded unit-op basis",
-                    substitutions={"operating_mode": operating_mode, "route_id": route.route_id},
+                    substitutions={
+                        "operating_mode": operating_mode,
+                        "route_id": route.route_id,
+                        "section_id": node.section_id or "unsectioned",
+                        "stream_roles": ", ".join(node.stream_roles) or "intermediate",
+                    },
                     result="configured",
-                    notes="Generic flowsheet graph seeded from the selected route and stream table.",
+                    notes="Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology.",
                 )
             ],
             convergence_status="converged" if stream_table.closure_error_pct <= 2.0 else "estimated",
@@ -141,10 +177,10 @@ def build_flowsheet_graph(
     ]
     markdown = "\n".join(
         [
-            "| Node | Unit Type | Upstream | Downstream | Representative Streams |",
-            "| --- | --- | --- | --- | --- |",
+            "| Node | Section | Unit Type | Upstream | Downstream | Representative Streams | Roles |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
             *[
-                f"| {node.node_id} | {node.unit_type} | {', '.join(node.upstream_nodes) or '-'} | {', '.join(node.downstream_nodes) or '-'} | {', '.join(node.representative_stream_ids) or '-'} |"
+                f"| {node.node_id} | {node.section_id or '-'} | {node.unit_type} | {', '.join(node.upstream_nodes) or '-'} | {', '.join(node.downstream_nodes) or '-'} | {', '.join(node.representative_stream_ids) or '-'} | {', '.join(node.stream_roles) or '-'} |"
                 for node in nodes
             ],
         ]
@@ -155,6 +191,7 @@ def build_flowsheet_graph(
         operating_mode=operating_mode,
         nodes=nodes,
         unit_models=unit_models,
+        section_ids=[section.section_id for section in stream_table.sections],
         stream_ids=stream_ids,
         convergence_status="converged" if stream_table.closure_error_pct <= 2.0 else "estimated",
         unresolved_sensitivities=sorted({value.name for value in reaction_system.value_records if value.blocking}),

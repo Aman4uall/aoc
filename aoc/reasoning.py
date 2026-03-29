@@ -541,6 +541,22 @@ class MockReasoningService(BaseReasoningService):
                 citations=citations,
                 assumptions=["Mock sodium bicarbonate profile uses seeded public values for deterministic testing."],
             )
+        if product_key == "phenol":
+            return ProductProfileArtifact(
+                product_name=basis.target_product,
+                properties=[
+                    PropertyRecord(name="Molecular weight", value="94.11", units="g/mol", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Melting point", value="40.5", units="C", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Boiling point", value="181.7", units="C", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Density", value="1.07", units="g/cm3", supporting_sources=citations, citations=citations),
+                ],
+                uses=["Bisphenol and epoxy chain", "Caprolactam and resin intermediates", "Pharmaceutical and specialty derivatives"],
+                industrial_relevance="Phenol is treated as an oxidation-led liquid-organic benchmark where byproduct recovery, offgas handling, and purification govern feasibility.",
+                safety_notes=["Toxic aromatic liquid handling and oxidation-service safeguards remain central to design."],
+                markdown="Phenol is treated as an oxidation and recovery benchmark rather than a generic small-molecule specialty product.",
+                citations=citations,
+                assumptions=["Mock phenol profile uses seeded public values for deterministic testing."],
+            )
         properties = [
             PropertyRecord(name="Molecular weight", value="150.00", units="g/mol", supporting_sources=citations, citations=citations),
             PropertyRecord(name="Melting point", value="60", units="C", supporting_sources=citations, citations=citations),
@@ -634,6 +650,23 @@ class MockReasoningService(BaseReasoningService):
                 markdown="Sodium bicarbonate economics depend on solids yield, dryer duty, grading, and India distribution assumptions.",
                 citations=citations,
                 assumptions=["Mock sodium bicarbonate market values are seeded and INR-normalized."],
+            )
+        if product_key == "phenol":
+            return MarketAssessmentArtifact(
+                estimated_price_per_kg=96.0,
+                price_range="INR 84-110 per kg in an India bulk aromatic/intermediate window.",
+                competitor_notes=["Feedstock linkage to aromatics and byproduct acetone recovery both influence margin resilience."],
+                demand_drivers=["Bisphenol-A chain", "Phenolic resins", "Caprolactam and downstream intermediates"],
+                capacity_rationale=f"{basis.capacity_tpa:.0f} TPA supports continuous oxidation, recovery distillation, and shared utility economics.",
+                india_price_data=[
+                    IndianPriceDatum(datum_id="phenol_product", category="product", item_name="Phenol", region="India", units="INR/kg", value_inr=96.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="phenol_cumene", category="raw_material", item_name="Cumene", region="India", units="INR/kg", value_inr=74.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="phenol_power", category="utility", item_name="Electricity", region="India", units="INR/kWh", value_inr=8.3, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="phenol_labor", category="labor", item_name="Operating labour", region="India", units="INR/person-year", value_inr=640000.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                ],
+                markdown="Phenol is treated as a large continuous aromatic intermediate where oxidation selectivity, acetone credit, and India aromatics logistics together shape the business case.",
+                citations=citations,
+                assumptions=["Mock phenol market values are seeded and INR-normalized."],
             )
         return MarketAssessmentArtifact(
             estimated_price_per_kg=320.0,
@@ -750,6 +783,86 @@ class MockReasoningService(BaseReasoningService):
                 RouteOption(route_id="trona_refining", name="Trona refining and bicarbonation", reaction_equation="Na2CO3 + CO2 + H2O -> 2 NaHCO3", participants=[ReactionParticipant(name="Sodium carbonate liquor", formula="Na2CO3", coefficient=1.0, role="reactant", molecular_weight_g_mol=105.99, phase="liquid"), ReactionParticipant(name="Carbon dioxide", formula="CO2", coefficient=1.0, role="reactant", molecular_weight_g_mol=44.01, phase="gas"), ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="reactant", molecular_weight_g_mol=18.015, phase="liquid"), ReactionParticipant(name="Sodium bicarbonate", formula="NaHCO3", coefficient=2.0, role="product", molecular_weight_g_mol=84.01, phase="solid")], catalysts=[], operating_temperature_c=45.0, operating_pressure_bar=4.0, residence_time_hr=2.1, yield_fraction=0.88, selectivity_fraction=0.93, byproducts=["Insoluble solids"], separations=["clarification", "crystallization", "filtration", "drying"], scale_up_notes="Feedstock dependent and more impurity-sensitive.", route_score=7.0, rationale="Feed-sensitive route with additional solids cleanup burden.", citations=citations),
             ]
             return RouteSurveyArtifact(routes=routes, markdown="Sodium bicarbonate route survey compares direct carbonation, integrated Solvay liquor handling, and trona-derived pathways.", citations=citations, assumptions=["Mock sodium bicarbonate route survey uses seeded industrial route families."])
+        if product_key == "phenol":
+            routes = [
+                RouteOption(
+                    route_id="cumene_oxidation_cleavage",
+                    name="Cumene oxidation and cleavage",
+                    reaction_equation="C9H12 + O2 -> C6H6O + C3H6O",
+                    participants=[
+                        ReactionParticipant(name="Cumene", formula="C9H12", coefficient=1.0, role="reactant", molecular_weight_g_mol=120.19, phase="liquid"),
+                        ReactionParticipant(name="Oxygen", formula="O2", coefficient=1.0, role="reactant", molecular_weight_g_mol=32.0, phase="gas"),
+                        ReactionParticipant(name="Phenol", formula="C6H6O", coefficient=1.0, role="product", molecular_weight_g_mol=94.11, phase="liquid"),
+                        ReactionParticipant(name="Acetone", formula="C3H6O", coefficient=1.0, role="byproduct", molecular_weight_g_mol=58.08, phase="liquid"),
+                    ],
+                    catalysts=["Oxidation promoter", "Acid cleavage catalyst"],
+                    operating_temperature_c=95.0,
+                    operating_pressure_bar=4.5,
+                    residence_time_hr=2.2,
+                    yield_fraction=0.95,
+                    selectivity_fraction=0.93,
+                    byproducts=["alpha-methylstyrene", "acetophenone"],
+                    separations=["air oxidation", "phase split", "caustic wash", "acetone recovery", "phenol distillation"],
+                    scale_up_notes="Strong industrial precedent with oxidation control, byproduct management, and recovery distillation.",
+                    hazards=[RouteHazard(severity="moderate", description="Oxidation service and peroxide inventory control", safeguard="Tight oxidation temperature control and staged quench/relief handling")],
+                    route_score=9.2,
+                    rationale="Best industrial fit with credible byproduct recovery and established aromatics value chain logic.",
+                    citations=citations,
+                ),
+                RouteOption(
+                    route_id="chlorobenzene_hydrolysis",
+                    name="Chlorobenzene caustic hydrolysis",
+                    reaction_equation="C6H5Cl + NaOH -> C6H6O + NaCl",
+                    participants=[
+                        ReactionParticipant(name="Chlorobenzene", formula="C6H5Cl", coefficient=1.0, role="reactant", molecular_weight_g_mol=112.56, phase="liquid"),
+                        ReactionParticipant(name="Sodium hydroxide", formula="NaOH", coefficient=1.0, role="reactant", molecular_weight_g_mol=40.0, phase="liquid"),
+                        ReactionParticipant(name="Phenol", formula="C6H6O", coefficient=1.0, role="product", molecular_weight_g_mol=94.11, phase="liquid"),
+                        ReactionParticipant(name="Sodium chloride", formula="NaCl", coefficient=1.0, role="byproduct", molecular_weight_g_mol=58.44, phase="solid"),
+                    ],
+                    catalysts=[],
+                    operating_temperature_c=350.0,
+                    operating_pressure_bar=18.0,
+                    residence_time_hr=3.0,
+                    yield_fraction=0.82,
+                    selectivity_fraction=0.86,
+                    byproducts=["saline purge", "chlorinated heavies"],
+                    separations=["salt removal", "caustic wash", "phenol distillation"],
+                    scale_up_notes="Legacy hydrolysis route with heavy chloride burden and harsher metallurgy requirements.",
+                    hazards=[RouteHazard(severity="high", description="Hot caustic and chloride-rich service", safeguard="High-alloy metallurgy, brine control, and aggressive relief/isolation design")],
+                    route_score=5.8,
+                    rationale="Technically possible but penalized by waste, corrosion burden, and lower industrial preference.",
+                    citations=citations,
+                ),
+                RouteOption(
+                    route_id="benzene_direct_hydroxylation",
+                    name="Direct benzene oxidation to phenol",
+                    reaction_equation="C6H6 + 0.5 O2 -> C6H6O",
+                    participants=[
+                        ReactionParticipant(name="Benzene", formula="C6H6", coefficient=1.0, role="reactant", molecular_weight_g_mol=78.11, phase="liquid"),
+                        ReactionParticipant(name="Oxygen", formula="O2", coefficient=0.5, role="reactant", molecular_weight_g_mol=32.0, phase="gas"),
+                        ReactionParticipant(name="Phenol", formula="C6H6O", coefficient=1.0, role="product", molecular_weight_g_mol=94.11, phase="liquid"),
+                    ],
+                    catalysts=["Oxidation catalyst"],
+                    operating_temperature_c=210.0,
+                    operating_pressure_bar=10.0,
+                    residence_time_hr=1.7,
+                    yield_fraction=0.72,
+                    selectivity_fraction=0.76,
+                    byproducts=["catechol", "hydroquinone", "tar"],
+                    separations=["gas vent", "wash", "solvent recovery", "phenol distillation"],
+                    scale_up_notes="Conceptually attractive but selectivity-sensitive and less commercially mature than the cumene route.",
+                    hazards=[RouteHazard(severity="moderate", description="Oxidation selectivity and hot aromatic service", safeguard="Oxygen control, staged quench, and byproduct bleed management")],
+                    route_score=6.7,
+                    rationale="Interesting direct-oxidation alternative, but weaker maturity and byproduct spread than cumene oxidation.",
+                    citations=citations,
+                ),
+            ]
+            return RouteSurveyArtifact(
+                routes=routes,
+                markdown="Phenol route survey compares the industrially dominant cumene oxidation route against chlorinated hydrolysis and direct oxidation concepts, emphasizing offgas handling, byproduct recovery, and purification burden.",
+                citations=citations,
+                assumptions=["Mock phenol route survey uses seeded oxidation and recovery route families for deterministic testing."],
+            )
         routes = [
             RouteOption(
                 route_id="generic_route_1",
@@ -865,11 +978,36 @@ class MockReasoningService(BaseReasoningService):
                 citations=citations,
                 assumptions=["Mock sodium bicarbonate site scoring uses seeded India cluster logic."],
             )
+        if product_key == "phenol":
+            return SiteSelectionArtifact(
+                candidates=[
+                    SiteOption(name="Dahej", state="Gujarat", raw_material_score=9, logistics_score=9, utility_score=9, business_score=8, total_score=35, rationale="Strong west-coast aromatics logistics, utilities, and recovery-service ecosystem.", citations=citations),
+                    SiteOption(name="Hazira", state="Gujarat", raw_material_score=8, logistics_score=8, utility_score=8, business_score=7, total_score=31, rationale="Credible aromatics and export linkage with a slightly tighter cluster envelope.", citations=citations),
+                ],
+                selected_site="Dahej",
+                india_location_data=[
+                    IndianLocationDatum(location_id="phenol_dahej", site_name="Dahej", state="Gujarat", port_access="West coast chemical-port access for aromatics and solvent logistics", utility_note="Strong steam, power, cooling water, and industrial services for continuous oxidation-recovery plants.", logistics_note="Good feedstock receipt and liquid product dispatch through established chemical-cluster infrastructure.", regulatory_note="Established industrial operating context suited to continuous aromatic chemical manufacture.", reference_year=2025, citations=citations),
+                    IndianLocationDatum(location_id="phenol_hazira", site_name="Hazira", state="Gujarat", port_access="Hazira marine access and west-coast dispatch links", utility_note="Good utility and gas infrastructure for oxidation-led service.", logistics_note="Strong export and western India dispatch options.", regulatory_note="Credible industrial site basis, though with a narrower expansion envelope than Dahej.", reference_year=2025, citations=citations),
+                ],
+                markdown="Dahej is selected because it best combines aromatics logistics, continuous utility support, and chemical-cluster services for a phenol oxidation and recovery train.",
+                citations=citations,
+                assumptions=["Mock phenol site scoring uses seeded India aromatics-cluster logic."],
+            )
         candidates = [
             SiteOption(name="Dahej", state="Gujarat", raw_material_score=9, logistics_score=9, utility_score=9, business_score=8, total_score=35, rationale="Strong chemical ecosystem and port access.", citations=citations),
             SiteOption(name="Navi Mumbai", state="Maharashtra", raw_material_score=7, logistics_score=8, utility_score=8, business_score=6, total_score=29, rationale="Good market access but tighter land and compliance envelope.", citations=citations),
         ]
-        return SiteSelectionArtifact(candidates=candidates, selected_site="Dahej", markdown="Dahej is selected in the seeded run because the cluster offers strong logistics and utilities.", citations=citations, assumptions=["Mock site selection uses seed scoring rather than geospatial optimization."])
+        return SiteSelectionArtifact(
+            candidates=candidates,
+            selected_site="Dahej",
+            india_location_data=[
+                IndianLocationDatum(location_id="generic_dahej", site_name="Dahej", state="Gujarat", port_access="West coast chemical-port access", utility_note="Strong continuous utility backbone for steam, power, and cooling water.", logistics_note="Strong liquid-chemical logistics and cluster services.", regulatory_note="Established chemical-zone operating context.", reference_year=2025, citations=citations),
+                IndianLocationDatum(location_id="generic_navi_mumbai", site_name="Navi Mumbai", state="Maharashtra", port_access="JNPT and western India logistics connectivity", utility_note="Credible urban industrial utility basis.", logistics_note="Good market access with higher land and compliance friction.", regulatory_note="More constrained land and permitting envelope than Dahej.", reference_year=2025, citations=citations),
+            ],
+            markdown="Dahej is selected in the seeded run because the cluster offers strong logistics, utilities, and India deployment support for generic benchmark expansion.",
+            citations=citations,
+            assumptions=["Mock site selection uses seeded India cluster scoring rather than geospatial optimization."],
+        )
 
     def build_thermo_assessment(self, basis: ProjectBasis, route: RouteOption, sources, corpus: str) -> ThermoAssessmentArtifact:
         citations = self._citations(sources, 3)

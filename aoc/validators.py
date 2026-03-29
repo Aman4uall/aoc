@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aoc.calculators import operating_hours_per_year, reaction_balance_delta, reaction_is_balanced
 from aoc.models import (
+    ChemistryFamilyAdapter,
     ChapterArtifact,
     ColumnDesign,
     ControlArchitectureDecision,
@@ -18,6 +19,9 @@ from aoc.models import (
     IndianLocationDatum,
     IndianPriceDatum,
     KineticAssessmentArtifact,
+    MechanicalDesignArtifact,
+    MethodSelectionArtifact,
+    OperationsPlanningArtifact,
     ProcessArchetype,
     PropertyGapArtifact,
     ProvenanceTag,
@@ -29,14 +33,17 @@ from aoc.models import (
     ResearchBundle,
     ResolvedSourceSet,
     ResolvedValueArtifact,
+    RouteFamilyArtifact,
     RouteSelectionArtifact,
     SiteSelectionArtifact,
     ScenarioStability,
     Severity,
+    SparseDataPolicyArtifact,
     SourceDomain,
     SourceRecord,
     StreamTable,
     ThermoAssessmentArtifact,
+    UnitOperationFamilyArtifact,
     UtilitySummaryArtifact,
     UtilityArchitectureDecision,
     UtilityNetworkDecision,
@@ -275,6 +282,75 @@ def validate_property_requirement_set(requirement_set: PropertyRequirementSet) -
     return issues
 
 
+def validate_sparse_data_policy(policy: SparseDataPolicyArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not policy.policy_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_sparse_data_policy_id",
+                severity=Severity.BLOCKED,
+                message="Sparse-data policy must include a policy id.",
+                artifact_ref="sparse_data_policy",
+            )
+        )
+    if not policy.adapter_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_sparse_data_policy_adapter",
+                severity=Severity.BLOCKED,
+                message="Sparse-data policy must reference the chemistry-family adapter.",
+                artifact_ref="sparse_data_policy",
+            )
+        )
+    if not policy.rules:
+        issues.append(
+            ValidationIssue(
+                code="missing_sparse_data_policy_rules",
+                severity=Severity.BLOCKED,
+                message="Sparse-data policy must define at least one fallback rule.",
+                artifact_ref="sparse_data_policy",
+            )
+        )
+    return issues
+
+
+def validate_sparse_data_policy_for_stage(
+    stage_id: str,
+    policy: SparseDataPolicyArtifact | None,
+) -> list[ValidationIssue]:
+    if policy is None:
+        return []
+    issues: list[ValidationIssue] = []
+    for rule in policy.rules:
+        if rule.stage_id != stage_id:
+            continue
+        if rule.current_status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="sparse_data_policy_blocked",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Stage '{stage_id}' violates sparse-data rule '{rule.subject}' for "
+                        f"'{policy.family_label}': {', '.join(rule.triggered_items[:3]) or rule.rationale}."
+                    ),
+                    artifact_ref="sparse_data_policy",
+                )
+            )
+        elif rule.current_status == "warning":
+            issues.append(
+                ValidationIssue(
+                    code="sparse_data_policy_warning",
+                    severity=Severity.WARNING,
+                    message=(
+                        f"Stage '{stage_id}' is proceeding under sparse-data warning '{rule.subject}' for "
+                        f"'{policy.family_label}': {', '.join(rule.triggered_items[:3]) or rule.rationale}."
+                    ),
+                    artifact_ref="sparse_data_policy",
+                )
+            )
+    return issues
+
+
 def validate_property_method_decision(property_method: PropertyMethodDecision) -> list[ValidationIssue]:
     return validate_decision_record(property_method.decision, "property_method_decision")
 
@@ -360,12 +436,22 @@ def validate_separation_thermo_artifact(separation_thermo: SeparationThermoArtif
                 source_refs=separation_thermo.citations,
             )
         )
-    if separation_thermo.relative_volatility.average_alpha <= 1.0 and separation_thermo.separation_family in {"distillation", "absorption", "extraction"}:
+    if separation_thermo.relative_volatility.average_alpha <= 1.0 and separation_thermo.separation_family in {"distillation", "absorption"}:
         issues.append(
             ValidationIssue(
                 code="invalid_relative_volatility",
                 severity=Severity.BLOCKED,
                 message="Relative volatility / partition basis is not usable for the selected separation family.",
+                artifact_ref="separation_thermo",
+                source_refs=separation_thermo.citations,
+            )
+        )
+    elif separation_thermo.relative_volatility.average_alpha <= 1.0 and separation_thermo.separation_family == "extraction":
+        issues.append(
+            ValidationIssue(
+                code="weak_extraction_partition_basis",
+                severity=Severity.WARNING,
+                message="Relative volatility is weak for the extraction screening pair, so extraction performance must rely on explicit solvent/distribution basis rather than VLE alone.",
                 artifact_ref="separation_thermo",
                 source_refs=separation_thermo.citations,
             )
@@ -411,6 +497,709 @@ def validate_decision_record(decision: DecisionRecord, artifact_ref: str | None 
                 severity=Severity.BLOCKED,
                 message=f"Decision '{decision.decision_id}' is unstable under conservative scenarios.",
                 artifact_ref=artifact_ref or decision.decision_id,
+            )
+        )
+    return issues
+
+
+def validate_chemistry_family_adapter(adapter: ChemistryFamilyAdapter) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not adapter.adapter_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_family_adapter_id",
+                severity=Severity.BLOCKED,
+                message="Chemistry-family adapter must include an adapter id.",
+                artifact_ref="chemistry_family_adapter",
+            )
+        )
+    if not adapter.route_generation_hints:
+        issues.append(
+            ValidationIssue(
+                code="missing_family_adapter_route_hints",
+                severity=Severity.BLOCKED,
+                message="Chemistry-family adapter must define route-generation hints.",
+                artifact_ref="chemistry_family_adapter",
+            )
+        )
+    if not adapter.property_priority_order:
+        issues.append(
+            ValidationIssue(
+                code="missing_family_adapter_property_priority",
+                severity=Severity.BLOCKED,
+                message="Chemistry-family adapter must define property-priority order.",
+                artifact_ref="chemistry_family_adapter",
+            )
+        )
+    if not adapter.common_unit_operations:
+        issues.append(
+            ValidationIssue(
+                code="missing_family_adapter_unit_ops",
+                severity=Severity.BLOCKED,
+                message="Chemistry-family adapter must define common unit operations.",
+                artifact_ref="chemistry_family_adapter",
+            )
+        )
+    if not adapter.critic_focus:
+        issues.append(
+            ValidationIssue(
+                code="missing_family_adapter_critic_focus",
+                severity=Severity.BLOCKED,
+                message="Chemistry-family adapter must define critic focus areas.",
+                artifact_ref="chemistry_family_adapter",
+            )
+        )
+    return issues
+
+
+def validate_route_family_artifact(route_families: RouteFamilyArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not route_families.profiles:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_family_profiles",
+                severity=Severity.BLOCKED,
+                message="Route-family expansion requires at least one classified route-family profile.",
+                artifact_ref="route_family_profiles",
+            )
+        )
+        return issues
+    for profile in route_families.profiles:
+        if not profile.route_family_id:
+            issues.append(
+                ValidationIssue(
+                    code="missing_route_family_id",
+                    severity=Severity.BLOCKED,
+                    message=f"Route '{profile.route_id}' is missing a route-family id.",
+                    artifact_ref="route_family_profiles",
+                )
+            )
+        if not profile.primary_reactor_class:
+            issues.append(
+                ValidationIssue(
+                    code="missing_route_family_reactor_basis",
+                    severity=Severity.BLOCKED,
+                    message=f"Route-family profile '{profile.route_id}' is missing a reactor basis.",
+                    artifact_ref="route_family_profiles",
+                )
+            )
+        if not profile.primary_separation_train:
+            issues.append(
+                ValidationIssue(
+                    code="missing_route_family_separation_basis",
+                    severity=Severity.BLOCKED,
+                    message=f"Route-family profile '{profile.route_id}' is missing a separation-train basis.",
+                    artifact_ref="route_family_profiles",
+                )
+            )
+    return issues
+
+
+def validate_route_selection_critics(
+    route_selection: RouteSelectionArtifact,
+    route_families: RouteFamilyArtifact | None,
+) -> list[ValidationIssue]:
+    if route_families is None or not route_selection.selected_route_id:
+        return []
+    profile = next((item for item in route_families.profiles if item.route_id == route_selection.selected_route_id), None)
+    if profile is None or not profile.critic_flags:
+        return []
+    return [
+        ValidationIssue(
+            code="route_family_critic_flags_present",
+            severity=Severity.WARNING,
+            message=f"Selected route family '{profile.family_label}' still carries critic flags: {', '.join(profile.critic_flags[:3])}.",
+            artifact_ref="route_selection",
+        )
+    ]
+
+
+def validate_separation_thermo_critics(route, separation_thermo: SeparationThermoArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if separation_thermo.separation_family in {"distillation", "extraction"} and separation_thermo.activity_model == "ideal_raoult":
+        issues.append(
+            ValidationIssue(
+                code="weak_nonideal_thermo_basis",
+                severity=Severity.WARNING,
+                message=f"Route '{route.route_id}' is still using ideal Raoult screening for a nontrivial {separation_thermo.separation_family} service.",
+                artifact_ref="separation_thermo",
+            )
+        )
+    if separation_thermo.missing_binary_pairs:
+        issues.append(
+            ValidationIssue(
+                code="missing_binary_interaction_coverage",
+                severity=Severity.WARNING,
+                message="Binary interaction coverage remains incomplete for the selected separation thermo basis: "
+                + ", ".join(separation_thermo.missing_binary_pairs[:4])
+                + ".",
+                artifact_ref="separation_thermo",
+            )
+        )
+    if separation_thermo.fallback_notes:
+        issues.append(
+            ValidationIssue(
+                code="separation_thermo_fallback_active",
+                severity=Severity.WARNING,
+                message="Separation thermodynamics is relying on fallback assumptions: " + "; ".join(separation_thermo.fallback_notes[:2]) + ".",
+                artifact_ref="separation_thermo",
+            )
+        )
+    return issues
+
+
+def validate_separation_design_critics(
+    separation_choice: DecisionRecord,
+    column: ColumnDesign,
+    separation_thermo: SeparationThermoArtifact | None = None,
+    unit_operation_family: UnitOperationFamilyArtifact | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    selected_sep = (separation_choice.selected_candidate_id or "").lower()
+    service = column.service.lower()
+    family_id = (unit_operation_family.route_family_id if unit_operation_family is not None else "").lower()
+    distillation_selected = any(token in selected_sep for token in ("distill", "fraction", "column", "rectif", "strip")) or any(
+        token in service for token in ("distillation", "fractionation", "column")
+    )
+    absorption_selected = "absorption" in selected_sep or "absorb" in service
+    solids_selected = any(token in selected_sep for token in ("crystall", "dry", "filter")) or any(
+        token in service for token in ("crystall", "dryer", "filter")
+    )
+
+    if distillation_selected:
+        if column.relative_volatility < 1.05:
+            issues.append(
+                ValidationIssue(
+                    code="distillation_relative_volatility_too_low",
+                    severity=Severity.BLOCKED,
+                    message="Selected distillation service has relative volatility below 1.05 and should not be treated as a viable primary split without a stronger separation basis.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if separation_thermo is not None and separation_thermo.relative_volatility is not None and not separation_thermo.relative_volatility.feasible:
+            issues.append(
+                ValidationIssue(
+                    code="separation_thermo_infeasible",
+                    severity=Severity.BLOCKED,
+                    message="The selected separation thermo artifact marks the key split as infeasible under the current distillation basis.",
+                    artifact_ref="separation_thermo",
+                )
+            )
+        if column.reflux_ratio_multiple_of_min > 5.0 or column.minimum_reflux_ratio > 25.0:
+            issues.append(
+                ValidationIssue(
+                    code="distillation_reflux_extreme",
+                    severity=Severity.WARNING,
+                    message="Selected distillation basis requires extreme reflux severity and should remain under critic scrutiny.",
+                    artifact_ref=column.column_id,
+                )
+            )
+
+    if absorption_selected or family_id in {"gas_absorption_converter_train", "regeneration_loop_train"}:
+        if column.absorber_capture_fraction > 0.90 and (column.absorber_henry_constant_bar <= 0.0 or column.equilibrium_fallback):
+            issues.append(
+                ValidationIssue(
+                    code="absorber_capture_without_equilibrium_basis",
+                    severity=Severity.BLOCKED,
+                    message="High absorber capture is being claimed without a resolved Henry-law basis.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if 0.0 < column.absorber_flooding_margin_fraction < 0.10:
+            issues.append(
+                ValidationIssue(
+                    code="absorber_operating_window_too_narrow",
+                    severity=Severity.BLOCKED,
+                    message="Absorber flooding margin is below 10%, leaving no credible operating window.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        elif 0.10 <= column.absorber_flooding_margin_fraction < 0.15:
+            issues.append(
+                ValidationIssue(
+                    code="absorber_operating_window_weak",
+                    severity=Severity.WARNING,
+                    message="Absorber flooding margin is narrow and should be treated as a weak screening basis.",
+                    artifact_ref=column.column_id,
+                )
+            )
+
+    if solids_selected or family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"}:
+        if column.crystallizer_yield_fraction > 0.10 and column.crystallizer_supersaturation_ratio <= 1.0:
+            issues.append(
+                ValidationIssue(
+                    code="crystallizer_yield_without_supersaturation",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer yield is positive even though the current basis shows no supersaturation driving force.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            column.dryer_product_moisture_fraction > 0.0
+            and column.dryer_equilibrium_moisture_fraction > 0.0
+            and column.dryer_product_moisture_fraction < column.dryer_equilibrium_moisture_fraction * 0.95
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="dryer_endpoint_below_equilibrium",
+                    severity=Severity.BLOCKED,
+                    message="Dryer endpoint moisture is below the equilibrium moisture basis and is not physically credible.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if column.filter_area_m2 > 0.0 and column.filter_cycles_per_hr <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="filter_cycle_basis_missing",
+                    severity=Severity.BLOCKED,
+                    message="Filter area is nonzero but no credible filter cycling basis was produced.",
+                    artifact_ref=column.column_id,
+                )
+            )
+    return issues
+
+
+def _resolved_property_count(property_packages: PropertyPackageArtifact, active_ids: set[str], property_name: str) -> int:
+    count = 0
+    for package in property_packages.packages:
+        if package.identifier.identifier_id not in active_ids:
+            continue
+        prop = getattr(package, property_name, None)
+        if prop is not None and getattr(prop, "resolution_status", "") == "resolved":
+            count += 1
+    return count
+
+
+def validate_unit_family_property_coverage(
+    route,
+    reactor_choice: DecisionRecord,
+    separation_choice: DecisionRecord,
+    unit_operation_family: UnitOperationFamilyArtifact | None,
+    property_packages: PropertyPackageArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    active_ids = set(active_identifier_ids_for_route(property_packages, route, None))
+    if not active_ids:
+        return issues
+    family_id = (unit_operation_family.route_family_id if unit_operation_family is not None else "").lower()
+    selected_reactor = (reactor_choice.selected_candidate_id or "").lower()
+    selected_sep = (separation_choice.selected_candidate_id or "").lower()
+    high_hazard = any((hazard.severity or "").lower() == "high" for hazard in route.hazards)
+    hazard_sensitive_reactor = high_hazard or any(token in selected_reactor for token in ("oxidizer", "converter", "carbonylation", "fixed_bed", "trickle"))
+
+    if hazard_sensitive_reactor:
+        resolved_tc = _resolved_property_count(property_packages, active_ids, "thermal_conductivity")
+        resolved_cp = _resolved_property_count(property_packages, active_ids, "liquid_heat_capacity")
+        resolved_density = _resolved_property_count(property_packages, active_ids, "liquid_density")
+        if resolved_tc == 0:
+            issues.append(
+                ValidationIssue(
+                    code="reactor_hazard_property_coverage_weak",
+                    severity=Severity.WARNING,
+                    message="Selected reactor family is hazard-sensitive, but no active component has resolved thermal-conductivity coverage.",
+                    artifact_ref="property_packages",
+                )
+            )
+        if resolved_cp == 0 or resolved_density == 0:
+            issues.append(
+                ValidationIssue(
+                    code="reactor_transport_property_coverage_weak",
+                    severity=Severity.WARNING,
+                    message="Selected reactor family is proceeding with weak resolved heat-capacity or density coverage for the active route components.",
+                    artifact_ref="property_packages",
+                )
+            )
+
+    absorption_family = family_id in {"gas_absorption_converter_train", "regeneration_loop_train"} or any(
+        token in selected_sep for token in ("absorption", "packed_absorption", "gas_drying")
+    )
+    if absorption_family and property_packages.unresolved_henry_pairs:
+        severity = Severity.BLOCKED if not property_packages.henry_law_constants else Severity.WARNING
+        issues.append(
+            ValidationIssue(
+                code="absorption_family_property_coverage_weak",
+                severity=severity,
+                message="Absorption-led unit families still have unresolved Henry-law coverage: " + ", ".join(property_packages.unresolved_henry_pairs[:4]) + ".",
+                artifact_ref="property_packages",
+            )
+        )
+
+    solids_family = family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"} or any(
+        token in selected_sep for token in ("crystall", "dryer", "filter")
+    )
+    if solids_family and property_packages.unresolved_solubility_pairs:
+        severity = Severity.BLOCKED if not property_packages.solubility_curves else Severity.WARNING
+        issues.append(
+            ValidationIssue(
+                code="solids_family_property_coverage_weak",
+                severity=severity,
+                message="Solids-handling unit families still have unresolved solubility coverage: " + ", ".join(property_packages.unresolved_solubility_pairs[:4]) + ".",
+                artifact_ref="property_packages",
+            )
+        )
+
+    distillation_family = any(token in selected_sep for token in ("distillation", "extractive", "extraction"))
+    if distillation_family and property_packages.unresolved_binary_pairs:
+        issues.append(
+            ValidationIssue(
+                code="distillation_family_property_coverage_weak",
+                severity=Severity.WARNING,
+                message="Selected separation family still has unresolved binary-interaction coverage: " + ", ".join(property_packages.unresolved_binary_pairs[:4]) + ".",
+                artifact_ref="property_packages",
+            )
+        )
+    return issues
+
+
+def validate_reactor_hazard_basis_critics(
+    route,
+    reactor_choice: DecisionRecord,
+    reactor: ReactorDesign,
+    operations_planning: OperationsPlanningArtifact | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    selected_reactor = (reactor_choice.selected_candidate_id or "").lower()
+    high_hazard = any((hazard.severity or "").lower() == "high" for hazard in route.hazards)
+    hazard_sensitive_reactor = high_hazard or any(token in selected_reactor for token in ("oxidizer", "converter", "carbonylation", "fixed_bed", "trickle"))
+    if not hazard_sensitive_reactor:
+        return issues
+
+    if reactor.runaway_risk_label == "high":
+        issues.append(
+            ValidationIssue(
+                code="reactor_hazard_basis_high_runaway_risk",
+                severity=Severity.WARNING,
+                message="Selected reactor remains in a high runaway-risk regime and should stay approval-gated.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
+    if reactor.heat_removal_margin_fraction < 0.10 or reactor.thermal_stability_score < 55.0:
+        issues.append(
+            ValidationIssue(
+                code="reactor_hazard_basis_unsupported",
+                severity=Severity.WARNING,
+                message="Hazard-sensitive reactor family still has a weak thermal-severity or heat-removal basis for a confident autonomous selection.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
+    if operations_planning is not None and high_hazard and operations_planning.recommended_operating_mode == "batch":
+        issues.append(
+            ValidationIssue(
+                code="hazard_route_batch_mode_selected",
+                severity=Severity.WARNING,
+                message="High-hazard route is paired with batch operation, so restart and reheat exposure should remain analyst-approved.",
+                artifact_ref="operations_planning",
+            )
+        )
+    if operations_planning is not None and high_hazard and operations_planning.restart_loss_fraction > 0.008:
+        issues.append(
+            ValidationIssue(
+                code="hazard_route_restart_loss_high",
+                severity=Severity.WARNING,
+                message="High-hazard route still carries elevated restart-loss burden, which weakens the hazard-operability basis.",
+                artifact_ref="operations_planning",
+            )
+        )
+    return issues
+
+
+def validate_route_economic_critics(
+    route_selection: RouteSelectionArtifact,
+    utility_network: UtilityNetworkDecision,
+    cost_model: CostModel,
+    economic_basis_decision: DecisionRecord,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    selected_case = next((item for item in utility_network.cases if item.case_id == utility_network.selected_case_id), None)
+    selected_economic_basis = economic_basis_decision.selected_candidate_id or ""
+
+    if selected_economic_basis != "selected_integrated_base":
+        issues.append(
+            ValidationIssue(
+                code="economic_basis_counterfactual_selected",
+                severity=Severity.WARNING,
+                message=(
+                    f"Economic basis selected '{selected_economic_basis}' instead of the integrated base case for route "
+                    f"'{route_selection.selected_route_id or cost_model.selected_route_id or utility_network.route_id}'."
+                ),
+                artifact_ref="economic_basis_decision",
+            )
+        )
+
+    if (
+        selected_economic_basis == "no_recovery_counterfactual"
+        and selected_case is not None
+        and selected_case.recovered_duty_kw > 0.0
+        and utility_network.selected_annual_utility_cost_inr < utility_network.base_annual_utility_cost_inr
+    ):
+        issues.append(
+            ValidationIssue(
+                code="economic_basis_rejects_selected_recovery",
+                severity=Severity.WARNING,
+                message=(
+                    f"Economic basis rejected the selected recovery case '{selected_case.case_id}' even though it recovers "
+                    f"{selected_case.recovered_duty_kw:.1f} kW and reduces annual utility cost."
+                ),
+                artifact_ref="economic_basis_decision",
+            )
+        )
+
+    if (
+        selected_economic_basis == "conservative_case"
+        and cost_model.selected_heat_integration_case_id
+        and utility_network.selected_case_id == cost_model.selected_heat_integration_case_id
+        and cost_model.integration_capex_inr > 0.0
+    ):
+        issues.append(
+            ValidationIssue(
+                code="economic_basis_conservative_override",
+                severity=Severity.WARNING,
+                message=(
+                    "Economic basis stayed on the conservative counterfactual despite a fully costed selected heat-integration "
+                    "architecture, so the basis should remain approval-gated."
+                ),
+                artifact_ref="economic_basis_decision",
+            )
+        )
+    return issues
+
+
+def validate_financing_operability_critics(
+    financing_basis: DecisionRecord,
+    economic_basis_decision: DecisionRecord,
+    financial_model: FinancialModel,
+    operations_planning: OperationsPlanningArtifact,
+    reactor: ReactorDesign | None = None,
+    utility_network: UtilityNetworkDecision | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    selected_financing = (financing_basis.selected_candidate_id or "").lower()
+    high_leverage = "70_30" in selected_financing or "70:30" in financing_basis.selected_summary
+    selected_case = None
+    if utility_network is not None and utility_network.selected_case_id:
+        selected_case = next((item for item in utility_network.cases if item.case_id == utility_network.selected_case_id), None)
+
+    if (
+        high_leverage
+        and (financial_model.covenant_breach_codes or financial_model.minimum_dscr < 1.12)
+        and (operations_planning.throughput_loss_fraction > 0.02 or operations_planning.restart_loss_fraction > 0.005)
+    ):
+        issues.append(
+            ValidationIssue(
+                code="financing_operability_tension",
+                severity=Severity.WARNING,
+                message="Higher-leverage financing is being held against an operating mode with meaningful outage or restart-loss burden.",
+                artifact_ref="financing_basis_decision",
+            )
+        )
+    if high_leverage and reactor is not None and reactor.runaway_risk_label == "high":
+        issues.append(
+            ValidationIssue(
+                code="hazard_route_high_leverage_financing",
+                severity=Severity.WARNING,
+                message="High-leverage financing remains selected even though the reactor hazard basis still carries high runaway risk.",
+                artifact_ref="financing_basis_decision",
+            )
+        )
+    if (
+        economic_basis_decision.selected_candidate_id != "selected_integrated_base"
+        and operations_planning.recommended_operating_mode == "continuous"
+        and selected_case is not None
+        and selected_case.recovered_duty_kw > 0.0
+    ):
+        issues.append(
+            ValidationIssue(
+                code="operating_mode_integrated_economics_tension",
+                severity=Severity.WARNING,
+                message="Operating mode remains tuned for continuous integrated service while the selected economic basis has moved to a counterfactual case.",
+                artifact_ref="operating_mode",
+            )
+        )
+    return issues
+
+
+def validate_architecture_package_critics(
+    route,
+    separation_choice: DecisionRecord,
+    unit_operation_family: UnitOperationFamilyArtifact | None,
+    separation_thermo: SeparationThermoArtifact | None,
+    kinetics_method: MethodSelectionArtifact | None,
+    sparse_data_policy: SparseDataPolicyArtifact | None,
+    property_packages: PropertyPackageArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    family_id = (unit_operation_family.route_family_id if unit_operation_family is not None else "").lower()
+    selected_sep = (separation_choice.selected_candidate_id or "").lower()
+    route_text = " ".join(
+        [
+            route.route_id,
+            route.name,
+            route.reaction_equation,
+            " ".join(route.catalysts),
+            " ".join(route.byproducts),
+        ]
+    ).lower()
+    high_hazard = any((hazard.severity or "").lower() == "high" for hazard in route.hazards)
+    distillation_family = any(token in selected_sep for token in ("distillation", "extractive", "extraction")) or family_id in {
+        "continuous_liquid_organic_train",
+        "mixed_separation_specialty_train",
+    }
+    absorption_family = family_id in {"gas_absorption_converter_train", "regeneration_loop_train"} or any(
+        token in selected_sep for token in ("absorption", "packed_absorption", "gas_drying")
+    )
+    solids_family = family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"} or any(
+        token in selected_sep for token in ("crystall", "dryer", "filter")
+    )
+    architecture_weak = False
+
+    if (
+        distillation_family
+        and separation_thermo is not None
+        and (
+            separation_thermo.activity_model == "ideal_raoult"
+            or bool(separation_thermo.missing_binary_pairs)
+            or bool(separation_thermo.fallback_notes)
+        )
+    ):
+        architecture_weak = True
+        issues.append(
+            ValidationIssue(
+                code="architecture_package_fallback_thermo",
+                severity=Severity.WARNING,
+                message="Selected architecture is still relying on fallback or idealized thermodynamics for the chosen liquid separation family.",
+                artifact_ref="separation_thermo",
+            )
+        )
+
+    if absorption_family and property_packages.unresolved_henry_pairs:
+        architecture_weak = True
+        issues.append(
+            ValidationIssue(
+                code="architecture_package_weak_absorber_basis",
+                severity=Severity.WARNING,
+                message="Selected absorber-led architecture still depends on unresolved Henry-law coverage.",
+                artifact_ref="property_packages",
+            )
+        )
+
+    if solids_family and property_packages.unresolved_solubility_pairs:
+        architecture_weak = True
+        issues.append(
+            ValidationIssue(
+                code="architecture_package_weak_solids_basis",
+                severity=Severity.WARNING,
+                message="Selected solids-handling architecture still depends on unresolved solubility coverage.",
+                artifact_ref="property_packages",
+            )
+        )
+
+    selected_kinetics = (kinetics_method.decision.selected_candidate_id if kinetics_method is not None else "") or ""
+    complex_route = any(token in route_text for token in ("carbonylation", "converter", "oxidation", "catal"))
+    if kinetics_method is not None and selected_kinetics in {"conservative_analogy", "apparent_order_fit"} and (complex_route or high_hazard):
+        architecture_weak = True
+        issues.append(
+            ValidationIssue(
+                code="architecture_package_weak_kinetics_basis",
+                severity=Severity.WARNING,
+                message="Selected architecture is still resting on analogy or coarse fitted kinetics for a complex or high-hazard route.",
+                artifact_ref="kinetics_method_decision",
+            )
+        )
+
+    if architecture_weak and sparse_data_policy is not None:
+        triggered = [
+            rule
+            for rule in sparse_data_policy.rules
+            if rule.current_status in {"warning", "blocked"}
+            and rule.stage_id in {"thermodynamic_feasibility", "kinetic_feasibility", "reactor_design", "distillation_design"}
+        ]
+        if triggered:
+            issues.append(
+                ValidationIssue(
+                    code="architecture_package_sparse_data_compounded",
+                    severity=Severity.WARNING,
+                    message=(
+                        "Selected architecture has compounded sparse-data pressure across thermo/kinetics/design stages: "
+                        + ", ".join(rule.subject for rule in triggered[:4])
+                        + "."
+                    ),
+                    artifact_ref="sparse_data_policy",
+                )
+            )
+    return issues
+
+
+def validate_kinetics_method_critics(route, method_artifact: MethodSelectionArtifact) -> list[ValidationIssue]:
+    selected = method_artifact.decision.selected_candidate_id or ""
+    route_text = " ".join(
+        [
+            route.route_id,
+            route.name,
+            route.reaction_equation,
+            " ".join(route.catalysts),
+            " ".join(route.byproducts),
+        ]
+    ).lower()
+    high_hazard = any((hazard.severity or "").lower() == "high" for hazard in route.hazards)
+    complex_route = any(token in route_text for token in ("carbonylation", "converter", "oxidation", "catal"))
+    issues: list[ValidationIssue] = []
+    if complex_route and selected in {"apparent_order_fit", "conservative_analogy"}:
+        issues.append(
+            ValidationIssue(
+                code="weak_kinetics_basis_for_complex_route",
+                severity=Severity.WARNING,
+                message=f"Selected kinetics method '{selected}' is weak for a complex catalytic/pressure-sensitive route.",
+                artifact_ref="kinetics_method_decision",
+            )
+        )
+    if high_hazard and selected == "conservative_analogy":
+        issues.append(
+            ValidationIssue(
+                code="hazard_route_using_analogy_kinetics",
+                severity=Severity.WARNING,
+                message="High-hazard route is relying on conservative analogy kinetics and should remain under analyst scrutiny.",
+                artifact_ref="kinetics_method_decision",
+            )
+        )
+    return issues
+
+
+def validate_unit_operation_family_artifact(unit_family: UnitOperationFamilyArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not unit_family.route_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_family_route_id",
+                severity=Severity.BLOCKED,
+                message="Unit-operation family artifact must reference a route id.",
+                artifact_ref="unit_operation_family",
+            )
+        )
+    if not unit_family.reactor_candidates:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_family_reactor_candidates",
+                severity=Severity.BLOCKED,
+                message="Unit-operation family artifact must include reactor candidates.",
+                artifact_ref="unit_operation_family",
+            )
+        )
+    if not unit_family.separation_candidates:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_family_separation_candidates",
+                severity=Severity.BLOCKED,
+                message="Unit-operation family artifact must include separation candidates.",
+                artifact_ref="unit_operation_family",
+            )
+        )
+    if not unit_family.supporting_unit_operations:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_family_supporting_ops",
+                severity=Severity.BLOCKED,
+                message="Unit-operation family artifact must include supporting unit-operation expectations.",
+                artifact_ref="unit_operation_family",
             )
         )
     return issues
@@ -764,11 +1553,17 @@ def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIss
                     artifact_ref="flowsheet_case",
                 )
             )
-        for component_name in set(separation.component_split_to_product) | set(separation.component_split_to_waste) | set(separation.component_split_to_recycle):
+        for component_name in (
+            set(separation.component_split_to_product)
+            | set(separation.component_split_to_waste)
+            | set(separation.component_split_to_recycle)
+            | set(separation.component_split_to_side_draw)
+        ):
             split_total = (
                 separation.component_split_to_product.get(component_name, 0.0)
                 + separation.component_split_to_waste.get(component_name, 0.0)
                 + separation.component_split_to_recycle.get(component_name, 0.0)
+                + separation.component_split_to_side_draw.get(component_name, 0.0)
             )
             if split_total > 1.10 or split_total < 0.75:
                 issues.append(
@@ -782,6 +1577,43 @@ def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIss
                         artifact_ref="flowsheet_case",
                     )
                 )
+    for section in flowsheet_case.sections:
+        if not section.unit_ids:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_section_missing_units",
+                    severity=Severity.BLOCKED,
+                    message=f"Section '{section.section_id}' has no active unit ids.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if not section.inlet_stream_ids:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_section_missing_inlets",
+                    severity=Severity.BLOCKED,
+                    message=f"Section '{section.section_id}' has no inlet stream ids.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if not section.outlet_stream_ids:
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_section_missing_outlets",
+                    severity=Severity.BLOCKED,
+                    message=f"Section '{section.section_id}' has no outlet stream ids.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
+        if section.status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="flowsheet_section_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Section '{section.section_id}' is blocked in the flowsheet case.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
     for loop in flowsheet_case.recycle_loops:
         if not loop.recycle_stream_ids:
             issues.append(
@@ -804,15 +1636,27 @@ def validate_flowsheet_case(flowsheet_case: FlowsheetCase) -> list[ValidationIss
                 )
         for stream_id in loop.recycle_stream_ids:
             stream = next((item for item in flowsheet_case.streams if item.stream_id == stream_id), None)
-            if stream is not None and stream.destination_unit_id != "feed_prep":
+            if stream is not None and loop.recycle_target_unit_id and stream.destination_unit_id != loop.recycle_target_unit_id:
                 issues.append(
                     ValidationIssue(
                         code="recycle_stream_destination_invalid",
                         severity=Severity.BLOCKED,
-                        message=f"Recycle stream '{stream_id}' in loop '{loop.loop_id}' does not return to feed preparation.",
+                        message=(
+                            f"Recycle stream '{stream_id}' in loop '{loop.loop_id}' returns to "
+                            f"'{stream.destination_unit_id or 'unknown'}' instead of '{loop.recycle_target_unit_id}'."
+                        ),
                         artifact_ref="flowsheet_case",
                     )
                 )
+        if not loop.recycle_target_unit_id:
+            issues.append(
+                ValidationIssue(
+                    code="recycle_loop_missing_target",
+                    severity=Severity.BLOCKED,
+                    message=f"Recycle loop '{loop.loop_id}' has no resolved recycle target unit.",
+                    artifact_ref="flowsheet_case",
+                )
+            )
         if max(loop.component_convergence_error_pct.values(), default=0.0) > 95.0:
             issues.append(
                 ValidationIssue(
@@ -872,6 +1716,16 @@ def validate_solve_result(solve_result: SolveResult) -> list[ValidationIssue]:
                     code="unitwise_convergence_blocked",
                     severity=Severity.BLOCKED,
                     message=f"Unit '{unit_id}' is blocked in the solve result.",
+                    artifact_ref="solve_result",
+                )
+            )
+    for section_id, status in solve_result.section_status.items():
+        if status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="section_convergence_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Section '{section_id}' is blocked in the solve result.",
                     artifact_ref="solve_result",
                 )
             )
@@ -1233,11 +2087,127 @@ def validate_utility_architecture(utility_architecture: UtilityArchitectureDecis
     issues: list[ValidationIssue] = []
     selected_steps = utility_architecture.architecture.selected_train_steps
     selected_package_items = utility_architecture.architecture.selected_package_items
+    heat_stream_set = utility_architecture.architecture.heat_stream_set
+    if heat_stream_set and heat_stream_set.hot_streams and heat_stream_set.cold_streams and not heat_stream_set.composite_intervals:
+        issues.append(
+            ValidationIssue(
+                code="missing_composite_intervals",
+                severity=Severity.BLOCKED,
+                message="Utility architecture has hot and cold heat streams but no composite thermal intervals.",
+                artifact_ref="utility_architecture",
+            )
+        )
     if not selected_steps:
         return issues
+    selected_islands = utility_architecture.architecture.selected_island_ids
+    case_index = {case.case_id: case for case in utility_architecture.architecture.cases}
+    selected_case = case_index.get(utility_architecture.architecture.selected_case_id or "")
+    if not selected_islands or not selected_case or not selected_case.utility_islands:
+        issues.append(
+            ValidationIssue(
+                code="missing_utility_islands",
+                severity=Severity.BLOCKED,
+                message="Selected utility architecture exposes train steps but no utility-island architecture.",
+                artifact_ref="utility_architecture",
+            )
+        )
+    else:
+        island_by_id = {island.island_id: island for island in selected_case.utility_islands}
+        for step in selected_steps:
+            if not step.island_id or step.island_id not in island_by_id:
+                issues.append(
+                    ValidationIssue(
+                        code="train_step_missing_island",
+                        severity=Severity.BLOCKED,
+                        message=f"Selected train step '{step.step_id}' is not assigned to a valid utility island.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if selected_case.header_count > 0 and step.header_level <= 0:
+                issues.append(
+                    ValidationIssue(
+                        code="train_step_missing_header_level",
+                        severity=Severity.BLOCKED,
+                        message=f"Selected train step '{step.step_id}' is missing staged-header level metadata.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if selected_case.condenser_reboiler_cluster_count > 0 and not step.cluster_id:
+                issues.append(
+                    ValidationIssue(
+                        code="train_step_missing_cluster_id",
+                        severity=Severity.BLOCKED,
+                        message=f"Selected train step '{step.step_id}' is missing condenser-reboiler cluster metadata.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+        for island in selected_case.utility_islands:
+            if not island.train_step_ids:
+                issues.append(
+                    ValidationIssue(
+                        code="empty_utility_island",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' has no selected train steps.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if selected_case.header_count > 0 and island.header_level <= 0:
+                issues.append(
+                    ValidationIssue(
+                        code="utility_island_missing_header_level",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' is missing staged-header level metadata.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if selected_case.condenser_reboiler_cluster_count > 0 and not island.cluster_id:
+                issues.append(
+                    ValidationIssue(
+                        code="utility_island_missing_cluster_id",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' is missing condenser-reboiler cluster metadata.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if island.target_recovered_duty_kw > island.recoverable_potential_kw + 1e-6:
+                issues.append(
+                    ValidationIssue(
+                        code="utility_island_target_exceeds_potential",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' has a target duty above its recoverable potential.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if island.recovered_duty_kw > island.target_recovered_duty_kw + 1.0:
+                issues.append(
+                    ValidationIssue(
+                        code="utility_island_recovery_exceeds_target",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' recovers more duty than its allocated target.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+            if island.candidate_match_count <= 0:
+                issues.append(
+                    ValidationIssue(
+                        code="utility_island_missing_candidate_basis",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' has no candidate-match basis.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
     package_index: dict[str, set[str]] = {}
     for package_item in selected_package_items:
         package_index.setdefault(package_item.parent_step_id, set()).add(package_item.package_role)
+        if not package_item.island_id:
+            issues.append(
+                ValidationIssue(
+                    code="package_item_missing_island",
+                    severity=Severity.BLOCKED,
+                    message=f"Utility package item '{package_item.package_item_id}' is missing an island id.",
+                    artifact_ref="utility_architecture",
+                )
+            )
     for step in selected_steps:
         roles = package_index.get(step.step_id, set())
         if "exchanger" not in roles or "controls" not in roles:
@@ -1257,6 +2227,22 @@ def validate_utility_architecture(utility_architecture: UtilityArchitectureDecis
                         code="incomplete_htm_package",
                         severity=Severity.BLOCKED,
                         message=f"Selected HTM train step '{step.step_id}' is missing package roles: {', '.join(sorted(missing_roles))}.",
+                        artifact_ref="utility_architecture",
+                    )
+                )
+    if selected_case and selected_case.header_count > 0:
+        header_islands = {
+            package_item.island_id
+            for package_item in selected_package_items
+            if package_item.package_role == "header" and package_item.island_id
+        }
+        for island in selected_case.utility_islands:
+            if island.header_level > 0 and island.island_id not in header_islands:
+                issues.append(
+                    ValidationIssue(
+                        code="missing_header_package_item",
+                        severity=Severity.BLOCKED,
+                        message=f"Utility island '{island.island_id}' is missing the staged-header/network package item required by the selected topology.",
                         artifact_ref="utility_architecture",
                     )
                 )
@@ -1481,6 +2467,42 @@ def validate_reactor_design(reactor: ReactorDesign) -> list[ValidationIssue]:
                 artifact_ref=reactor.reactor_id,
             )
         )
+    if reactor.kinetic_space_time_hr <= 0.0 or reactor.design_conversion_fraction <= 0.0:
+        issues.append(
+            ValidationIssue(
+                code="missing_reactor_kinetic_basis",
+                severity=Severity.BLOCKED,
+                message="Reactor design requires kinetics-coupled residence-time and conversion basis outputs.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
+    if (
+        reactor.heat_release_density_kw_m3 <= 0.0
+        or reactor.adiabatic_temperature_rise_c <= 0.0
+        or reactor.heat_removal_capacity_kw <= 0.0
+        or not reactor.runaway_risk_label
+    ):
+        issues.append(
+            ValidationIssue(
+                code="missing_reactor_stability_basis",
+                severity=Severity.BLOCKED,
+                message="Reactor design requires thermal-severity, heat-removal, and runaway-screening outputs.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
+    if reactor.catalyst_name and (
+        reactor.catalyst_inventory_kg <= 0.0
+        or reactor.catalyst_cycle_days <= 0.0
+        or reactor.catalyst_weight_hourly_space_velocity_1_hr <= 0.0
+    ):
+        issues.append(
+            ValidationIssue(
+                code="missing_catalyst_service_basis",
+                severity=Severity.BLOCKED,
+                message="Catalytic reactor service requires catalyst inventory, cycle, and WHSV outputs.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
     return issues
 
 
@@ -1504,6 +2526,35 @@ def validate_column_design(column: ColumnDesign) -> list[ValidationIssue]:
                 artifact_ref=column.column_id,
             )
         )
+    if "absorption" not in column.service.lower() and "crystallizer" not in column.service.lower():
+        if (
+            column.feed_quality_q_factor <= 0.0
+            or column.murphree_efficiency <= 0.0
+            or column.top_relative_volatility <= 1.0
+            or column.bottom_relative_volatility <= 1.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_distillation_feed_basis",
+                    severity=Severity.BLOCKED,
+                    message="Distillation-style service requires feed-quality, Murphree-efficiency, and section-volatility outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            column.rectifying_theoretical_stages <= 0.0
+            or column.stripping_theoretical_stages <= 0.0
+            or column.rectifying_vapor_load_kg_hr <= 0.0
+            or column.stripping_liquid_load_m3_hr <= 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_distillation_section_basis",
+                    severity=Severity.BLOCKED,
+                    message="Distillation-style service requires explicit rectifying/stripping section stage and load outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
     if "absorption" in column.service.lower():
         if column.absorber_capture_fraction <= 0.0 or column.absorber_packed_height_m <= 0.0:
             issues.append(
@@ -1561,6 +2612,20 @@ def validate_column_design(column: ColumnDesign) -> list[ValidationIssue]:
                     artifact_ref=column.column_id,
                 )
             )
+        if (
+            column.absorber_minimum_solvent_to_gas_ratio <= 0.0
+            or column.absorber_optimized_solvent_to_gas_ratio <= 0.0
+            or column.absorber_rich_loading_mol_mol <= 0.0
+            or column.absorber_solvent_rate_case_count < 2
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_absorber_solvent_optimization_basis",
+                    severity=Severity.BLOCKED,
+                    message="Absorber service requires solvent-rate optimization outputs and lean/rich loading screening.",
+                    artifact_ref=column.column_id,
+                )
+            )
     if "crystallizer" in column.service.lower():
         if column.crystallizer_yield_fraction <= 0.0 or column.filter_area_m2 <= 0.0:
             issues.append(
@@ -1568,6 +2633,21 @@ def validate_column_design(column: ColumnDesign) -> list[ValidationIssue]:
                     code="missing_crystallizer_screening_basis",
                     severity=Severity.BLOCKED,
                     message="Crystallizer service requires crystal-yield and filter-area screening outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+        if (
+            column.filter_cycle_time_hr <= 0.0
+            or column.filter_cake_formation_time_hr <= 0.0
+            or column.filter_wash_time_hr <= 0.0
+            or column.filter_discharge_time_hr <= 0.0
+            or column.filter_cycles_per_hr <= 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_filter_cycle_basis",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer/filtration service requires explicit filter cycle-timing outputs.",
                     artifact_ref=column.column_id,
                 )
             )
@@ -1622,6 +2702,97 @@ def validate_column_design(column: ColumnDesign) -> list[ValidationIssue]:
                     artifact_ref=column.column_id,
                 )
             )
+        if (
+            column.dryer_humidity_lift_kg_kg <= 0.0
+            or column.dryer_exhaust_dewpoint_c <= 0.0
+            or column.dryer_endpoint_margin_fraction < 0.0
+        ):
+            issues.append(
+                ValidationIssue(
+                    code="missing_dryer_endpoint_margin_basis",
+                    severity=Severity.BLOCKED,
+                    message="Crystallizer/dryer service requires humidity-lift, dewpoint, and endpoint-margin outputs.",
+                    artifact_ref=column.column_id,
+                )
+            )
+    return issues
+
+
+def validate_mechanical_design_artifact(artifact: MechanicalDesignArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    for item in artifact.items:
+        if item.design_pressure_bar > 0.0 and not item.pressure_class:
+            issues.append(
+                ValidationIssue(
+                    code="missing_mechanical_pressure_class",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' is missing a pressure class.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if item.hydrotest_pressure_bar < item.design_pressure_bar:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_hydrotest_pressure",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' has hydrotest pressure below design pressure.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if not item.support_load_case:
+            issues.append(
+                ValidationIssue(
+                    code="missing_support_load_case",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' is missing a support load case.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if item.support_type == "pipe rack support" and not item.pipe_rack_tie_in_required:
+            issues.append(
+                ValidationIssue(
+                    code="missing_pipe_rack_tie_in",
+                    severity=Severity.BLOCKED,
+                    message=f"Pipe-rack-supported equipment '{item.equipment_id}' must flag rack tie-in requirements.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if item.maintenance_platform_required and item.platform_area_m2 <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_platform_area",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' requires a platform area when a maintenance platform is selected.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if item.equipment_type.lower() not in {"utility control package", "instrument panel"} and item.foundation_footprint_m2 <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_foundation_footprint",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' requires a positive foundation footprint.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if item.anchor_group_count <= 0 and item.support_type != "pipe rack support":
+            issues.append(
+                ValidationIssue(
+                    code="missing_anchor_group_basis",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' requires anchor-group screening outputs.",
+                    artifact_ref="mechanical_design",
+                )
+            )
+        if item.local_shell_load_interaction_factor < 1.0:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_local_shell_interaction",
+                    severity=Severity.BLOCKED,
+                    message=f"Mechanical design for '{item.equipment_id}' has an invalid local shell/load interaction factor.",
+                    artifact_ref="mechanical_design",
+                )
+            )
     return issues
 
 
@@ -1633,9 +2804,141 @@ def validate_equipment_applicability(
     column: ColumnDesign,
     exchanger: HeatExchangerDesign,
     utility_network_decision: UtilityNetworkDecision,
+    unit_operation_family: UnitOperationFamilyArtifact | None = None,
 ) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     selected_case = next((item for item in utility_network_decision.cases if item.case_id == utility_network_decision.selected_case_id), None)
+    selected_sep = (separation_choice.selected_candidate_id or "").lower()
+    selected_reactor = (reactor_choice.selected_candidate_id or "").lower()
+    column_service = column.service.lower()
+    reactor_type = reactor.reactor_type.lower()
+    absorption_design_present = (
+        "absorb" in column_service
+        or column.absorber_capture_fraction > 0.0
+        or column.absorber_henry_constant_bar > 0.0
+        or column.absorber_theoretical_stages > 0.0
+        or column.absorber_packed_height_m > 0.0
+    )
+    solids_design_present = (
+        "crystall" in column_service
+        or "dryer" in column_service
+        or "filter" in column_service
+        or column.crystallizer_yield_fraction > 0.0
+        or column.filter_area_m2 > 0.0
+        or column.dryer_evaporation_load_kg_hr > 0.0
+    )
+    if unit_operation_family is not None:
+        reactor_index = {item.candidate_id: item for item in unit_operation_family.reactor_candidates}
+        separation_index = {item.candidate_id: item for item in unit_operation_family.separation_candidates}
+        allowed_reactors = {item.candidate_id for item in unit_operation_family.reactor_candidates if item.applicability_status != "blocked"}
+        allowed_separations = {item.candidate_id for item in unit_operation_family.separation_candidates if item.applicability_status != "blocked"}
+        selected_reactor_candidate = reactor_index.get(reactor_choice.selected_candidate_id or "")
+        selected_separation_candidate = separation_index.get(separation_choice.selected_candidate_id or "")
+        if reactor_choice.selected_candidate_id and reactor_choice.selected_candidate_id not in allowed_reactors:
+            issues.append(
+                ValidationIssue(
+                    code="reactor_choice_family_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Selected reactor family is outside the allowed unit-operation family candidates for the chosen route.",
+                    artifact_ref="reactor_choice",
+                )
+            )
+        if separation_choice.selected_candidate_id and separation_choice.selected_candidate_id not in allowed_separations:
+            issues.append(
+                ValidationIssue(
+                    code="separation_choice_family_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Selected separation family is outside the allowed unit-operation family candidates for the chosen route.",
+                    artifact_ref="separation_choice",
+                )
+            )
+        if selected_reactor_candidate is not None and selected_reactor_candidate.applicability_status == "fallback":
+            issues.append(
+                ValidationIssue(
+                    code="reactor_choice_nonpreferred_family_candidate",
+                    severity=Severity.WARNING,
+                    message="Selected reactor family is only a fallback candidate for the chosen unit-operation family.",
+                    artifact_ref="reactor_choice",
+                )
+            )
+        if selected_separation_candidate is not None and selected_separation_candidate.applicability_status == "fallback":
+            issues.append(
+                ValidationIssue(
+                    code="separation_choice_nonpreferred_family_candidate",
+                    severity=Severity.WARNING,
+                    message="Selected separation family is only a fallback candidate for the chosen unit-operation family.",
+                    artifact_ref="separation_choice",
+                )
+            )
+        if selected_reactor_candidate is not None and selected_reactor_candidate.critic_flags:
+            issues.append(
+                ValidationIssue(
+                    code="reactor_choice_family_critic_flags_present",
+                    severity=Severity.WARNING,
+                    message="Selected reactor family still carries applicability critic flags: "
+                    + ", ".join(selected_reactor_candidate.critic_flags[:3])
+                    + ".",
+                    artifact_ref="reactor_choice",
+                )
+            )
+        if selected_separation_candidate is not None and selected_separation_candidate.critic_flags:
+            issues.append(
+                ValidationIssue(
+                    code="separation_choice_family_critic_flags_present",
+                    severity=Severity.WARNING,
+                    message="Selected separation family still carries applicability critic flags: "
+                    + ", ".join(selected_separation_candidate.critic_flags[:3])
+                    + ".",
+                    artifact_ref="separation_choice",
+                )
+            )
+    if any(token in selected_reactor for token in ("fixed_bed", "oxidizer", "converter")) and not any(
+        token in reactor_type for token in ("fixed", "bed", "oxid", "converter")
+    ):
+        issues.append(
+            ValidationIssue(
+                code="reactor_design_service_mismatch",
+                severity=Severity.BLOCKED,
+                message="Selected reactor choice is inconsistent with the detailed reactor design type.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
+    if any(token in selected_reactor for token in ("cstr", "stirred")) and not any(token in reactor_type for token in ("cstr", "stirred")):
+        issues.append(
+            ValidationIssue(
+                code="reactor_design_service_mismatch",
+                severity=Severity.BLOCKED,
+                message="Selected reactor choice is inconsistent with the detailed reactor design type.",
+                artifact_ref=reactor.reactor_id,
+            )
+        )
+    if "absorption" in selected_sep and not absorption_design_present:
+        issues.append(
+            ValidationIssue(
+                code="separation_design_service_mismatch",
+                severity=Severity.BLOCKED,
+                message="Selected absorber-led separation choice is inconsistent with the detailed process-unit service basis.",
+                artifact_ref=column.column_id,
+            )
+        )
+    if any(token in selected_sep for token in ("crystallizer", "drying", "filtration")) and not solids_design_present:
+        issues.append(
+            ValidationIssue(
+                code="separation_design_service_mismatch",
+                severity=Severity.BLOCKED,
+                message="Selected solids-handling separation choice is inconsistent with the detailed process-unit service basis.",
+                artifact_ref=column.column_id,
+            )
+        )
+    if any(token in selected_sep for token in ("distillation", "fractionation", "column")) and (absorption_design_present or solids_design_present):
+        issues.append(
+            ValidationIssue(
+                code="separation_design_service_mismatch",
+                severity=Severity.BLOCKED,
+                message="Selected distillation-led separation choice is inconsistent with the detailed process-unit service basis.",
+                artifact_ref=column.column_id,
+            )
+        )
     if route.route_id == "eo_hydration" and not any(token in reactor.reactor_type.lower() for token in ("plug", "hydrator")):
         issues.append(
             ValidationIssue(
@@ -1675,6 +2978,162 @@ def validate_equipment_applicability(
                 artifact_ref="utility_network_decision",
             )
         )
+    if unit_operation_family is not None:
+        family_id = unit_operation_family.route_family_id
+        selected_sep = separation_choice.selected_candidate_id or ""
+        selected_reactor = reactor_choice.selected_candidate_id or ""
+        support_ops = set(unit_operation_family.supporting_unit_operations)
+        if family_id in {"gas_absorption_converter_train", "regeneration_loop_train"}:
+            if "absorption" not in selected_sep:
+                issues.append(
+                    ValidationIssue(
+                        code="absorber_family_selection_missing",
+                        severity=Severity.BLOCKED,
+                        message="Gas absorption route families require an absorption-led separation choice.",
+                        artifact_ref="separation_choice",
+                    )
+                )
+            if "absorption" not in column.service.lower():
+                issues.append(
+                    ValidationIssue(
+                        code="absorber_family_design_missing",
+                        severity=Severity.BLOCKED,
+                        message="Gas absorption route families require absorber-style process-unit design output.",
+                        artifact_ref=column.column_id,
+                    )
+                )
+            if "absorber" not in support_ops:
+                issues.append(
+                    ValidationIssue(
+                        code="absorber_family_support_missing",
+                        severity=Severity.BLOCKED,
+                        message="Gas absorption route families must declare absorber support operations.",
+                        artifact_ref="unit_operation_family",
+                    )
+                )
+        if family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"}:
+            if not any(token in selected_sep for token in ("crystallizer", "drying")):
+                issues.append(
+                    ValidationIssue(
+                        code="solids_family_selection_missing",
+                        severity=Severity.BLOCKED,
+                        message="Solids route families require a crystallizer/filter/dryer-led separation choice.",
+                        artifact_ref="separation_choice",
+                    )
+                )
+            if "crystallizer" not in column.service.lower():
+                issues.append(
+                    ValidationIssue(
+                        code="solids_family_design_missing",
+                        severity=Severity.BLOCKED,
+                        message="Solids route families require crystallizer/dryer process-unit design output.",
+                        artifact_ref=column.column_id,
+                    )
+                )
+            if not {"classifier", "dryer"} & support_ops:
+                issues.append(
+                    ValidationIssue(
+                        code="solids_family_support_missing",
+                        severity=Severity.BLOCKED,
+                        message="Solids route families must declare classifier/dryer support operations.",
+                        artifact_ref="unit_operation_family",
+                    )
+                )
+        if family_id == "extraction_recovery_train" and "extract" not in selected_sep:
+            issues.append(
+                ValidationIssue(
+                    code="extraction_family_selection_missing",
+                    severity=Severity.BLOCKED,
+                    message="Extraction-intensive route families require an extraction-led separation choice.",
+                    artifact_ref="separation_choice",
+                )
+            )
+        if family_id == "oxidation_recovery_train" and not any(token in selected_reactor for token in ("oxidizer", "fixed_bed")):
+            issues.append(
+                ValidationIssue(
+                    code="oxidation_family_reactor_missing",
+                    severity=Severity.BLOCKED,
+                    message="Oxidation route families require oxidation- or converter-style reactor selection.",
+                    artifact_ref="reactor_choice",
+                )
+            )
+    return issues
+
+
+def validate_technical_economic_critics(
+    column: ColumnDesign,
+    utility_network_decision: UtilityNetworkDecision,
+    cost_model: CostModel,
+    unit_operation_family: UnitOperationFamilyArtifact | None = None,
+    utility_architecture: UtilityArchitectureDecision | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    family_id = (unit_operation_family.route_family_id if unit_operation_family is not None else "").lower()
+    selected_case = next((item for item in utility_network_decision.cases if item.case_id == utility_network_decision.selected_case_id), None)
+    selected_arch_case = None
+    if utility_architecture is not None and utility_architecture.architecture is not None:
+        selected_arch_case = next(
+            (item for item in utility_architecture.architecture.cases if item.case_id == utility_architecture.architecture.selected_case_id),
+            None,
+        )
+    if selected_case is not None and selected_case.recovered_duty_kw > 100.0:
+        if cost_model.annual_utility_cost >= utility_network_decision.base_annual_utility_cost_inr * 0.995:
+            issues.append(
+                ValidationIssue(
+                    code="heat_recovery_without_economic_benefit",
+                    severity=Severity.WARNING,
+                    message="Selected heat-recovery architecture claims meaningful recovered duty but does not reduce annual utility cost in the economic model.",
+                    artifact_ref="cost_model",
+                )
+            )
+    if selected_arch_case is not None:
+        if selected_arch_case.architecture_family != "base" and cost_model.integration_capex_inr <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="heat_network_architecture_missing_capex_basis",
+                    severity=Severity.BLOCKED,
+                    message="Non-base heat-network architecture is selected but no integration CAPEX burden is carried into economics.",
+                    artifact_ref="cost_model",
+                )
+            )
+        if column.utility_architecture_family and selected_arch_case.architecture_family and column.utility_architecture_family != selected_arch_case.architecture_family:
+            issues.append(
+                ValidationIssue(
+                    code="column_utility_architecture_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Detailed process-unit utility architecture does not match the selected utility-network case family.",
+                    artifact_ref=column.column_id,
+                )
+            )
+    if (family_id in {"gas_absorption_converter_train", "regeneration_loop_train"} or column.absorber_packing_family) and column.absorber_packing_family:
+        if cost_model.annual_packing_replacement_cost <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="absorber_packing_cost_missing",
+                    severity=Severity.BLOCKED,
+                    message="Absorber packing is selected in design, but economics carry no explicit packing replacement burden.",
+                    artifact_ref="cost_model",
+                )
+            )
+    if family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"} or column.filter_area_m2 > 0.0 or column.dryer_evaporation_load_kg_hr > 0.0:
+        if column.filter_area_m2 > 0.0 and cost_model.annual_filter_media_replacement_cost <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="filter_media_cost_missing",
+                    severity=Severity.BLOCKED,
+                    message="Filter area is present in the solids design basis, but economics carry no filter-media replacement cost.",
+                    artifact_ref="cost_model",
+                )
+            )
+        if column.dryer_evaporation_load_kg_hr > 0.0 and cost_model.annual_dryer_exhaust_treatment_cost <= 0.0:
+            issues.append(
+                ValidationIssue(
+                    code="dryer_exhaust_cost_missing",
+                    severity=Severity.BLOCKED,
+                    message="Dryer duty is present in the solids design basis, but economics carry no dryer exhaust-treatment burden.",
+                    artifact_ref="cost_model",
+                )
+            )
     return issues
 
 
@@ -1690,20 +3149,195 @@ def validate_cost_model(cost_model: CostModel, available_source_ids: set[str], c
             )
         )
     issues.extend(validate_india_price_data(cost_model.india_price_data, available_source_ids, config, "cost_model"))
+    if cost_model.integration_capex_inr > 0.0 and not cost_model.utility_island_costs:
+        issues.append(
+            ValidationIssue(
+                code="missing_utility_island_costs",
+                severity=Severity.BLOCKED,
+                message="Cost model includes utility-integration CAPEX but no utility-island economic breakdown.",
+                artifact_ref="cost_model",
+            )
+        )
+    if cost_model.utility_island_costs:
+        service_total = sum(item.annual_service_cost_inr for item in cost_model.utility_island_costs)
+        if abs(service_total - cost_model.annual_utility_island_service_cost) / max(cost_model.annual_utility_island_service_cost, 1.0) > 0.01:
+            issues.append(
+                ValidationIssue(
+                    code="utility_island_service_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Utility-island service total does not match the cost-model aggregate.",
+                    artifact_ref="cost_model",
+                )
+            )
+        replacement_total = sum(item.annualized_replacement_cost_inr for item in cost_model.utility_island_costs)
+        if abs(replacement_total - cost_model.annual_utility_island_replacement_cost) / max(cost_model.annual_utility_island_replacement_cost, 1.0) > 0.01:
+            issues.append(
+                ValidationIssue(
+                    code="utility_island_replacement_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Utility-island replacement total does not match the cost-model aggregate.",
+                    artifact_ref="cost_model",
+                )
+            )
+        capex_total = sum(item.project_capex_burden_inr for item in cost_model.utility_island_costs)
+        if capex_total > cost_model.total_capex * 1.01:
+            issues.append(
+                ValidationIssue(
+                    code="utility_island_capex_exceeds_total",
+                    severity=Severity.BLOCKED,
+                    message="Utility-island project CAPEX burden exceeds total CAPEX.",
+                    artifact_ref="cost_model",
+                )
+            )
+        utility_share_total = sum(item.utility_cost_share_fraction for item in cost_model.utility_island_costs)
+        if utility_share_total > 1.01:
+            issues.append(
+                ValidationIssue(
+                    code="utility_island_share_exceeds_one",
+                    severity=Severity.BLOCKED,
+                    message="Utility-island utility-share fractions exceed unity.",
+                    artifact_ref="cost_model",
+                )
+            )
+        if any(item.maintenance_cycle_years <= 0.0 or item.replacement_event_cost_inr <= 0.0 for item in cost_model.utility_island_costs):
+            issues.append(
+                ValidationIssue(
+                    code="utility_island_missing_maintenance_timing",
+                    severity=Severity.BLOCKED,
+                    message="Utility-island economics are missing maintenance-cycle or replacement-event timing.",
+                    artifact_ref="cost_model",
+                )
+            )
+    if cost_model.construction_months <= 0 or not cost_model.procurement_profile_label:
+        issues.append(
+            ValidationIssue(
+                code="missing_procurement_timing_basis",
+                severity=Severity.BLOCKED,
+                message="Cost model is missing procurement timing basis fields.",
+                artifact_ref="cost_model",
+            )
+        )
+    if not cost_model.procurement_schedule:
+        issues.append(
+            ValidationIssue(
+                code="missing_procurement_schedule",
+                severity=Severity.BLOCKED,
+                message="Cost model is missing a procurement capex draw schedule.",
+                artifact_ref="cost_model",
+            )
+        )
+    else:
+        draw_fraction_total = sum(float(row.get("draw_fraction", 0.0)) for row in cost_model.procurement_schedule)
+        if abs(draw_fraction_total - 1.0) > 0.02:
+            issues.append(
+                ValidationIssue(
+                    code="procurement_draw_fraction_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Procurement schedule draw fractions do not sum to unity.",
+                    artifact_ref="cost_model",
+                )
+            )
+    if not cost_model.procurement_package_impacts:
+        issues.append(
+            ValidationIssue(
+                code="missing_procurement_package_impacts",
+                severity=Severity.BLOCKED,
+                message="Cost model is missing procurement package timing detail by equipment class.",
+                artifact_ref="cost_model",
+            )
+        )
+    if cost_model.imported_equipment_fraction > 0.0 and cost_model.total_import_duty_inr <= 0.0:
+        issues.append(
+            ValidationIssue(
+                code="missing_import_duty_basis",
+                severity=Severity.BLOCKED,
+                message="Cost model has imported equipment exposure but no import-duty burden.",
+                artifact_ref="cost_model",
+            )
+        )
     return issues
 
 
 def validate_working_capital(model: WorkingCapitalModel) -> list[ValidationIssue]:
-    if model.working_capital_inr > 0:
-        return []
-    return [
-        ValidationIssue(
-            code="invalid_working_capital",
-            severity=Severity.BLOCKED,
-            message="Working capital must be positive.",
-            artifact_ref="working_capital_model",
+    issues: list[ValidationIssue] = []
+    if model.working_capital_inr <= 0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_working_capital",
+                severity=Severity.BLOCKED,
+                message="Working capital must be positive.",
+                artifact_ref="working_capital_model",
+            )
         )
-    ]
+    if model.cash_buffer_days <= 0:
+        issues.append(
+            ValidationIssue(
+                code="missing_cash_buffer_basis",
+                severity=Severity.WARNING,
+                message="Working capital has no explicit cash-buffer day basis.",
+                artifact_ref="working_capital_model",
+            )
+        )
+    if model.precommissioning_inventory_inr <= 0 or model.precommissioning_inventory_days <= 0:
+        issues.append(
+            ValidationIssue(
+                code="missing_precommissioning_inventory_basis",
+                severity=Severity.BLOCKED,
+                message="Working capital must include a positive pre-commissioning inventory basis tied to the procurement/construction schedule.",
+                artifact_ref="working_capital_model",
+            )
+        )
+    if model.procurement_timing_factor <= 0 or model.peak_working_capital_month <= 0:
+        issues.append(
+            ValidationIssue(
+                code="missing_working_capital_timing_basis",
+                severity=Severity.BLOCKED,
+                message="Working capital must include a procurement-linked timing factor and peak timing month.",
+                artifact_ref="working_capital_model",
+            )
+        )
+    if model.peak_working_capital_inr < model.working_capital_inr:
+        issues.append(
+            ValidationIssue(
+                code="invalid_peak_working_capital",
+                severity=Severity.BLOCKED,
+                message="Peak working capital cannot be lower than steady-state working capital.",
+                artifact_ref="working_capital_model",
+            )
+        )
+    return issues
+
+
+def validate_operations_planning(operations_planning: OperationsPlanningArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if operations_planning.raw_material_buffer_days <= 0 or operations_planning.finished_goods_buffer_days <= 0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_operations_buffer_days",
+                severity=Severity.BLOCKED,
+                message="Operations planning must include positive raw-material and finished-goods buffer days.",
+                artifact_ref="operations_planning",
+            )
+        )
+    if operations_planning.campaign_length_days <= 0 or operations_planning.cleaning_cycle_days <= 0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_operations_campaign_basis",
+                severity=Severity.BLOCKED,
+                message="Operations planning must include positive campaign and cleaning-cycle lengths.",
+                artifact_ref="operations_planning",
+            )
+        )
+    if operations_planning.restart_loss_fraction < 0 or operations_planning.throughput_loss_fraction < 0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_operations_loss_fraction",
+                severity=Severity.BLOCKED,
+                message="Operations planning loss fractions cannot be negative.",
+                artifact_ref="operations_planning",
+            )
+        )
+    return issues
 
 
 def validate_financial_model(model: FinancialModel, config: ProjectConfig) -> list[ValidationIssue]:
@@ -1715,6 +3349,100 @@ def validate_financial_model(model: FinancialModel, config: ProjectConfig) -> li
                 severity=Severity.BLOCKED,
                 message="India-only mode requires the financial model currency to be INR.",
                 artifact_ref="financial_model",
+            )
+        )
+    if model.total_project_funding_inr <= 0.0 or model.construction_interest_during_construction_inr < 0.0:
+        issues.append(
+            ValidationIssue(
+                code="missing_financing_timing_basis",
+                severity=Severity.BLOCKED,
+                message="Financial model is missing total funding or construction-interest basis.",
+                artifact_ref="financial_model",
+            )
+        )
+    debt_service_rows = [row for row in model.annual_schedule if float(row.get("debt_service_inr", 0.0)) > 0.0]
+    if debt_service_rows and (model.minimum_dscr <= 0.0 or model.average_dscr <= 0.0):
+        issues.append(
+            ValidationIssue(
+                code="missing_dscr_basis",
+                severity=Severity.BLOCKED,
+                message="Financial model includes debt service but no valid DSCR basis.",
+                artifact_ref="financial_model",
+            )
+        )
+    if debt_service_rows and not all("cfads_inr" in row for row in model.annual_schedule):
+        issues.append(
+            ValidationIssue(
+                code="missing_lender_coverage_basis",
+                severity=Severity.BLOCKED,
+                message="Financial model includes debt service but no valid LLCR/PLCR basis.",
+                artifact_ref="financial_model",
+            )
+        )
+    if debt_service_rows and model.minimum_dscr < 1.0:
+        issues.append(
+            ValidationIssue(
+                code="weak_dscr_screening",
+                severity=Severity.WARNING,
+                message="Financial model minimum DSCR is below 1.0 under the current screening basis.",
+                artifact_ref="financial_model",
+            )
+        )
+    if debt_service_rows and model.llcr < 1.30:
+        issues.append(
+            ValidationIssue(
+                code="weak_llcr_screening",
+                severity=Severity.WARNING,
+                message="Financial model LLCR is below 1.30 under the current screening basis.",
+                artifact_ref="financial_model",
+            )
+        )
+    if debt_service_rows and model.plcr < 1.45:
+        issues.append(
+            ValidationIssue(
+                code="weak_plcr_screening",
+                severity=Severity.WARNING,
+                message="Financial model PLCR is below 1.45 under the current screening basis.",
+                artifact_ref="financial_model",
+            )
+        )
+    return issues
+
+
+def validate_financing_decision_alignment(
+    financing_basis: DecisionRecord,
+    financial_model: FinancialModel,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if (
+        financing_basis.selected_candidate_id
+        and financial_model.selected_financing_candidate_id
+        and financing_basis.selected_candidate_id != financial_model.selected_financing_candidate_id
+    ):
+        issues.append(
+            ValidationIssue(
+                code="financing_decision_financial_model_mismatch",
+                severity=Severity.BLOCKED,
+                message="Selected financing decision does not match the financing basis used in the financial model.",
+                artifact_ref="financing_basis_decision",
+            )
+        )
+    if financial_model.covenant_breach_codes and not financing_basis.approval_required:
+        issues.append(
+            ValidationIssue(
+                code="financing_decision_missing_approval_flag",
+                severity=Severity.BLOCKED,
+                message="Financing decision must require approval when the selected option still breaches lender screening covenants.",
+                artifact_ref="financing_basis_decision",
+            )
+        )
+    if financial_model.financing_scenario_reversal and not financing_basis.approval_required:
+        issues.append(
+            ValidationIssue(
+                code="financing_decision_missing_scenario_reversal_flag",
+                severity=Severity.BLOCKED,
+                message="Financing decision must require approval when downside scenario ranking overturns the base financing preference.",
+                artifact_ref="financing_basis_decision",
             )
         )
     return issues
@@ -1886,6 +3614,15 @@ def validate_cross_chapter_consistency(
                 code="scenario_set_mismatch",
                 severity=Severity.BLOCKED,
                 message="Financial model scenarios do not match cost-model scenarios.",
+                artifact_ref="financial_model",
+            )
+        )
+    if any(cost_scenario.utility_island_impacts and not financial_scenario.utility_island_impacts for cost_scenario, financial_scenario in zip(cost_model.scenario_results, financial_model.scenario_results)):
+        issues.append(
+            ValidationIssue(
+                code="scenario_island_breakdown_missing",
+                severity=Severity.BLOCKED,
+                message="Financial-model scenarios lost the utility-island economic breakdown from the cost model.",
                 artifact_ref="financial_model",
             )
         )

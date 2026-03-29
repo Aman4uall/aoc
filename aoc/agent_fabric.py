@@ -3,6 +3,8 @@ from __future__ import annotations
 from aoc.models import (
     AgentDecisionFabricArtifact,
     AlternativeOption,
+    CriticFinding,
+    CriticRegistryArtifact,
     CriticVerdict,
     DecisionPacket,
     DecisionRecord,
@@ -223,10 +225,44 @@ def _packet_from_property_estimate(estimate: PropertyEstimate) -> DecisionPacket
     )
 
 
+def _packet_from_critic_finding(finding: CriticFinding) -> DecisionPacket:
+    verdict = CriticVerdict(
+        verdict_id=f"{finding.finding_id}_verdict",
+        specialist_role="Critic",
+        status="blocked" if finding.severity.value == "blocked" else "warning",
+        decision_id=finding.code,
+        message=finding.message,
+        blocking_issue_codes=finding.source_issue_codes or [finding.code],
+        recommended_action=finding.recommended_action,
+        citations=finding.citations,
+        assumptions=finding.assumptions,
+    )
+    return DecisionPacket(
+        packet_id=f"{finding.finding_id}_packet",
+        specialist_role="Critic",
+        context=f"{finding.critic_family} critic for stage {finding.stage_id}",
+        option_set=OptionSet(
+            option_set_id=f"{finding.finding_id}_options",
+            specialist_role="Critic",
+            context=f"{finding.critic_family} critic for stage {finding.stage_id}",
+            alternatives=[],
+            selected_candidate_id=None,
+            markdown=finding.message,
+            citations=finding.citations,
+            assumptions=finding.assumptions,
+        ),
+        critic_verdicts=[verdict],
+        markdown=f"{finding.code}: {finding.message}",
+        citations=finding.citations,
+        assumptions=finding.assumptions,
+    )
+
+
 def build_agent_decision_fabric(
     resolved_sources: ResolvedSourceSet | None,
     resolved_values: ResolvedValueArtifact | None,
     decisions: list[DecisionRecord],
+    critic_registry: CriticRegistryArtifact | None = None,
 ) -> AgentDecisionFabricArtifact:
     packets: list[DecisionPacket] = []
     if resolved_sources:
@@ -234,6 +270,8 @@ def build_agent_decision_fabric(
     if resolved_values:
         packets.extend(_packet_from_property_estimate(estimate) for estimate in resolved_values.property_estimates)
     packets.extend(_packet_from_decision(decision) for decision in decisions)
+    if critic_registry:
+        packets.extend(_packet_from_critic_finding(finding) for finding in critic_registry.findings)
     rows = [
         "| Packet | Specialist | Selected | Critic Status |",
         "| --- | --- | --- | --- |",

@@ -10,6 +10,7 @@ from aoc.decision_engine import (
     select_route_architecture,
     selected_heat_case,
 )
+from aoc.route_families import build_route_family_artifact
 from aoc.models import ProvenanceTag
 from aoc.reasoning import MockReasoningService
 from aoc.research import ResearchManager
@@ -43,8 +44,9 @@ class DecisionEngineTests(unittest.TestCase):
 
     def test_heat_integration_prefers_recovery_for_thermal_hydration(self):
         property_gap = resolve_property_gaps(self.profile, self.config)
-        synthesis = build_process_synthesis(self.config, self.survey, property_gap)
-        rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market)
+        route_families = build_route_family_artifact(self.survey)
+        synthesis = build_process_synthesis(self.config, self.survey, property_gap, route_families=route_families)
+        rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market, route_families)
         heat_study = build_heat_integration_study(self.config, rough, self.market)
         eo_route = next(item for item in heat_study.route_decisions if item.route_id == "eo_hydration")
         selected_case = selected_heat_case(eo_route)
@@ -54,8 +56,9 @@ class DecisionEngineTests(unittest.TestCase):
 
     def test_route_selection_emits_structured_decisions(self):
         property_gap = resolve_property_gaps(self.profile, self.config)
-        synthesis = build_process_synthesis(self.config, self.survey, property_gap)
-        rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market)
+        route_families = build_route_family_artifact(self.survey)
+        synthesis = build_process_synthesis(self.config, self.survey, property_gap, route_families=route_families)
+        rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market, route_families)
         heat_study = build_heat_integration_study(self.config, rough, self.market)
         selection, route_decision, reactor_choice, separation_choice, utility_network = select_route_architecture(
             self.config,
@@ -63,12 +66,27 @@ class DecisionEngineTests(unittest.TestCase):
             rough,
             heat_study,
             self.market,
+            route_families,
         )
         self.assertEqual(route_decision.selected_candidate_id, selection.selected_route_id)
         self.assertTrue(route_decision.alternatives)
         self.assertTrue(reactor_choice.selected_candidate_id)
         self.assertTrue(separation_choice.selected_candidate_id)
         self.assertEqual(utility_network.route_id, selection.selected_route_id)
+        self.assertIn("Family", selection.comparison_markdown)
+
+    def test_route_family_profiles_drive_rough_cases(self):
+        route_families = build_route_family_artifact(self.survey)
+        self.assertTrue(route_families.profiles)
+        hydration_profile = next(item for item in route_families.profiles if item.route_id == "eo_hydration")
+        self.assertEqual(hydration_profile.route_family_id, "liquid_hydration_train")
+        property_gap = resolve_property_gaps(self.profile, self.config)
+        synthesis = build_process_synthesis(self.config, self.survey, property_gap, route_families=route_families)
+        rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market, route_families)
+        hydration_case = next(item for item in rough.cases if item.route_id == "eo_hydration")
+        self.assertEqual(hydration_case.route_family_id, "liquid_hydration_train")
+        self.assertTrue(hydration_case.route_family_label)
+        self.assertTrue(hydration_case.heat_recovery_style)
 
 
 if __name__ == "__main__":
