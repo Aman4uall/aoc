@@ -1,0 +1,1711 @@
+{
+  "citations": [
+    "eg_handbook",
+    "user_doc_1"
+  ],
+  "assumptions": [
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+  ],
+  "identifiers": [
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "identifier_id": "ethylene_glycol",
+      "canonical_name": "Ethylene Glycol",
+      "aliases": [
+        "Ethylene Glycol",
+        "Ethylene glycol",
+        "meg",
+        "monoethylene_glycol"
+      ],
+      "formula": "C2H6O2",
+      "cas_number": "107-21-1",
+      "route_ids": [
+        "chlorohydrin",
+        "eo_hydration",
+        "omega_catalytic"
+      ],
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "resolution_status": "resolved",
+      "confidence": 0.9
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "identifier_id": "ethylene_oxide",
+      "canonical_name": "Ethylene oxide",
+      "aliases": [
+        "Ethylene oxide",
+        "oxirane"
+      ],
+      "formula": "C2H4O",
+      "cas_number": "75-21-8",
+      "route_ids": [
+        "eo_hydration",
+        "omega_catalytic"
+      ],
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "resolution_status": "resolved",
+      "confidence": 0.9
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "identifier_id": "water",
+      "canonical_name": "Water",
+      "aliases": [
+        "Water",
+        "h2o"
+      ],
+      "formula": "H2O",
+      "cas_number": "7732-18-5",
+      "route_ids": [
+        "eo_hydration",
+        "omega_catalytic"
+      ],
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "resolution_status": "resolved",
+      "confidence": 0.9
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "identifier_id": "ethylene_chlorohydrin",
+      "canonical_name": "Ethylene chlorohydrin",
+      "aliases": [
+        "2-chloroethanol",
+        "Ethylene chlorohydrin"
+      ],
+      "formula": "C2H5ClO",
+      "cas_number": "107-07-3",
+      "route_ids": [
+        "chlorohydrin"
+      ],
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "resolution_status": "resolved",
+      "confidence": 0.9
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "identifier_id": "sodium_hydroxide",
+      "canonical_name": "Sodium hydroxide",
+      "aliases": [
+        "Sodium hydroxide",
+        "caustic_soda",
+        "naoh"
+      ],
+      "formula": "NaOH",
+      "cas_number": "1310-73-2",
+      "route_ids": [
+        "chlorohydrin"
+      ],
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "resolution_status": "resolved",
+      "confidence": 0.9
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "identifier_id": "sodium_chloride",
+      "canonical_name": "Sodium chloride",
+      "aliases": [
+        "Sodium chloride",
+        "nacl",
+        "salt"
+      ],
+      "formula": "NaCl",
+      "cas_number": "7647-14-5",
+      "route_ids": [
+        "chlorohydrin"
+      ],
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "resolution_status": "resolved",
+      "confidence": 0.9
+    }
+  ],
+  "packages": [
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "package_id": "ethylene_glycol_package",
+      "identifier": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+        ],
+        "identifier_id": "ethylene_glycol",
+        "canonical_name": "Ethylene Glycol",
+        "aliases": [
+          "Ethylene Glycol",
+          "Ethylene glycol",
+          "meg",
+          "monoethylene_glycol"
+        ],
+        "formula": "C2H6O2",
+        "cas_number": "107-21-1",
+        "route_ids": [
+          "chlorohydrin",
+          "eo_hydration",
+          "omega_catalytic"
+        ],
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "resolution_status": "resolved",
+        "confidence": 0.9
+      },
+      "molecular_weight": {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Direct cited product-profile property."
+        ],
+        "property_id": "ethylene_glycol_molecular_weight",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "molecular_weight",
+        "value": "62.07",
+        "units": "g/mol",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "provenance_method": "sourced",
+        "blocking": false,
+        "resolution_status": "resolved",
+        "confidence": 0.96
+      },
+      "normal_boiling_point": {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Direct cited product-profile property."
+        ],
+        "property_id": "ethylene_glycol_normal_boiling_point",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "normal_boiling_point",
+        "value": "197.3",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "provenance_method": "sourced",
+        "blocking": false,
+        "resolution_status": "resolved",
+        "confidence": 0.96
+      },
+      "melting_point": {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Direct cited product-profile property."
+        ],
+        "property_id": "ethylene_glycol_melting_point",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "melting_point",
+        "value": "-12.9",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "provenance_method": "sourced",
+        "blocking": false,
+        "resolution_status": "resolved",
+        "confidence": 0.96
+      },
+      "liquid_density": {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Direct cited product-profile property."
+        ],
+        "property_id": "ethylene_glycol_liquid_density",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "liquid_density",
+        "value": "1.113",
+        "units": "g/cm3",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "provenance_method": "sourced",
+        "blocking": false,
+        "resolution_status": "resolved",
+        "confidence": 0.96
+      },
+      "liquid_viscosity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_glycol_liquid_viscosity",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "liquid_viscosity",
+        "value": "0.0161",
+        "units": "Pa.s",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_heat_capacity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_glycol_liquid_heat_capacity",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "liquid_heat_capacity",
+        "value": "2.42",
+        "units": "kJ/kg-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "heat_of_vaporization": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_glycol_heat_of_vaporization",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "heat_of_vaporization",
+        "value": "800",
+        "units": "kJ/kg",
+        "reference_temperature_c": 100.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "thermal_conductivity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_glycol_thermal_conductivity",
+        "identifier_id": "ethylene_glycol",
+        "property_name": "thermal_conductivity",
+        "value": "0.258",
+        "units": "W/m-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "vapor_pressure_correlation": null,
+      "antoine_correlation": null,
+      "resolution_status": "estimated",
+      "blocked_properties": [],
+      "notes": [
+        "Property package combines direct cited values, benchmark seeds, optional library calculations, and analogy fallback in that order."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "package_id": "ethylene_oxide_package",
+      "identifier": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+        ],
+        "identifier_id": "ethylene_oxide",
+        "canonical_name": "Ethylene oxide",
+        "aliases": [
+          "Ethylene oxide",
+          "oxirane"
+        ],
+        "formula": "C2H4O",
+        "cas_number": "75-21-8",
+        "route_ids": [
+          "eo_hydration",
+          "omega_catalytic"
+        ],
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "resolution_status": "resolved",
+        "confidence": 0.9
+      },
+      "molecular_weight": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_molecular_weight",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "molecular_weight",
+        "value": "44.05",
+        "units": "g/mol",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "normal_boiling_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_normal_boiling_point",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "normal_boiling_point",
+        "value": "10.7",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "melting_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_melting_point",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "melting_point",
+        "value": "-111",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_density": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_liquid_density",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "liquid_density",
+        "value": "882",
+        "units": "kg/m3",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_viscosity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_liquid_viscosity",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "liquid_viscosity",
+        "value": "0.0012",
+        "units": "Pa.s",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_heat_capacity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_liquid_heat_capacity",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "liquid_heat_capacity",
+        "value": "2.23",
+        "units": "kJ/kg-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "heat_of_vaporization": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_heat_of_vaporization",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "heat_of_vaporization",
+        "value": "560",
+        "units": "kJ/kg",
+        "reference_temperature_c": 100.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "thermal_conductivity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_oxide_thermal_conductivity",
+        "identifier_id": "ethylene_oxide",
+        "property_name": "thermal_conductivity",
+        "value": "0.14",
+        "units": "W/m-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "vapor_pressure_correlation": null,
+      "antoine_correlation": null,
+      "resolution_status": "estimated",
+      "blocked_properties": [],
+      "notes": [
+        "Property package combines direct cited values, benchmark seeds, optional library calculations, and analogy fallback in that order."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "package_id": "water_package",
+      "identifier": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+        ],
+        "identifier_id": "water",
+        "canonical_name": "Water",
+        "aliases": [
+          "Water",
+          "h2o"
+        ],
+        "formula": "H2O",
+        "cas_number": "7732-18-5",
+        "route_ids": [
+          "eo_hydration",
+          "omega_catalytic"
+        ],
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "resolution_status": "resolved",
+        "confidence": 0.9
+      },
+      "molecular_weight": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_molecular_weight",
+        "identifier_id": "water",
+        "property_name": "molecular_weight",
+        "value": "18.015",
+        "units": "g/mol",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "normal_boiling_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_normal_boiling_point",
+        "identifier_id": "water",
+        "property_name": "normal_boiling_point",
+        "value": "100",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "melting_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_melting_point",
+        "identifier_id": "water",
+        "property_name": "melting_point",
+        "value": "0",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_density": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_liquid_density",
+        "identifier_id": "water",
+        "property_name": "liquid_density",
+        "value": "997",
+        "units": "kg/m3",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_viscosity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_liquid_viscosity",
+        "identifier_id": "water",
+        "property_name": "liquid_viscosity",
+        "value": "0.00089",
+        "units": "Pa.s",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_heat_capacity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_liquid_heat_capacity",
+        "identifier_id": "water",
+        "property_name": "liquid_heat_capacity",
+        "value": "4.18",
+        "units": "kJ/kg-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "heat_of_vaporization": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_heat_of_vaporization",
+        "identifier_id": "water",
+        "property_name": "heat_of_vaporization",
+        "value": "2257",
+        "units": "kJ/kg",
+        "reference_temperature_c": 100.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "thermal_conductivity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "water_thermal_conductivity",
+        "identifier_id": "water",
+        "property_name": "thermal_conductivity",
+        "value": "0.598",
+        "units": "W/m-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "vapor_pressure_correlation": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark Antoine correlation carried for future separation-property work."
+        ],
+        "correlation_id": "water_antoine",
+        "identifier_id": "water",
+        "property_name": "vapor_pressure",
+        "equation_name": "Antoine",
+        "parameters": {
+          "A": 8.07131,
+          "B": 1730.63,
+          "C": 233.426
+        },
+        "temperature_min_c": 1.0,
+        "temperature_max_c": 100.0,
+        "pressure_basis_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "resolution_status": "estimated",
+        "confidence": 0.7
+      },
+      "antoine_correlation": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark Antoine correlation carried for future separation-property work."
+        ],
+        "correlation_id": "water_antoine",
+        "identifier_id": "water",
+        "property_name": "vapor_pressure",
+        "equation_name": "Antoine",
+        "parameters": {
+          "A": 8.07131,
+          "B": 1730.63,
+          "C": 233.426
+        },
+        "temperature_min_c": 1.0,
+        "temperature_max_c": 100.0,
+        "pressure_basis_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "resolution_status": "estimated",
+        "confidence": 0.7
+      },
+      "resolution_status": "estimated",
+      "blocked_properties": [],
+      "notes": [
+        "Property package combines direct cited values, benchmark seeds, optional library calculations, and analogy fallback in that order."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "package_id": "ethylene_chlorohydrin_package",
+      "identifier": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+        ],
+        "identifier_id": "ethylene_chlorohydrin",
+        "canonical_name": "Ethylene chlorohydrin",
+        "aliases": [
+          "2-chloroethanol",
+          "Ethylene chlorohydrin"
+        ],
+        "formula": "C2H5ClO",
+        "cas_number": "107-07-3",
+        "route_ids": [
+          "chlorohydrin"
+        ],
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "resolution_status": "resolved",
+        "confidence": 0.9
+      },
+      "molecular_weight": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_molecular_weight",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "molecular_weight",
+        "value": "80.51",
+        "units": "g/mol",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "normal_boiling_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_normal_boiling_point",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "normal_boiling_point",
+        "value": "128",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "melting_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_melting_point",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "melting_point",
+        "value": "-67",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_density": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_liquid_density",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "liquid_density",
+        "value": "1200",
+        "units": "kg/m3",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_viscosity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_liquid_viscosity",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "liquid_viscosity",
+        "value": "0.0031",
+        "units": "Pa.s",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_heat_capacity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_liquid_heat_capacity",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "liquid_heat_capacity",
+        "value": "2.1",
+        "units": "kJ/kg-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "heat_of_vaporization": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_heat_of_vaporization",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "heat_of_vaporization",
+        "value": "430",
+        "units": "kJ/kg",
+        "reference_temperature_c": 100.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "thermal_conductivity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "ethylene_chlorohydrin_thermal_conductivity",
+        "identifier_id": "ethylene_chlorohydrin",
+        "property_name": "thermal_conductivity",
+        "value": "0.16",
+        "units": "W/m-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "vapor_pressure_correlation": null,
+      "antoine_correlation": null,
+      "resolution_status": "estimated",
+      "blocked_properties": [],
+      "notes": [
+        "Property package combines direct cited values, benchmark seeds, optional library calculations, and analogy fallback in that order."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "package_id": "sodium_hydroxide_package",
+      "identifier": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+        ],
+        "identifier_id": "sodium_hydroxide",
+        "canonical_name": "Sodium hydroxide",
+        "aliases": [
+          "Sodium hydroxide",
+          "caustic_soda",
+          "naoh"
+        ],
+        "formula": "NaOH",
+        "cas_number": "1310-73-2",
+        "route_ids": [
+          "chlorohydrin"
+        ],
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "resolution_status": "resolved",
+        "confidence": 0.9
+      },
+      "molecular_weight": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_molecular_weight",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "molecular_weight",
+        "value": "40",
+        "units": "g/mol",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "normal_boiling_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_normal_boiling_point",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "normal_boiling_point",
+        "value": "1388",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "melting_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_melting_point",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "melting_point",
+        "value": "318",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_density": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_liquid_density",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "liquid_density",
+        "value": "2130",
+        "units": "kg/m3",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_viscosity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_liquid_viscosity",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "liquid_viscosity",
+        "value": "0.012",
+        "units": "Pa.s",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_heat_capacity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_liquid_heat_capacity",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "liquid_heat_capacity",
+        "value": "1.5",
+        "units": "kJ/kg-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "heat_of_vaporization": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_heat_of_vaporization",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "heat_of_vaporization",
+        "value": "0",
+        "units": "kJ/kg",
+        "reference_temperature_c": 100.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "thermal_conductivity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_hydroxide_thermal_conductivity",
+        "identifier_id": "sodium_hydroxide",
+        "property_name": "thermal_conductivity",
+        "value": "0.5",
+        "units": "W/m-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "vapor_pressure_correlation": null,
+      "antoine_correlation": null,
+      "resolution_status": "estimated",
+      "blocked_properties": [],
+      "notes": [
+        "Property package combines direct cited values, benchmark seeds, optional library calculations, and analogy fallback in that order."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "package_id": "sodium_chloride_package",
+      "identifier": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+        ],
+        "identifier_id": "sodium_chloride",
+        "canonical_name": "Sodium chloride",
+        "aliases": [
+          "Sodium chloride",
+          "nacl",
+          "salt"
+        ],
+        "formula": "NaCl",
+        "cas_number": "7647-14-5",
+        "route_ids": [
+          "chlorohydrin"
+        ],
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "resolution_status": "resolved",
+        "confidence": 0.9
+      },
+      "molecular_weight": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_molecular_weight",
+        "identifier_id": "sodium_chloride",
+        "property_name": "molecular_weight",
+        "value": "58.44",
+        "units": "g/mol",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "normal_boiling_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_normal_boiling_point",
+        "identifier_id": "sodium_chloride",
+        "property_name": "normal_boiling_point",
+        "value": "1465",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "melting_point": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_melting_point",
+        "identifier_id": "sodium_chloride",
+        "property_name": "melting_point",
+        "value": "801",
+        "units": "C",
+        "reference_temperature_c": null,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_density": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_liquid_density",
+        "identifier_id": "sodium_chloride",
+        "property_name": "liquid_density",
+        "value": "2160",
+        "units": "kg/m3",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_viscosity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_liquid_viscosity",
+        "identifier_id": "sodium_chloride",
+        "property_name": "liquid_viscosity",
+        "value": "0.0045",
+        "units": "Pa.s",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "liquid_heat_capacity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_liquid_heat_capacity",
+        "identifier_id": "sodium_chloride",
+        "property_name": "liquid_heat_capacity",
+        "value": "0.86",
+        "units": "kJ/kg-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "heat_of_vaporization": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_heat_of_vaporization",
+        "identifier_id": "sodium_chloride",
+        "property_name": "heat_of_vaporization",
+        "value": "0",
+        "units": "kJ/kg",
+        "reference_temperature_c": 100.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "thermal_conductivity": {
+        "citations": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "assumptions": [
+          "Benchmark property seed anchored to public technical source ids."
+        ],
+        "property_id": "sodium_chloride_thermal_conductivity",
+        "identifier_id": "sodium_chloride",
+        "property_name": "thermal_conductivity",
+        "value": "6.5",
+        "units": "W/m-K",
+        "reference_temperature_c": 25.0,
+        "reference_pressure_bar": 1.01325,
+        "source_ids": [
+          "user_doc_1",
+          "eg_handbook"
+        ],
+        "provenance_method": "calculated",
+        "blocking": false,
+        "resolution_status": "estimated",
+        "confidence": 0.72
+      },
+      "vapor_pressure_correlation": null,
+      "antoine_correlation": null,
+      "resolution_status": "estimated",
+      "blocked_properties": [],
+      "notes": [
+        "Property package combines direct cited values, benchmark seeds, optional library calculations, and analogy fallback in that order."
+      ]
+    }
+  ],
+  "primary_route_ids": [
+    "eo_hydration"
+  ],
+  "primary_identifier_ids": [
+    "ethylene_glycol",
+    "ethylene_oxide",
+    "water"
+  ],
+  "unresolved_identifier_ids": [],
+  "blocked_property_ids": [],
+  "correlations": [
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Benchmark Antoine correlation carried for future separation-property work."
+      ],
+      "correlation_id": "water_antoine",
+      "identifier_id": "water",
+      "property_name": "vapor_pressure",
+      "equation_name": "Antoine",
+      "parameters": {
+        "A": 8.07131,
+        "B": 1730.63,
+        "C": 233.426
+      },
+      "temperature_min_c": 1.0,
+      "temperature_max_c": 100.0,
+      "pressure_basis_bar": 1.01325,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "provenance_method": "calculated",
+      "resolution_status": "estimated",
+      "confidence": 0.7
+    }
+  ],
+  "binary_interaction_parameters": [],
+  "unresolved_binary_pairs": [
+    "ethylene_glycol__ethylene_oxide",
+    "ethylene_glycol__water",
+    "ethylene_oxide__water"
+  ],
+  "henry_law_constants": [],
+  "unresolved_henry_pairs": [],
+  "solubility_curves": [],
+  "unresolved_solubility_pairs": [],
+  "markdown": "| Identifier | CAS | Status | Blocked Properties | Primary |\n| --- | --- | --- | --- | --- |\n| Ethylene Glycol | 107-21-1 | estimated | - | yes |\n| Ethylene oxide | 75-21-8 | estimated | - | yes |\n| Water | 7732-18-5 | estimated | - | yes |\n| Ethylene chlorohydrin | 107-07-3 | estimated | - | no |\n| Sodium hydroxide | 1310-73-2 | estimated | - | no |\n| Sodium chloride | 7647-14-5 | estimated | - | no |"
+}

@@ -1,0 +1,39 @@
+{
+  "citations": [],
+  "assumptions": [],
+  "findings": [
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "project_intake:missing_india_coverage:research_bundle",
+      "stage_id": "project_intake",
+      "critic_family": "general",
+      "severity": "blocked",
+      "code": "missing_india_coverage",
+      "message": "Missing India evidence groups: india_market, india_site, india_utilities.",
+      "artifact_ref": "research_bundle",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "missing_india_coverage"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "project_intake:unresolved_source_conflicts:resolved_sources",
+      "stage_id": "project_intake",
+      "critic_family": "evidence",
+      "severity": "blocked",
+      "code": "unresolved_source_conflicts",
+      "message": "Source conflicts remain for: economics, market, site.",
+      "artifact_ref": "resolved_sources",
+      "recommended_action": "Strengthen the cited evidence basis before proceeding.",
+      "source_issue_codes": [
+        "unresolved_source_conflicts"
+      ]
+    }
+  ],
+  "warning_count": 0,
+  "blocked_count": 2,
+  "markdown": "| Stage | Family | Severity | Code | Artifact | Message |\n| --- | --- | --- | --- | --- | --- |\n| project_intake | general | blocked | missing_india_coverage | research_bundle | Missing India evidence groups: india_market, india_site, india_utilities. |\n| project_intake | evidence | blocked | unresolved_source_conflicts | resolved_sources | Source conflicts remain for: economics, market, site. |"
+}

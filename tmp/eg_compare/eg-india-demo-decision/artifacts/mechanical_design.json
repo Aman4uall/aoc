@@ -1,0 +1,4545 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Exchanger selector scored alternatives from gross unit duties.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+    "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: exchanger.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: controls.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: header.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: circulation.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: expansion.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: relief.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: exchanger.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Cluster id: none.",
+    "Header level: 1.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: controls.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+  ],
+  "items": [
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "R-101",
+      "equipment_type": "Reactor",
+      "design_pressure_bar": 20.0,
+      "design_temperature_c": 255.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 157.134,
+      "head_thickness_mm": 144.563,
+      "nozzle_diameter_mm": 9336.067,
+      "support_type": "skirt support",
+      "support_variant": "cylindrical skirt with anchor chair",
+      "support_thickness_mm": 109.994,
+      "operating_load_kn": 259711.844,
+      "thermal_growth_mm": 148.17,
+      "nozzle_reinforcement_area_mm2": 1941901.983,
+      "support_load_case": "operating + wind + seismic + nozzle loads",
+      "pressure_class": "ASME 600",
+      "hydrotest_pressure_bar": 26.0,
+      "design_vertical_load_kn": 280488.792,
+      "piping_load_kn": 240.402,
+      "wind_load_kn": 1152.822,
+      "seismic_load_kn": 46748.132,
+      "maintenance_platform_required": true,
+      "platform_area_m2": 61.737,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 8,
+      "foundation_footprint_m2": 656.205,
+      "maintenance_clearance_m": 1.8,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "integral repad",
+      "local_shell_load_interaction_factor": 2.359,
+      "notes": "Preliminary mechanical basis for Tubular Plug Flow Hydrator; class ASME 600; load case operating + wind + seismic + nozzle loads; support variant cylindrical skirt with anchor chair; reinforcement family integral repad.",
+      "calc_traces": [
+        {
+          "trace_id": "R-101_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "2.000 MPa",
+            "D": "17.895 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "157.134",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "27004.165 m3",
+            "duty": "7600.213 kW"
+          },
+          "result": "9336.1",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "280488.792 kN",
+            "piping": "240.402 kN",
+            "wind": "1152.822 kN",
+            "seismic": "46748.132 kN"
+          },
+          "result": "328630.147",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "53.685 m",
+            "dT": "230.0 C"
+          },
+          "result": "148.170",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "9336.1 mm",
+            "P": "20.00 bar"
+          },
+          "result": "1941901.983",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "integral repad",
+            "d_nozzle": "9336.1 mm",
+            "D_shell": "17.895 m"
+          },
+          "result": "2.359",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "20.00 bar"
+          },
+          "result": "26.000",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "R-101_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "cylindrical skirt with anchor chair",
+            "platform_area": "61.737 m2",
+            "clearance": "1.80 m"
+          },
+          "result": "656.205",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Residence time basis retained at 1.00 h.",
+            "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "R-101_shell_thickness",
+          "name": "R-101 shell thickness",
+          "value": "157.133718",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Residence time basis retained at 1.00 h.",
+            "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "R-101_nozzle_diameter",
+          "name": "R-101 nozzle diameter",
+          "value": "9336.067226",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Residence time basis retained at 1.00 h.",
+            "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "R-101_support_load",
+          "name": "R-101 support load basis",
+          "value": "259711.844033",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "PU-201",
+      "equipment_type": "Distillation column",
+      "design_pressure_bar": 2.0,
+      "design_temperature_c": 140.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 4.409,
+      "head_thickness_mm": 4.056,
+      "nozzle_diameter_mm": 640.236,
+      "support_type": "skirt support",
+      "support_variant": "cylindrical skirt with anchor chair",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 250.028,
+      "thermal_growth_mm": 6.835,
+      "nozzle_reinforcement_area_mm2": 13316.919,
+      "support_load_case": "operating + wind + seismic + nozzle loads",
+      "pressure_class": "PN16",
+      "hydrotest_pressure_bar": 3.0,
+      "design_vertical_load_kn": 270.03,
+      "piping_load_kn": 16.706,
+      "wind_load_kn": 9.813,
+      "seismic_load_kn": 45.005,
+      "maintenance_platform_required": true,
+      "platform_area_m2": 5.696,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 8,
+      "foundation_footprint_m2": 6.62,
+      "maintenance_clearance_m": 1.8,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "integral repad",
+      "local_shell_load_interaction_factor": 1.848,
+      "notes": "Preliminary mechanical basis for Distillation and purification train; class PN16; load case operating + wind + seismic + nozzle loads; support variant cylindrical skirt with anchor chair; reinforcement family integral repad.",
+      "calc_traces": [
+        {
+          "trace_id": "PU-201_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "0.200 MPa",
+            "D": "1.651 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "4.409",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "21.206 m3",
+            "duty": "3179.805 kW"
+          },
+          "result": "640.2",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "270.030 kN",
+            "piping": "16.706 kN",
+            "wind": "9.813 kN",
+            "seismic": "45.005 kN"
+          },
+          "result": "341.554",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "4.953 m",
+            "dT": "115.0 C"
+          },
+          "result": "6.835",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "640.2 mm",
+            "P": "2.00 bar"
+          },
+          "result": "13316.919",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "integral repad",
+            "d_nozzle": "640.2 mm",
+            "D_shell": "1.651 m"
+          },
+          "result": "1.848",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "2.00 bar"
+          },
+          "result": "3.000",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "PU-201_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "cylindrical skirt with anchor chair",
+            "platform_area": "5.696 m2",
+            "clearance": "1.80 m"
+          },
+          "result": "6.620",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+            "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+            "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+            "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "PU-201_shell_thickness",
+          "name": "PU-201 shell thickness",
+          "value": "4.408918",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+            "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+            "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+            "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "PU-201_nozzle_diameter",
+          "name": "PU-201 nozzle diameter",
+          "value": "640.236487",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+            "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+            "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+            "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "PU-201_support_load",
+          "name": "PU-201 support load basis",
+          "value": "250.027903",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "V-101",
+      "equipment_type": "Flash drum",
+      "design_pressure_bar": 3.0,
+      "design_temperature_c": 85.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 15.94,
+      "head_thickness_mm": 14.665,
+      "nozzle_diameter_mm": 3917.049,
+      "support_type": "base support",
+      "support_variant": "grouted base frame",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 46738.278,
+      "thermal_growth_mm": 21.824,
+      "nozzle_reinforcement_area_mm2": 65806.429,
+      "support_load_case": "operating + nozzle loads",
+      "pressure_class": "PN16",
+      "hydrotest_pressure_bar": 4.0,
+      "design_vertical_load_kn": 50477.341,
+      "piping_load_kn": 98.976,
+      "wind_load_kn": 168.445,
+      "seismic_load_kn": 4673.828,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 4,
+      "foundation_footprint_m2": 12.125,
+      "maintenance_clearance_m": 1.2,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "shell excess area",
+      "local_shell_load_interaction_factor": 1.743,
+      "notes": "Preliminary mechanical basis for Intermediate disengagement; class PN16; load case operating + nozzle loads; support variant grouted base frame; reinforcement family shell excess area.",
+      "calc_traces": [
+        {
+          "trace_id": "V-101_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "0.300 MPa",
+            "D": "10.104 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "15.940",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "4860.750 m3",
+            "duty": "0.000 kW"
+          },
+          "result": "3917.0",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "50477.341 kN",
+            "piping": "98.976 kN",
+            "wind": "168.445 kN",
+            "seismic": "4673.828 kN"
+          },
+          "result": "55418.590",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "30.312 m",
+            "dT": "60.0 C"
+          },
+          "result": "21.824",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "3917.0 mm",
+            "P": "3.00 bar"
+          },
+          "result": "65806.429",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "shell excess area",
+            "d_nozzle": "3917.0 mm",
+            "D_shell": "10.104 m"
+          },
+          "result": "1.743",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "3.00 bar"
+          },
+          "result": "4.000",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "V-101_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "grouted base frame",
+            "platform_area": "0.000 m2",
+            "clearance": "1.20 m"
+          },
+          "result": "12.125",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Residence time basis retained at 1.00 h.",
+            "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "V-101_shell_thickness",
+          "name": "V-101 shell thickness",
+          "value": "15.940396",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Residence time basis retained at 1.00 h.",
+            "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "V-101_nozzle_diameter",
+          "name": "V-101 nozzle diameter",
+          "value": "3917.049354",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Residence time basis retained at 1.00 h.",
+            "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+            "Mock kinetic parameters are seeded values for workflow verification.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "V-101_support_load",
+          "name": "V-101 support load basis",
+          "value": "46738.27835",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Exchanger selector scored alternatives from gross unit duties.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "E-101",
+      "equipment_type": "Heat exchanger",
+      "design_pressure_bar": 8.0,
+      "design_temperature_c": 180.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 21.338,
+      "head_thickness_mm": 19.631,
+      "nozzle_diameter_mm": 2020.974,
+      "support_type": "saddle support",
+      "support_variant": "dual saddle",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 7376.035,
+      "thermal_growth_mm": 29.885,
+      "nozzle_reinforcement_area_mm2": 90539.654,
+      "support_load_case": "operating + nozzle loads",
+      "pressure_class": "ASME 150",
+      "hydrotest_pressure_bar": 10.4,
+      "design_vertical_load_kn": 7966.118,
+      "piping_load_kn": 53.324,
+      "wind_load_kn": 47.328,
+      "seismic_load_kn": 737.603,
+      "maintenance_platform_required": true,
+      "platform_area_m2": 3.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 6,
+      "foundation_footprint_m2": 47.328,
+      "maintenance_clearance_m": 1.5,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "shell excess area",
+      "local_shell_load_interaction_factor": 1.799,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery; class ASME 150; load case operating + nozzle loads; support variant dual saddle; reinforcement family shell excess area.",
+      "calc_traces": [
+        {
+          "trace_id": "E-101_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "0.800 MPa",
+            "D": "5.356 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "21.338",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "723.932 m3",
+            "duty": "34024.794 kW"
+          },
+          "result": "2021.0",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "7966.118 kN",
+            "piping": "53.324 kN",
+            "wind": "47.328 kN",
+            "seismic": "737.603 kN"
+          },
+          "result": "8804.374",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "16.067 m",
+            "dT": "155.0 C"
+          },
+          "result": "29.885",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "2021.0 mm",
+            "P": "8.00 bar"
+          },
+          "result": "90539.654",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "shell excess area",
+            "d_nozzle": "2021.0 mm",
+            "D_shell": "5.356 m"
+          },
+          "result": "1.799",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "8.00 bar"
+          },
+          "result": "10.400",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "E-101_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "dual saddle",
+            "platform_area": "3.000 m2",
+            "clearance": "1.50 m"
+          },
+          "result": "47.328",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Exchanger selector scored alternatives from gross unit duties.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "E-101_shell_thickness",
+          "name": "E-101 shell thickness",
+          "value": "21.33841",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Exchanger selector scored alternatives from gross unit duties.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "E-101_nozzle_diameter",
+          "name": "E-101 nozzle diameter",
+          "value": "2020.974418",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+            "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+            "Exchanger selector scored alternatives from gross unit duties.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "E-101_support_load",
+          "name": "E-101 support load basis",
+          "value": "7376.03499",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+        "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "TK-301",
+      "equipment_type": "Storage tank",
+      "design_pressure_bar": 1.2,
+      "design_temperature_c": 45.0,
+      "allowable_stress_mpa": 120.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 2.0,
+      "shell_thickness_mm": 9.188,
+      "head_thickness_mm": 8.453,
+      "nozzle_diameter_mm": 5177.324,
+      "support_type": "saddle / leg support",
+      "support_variant": "dual saddle",
+      "support_thickness_mm": 18.0,
+      "operating_load_kn": 75768.793,
+      "thermal_growth_mm": 12.456,
+      "nozzle_reinforcement_area_mm2": 34791.617,
+      "support_load_case": "operating + settlement + thermal growth",
+      "pressure_class": "PN16",
+      "hydrotest_pressure_bar": 2.2,
+      "design_vertical_load_kn": 81830.296,
+      "piping_load_kn": 129.853,
+      "wind_load_kn": 313.146,
+      "seismic_load_kn": 7576.879,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 6,
+      "foundation_footprint_m2": 246.043,
+      "maintenance_clearance_m": 1.2,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "shell excess area",
+      "local_shell_load_interaction_factor": 1.781,
+      "notes": "Preliminary mechanical basis for Ethylene Glycol storage via vertical tank farm; class PN16; load case operating + settlement + thermal growth; support variant dual saddle; reinforcement family shell excess area.",
+      "calc_traces": [
+        {
+          "trace_id": "TK-301_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "0.120 MPa",
+            "D": "12.211 m",
+            "S": "120.0 MPa",
+            "J": "0.85",
+            "CA": "2.0 mm"
+          },
+          "result": "9.188",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "8580.903 m3",
+            "duty": "0.000 kW"
+          },
+          "result": "5177.3",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "81830.296 kN",
+            "piping": "129.853 kN",
+            "wind": "313.146 kN",
+            "seismic": "7576.879 kN"
+          },
+          "result": "89850.175",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "36.634 m",
+            "dT": "20.0 C"
+          },
+          "result": "12.456",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "5177.3 mm",
+            "P": "1.20 bar"
+          },
+          "result": "34791.617",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "shell excess area",
+            "d_nozzle": "5177.3 mm",
+            "D_shell": "12.211 m"
+          },
+          "result": "1.781",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "1.20 bar"
+          },
+          "result": "2.200",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "TK-301_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "dual saddle",
+            "platform_area": "0.000 m2",
+            "clearance": "1.20 m"
+          },
+          "result": "246.043",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock EG product profile uses seeded but realistic property values.",
+            "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+            "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "TK-301_shell_thickness",
+          "name": "TK-301 shell thickness",
+          "value": "9.188226",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock EG product profile uses seeded but realistic property values.",
+            "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+            "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "TK-301_nozzle_diameter",
+          "name": "TK-301 nozzle diameter",
+          "value": "5177.323998",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Mock EG product profile uses seeded but realistic property values.",
+            "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+            "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "TK-301_support_load",
+          "name": "TK-301 support load basis",
+          "value": "75768.792587",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "HX-01",
+      "equipment_type": "HTM loop exchanger",
+      "design_pressure_bar": 11.0,
+      "design_temperature_c": 213.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 25.945,
+      "head_thickness_mm": 23.869,
+      "nozzle_diameter_mm": 1822.715,
+      "support_type": "saddle support",
+      "support_variant": "dual saddle",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 5636.101,
+      "thermal_growth_mm": 32.933,
+      "nozzle_reinforcement_area_mm2": 152378.966,
+      "support_load_case": "operating + nozzle loads",
+      "pressure_class": "ASME 300",
+      "hydrotest_pressure_bar": 14.3,
+      "design_vertical_load_kn": 6086.989,
+      "piping_load_kn": 71.656,
+      "wind_load_kn": 39.069,
+      "seismic_load_kn": 563.61,
+      "maintenance_platform_required": true,
+      "platform_area_m2": 3.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 6,
+      "foundation_footprint_m2": 39.069,
+      "maintenance_clearance_m": 1.5,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "set-on repad",
+      "local_shell_load_interaction_factor": 1.839,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery; class ASME 300; load case operating + nozzle loads; support variant dual saddle; reinforcement family set-on repad.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-01_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "1.100 MPa",
+            "D": "4.866 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "25.945",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "542.949 m3",
+            "duty": "34024.794 kW"
+          },
+          "result": "1822.7",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "6086.989 kN",
+            "piping": "71.656 kN",
+            "wind": "39.069 kN",
+            "seismic": "563.610 kN"
+          },
+          "result": "6761.323",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "14.598 m",
+            "dT": "188.0 C"
+          },
+          "result": "32.933",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "1822.7 mm",
+            "P": "11.00 bar"
+          },
+          "result": "152378.966",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "set-on repad",
+            "d_nozzle": "1822.7 mm",
+            "D_shell": "4.866 m"
+          },
+          "result": "1.839",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "11.00 bar"
+          },
+          "result": "14.300",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "dual saddle",
+            "platform_area": "3.000 m2",
+            "clearance": "1.50 m"
+          },
+          "result": "39.069",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: exchanger.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01_shell_thickness",
+          "name": "HX-01 shell thickness",
+          "value": "25.944987",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: exchanger.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01_nozzle_diameter",
+          "name": "HX-01 nozzle diameter",
+          "value": "1822.714906",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: exchanger.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01_support_load",
+          "name": "HX-01 support load basis",
+          "value": "5636.100624",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "equipment_id": "HX-01-CTRL",
+      "equipment_type": "Utility control package",
+      "design_pressure_bar": 9.0,
+      "design_temperature_c": 203.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 0.0,
+      "head_thickness_mm": 0.0,
+      "nozzle_diameter_mm": 25.0,
+      "support_type": "instrument frame",
+      "support_variant": "panel frame",
+      "support_thickness_mm": 12.0,
+      "operating_load_kn": 6.0,
+      "thermal_growth_mm": 5.767,
+      "nozzle_reinforcement_area_mm2": 1260.0,
+      "support_load_case": "skid dead load + piping reaction",
+      "pressure_class": "ASME 150",
+      "hydrotest_pressure_bar": 11.7,
+      "design_vertical_load_kn": 7.0,
+      "piping_load_kn": 3.775,
+      "wind_load_kn": 1.5,
+      "seismic_load_kn": 1.0,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 4,
+      "foundation_footprint_m2": 1.2,
+      "maintenance_clearance_m": 1.0,
+      "access_ladder_required": false,
+      "lifting_lug_required": false,
+      "nozzle_reinforcement_family": "shell excess area",
+      "local_shell_load_interaction_factor": 1.185,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery control valves, instrumentation, and bypass station; class ASME 150; load case skid dead load + piping reaction; support variant panel frame; reinforcement family shell excess area.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-01-CTRL_support_basis",
+          "title": "Skid or frame support basis",
+          "formula": "t_support = max(screening minimum, service family basis)",
+          "substitutions": {
+            "service_family": "Utility control package"
+          },
+          "result": "12.000",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-CTRL_connection",
+          "title": "Connection basis",
+          "formula": "d_conn = f(duty, service family)",
+          "substitutions": {
+            "duty": "0.000 kW"
+          },
+          "result": "25.0",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-CTRL_support_load",
+          "title": "Support load basis",
+          "formula": "W = static load proxy + thermal allowance",
+          "substitutions": {
+            "volume": "0.150 m3",
+            "duty": "0.000 kW"
+          },
+          "result": "6.000",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-CTRL_connection_class",
+          "title": "Connection class",
+          "formula": "Class = f(design pressure)",
+          "substitutions": {
+            "P": "9.00 bar"
+          },
+          "result": "ASME 150",
+          "units": "class",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-CTRL_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "panel frame",
+            "platform_area": "0.000 m2"
+          },
+          "result": "1.200",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: controls.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+          ],
+          "value_id": "HX-01-CTRL_shell_thickness",
+          "name": "HX-01-CTRL shell thickness",
+          "value": "0",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: controls.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+          ],
+          "value_id": "HX-01-CTRL_nozzle_diameter",
+          "name": "HX-01-CTRL nozzle diameter",
+          "value": "25",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: controls.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+          ],
+          "value_id": "HX-01-CTRL_support_load",
+          "name": "HX-01-CTRL support load basis",
+          "value": "6",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: header.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "HX-01-HDR",
+      "equipment_type": "Shared HTM header manifold",
+      "design_pressure_bar": 14.5,
+      "design_temperature_c": 205.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 8.604,
+      "head_thickness_mm": 7.916,
+      "nozzle_diameter_mm": 417.025,
+      "support_type": "pipe rack support",
+      "support_variant": "guided rack shoe",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 594.497,
+      "thermal_growth_mm": 5.832,
+      "nozzle_reinforcement_area_mm2": 45956.111,
+      "support_load_case": "rack piping + thermal expansion",
+      "pressure_class": "ASME 300",
+      "hydrotest_pressure_bar": 18.85,
+      "design_vertical_load_kn": 642.056,
+      "piping_load_kn": 22.476,
+      "wind_load_kn": 2.066,
+      "seismic_load_kn": 71.34,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": true,
+      "anchor_group_count": 2,
+      "foundation_footprint_m2": 2.43,
+      "maintenance_clearance_m": 1.2,
+      "access_ladder_required": false,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "set-on repad",
+      "local_shell_load_interaction_factor": 2.132,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery network header and isolation package; class ASME 300; load case rack piping + thermal expansion; support variant guided rack shoe; reinforcement family set-on repad.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-01-HDR_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "1.450 MPa",
+            "D": "0.900 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "8.604",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "0.851 m3",
+            "duty": "34024.794 kW"
+          },
+          "result": "417.0",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "642.056 kN",
+            "piping": "22.476 kN",
+            "wind": "2.066 kN",
+            "seismic": "71.340 kN"
+          },
+          "result": "737.937",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "2.700 m",
+            "dT": "180.0 C"
+          },
+          "result": "5.832",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "417.0 mm",
+            "P": "14.50 bar"
+          },
+          "result": "45956.111",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "set-on repad",
+            "d_nozzle": "417.0 mm",
+            "D_shell": "0.900 m"
+          },
+          "result": "2.132",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "14.50 bar"
+          },
+          "result": "18.850",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-HDR_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "guided rack shoe",
+            "platform_area": "0.000 m2",
+            "clearance": "1.20 m"
+          },
+          "result": "2.430",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: header.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-HDR_shell_thickness",
+          "name": "HX-01-HDR shell thickness",
+          "value": "8.604226",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: header.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-HDR_nozzle_diameter",
+          "name": "HX-01-HDR nozzle diameter",
+          "value": "417.024596",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: header.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-HDR_support_load",
+          "name": "HX-01-HDR support load basis",
+          "value": "594.496704",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: circulation.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "HX-01-PMP",
+      "equipment_type": "HTM circulation skid",
+      "design_pressure_bar": 14.5,
+      "design_temperature_c": 205.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 8.604,
+      "head_thickness_mm": 7.916,
+      "nozzle_diameter_mm": 117.332,
+      "support_type": "base frame",
+      "support_variant": "grouted base frame",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 10.589,
+      "thermal_growth_mm": 5.832,
+      "nozzle_reinforcement_area_mm2": 12929.954,
+      "support_load_case": "operating + nozzle loads",
+      "pressure_class": "ASME 300",
+      "hydrotest_pressure_bar": 18.85,
+      "design_vertical_load_kn": 11.589,
+      "piping_load_kn": 11.612,
+      "wind_load_kn": 1.5,
+      "seismic_load_kn": 1.059,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 4,
+      "foundation_footprint_m2": 1.2,
+      "maintenance_clearance_m": 1.2,
+      "access_ladder_required": false,
+      "lifting_lug_required": false,
+      "nozzle_reinforcement_family": "set-on repad",
+      "local_shell_load_interaction_factor": 1.452,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery circulation loop; class ASME 300; load case operating + nozzle loads; support variant grouted base frame; reinforcement family set-on repad.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-01-PMP_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "1.450 MPa",
+            "D": "0.900 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "8.604",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "0.250 m3",
+            "duty": "15.466 kW"
+          },
+          "result": "117.3",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "11.589 kN",
+            "piping": "11.612 kN",
+            "wind": "1.500 kN",
+            "seismic": "1.059 kN"
+          },
+          "result": "25.760",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "2.700 m",
+            "dT": "180.0 C"
+          },
+          "result": "5.832",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "117.3 mm",
+            "P": "14.50 bar"
+          },
+          "result": "12929.954",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "set-on repad",
+            "d_nozzle": "117.3 mm",
+            "D_shell": "0.900 m"
+          },
+          "result": "1.452",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "14.50 bar"
+          },
+          "result": "18.850",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-PMP_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "grouted base frame",
+            "platform_area": "0.000 m2",
+            "clearance": "1.20 m"
+          },
+          "result": "1.200",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: circulation.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-PMP_shell_thickness",
+          "name": "HX-01-PMP shell thickness",
+          "value": "8.604226",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: circulation.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-PMP_nozzle_diameter",
+          "name": "HX-01-PMP nozzle diameter",
+          "value": "117.331709",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: circulation.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-PMP_support_load",
+          "name": "HX-01-PMP support load basis",
+          "value": "10.589042",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: expansion.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "HX-01-EXP",
+      "equipment_type": "HTM expansion tank",
+      "design_pressure_bar": 6.0,
+      "design_temperature_c": 210.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 5.309,
+      "head_thickness_mm": 4.884,
+      "nozzle_diameter_mm": 175.106,
+      "support_type": "leg support",
+      "support_variant": "four-leg support",
+      "support_thickness_mm": 18.0,
+      "operating_load_kn": 33.03,
+      "thermal_growth_mm": 5.994,
+      "nozzle_reinforcement_area_mm2": 7984.835,
+      "support_load_case": "operating + settlement + thermal growth",
+      "pressure_class": "ASME 150",
+      "hydrotest_pressure_bar": 7.8,
+      "design_vertical_load_kn": 35.673,
+      "piping_load_kn": 9.393,
+      "wind_load_kn": 1.701,
+      "seismic_load_kn": 3.303,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 4,
+      "foundation_footprint_m2": 1.6,
+      "maintenance_clearance_m": 1.2,
+      "access_ladder_required": false,
+      "lifting_lug_required": false,
+      "nozzle_reinforcement_family": "set-on repad",
+      "local_shell_load_interaction_factor": 1.44,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery HTM expansion and inventory hold-up; class ASME 150; load case operating + settlement + thermal growth; support variant four-leg support; reinforcement family set-on repad.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-01-EXP_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "0.600 MPa",
+            "D": "0.900 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "5.309",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "2.835 m3",
+            "duty": "0.000 kW"
+          },
+          "result": "175.1",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "35.673 kN",
+            "piping": "9.393 kN",
+            "wind": "1.701 kN",
+            "seismic": "3.303 kN"
+          },
+          "result": "50.069",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "2.700 m",
+            "dT": "185.0 C"
+          },
+          "result": "5.994",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "175.1 mm",
+            "P": "6.00 bar"
+          },
+          "result": "7984.835",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "set-on repad",
+            "d_nozzle": "175.1 mm",
+            "D_shell": "0.900 m"
+          },
+          "result": "1.440",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "6.00 bar"
+          },
+          "result": "7.800",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-EXP_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "four-leg support",
+            "platform_area": "0.000 m2",
+            "clearance": "1.20 m"
+          },
+          "result": "1.600",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: expansion.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-EXP_shell_thickness",
+          "name": "HX-01-EXP shell thickness",
+          "value": "5.308876",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: expansion.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-EXP_nozzle_diameter",
+          "name": "HX-01-EXP nozzle diameter",
+          "value": "175.10602",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: expansion.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-EXP_support_load",
+          "name": "HX-01-EXP support load basis",
+          "value": "33.030215",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: relief.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "HX-01-RV",
+      "equipment_type": "HTM relief package",
+      "design_pressure_bar": 13.5,
+      "design_temperature_c": 213.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 8.215,
+      "head_thickness_mm": 7.558,
+      "nozzle_diameter_mm": 145.426,
+      "support_type": "base support",
+      "support_variant": "grouted base frame",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 18.915,
+      "thermal_growth_mm": 6.091,
+      "nozzle_reinforcement_area_mm2": 14920.743,
+      "support_load_case": "operating + nozzle loads",
+      "pressure_class": "ASME 300",
+      "hydrotest_pressure_bar": 17.55,
+      "design_vertical_load_kn": 20.428,
+      "piping_load_kn": 12.123,
+      "wind_load_kn": 1.5,
+      "seismic_load_kn": 1.892,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 4,
+      "foundation_footprint_m2": 1.2,
+      "maintenance_clearance_m": 1.2,
+      "access_ladder_required": false,
+      "lifting_lug_required": false,
+      "nozzle_reinforcement_family": "set-on repad",
+      "local_shell_load_interaction_factor": 1.493,
+      "notes": "Preliminary mechanical basis for R-rough to D-rough heat recovery thermal relief and collection package; class ASME 300; load case operating + nozzle loads; support variant grouted base frame; reinforcement family set-on repad.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-01-RV_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "1.350 MPa",
+            "D": "0.900 m",
+            "S": "138.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "8.215",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "1.309 m3",
+            "duty": "0.000 kW"
+          },
+          "result": "145.4",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "20.428 kN",
+            "piping": "12.123 kN",
+            "wind": "1.500 kN",
+            "seismic": "1.892 kN"
+          },
+          "result": "35.943",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "2.700 m",
+            "dT": "188.0 C"
+          },
+          "result": "6.091",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "145.4 mm",
+            "P": "13.50 bar"
+          },
+          "result": "14920.743",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "set-on repad",
+            "d_nozzle": "145.4 mm",
+            "D_shell": "0.900 m"
+          },
+          "result": "1.493",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "13.50 bar"
+          },
+          "result": "17.550",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-01-RV_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "grouted base frame",
+            "platform_area": "0.000 m2",
+            "clearance": "1.20 m"
+          },
+          "result": "1.200",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: relief.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-RV_shell_thickness",
+          "name": "HX-01-RV shell thickness",
+          "value": "8.21504",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: relief.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-RV_nozzle_diameter",
+          "name": "HX-01-RV nozzle diameter",
+          "value": "145.426346",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: relief.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-01-RV_support_load",
+          "name": "HX-01-RV support load basis",
+          "value": "18.915096",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "equipment_id": "HX-02",
+      "equipment_type": "Heat integration exchanger",
+      "design_pressure_bar": 6.5,
+      "design_temperature_c": 162.0,
+      "allowable_stress_mpa": 120.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 8.953,
+      "head_thickness_mm": 8.237,
+      "nozzle_diameter_mm": 613.717,
+      "support_type": "saddle support",
+      "support_variant": "dual saddle",
+      "support_thickness_mm": 24.0,
+      "operating_load_kn": 402.132,
+      "thermal_growth_mm": 13.004,
+      "nozzle_reinforcement_area_mm2": 22339.297,
+      "support_load_case": "operating + nozzle loads",
+      "pressure_class": "ASME 150",
+      "hydrotest_pressure_bar": 8.45,
+      "design_vertical_load_kn": 434.303,
+      "piping_load_kn": 17.618,
+      "wind_load_kn": 5.715,
+      "seismic_load_kn": 40.213,
+      "maintenance_platform_required": true,
+      "platform_area_m2": 3.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 6,
+      "foundation_footprint_m2": 5.715,
+      "maintenance_clearance_m": 1.5,
+      "access_ladder_required": true,
+      "lifting_lug_required": true,
+      "nozzle_reinforcement_family": "shell excess area",
+      "local_shell_load_interaction_factor": 1.691,
+      "notes": "Preliminary mechanical basis for D-rough to E-rough heat recovery; class ASME 150; load case operating + nozzle loads; support variant dual saddle; reinforcement family shell excess area.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-02_shell_thickness",
+          "title": "Shell thickness",
+          "formula": "t = P*D / (2*S*J - 1.2*P) + CA",
+          "substitutions": {
+            "P": "0.650 MPa",
+            "D": "1.861 m",
+            "S": "120.0 MPa",
+            "J": "0.85",
+            "CA": "3.0 mm"
+          },
+          "result": "8.953",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_nozzle",
+          "title": "Nozzle basis",
+          "formula": "d_nozzle = f(volume, duty, equipment family)",
+          "substitutions": {
+            "volume": "30.379 m3",
+            "duty": "8506.198 kW"
+          },
+          "result": "613.7",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_support_load",
+          "title": "Support load basis",
+          "formula": "W_support = vertical + piping + wind + seismic screening loads",
+          "substitutions": {
+            "vertical": "434.303 kN",
+            "piping": "17.618 kN",
+            "wind": "5.715 kN",
+            "seismic": "40.213 kN"
+          },
+          "result": "497.849",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_thermal_growth",
+          "title": "Thermal growth",
+          "formula": "delta = alpha * L * dT",
+          "substitutions": {
+            "L": "5.583 m",
+            "dT": "137.0 C"
+          },
+          "result": "13.004",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_nozzle_reinforcement",
+          "title": "Nozzle reinforcement area",
+          "formula": "A = f(d_nozzle, design pressure, equipment family)",
+          "substitutions": {
+            "d_nozzle": "613.7 mm",
+            "P": "6.50 bar"
+          },
+          "result": "22339.297",
+          "units": "mm2",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_local_shell_interaction",
+          "title": "Local shell / nozzle interaction",
+          "formula": "Interaction = f(nozzle-to-shell ratio, pressure, equipment family)",
+          "substitutions": {
+            "reinforcement_family": "shell excess area",
+            "d_nozzle": "613.7 mm",
+            "D_shell": "1.861 m"
+          },
+          "result": "1.691",
+          "units": "factor",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_hydrotest",
+          "title": "Hydrotest pressure",
+          "formula": "P_hydro = max(1.3*P_design, P_design + 1 bar)",
+          "substitutions": {
+            "P_design": "6.50 bar"
+          },
+          "result": "8.450",
+          "units": "bar",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "dual saddle",
+            "platform_area": "3.000 m2",
+            "clearance": "1.50 m"
+          },
+          "result": "5.715",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: exchanger.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-02_shell_thickness",
+          "name": "HX-02 shell thickness",
+          "value": "8.952842",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: exchanger.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-02_nozzle_diameter",
+          "name": "HX-02 nozzle diameter",
+          "value": "613.716943",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: exchanger.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+          ],
+          "value_id": "HX-02_support_load",
+          "name": "HX-02 support load basis",
+          "value": "402.132006",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "equipment_id": "HX-02-CTRL",
+      "equipment_type": "Utility control package",
+      "design_pressure_bar": 5.0,
+      "design_temperature_c": 158.0,
+      "allowable_stress_mpa": 138.0,
+      "joint_efficiency": 0.85,
+      "corrosion_allowance_mm": 3.0,
+      "shell_thickness_mm": 0.0,
+      "head_thickness_mm": 0.0,
+      "nozzle_diameter_mm": 25.0,
+      "support_type": "instrument frame",
+      "support_variant": "panel frame",
+      "support_thickness_mm": 12.0,
+      "operating_load_kn": 6.0,
+      "thermal_growth_mm": 4.309,
+      "nozzle_reinforcement_area_mm2": 700.0,
+      "support_load_case": "skid dead load + piping reaction",
+      "pressure_class": "ASME 150",
+      "hydrotest_pressure_bar": 6.5,
+      "design_vertical_load_kn": 7.0,
+      "piping_load_kn": 2.375,
+      "wind_load_kn": 1.5,
+      "seismic_load_kn": 1.0,
+      "maintenance_platform_required": false,
+      "platform_area_m2": 0.0,
+      "pipe_rack_tie_in_required": false,
+      "anchor_group_count": 4,
+      "foundation_footprint_m2": 1.2,
+      "maintenance_clearance_m": 1.0,
+      "access_ladder_required": false,
+      "lifting_lug_required": false,
+      "nozzle_reinforcement_family": "shell excess area",
+      "local_shell_load_interaction_factor": 1.125,
+      "notes": "Preliminary mechanical basis for D-rough to E-rough heat recovery control valves, instrumentation, and bypass station; class ASME 150; load case skid dead load + piping reaction; support variant panel frame; reinforcement family shell excess area.",
+      "calc_traces": [
+        {
+          "trace_id": "HX-02-CTRL_support_basis",
+          "title": "Skid or frame support basis",
+          "formula": "t_support = max(screening minimum, service family basis)",
+          "substitutions": {
+            "service_family": "Utility control package"
+          },
+          "result": "12.000",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02-CTRL_connection",
+          "title": "Connection basis",
+          "formula": "d_conn = f(duty, service family)",
+          "substitutions": {
+            "duty": "0.000 kW"
+          },
+          "result": "25.0",
+          "units": "mm",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02-CTRL_support_load",
+          "title": "Support load basis",
+          "formula": "W = static load proxy + thermal allowance",
+          "substitutions": {
+            "volume": "0.150 m3",
+            "duty": "0.000 kW"
+          },
+          "result": "6.000",
+          "units": "kN",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02-CTRL_connection_class",
+          "title": "Connection class",
+          "formula": "Class = f(design pressure)",
+          "substitutions": {
+            "P": "5.00 bar"
+          },
+          "result": "ASME 150",
+          "units": "class",
+          "notes": ""
+        },
+        {
+          "trace_id": "HX-02-CTRL_foundation_basis",
+          "title": "Foundation / access basis",
+          "formula": "Footprint = f(support family, diameter, access area)",
+          "substitutions": {
+            "support_variant": "panel frame",
+            "platform_area": "0.000 m2"
+          },
+          "result": "1.200",
+          "units": "m2",
+          "notes": ""
+        }
+      ],
+      "value_records": [
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: controls.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+          ],
+          "value_id": "HX-02-CTRL_shell_thickness",
+          "name": "HX-02-CTRL shell thickness",
+          "value": "0",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: controls.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+          ],
+          "value_id": "HX-02-CTRL_nozzle_diameter",
+          "name": "HX-02-CTRL nozzle diameter",
+          "value": "25",
+          "units": "mm",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        },
+        {
+          "citations": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "assumptions": [
+            "Cluster id: none.",
+            "Header level: 1.",
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+            "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+            "Utility train package role: controls.",
+            "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+            "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+          ],
+          "value_id": "HX-02-CTRL_support_load",
+          "name": "HX-02-CTRL support load basis",
+          "value": "6",
+          "units": "kN",
+          "provenance_method": "calculated",
+          "source_ids": [
+            "eg_handbook",
+            "india_sheet_1",
+            "user_doc_1",
+            "user_doc_2"
+          ],
+          "uncertainty_band": "derived",
+          "sensitivity": "medium",
+          "blocking": false
+        }
+      ]
+    }
+  ],
+  "markdown": "| Equipment | Type | Shell t (mm) | Head t (mm) | Class | Hydrotest (bar) | Nozzle (mm) | Support | Load Case | Support t (mm) | Load (kN) | Thermal Growth (mm) | Reinforcement (mm2) | Platform |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| R-101 | Reactor | 157.13 | 144.56 | ASME 600 | 26.00 | 9336.1 | skirt support | operating + wind + seismic + nozzle loads | 109.99 | 259711.84 | 148.17 | 1941902.0 | yes |\n| PU-201 | Distillation column | 4.41 | 4.06 | PN16 | 3.00 | 640.2 | skirt support | operating + wind + seismic + nozzle loads | 24.00 | 250.03 | 6.83 | 13316.9 | yes |\n| V-101 | Flash drum | 15.94 | 14.66 | PN16 | 4.00 | 3917.0 | base support | operating + nozzle loads | 24.00 | 46738.28 | 21.82 | 65806.4 | no |\n| E-101 | Heat exchanger | 21.34 | 19.63 | ASME 150 | 10.40 | 2021.0 | saddle support | operating + nozzle loads | 24.00 | 7376.03 | 29.89 | 90539.7 | yes |\n| TK-301 | Storage tank | 9.19 | 8.45 | PN16 | 2.20 | 5177.3 | saddle / leg support | operating + settlement + thermal growth | 18.00 | 75768.79 | 12.46 | 34791.6 | no |\n| HX-01 | HTM loop exchanger | 25.95 | 23.87 | ASME 300 | 14.30 | 1822.7 | saddle support | operating + nozzle loads | 24.00 | 5636.10 | 32.93 | 152379.0 | yes |\n| HX-01-CTRL | Utility control package | 0.00 | 0.00 | ASME 150 | 11.70 | 25.0 | instrument frame | skid dead load + piping reaction | 12.00 | 6.00 | 5.77 | 1260.0 | no |\n| HX-01-HDR | Shared HTM header manifold | 8.60 | 7.92 | ASME 300 | 18.85 | 417.0 | pipe rack support | rack piping + thermal expansion | 24.00 | 594.50 | 5.83 | 45956.1 | no |\n| HX-01-PMP | HTM circulation skid | 8.60 | 7.92 | ASME 300 | 18.85 | 117.3 | base frame | operating + nozzle loads | 24.00 | 10.59 | 5.83 | 12930.0 | no |\n| HX-01-EXP | HTM expansion tank | 5.31 | 4.88 | ASME 150 | 7.80 | 175.1 | leg support | operating + settlement + thermal growth | 18.00 | 33.03 | 5.99 | 7984.8 | no |\n| HX-01-RV | HTM relief package | 8.21 | 7.56 | ASME 300 | 17.55 | 145.4 | base support | operating + nozzle loads | 24.00 | 18.91 | 6.09 | 14920.7 | no |\n| HX-02 | Heat integration exchanger | 8.95 | 8.24 | ASME 150 | 8.45 | 613.7 | saddle support | operating + nozzle loads | 24.00 | 402.13 | 13.00 | 22339.3 | yes |\n| HX-02-CTRL | Utility control package | 0.00 | 0.00 | ASME 150 | 6.50 | 25.0 | instrument frame | skid dead load + piping reaction | 12.00 | 6.00 | 4.31 | 700.0 | no |",
+  "value_records": [
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "R-101_shell_thickness",
+      "name": "R-101 shell thickness",
+      "value": "157.133718",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "R-101_nozzle_diameter",
+      "name": "R-101 nozzle diameter",
+      "value": "9336.067226",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "R-101_support_load",
+      "name": "R-101 support load basis",
+      "value": "259711.844033",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "PU-201_shell_thickness",
+      "name": "PU-201 shell thickness",
+      "value": "4.408918",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "PU-201_nozzle_diameter",
+      "name": "PU-201 nozzle diameter",
+      "value": "640.236487",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "PU-201_support_load",
+      "name": "PU-201 support load basis",
+      "value": "250.027903",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "V-101_shell_thickness",
+      "name": "V-101 shell thickness",
+      "value": "15.940396",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "V-101_nozzle_diameter",
+      "name": "V-101 nozzle diameter",
+      "value": "3917.049354",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "V-101_support_load",
+      "name": "V-101 support load basis",
+      "value": "46738.27835",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Exchanger selector scored alternatives from gross unit duties.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "E-101_shell_thickness",
+      "name": "E-101 shell thickness",
+      "value": "21.33841",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Exchanger selector scored alternatives from gross unit duties.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "E-101_nozzle_diameter",
+      "name": "E-101 nozzle diameter",
+      "value": "2020.974418",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Exchanger selector scored alternatives from gross unit duties.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "E-101_support_load",
+      "name": "E-101 support load basis",
+      "value": "7376.03499",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+        "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "TK-301_shell_thickness",
+      "name": "TK-301 shell thickness",
+      "value": "9.188226",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+        "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "TK-301_nozzle_diameter",
+      "name": "TK-301 nozzle diameter",
+      "value": "5177.323998",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+        "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "TK-301_support_load",
+      "name": "TK-301 support load basis",
+      "value": "75768.792587",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01_shell_thickness",
+      "name": "HX-01 shell thickness",
+      "value": "25.944987",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01_nozzle_diameter",
+      "name": "HX-01 nozzle diameter",
+      "value": "1822.714906",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01_support_load",
+      "name": "HX-01 support load basis",
+      "value": "5636.100624",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "value_id": "HX-01-CTRL_shell_thickness",
+      "name": "HX-01-CTRL shell thickness",
+      "value": "0",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "value_id": "HX-01-CTRL_nozzle_diameter",
+      "name": "HX-01-CTRL nozzle diameter",
+      "value": "25",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "value_id": "HX-01-CTRL_support_load",
+      "name": "HX-01-CTRL support load basis",
+      "value": "6",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: header.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-HDR_shell_thickness",
+      "name": "HX-01-HDR shell thickness",
+      "value": "8.604226",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: header.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-HDR_nozzle_diameter",
+      "name": "HX-01-HDR nozzle diameter",
+      "value": "417.024596",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: header.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-HDR_support_load",
+      "name": "HX-01-HDR support load basis",
+      "value": "594.496704",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: circulation.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-PMP_shell_thickness",
+      "name": "HX-01-PMP shell thickness",
+      "value": "8.604226",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: circulation.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-PMP_nozzle_diameter",
+      "name": "HX-01-PMP nozzle diameter",
+      "value": "117.331709",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: circulation.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-PMP_support_load",
+      "name": "HX-01-PMP support load basis",
+      "value": "10.589042",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: expansion.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-EXP_shell_thickness",
+      "name": "HX-01-EXP shell thickness",
+      "value": "5.308876",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: expansion.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-EXP_nozzle_diameter",
+      "name": "HX-01-EXP nozzle diameter",
+      "value": "175.10602",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: expansion.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-EXP_support_load",
+      "name": "HX-01-EXP support load basis",
+      "value": "33.030215",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: relief.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-RV_shell_thickness",
+      "name": "HX-01-RV shell thickness",
+      "value": "8.21504",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: relief.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-RV_nozzle_diameter",
+      "name": "HX-01-RV nozzle diameter",
+      "value": "145.426346",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: relief.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-01-RV_support_load",
+      "name": "HX-01-RV support load basis",
+      "value": "18.915096",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-02_shell_thickness",
+      "name": "HX-02 shell thickness",
+      "value": "8.952842",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-02_nozzle_diameter",
+      "name": "HX-02 nozzle diameter",
+      "value": "613.716943",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance."
+      ],
+      "value_id": "HX-02_support_load",
+      "name": "HX-02 support load basis",
+      "value": "402.132006",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "value_id": "HX-02-CTRL_shell_thickness",
+      "name": "HX-02-CTRL shell thickness",
+      "value": "0",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "value_id": "HX-02-CTRL_nozzle_diameter",
+      "name": "HX-02-CTRL nozzle diameter",
+      "value": "25",
+      "units": "mm",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls.",
+        "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+        "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations."
+      ],
+      "value_id": "HX-02-CTRL_support_load",
+      "name": "HX-02-CTRL support load basis",
+      "value": "6",
+      "units": "kN",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    }
+  ]
+}

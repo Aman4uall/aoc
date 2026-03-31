@@ -1,0 +1,35 @@
+{
+  "chapter_id": "energy_balance",
+  "title": "Energy Balance",
+  "stage_id": "energy_balance",
+  "status": "complete",
+  "required_inputs": [
+    "stream_table",
+    "thermo_assessment"
+  ],
+  "produced_outputs": [
+    "energy_balance",
+    "solve_result"
+  ],
+  "blockers": [],
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+    "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+    "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+    "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+    "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Energy Balance\n\n### Overall Energy Summary\n\n| Basis | Value | Units |\n| --- | --- | --- |\n| Total heating duty | 5781.464 | kW |\n| Total cooling duty | 8224.582 | kW |\n| Net external duty | -2443.118 | kW |\n| Thermal packets | 3 | count |\n| Recovery candidates | 2 | count |\n| Recoverable packet duty | 624.369 | kW |\n\n### Unit Duty Summary\n\n| Unit | Section | Duty Type | Heating (kW) | Cooling (kW) | Notes |\n| --- | --- | --- | --- | --- | --- |\n| E-101 | - | sensible | 4532.727 | 0.000 | Feed preheat to operating temperature. |\n| R-101 | - | reaction | 0.000 | 7600.213 | Net reactor thermal duty from the selected thermodynamic basis. |\n| SEP-201 | - | sensible | 1248.737 | 624.369 | Generic purification duty. |\n\n### Section Duty Summary\n\n| Section | Label | Heating (kW) | Cooling (kW) | Recoverable (kW) | Status |\n| --- | --- | --- | --- | --- | --- |\n| feed_handling | Feed handling | 0.000 | 0.000 | 0.000 | converged |\n| reaction | Reaction | 0.000 | 0.000 | 0.000 | converged |\n| primary_recovery | Primary recovery | 0.000 | 0.000 | 0.000 | converged |\n| recycle_recovery_carbonate_loop_cleanup | Carbonate loop cleanup | 0.000 | 0.000 | 0.000 | estimated |\n| purification | Purification | 0.000 | 0.000 | 0.000 | estimated |\n\n### Unit Thermal Packet Summary\n\n| Packet | Unit | Section | Type | Heating (kW) | Cooling (kW) | Hot In (C) | Hot Out (C) | Cold In (C) | Cold Out (C) | Recoverable (kW) | Candidate Media |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| E-101_thermal_packet | E-101 | - | sensible | 4532.727 | 0.000 | 270.0 | 255.0 | 225.0 | 240.0 | 0.000 | steam, hot oil |\n| R-101_thermal_packet | R-101 | - | reaction | 0.000 | 7600.213 | 240.0 | 195.0 | 30.0 | 42.0 | 0.000 | Dowtherm A, cooling water |\n| SEP-201_thermal_packet | SEP-201 | - | sensible | 1248.737 | 624.369 | 270.0 | 245.0 | 30.0 | 75.0 | 624.369 | cooling water, steam, hot oil |\n\n### Recovery Candidate Summary\n\n| Candidate | Source Unit | Sink Unit | Topology | Recovered Duty (kW) | Min Approach (C) | Feasible | Notes |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n| R-101_to_SEP-201 | R-101 | SEP-201 | direct | 1123.863 | 20.0 | yes | Direct packet-level recovery candidate. |\n| SEP-201_to_E-101 | SEP-201 | E-101 | direct | 561.932 | 20.0 | yes | Direct packet-level recovery candidate. |\n\n### Utility Consumption Basis\n\n| Unit | Route | Candidate Media | Peak Duty (kW) | Recoverable Duty (kW) | Service |\n| --- | --- | --- | --- | --- | --- |\n| E-101 | omega_catalytic | steam, hot oil | 4532.727 | 0.000 | Feed preheat to operating temperature. |\n| R-101 | omega_catalytic | Dowtherm A, cooling water | 7600.213 | 0.000 | Net reactor thermal duty from the selected thermodynamic basis. |\n| SEP-201 | omega_catalytic | cooling water, steam, hot oil | 1248.737 | 624.369 | Generic purification duty. |\n\n### Route-Family Duty Focus\n\n| Unit | Duty Type | Heating (kW) | Cooling (kW) | Section | Notes |\n| --- | --- | --- | --- | --- | --- |\n| E-101 | sensible | 4532.727 | 0.000 | - | Feed preheat to operating temperature. |\n| R-101 | reaction | 0.000 | 7600.213 | - | Net reactor thermal duty from the selected thermodynamic basis. |\n\n### Energy-Balance Calculation Traces\n\n| Trace | Formula | Inputs | Result | Notes |\n| --- | --- | --- | --- | --- |\n| Feed preheat duty | Q = m * Cp * dT / 3600 | m=25952.368 kg/h; dT=215.0 K | 4532.727 kW | - |\n| Reaction duty | Q = |n * dH| / 3600 | n=402.364225 kmol/h; dH=-68.000 kJ/mol | 7600.213 kW | - |\n| Unitwise duty expansion | duty_count = number of explicit unit duties in the solved energy envelope | - | 3 duties | The generic energy solver now emits duty rows for each major process section rather than a single family-level total. |\n| Thermal packet expansion | packet_count = number of unitwise thermal packets carried into utility and equipment design | - | 3 packets | These packets preserve unit-level hot and cold thermal interfaces downstream. |\n| Packet-derived exchanger candidates | candidate_count = number of packet-to-packet heat-recovery candidates | - | 2 candidates | These candidates seed utility-architecture selection and detailed exchanger sizing. |\n| Composition-driven thermal basis | Cp and latent-duty basis are derived from solved unit composition states and mixture-property packages | feed_state=feed_prep_composition_state; primary_state=primary_flash_composition_state; purification_state=purification_composition_state; feed_cp=2.816; product_cp=2.452; mixture_packages=5 | generic family | The energy solver now consumes mixture-property packages first and only retains heuristics as a compatibility fallback. |"
+}

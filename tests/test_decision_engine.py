@@ -10,6 +10,8 @@ from aoc.decision_engine import (
     select_route_architecture,
     selected_heat_case,
 )
+from aoc.flowsheet_blueprint import build_unit_train_candidate_set
+from aoc.route_chemistry import build_route_chemistry_artifact
 from aoc.route_families import build_route_family_artifact
 from aoc.models import ProvenanceTag
 from aoc.reasoning import MockReasoningService
@@ -57,12 +59,14 @@ class DecisionEngineTests(unittest.TestCase):
     def test_route_selection_emits_structured_decisions(self):
         property_gap = resolve_property_gaps(self.profile, self.config)
         route_families = build_route_family_artifact(self.survey)
+        route_chemistry = build_route_chemistry_artifact(self.survey, [])
         synthesis = build_process_synthesis(self.config, self.survey, property_gap, route_families=route_families)
         rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market, route_families)
         heat_study = build_heat_integration_study(self.config, rough, self.market)
         selection, route_decision, reactor_choice, separation_choice, utility_network = select_route_architecture(
             self.config,
             self.survey,
+            route_chemistry,
             rough,
             heat_study,
             self.market,
@@ -81,12 +85,24 @@ class DecisionEngineTests(unittest.TestCase):
         hydration_profile = next(item for item in route_families.profiles if item.route_id == "eo_hydration")
         self.assertEqual(hydration_profile.route_family_id, "liquid_hydration_train")
         property_gap = resolve_property_gaps(self.profile, self.config)
+        route_chemistry = build_route_chemistry_artifact(self.survey, [])
         synthesis = build_process_synthesis(self.config, self.survey, property_gap, route_families=route_families)
-        rough = build_rough_alternatives(self.config, self.survey, synthesis, self.market, route_families)
+        unit_train_candidates = build_unit_train_candidate_set(self.survey, route_chemistry, route_families, [], self.config.basis.operating_mode)
+        rough = build_rough_alternatives(
+            self.config,
+            self.survey,
+            synthesis,
+            self.market,
+            route_families,
+            unit_train_candidates,
+        )
         hydration_case = next(item for item in rough.cases if item.route_id == "eo_hydration")
         self.assertEqual(hydration_case.route_family_id, "liquid_hydration_train")
         self.assertTrue(hydration_case.route_family_label)
         self.assertTrue(hydration_case.heat_recovery_style)
+        self.assertGreater(hydration_case.blueprint_step_count, 0)
+        self.assertGreater(hydration_case.separation_duty_count, 0)
+        self.assertIn("Blueprint complexity", hydration_case.notes)
 
 
 if __name__ == "__main__":

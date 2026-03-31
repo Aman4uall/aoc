@@ -1,0 +1,127 @@
+{
+  "citations": [
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Exchanger selector scored alternatives from gross unit duties."
+  ],
+  "exchanger_id": "E-101",
+  "service": "R-rough to D-rough heat recovery",
+  "heat_load_kw": 34024.794,
+  "lmtd_k": 8.0,
+  "overall_u_w_m2_k": 470.0,
+  "area_m2": 9049.147,
+  "exchanger_type": "Shell And Tube",
+  "shell_diameter_m": 27.461,
+  "tube_count": 31584,
+  "tube_length_m": 4.8,
+  "shell_passes": 1,
+  "tube_passes": 2,
+  "package_family": "process_exchange",
+  "circulation_flow_m3_hr": 1818.329,
+  "phase_change_load_kg_hr": 0.0,
+  "package_holdup_m3": 542.949,
+  "boiling_side_coefficient_w_m2_k": 1200.0,
+  "condensing_side_coefficient_w_m2_k": 1200.0,
+  "utility_topology": "shared HTM island network (shared_htm) with 1 utility islands",
+  "utility_architecture_family": "shared_htm",
+  "selected_island_id": "omega_catalytic_pinch_htm__shared_htm_shared_htm_01",
+  "selected_header_level": 1,
+  "selected_cluster_id": null,
+  "allocated_recovered_duty_target_kw": 42530.992,
+  "selected_train_step_id": "omega_catalytic_pinch_htm__shared_htm_step_01",
+  "selected_package_item_ids": [
+    "omega_catalytic_pinch_htm__shared_htm_step_01_exchanger",
+    "omega_catalytic_pinch_htm__shared_htm_step_01_controls",
+    "omega_catalytic_pinch_htm__shared_htm_step_01_header",
+    "omega_catalytic_pinch_htm__shared_htm_step_01_circulation",
+    "omega_catalytic_pinch_htm__shared_htm_step_01_expansion",
+    "omega_catalytic_pinch_htm__shared_htm_step_01_relief"
+  ],
+  "selected_package_roles": [
+    "circulation",
+    "controls",
+    "exchanger",
+    "expansion",
+    "header",
+    "relief"
+  ],
+  "calc_traces": [
+    {
+      "trace_id": "exchanger_area",
+      "title": "Exchanger area",
+      "formula": "A = Q/(U*dTlm)",
+      "substitutions": {
+        "Q": "34024794.0",
+        "U": "470.0",
+        "dTlm": "8.0"
+      },
+      "result": "9049.147",
+      "units": "m2",
+      "notes": ""
+    },
+    {
+      "trace_id": "exchanger_packet_basis",
+      "title": "Solved exchanger packet basis",
+      "formula": "packet basis -> selected thermal packet",
+      "substitutions": {
+        "thermal_packet": "fallback",
+        "selected_train_step": "omega_catalytic_pinch_htm__shared_htm_step_01",
+        "architecture_family": "shared_htm",
+        "selected_island": "omega_catalytic_pinch_htm__shared_htm_shared_htm_01"
+      },
+      "result": "34024.794",
+      "units": "kW",
+      "notes": "Exchanger sizing now prefers the selected utility-train step and solved thermal packet before aggregate-duty fallback."
+    },
+    {
+      "trace_id": "exchanger_package_basis",
+      "title": "Utility package exchanger basis",
+      "formula": "Selected exchanger package -> family, area, LMTD, circulation, phase load",
+      "substitutions": {
+        "package_family": "process_exchange",
+        "exchanger_package": "omega_catalytic_pinch_htm__shared_htm_step_01_exchanger",
+        "circulation_flow_m3_hr": "1818.329",
+        "phase_change_load_kg_hr": "0.000",
+        "header_level": "1",
+        "cluster_id": "none",
+        "target_recovered_kw": "42530.992"
+      },
+      "result": "542.949",
+      "units": "m3",
+      "notes": "Reboiler/condenser package sizing now reads the selected utility package item before applying generic exchanger fallback."
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "value_id": "exchanger_area",
+      "name": "Exchanger area",
+      "value": "9049.147",
+      "units": "m2",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+## Conclusion
+
+The India-mode conceptual study indicates that Ethylene Glycol production can be framed credibly around the selected EO hydration route, Dahej-style cluster siting logic, and a high-capacity continuous plant basis. With headline payback of 76261521411.19 years and IRR of 1.00%, the current feasibility case supports progression to deeper engineering, provided live-cited tariffs, market references, and detailed mechanical code design are carried into the next phase.

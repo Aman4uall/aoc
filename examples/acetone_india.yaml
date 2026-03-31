@@ -1,0 +1,22 @@
+project_id: acetone-india-run
+strict_citation_policy: false
+public_data_only: true
+require_india_only_data: false
+evidence_lock_required: false
+benchmark_profile: acetone
+basis:
+  target_product: Acetone
+  capacity_tpa: 50000
+  target_purity_wt_pct: 99.5
+  operating_mode: continuous
+  annual_operating_days: 330
+  region: India
+  currency: INR
+  process_template: generic_small_molecule
+  target_state: Gujarat
+  economic_reference_year: 2024
+model:
+  backend: google
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.1
+preferred_route_id: cumene_oxidation_cleavage

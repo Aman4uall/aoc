@@ -1,0 +1,236 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+  ],
+  "decision_id": "financing_basis",
+  "context": "Financing basis for Ethylene Glycol in India.",
+  "criteria": [
+    {
+      "name": "India fit",
+      "weight": 0.3,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Economic basis must fit India public data constraints."
+    },
+    {
+      "name": "Cost competitiveness",
+      "weight": 0.35,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Basis must remain competitive under public-data assumptions."
+    },
+    {
+      "name": "Execution realism",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Procurement and finance assumptions should be buildable."
+    },
+    {
+      "name": "Scenario stability",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Weak options should be surfaced for approval."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+      ],
+      "candidate_id": "debt_equity_70_30",
+      "candidate_type": "financing_basis",
+      "description": "70:30 debt-equity basis",
+      "inputs": {
+        "interest_rate": "0.1050",
+        "debt_fraction": "0.700"
+      },
+      "outputs": {
+        "minimum_dscr": "0.050",
+        "average_dscr": "0.050",
+        "llcr": "0.000",
+        "plcr": "0.000",
+        "irr_pct": "1.00",
+        "npv_inr": "-98309630442.49",
+        "idc_inr": "1542732167.57",
+        "coverage_status": "warning",
+        "downside_scenario_name": "conservative",
+        "downside_minimum_dscr": "0.000",
+        "downside_average_dscr": "0.000",
+        "downside_llcr": "0.000",
+        "downside_plcr": "0.000",
+        "downside_coverage_status": "warning",
+        "downside_breach_count": "4"
+      },
+      "rejected_reasons": [
+        "Minimum DSCR is below the lender screening threshold.",
+        "Average DSCR is below the lender screening threshold.",
+        "LLCR is below the lender screening threshold.",
+        "PLCR is below the lender screening threshold.",
+        "conservative scenario minimum DSCR is below the lender screening threshold.",
+        "conservative scenario average DSCR is below the lender screening threshold.",
+        "conservative scenario LLCR is below the lender screening threshold.",
+        "conservative scenario PLCR is below the lender screening threshold."
+      ],
+      "score_breakdown": {
+        "coverage": 52.191,
+        "capital_cost": 100.0,
+        "leverage": 100.0,
+        "returns": 5.556,
+        "base_preference": 90.0,
+        "stability": 28.0,
+        "hard_penalty": 18.0,
+        "base_total": 35.151,
+        "downside_coverage": 50.0,
+        "downside_total": 28.7
+      },
+      "total_score": 32.248,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+      ],
+      "candidate_id": "debt_equity_60_40",
+      "candidate_type": "financing_basis",
+      "description": "60:40 debt-equity basis",
+      "inputs": {
+        "interest_rate": "0.1100",
+        "debt_fraction": "0.600"
+      },
+      "outputs": {
+        "minimum_dscr": "0.050",
+        "average_dscr": "0.050",
+        "llcr": "0.000",
+        "plcr": "0.000",
+        "irr_pct": "1.00",
+        "npv_inr": "-96857449904.07",
+        "idc_inr": "1385310517.82",
+        "coverage_status": "warning",
+        "downside_scenario_name": "conservative",
+        "downside_minimum_dscr": "0.000",
+        "downside_average_dscr": "0.000",
+        "downside_llcr": "0.000",
+        "downside_plcr": "0.000",
+        "downside_coverage_status": "warning",
+        "downside_breach_count": "4"
+      },
+      "rejected_reasons": [
+        "Minimum DSCR is below the lender screening threshold.",
+        "Average DSCR is below the lender screening threshold.",
+        "LLCR is below the lender screening threshold.",
+        "PLCR is below the lender screening threshold.",
+        "conservative scenario minimum DSCR is below the lender screening threshold.",
+        "conservative scenario average DSCR is below the lender screening threshold.",
+        "conservative scenario LLCR is below the lender screening threshold.",
+        "conservative scenario PLCR is below the lender screening threshold."
+      ],
+      "score_breakdown": {
+        "coverage": 52.191,
+        "capital_cost": 66.667,
+        "leverage": 50.0,
+        "returns": 5.556,
+        "base_preference": 86.0,
+        "stability": 28.0,
+        "hard_penalty": 18.0,
+        "base_total": 24.551,
+        "downside_coverage": 50.0,
+        "downside_total": 28.7
+      },
+      "total_score": 26.418,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+      ],
+      "candidate_id": "conservative_50_50",
+      "candidate_type": "financing_basis",
+      "description": "50:50 conservative financing basis",
+      "inputs": {
+        "interest_rate": "0.1200",
+        "debt_fraction": "0.500"
+      },
+      "outputs": {
+        "minimum_dscr": "0.050",
+        "average_dscr": "0.050",
+        "llcr": "0.000",
+        "plcr": "0.000",
+        "irr_pct": "1.00",
+        "npv_inr": "-95710640886.70",
+        "idc_inr": "1259373198.01",
+        "coverage_status": "warning",
+        "downside_scenario_name": "conservative",
+        "downside_minimum_dscr": "0.000",
+        "downside_average_dscr": "0.000",
+        "downside_llcr": "0.000",
+        "downside_plcr": "0.000",
+        "downside_coverage_status": "warning",
+        "downside_breach_count": "4"
+      },
+      "rejected_reasons": [
+        "Minimum DSCR is below the lender screening threshold.",
+        "Average DSCR is below the lender screening threshold.",
+        "LLCR is below the lender screening threshold.",
+        "PLCR is below the lender screening threshold.",
+        "conservative scenario minimum DSCR is below the lender screening threshold.",
+        "conservative scenario average DSCR is below the lender screening threshold.",
+        "conservative scenario LLCR is below the lender screening threshold.",
+        "conservative scenario PLCR is below the lender screening threshold."
+      ],
+      "score_breakdown": {
+        "coverage": 52.191,
+        "capital_cost": 0.0,
+        "leverage": 0.0,
+        "returns": 5.556,
+        "base_preference": 72.0,
+        "stability": 28.0,
+        "hard_penalty": 18.0,
+        "base_total": 7.451,
+        "downside_coverage": 50.0,
+        "downside_total": 28.7
+      },
+      "total_score": 17.013,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "debt_equity_70_30",
+  "selected_summary": "70:30 debt-equity basis selected after lender-coverage reranking (min DSCR 0.050, LLCR 0.000, PLCR 0.000). Higher-leverage options were downgraded because of covenant pressure. The selected basis still carries covenant pressure and requires approval.",
+  "hard_constraint_results": [
+    "Financing options were reranked against minimum DSCR 1.10, average DSCR 1.25, LLCR 1.30, and PLCR 1.45.",
+    "Downside financing ranking used scenario 'conservative' to test covenant resilience beyond the base case.",
+    "debt_equity_70_30: Minimum DSCR is below the lender screening threshold.; Average DSCR is below the lender screening threshold.; LLCR is below the lender screening threshold.; PLCR is below the lender screening threshold.; conservative scenario minimum DSCR is below the lender screening threshold.; conservative scenario average DSCR is below the lender screening threshold.; conservative scenario LLCR is below the lender screening threshold.; conservative scenario PLCR is below the lender screening threshold.",
+    "debt_equity_60_40: Minimum DSCR is below the lender screening threshold.; Average DSCR is below the lender screening threshold.; LLCR is below the lender screening threshold.; PLCR is below the lender screening threshold.; conservative scenario minimum DSCR is below the lender screening threshold.; conservative scenario average DSCR is below the lender screening threshold.; conservative scenario LLCR is below the lender screening threshold.; conservative scenario PLCR is below the lender screening threshold.",
+    "conservative_50_50: Minimum DSCR is below the lender screening threshold.; Average DSCR is below the lender screening threshold.; LLCR is below the lender screening threshold.; PLCR is below the lender screening threshold.; conservative scenario minimum DSCR is below the lender screening threshold.; conservative scenario average DSCR is below the lender screening threshold.; conservative scenario LLCR is below the lender screening threshold.; conservative scenario PLCR is below the lender screening threshold.",
+    "Financing critic escalation: economic_basis_counterfactual_selected; economic_basis_rejects_selected_recovery; financing_operability_tension"
+  ],
+  "confidence": 0.5800000000000001,
+  "scenario_stability": "unstable",
+  "approval_required": true,
+  "blocked_value_ids": []
+}

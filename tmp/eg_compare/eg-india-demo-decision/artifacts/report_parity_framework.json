@@ -1,0 +1,393 @@
+{
+  "citations": [],
+  "assumptions": [],
+  "framework_id": "ethylene_glycol_report_parity_framework",
+  "benchmark_id": "ethylene_glycol",
+  "chapter_contracts": [
+    {
+      "chapter_id": "executive_summary",
+      "benchmark_title": "Executive Summary",
+      "required_outputs": [],
+      "required_markers": [],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a standalone executive summary chapter."
+    },
+    {
+      "chapter_id": "introduction_product_profile",
+      "benchmark_title": "Introduction",
+      "required_outputs": [],
+      "required_markers": [
+        "Properties"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark introduction includes identity and physical-property tables."
+    },
+    {
+      "chapter_id": "market_capacity_selection",
+      "benchmark_title": "Capacity Selection",
+      "required_outputs": [],
+      "required_markers": [],
+      "requires_citations": true,
+      "notes": "Current report structure carries market and capacity basis as a dedicated chapter even though the benchmark PDF folds it into surrounding sections."
+    },
+    {
+      "chapter_id": "literature_survey",
+      "benchmark_title": "Literature Survey",
+      "required_outputs": [],
+      "required_markers": [],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a standalone literature survey chapter."
+    },
+    {
+      "chapter_id": "process_selection",
+      "benchmark_title": "Process Selection",
+      "required_outputs": [],
+      "required_markers": [
+        "Route"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes process-route comparison and selection rationale."
+    },
+    {
+      "chapter_id": "site_selection",
+      "benchmark_title": "Site Selection",
+      "required_outputs": [],
+      "required_markers": [
+        "India"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes site-factor and India location rationale."
+    },
+    {
+      "chapter_id": "thermodynamic_feasibility",
+      "benchmark_title": "Thermodynamics of Reaction",
+      "required_outputs": [],
+      "required_markers": [
+        "### Separation Thermodynamics Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report contains dedicated thermodynamic basis and reaction feasibility discussion."
+    },
+    {
+      "chapter_id": "reaction_kinetics",
+      "benchmark_title": "Kinetics of Reaction",
+      "required_outputs": [],
+      "required_markers": [],
+      "requires_citations": true,
+      "notes": "Benchmark report contains a dedicated kinetics chapter."
+    },
+    {
+      "chapter_id": "block_flow_diagram",
+      "benchmark_title": "Block Diagram",
+      "required_outputs": [],
+      "required_markers": [
+        "graph TD"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a standalone process block diagram."
+    },
+    {
+      "chapter_id": "process_description",
+      "benchmark_title": "Process Description",
+      "required_outputs": [],
+      "required_markers": [
+        "### Unit Sequence",
+        "### Recycle Architecture"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a long narrative process description."
+    },
+    {
+      "chapter_id": "material_balance",
+      "benchmark_title": "Material Balance",
+      "required_outputs": [
+        "stream_table"
+      ],
+      "required_markers": [
+        "### Overall Plant Balance Summary",
+        "### Section Balance Summary",
+        "### Unit Packet Balance Summary",
+        "### Long Stream Ledger"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes long unitwise stream tables."
+    },
+    {
+      "chapter_id": "energy_balance",
+      "benchmark_title": "Energy Balance",
+      "required_outputs": [
+        "energy_balance"
+      ],
+      "required_markers": [
+        "### Overall Energy Summary",
+        "### Section Duty Summary",
+        "### Unit Thermal Packet Summary",
+        "### Utility Consumption Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes long unitwise energy-balance tables."
+    },
+    {
+      "chapter_id": "heat_integration_strategy",
+      "benchmark_title": "Heat Integration Strategy",
+      "required_outputs": [
+        "heat_integration_study"
+      ],
+      "required_markers": [],
+      "requires_citations": true,
+      "notes": "Current report structure carries heat integration as a dedicated chapter-equivalent engineering section."
+    },
+    {
+      "chapter_id": "equipment_design_sizing",
+      "benchmark_title": "Sizing of Equipment",
+      "required_outputs": [
+        "equipment_list"
+      ],
+      "required_markers": [
+        "### Storage and Inventory Vessel Basis",
+        "### Major Process Equipment Basis",
+        "### Heat Exchanger and Thermal-Service Basis",
+        "### Rotating and Auxiliary Package Basis",
+        "### Utility-Coupled Package Inventory",
+        "### Datasheet Coverage Matrix",
+        "### Equipment-by-Equipment Sizing Summary"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes an equipment-wide sizing chapter."
+    },
+    {
+      "chapter_id": "mechanical_design_moc",
+      "benchmark_title": "Mechanical Design and Material of Construction",
+      "required_outputs": [
+        "mechanical_design_moc"
+      ],
+      "required_markers": [
+        "### Mechanical Basis",
+        "### Mechanical Design Input Matrix",
+        "### Shell and Head Thickness Derivation",
+        "### Support and Overturning Derivation",
+        "### Nozzle Reinforcement and Connection Basis",
+        "### Connection and Piping Class Basis",
+        "### Material of Construction Matrix",
+        "### MoC Option Screening",
+        "### Equipment-Wise MoC Justification Matrix",
+        "### Inspection and Maintainability Basis",
+        "### Corrosion and Service Basis",
+        "### Utility and Storage MoC Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report separates mechanical design and MoC into dedicated sections."
+    },
+    {
+      "chapter_id": "storage_utilities",
+      "benchmark_title": "Storage & Utilities",
+      "required_outputs": [
+        "utility_summary"
+      ],
+      "required_markers": [
+        "### Storage Inventory and Buffer Basis",
+        "### Storage Service Matrix",
+        "### Utility Consumption Summary",
+        "### Utility Service System Matrix",
+        "### Utility Peak and Annualized Demand",
+        "### Utility Demand by Major Unit",
+        "### Utility Island Service Basis",
+        "### Header and Thermal-Loop Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes dedicated storage and utility architecture coverage."
+    },
+    {
+      "chapter_id": "instrumentation_control",
+      "benchmark_title": "Instrumentation & Process Control",
+      "required_outputs": [
+        "control_plan"
+      ],
+      "required_markers": [
+        "### Control Philosophy",
+        "### Loop Objective Matrix",
+        "### Controlled and Manipulated Variable Register",
+        "### Startup, Shutdown, and Override Basis",
+        "### Alarm and Interlock Basis",
+        "### Utility-Integrated Control Basis",
+        "### Control Loop Sheets"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a dedicated control philosophy chapter."
+    },
+    {
+      "chapter_id": "hazop",
+      "benchmark_title": "HAZOP",
+      "required_outputs": [
+        "hazop_study",
+        "hazop_node_register"
+      ],
+      "required_markers": [
+        "### HAZOP Coverage Summary",
+        "### HAZOP Node Basis",
+        "### Critical Node Summary",
+        "### Deviation Cause-Consequence Matrix",
+        "### Recommendation Register"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes node-based HAZOP tables."
+    },
+    {
+      "chapter_id": "safety_health_environment_waste",
+      "benchmark_title": "Safety, Health & Environment",
+      "required_outputs": [
+        "safety_environment"
+      ],
+      "required_markers": [
+        "### Safety Basis",
+        "### Hazard and Emergency Response Basis",
+        "### Health and Exposure Basis",
+        "### Environmental and Waste Basis",
+        "### Environmental Control and Monitoring Basis",
+        "### Waste Handling and Disposal Basis",
+        "### Safeguard Linkage"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a dedicated SHE chapter."
+    },
+    {
+      "chapter_id": "layout",
+      "benchmark_title": "Project & Plant Layout",
+      "required_outputs": [
+        "layout"
+      ],
+      "required_markers": [
+        "### Plot Plan Basis",
+        "### Plot Layout Schematic",
+        "### Area Zoning and Separation Basis",
+        "### Equipment Placement Matrix",
+        "### Utility Corridor Matrix",
+        "### Utility Routing and Access Basis",
+        "### Dispatch and Emergency Access Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes plant layout figures and notes."
+    },
+    {
+      "chapter_id": "project_cost",
+      "benchmark_title": "Project Cost",
+      "required_outputs": [
+        "cost_model",
+        "plant_cost_summary",
+        "procurement_basis_decision",
+        "logistics_basis_decision"
+      ],
+      "required_markers": [
+        "### Procurement Basis",
+        "### Logistics Basis",
+        "### Project Cost Build-Up Summary",
+        "### Direct Plant Cost Head Allocation",
+        "### Indirect and Contingency Basis",
+        "### Equipment Family Cost Allocation",
+        "### Procurement Timing Basis",
+        "### Installed Equipment Cost Matrix"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes project-cost buildup tables."
+    },
+    {
+      "chapter_id": "cost_of_production",
+      "benchmark_title": "Cost of Production",
+      "required_outputs": [
+        "cost_model"
+      ],
+      "required_markers": [
+        "### Cost of Production Summary",
+        "### Manufacturing Cost Build-Up",
+        "### Utility and Raw-Material Cost Basis",
+        "### Unit Cost and Selling Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes cost-of-production breakdown tables."
+    },
+    {
+      "chapter_id": "working_capital",
+      "benchmark_title": "Working Capital",
+      "required_outputs": [
+        "working_capital_model"
+      ],
+      "required_markers": [
+        "### Working-Capital Parameter Basis",
+        "### Working-Capital Breakdown",
+        "### Inventory, Receivable, and Payable Basis",
+        "### Procurement-Linked Working-Capital Timing",
+        "### Operations Planning Basis"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a dedicated working-capital chapter."
+    },
+    {
+      "chapter_id": "financial_analysis",
+      "benchmark_title": "Financial Analysis",
+      "required_outputs": [
+        "financial_model",
+        "economic_basis_decision",
+        "financing_basis_decision",
+        "debt_schedule",
+        "tax_depreciation_basis",
+        "financial_schedule"
+      ],
+      "required_markers": [
+        "### Financing Basis",
+        "### Financial Performance Summary",
+        "### Profitability and Return Summary",
+        "### Funding and Capital Structure Basis",
+        "### Procurement-Linked Working-Capital Basis",
+        "### Debt Service Coverage Schedule",
+        "### Profit and Loss Schedule",
+        "### Cash Accrual and Funding Schedule",
+        "### Lender Coverage Screening"
+      ],
+      "requires_citations": true,
+      "notes": "Benchmark report includes multi-year finance schedules and returns."
+    },
+    {
+      "chapter_id": "conclusion",
+      "benchmark_title": "Conclusion",
+      "required_outputs": [],
+      "required_markers": [],
+      "requires_citations": true,
+      "notes": "Benchmark report includes a standalone conclusion chapter."
+    }
+  ],
+  "support_contracts": [
+    {
+      "support_id": "references",
+      "benchmark_title": "References",
+      "required_markers": [
+        "## References"
+      ],
+      "notes": "Benchmark report includes a dedicated references chapter."
+    },
+    {
+      "support_id": "appendix_msds",
+      "benchmark_title": "Appendix A: Material Safety Data Sheet",
+      "required_markers": [
+        "Material Safety Data Sheet"
+      ],
+      "notes": "Benchmark report contains an MSDS appendix."
+    },
+    {
+      "support_id": "appendix_code_backup",
+      "benchmark_title": "Appendix B: Python Code",
+      "required_markers": [
+        "Python Code"
+      ],
+      "notes": "Benchmark report contains a code appendix."
+    },
+    {
+      "support_id": "appendix_process_design_datasheets",
+      "benchmark_title": "Appendix C: Process Design Data Sheet",
+      "required_markers": [
+        "Process Design Data Sheet"
+      ],
+      "notes": "Benchmark report contains a process design datasheet appendix."
+    }
+  ],
+  "markdown": "## Report Parity Framework\n\n### Chapter Contract\n\n| Chapter ID | Benchmark Title | Required Outputs | Required Markers | Notes |\n| --- | --- | --- | --- | --- |\n| executive_summary | Executive Summary | - | - | Benchmark report includes a standalone executive summary chapter. |\n| introduction_product_profile | Introduction | - | Properties | Benchmark introduction includes identity and physical-property tables. |\n| market_capacity_selection | Capacity Selection | - | - | Current report structure carries market and capacity basis as a dedicated chapter even though the benchmark PDF folds it into surrounding sections. |\n| literature_survey | Literature Survey | - | - | Benchmark report includes a standalone literature survey chapter. |\n| process_selection | Process Selection | - | Route | Benchmark report includes process-route comparison and selection rationale. |\n| site_selection | Site Selection | - | India | Benchmark report includes site-factor and India location rationale. |\n| thermodynamic_feasibility | Thermodynamics of Reaction | - | ### Separation Thermodynamics Basis | Benchmark report contains dedicated thermodynamic basis and reaction feasibility discussion. |\n| reaction_kinetics | Kinetics of Reaction | - | - | Benchmark report contains a dedicated kinetics chapter. |\n| block_flow_diagram | Block Diagram | - | graph TD | Benchmark report includes a standalone process block diagram. |\n| process_description | Process Description | - | ### Unit Sequence, ### Recycle Architecture | Benchmark report includes a long narrative process description. |\n| material_balance | Material Balance | stream_table | ### Overall Plant Balance Summary, ### Section Balance Summary, ### Unit Packet Balance Summary, ### Long Stream Ledger | Benchmark report includes long unitwise stream tables. |\n| energy_balance | Energy Balance | energy_balance | ### Overall Energy Summary, ### Section Duty Summary, ### Unit Thermal Packet Summary, ### Utility Consumption Basis | Benchmark report includes long unitwise energy-balance tables. |\n| heat_integration_strategy | Heat Integration Strategy | heat_integration_study | - | Current report structure carries heat integration as a dedicated chapter-equivalent engineering section. |\n| equipment_design_sizing | Sizing of Equipment | equipment_list | ### Storage and Inventory Vessel Basis, ### Major Process Equipment Basis, ### Heat Exchanger and Thermal-Service Basis, ### Rotating and Auxiliary Package Basis, ### Utility-Coupled Package Inventory, ### Datasheet Coverage Matrix, ### Equipment-by-Equipment Sizing Summary | Benchmark report includes an equipment-wide sizing chapter. |\n| mechanical_design_moc | Mechanical Design and Material of Construction | mechanical_design_moc | ### Mechanical Basis, ### Mechanical Design Input Matrix, ### Shell and Head Thickness Derivation, ### Support and Overturning Derivation, ### Nozzle Reinforcement and Connection Basis, ### Connection and Piping Class Basis, ### Material of Construction Matrix, ### MoC Option Screening, ### Equipment-Wise MoC Justification Matrix, ### Inspection and Maintainability Basis, ### Corrosion and Service Basis, ### Utility and Storage MoC Basis | Benchmark report separates mechanical design and MoC into dedicated sections. |\n| storage_utilities | Storage & Utilities | utility_summary | ### Storage Inventory and Buffer Basis, ### Storage Service Matrix, ### Utility Consumption Summary, ### Utility Service System Matrix, ### Utility Peak and Annualized Demand, ### Utility Demand by Major Unit, ### Utility Island Service Basis, ### Header and Thermal-Loop Basis | Benchmark report includes dedicated storage and utility architecture coverage. |\n| instrumentation_control | Instrumentation & Process Control | control_plan | ### Control Philosophy, ### Loop Objective Matrix, ### Controlled and Manipulated Variable Register, ### Startup, Shutdown, and Override Basis, ### Alarm and Interlock Basis, ### Utility-Integrated Control Basis, ### Control Loop Sheets | Benchmark report includes a dedicated control philosophy chapter. |\n| hazop | HAZOP | hazop_study, hazop_node_register | ### HAZOP Coverage Summary, ### HAZOP Node Basis, ### Critical Node Summary, ### Deviation Cause-Consequence Matrix, ### Recommendation Register | Benchmark report includes node-based HAZOP tables. |\n| safety_health_environment_waste | Safety, Health & Environment | safety_environment | ### Safety Basis, ### Hazard and Emergency Response Basis, ### Health and Exposure Basis, ### Environmental and Waste Basis, ### Environmental Control and Monitoring Basis, ### Waste Handling and Disposal Basis, ### Safeguard Linkage | Benchmark report includes a dedicated SHE chapter. |\n| layout | Project & Plant Layout | layout | ### Plot Plan Basis, ### Plot Layout Schematic, ### Area Zoning and Separation Basis, ### Equipment Placement Matrix, ### Utility Corridor Matrix, ### Utility Routing and Access Basis, ### Dispatch and Emergency Access Basis | Benchmark report includes plant layout figures and notes. |\n| project_cost | Project Cost | cost_model, plant_cost_summary, procurement_basis_decision, logistics_basis_decision | ### Procurement Basis, ### Logistics Basis, ### Project Cost Build-Up Summary, ### Direct Plant Cost Head Allocation, ### Indirect and Contingency Basis, ### Equipment Family Cost Allocation, ### Procurement Timing Basis, ### Installed Equipment Cost Matrix | Benchmark report includes project-cost buildup tables. |\n| cost_of_production | Cost of Production | cost_model | ### Cost of Production Summary, ### Manufacturing Cost Build-Up, ### Utility and Raw-Material Cost Basis, ### Unit Cost and Selling Basis | Benchmark report includes cost-of-production breakdown tables. |\n| working_capital | Working Capital | working_capital_model | ### Working-Capital Parameter Basis, ### Working-Capital Breakdown, ### Inventory, Receivable, and Payable Basis, ### Procurement-Linked Working-Capital Timing, ### Operations Planning Basis | Benchmark report includes a dedicated working-capital chapter. |\n| financial_analysis | Financial Analysis | financial_model, economic_basis_decision, financing_basis_decision, debt_schedule, tax_depreciation_basis, financial_schedule | ### Financing Basis, ### Financial Performance Summary, ### Profitability and Return Summary, ### Funding and Capital Structure Basis, ### Procurement-Linked Working-Capital Basis, ### Debt Service Coverage Schedule, ### Profit and Loss Schedule, ### Cash Accrual and Funding Schedule, ### Lender Coverage Screening | Benchmark report includes multi-year finance schedules and returns. |\n| conclusion | Conclusion | - | - | Benchmark report includes a standalone conclusion chapter. |\n\n### Support Contract\n\n| Support ID | Benchmark Title | Required Markers | Notes |\n| --- | --- | --- | --- |\n| references | References | ## References | Benchmark report includes a dedicated references chapter. |\n| appendix_msds | Appendix A: Material Safety Data Sheet | Material Safety Data Sheet | Benchmark report contains an MSDS appendix. |\n| appendix_code_backup | Appendix B: Python Code | Python Code | Benchmark report contains a code appendix. |\n| appendix_process_design_datasheets | Appendix C: Process Design Data Sheet | Process Design Data Sheet | Benchmark report contains a process design datasheet appendix. |"
+}

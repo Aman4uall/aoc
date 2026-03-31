@@ -1,7 +1,15 @@
 import unittest
 
 from aoc.calculators import build_reaction_system, build_stream_table
-from aoc.models import KineticAssessmentArtifact, ProcessTemplate, ProjectBasis, ReactionParticipant, RouteOption
+from aoc.models import (
+    FlowsheetBlueprintArtifact,
+    FlowsheetBlueprintStep,
+    KineticAssessmentArtifact,
+    ProcessTemplate,
+    ProjectBasis,
+    ReactionParticipant,
+    RouteOption,
+)
 from aoc.solvers.convergence import solve_multi_component_recycle_loop
 
 
@@ -184,6 +192,124 @@ class FlowsheetSequenceTests(unittest.TestCase):
         purification_packet = next(packet for packet in stream_table.separation_packets if packet.unit_id == "purification")
         self.assertIn(purification_packet.split_status, {"converged", "estimated"})
         self.assertLess(purification_packet.split_closure_pct, 5.0)
+
+    def test_blueprint_overrides_sparse_route_into_solids_sequence(self):
+        basis = ProjectBasis(
+            target_product="Specialty salt",
+            capacity_tpa=12000,
+            target_purity_wt_pct=99.0,
+            process_template=ProcessTemplate.GENERIC_SMALL_MOLECULE,
+            india_only=True,
+        )
+        route = RouteOption(
+            route_id="solid_specialty_route",
+            name="Solid specialty route",
+            reaction_equation="A + B -> P",
+            participants=[
+                ReactionParticipant(name="Feed A", formula="A", coefficient=1.0, role="reactant", molecular_weight_g_mol=80.0, phase="liquid"),
+                ReactionParticipant(name="Feed B", formula="B", coefficient=1.0, role="reactant", molecular_weight_g_mol=55.0, phase="liquid"),
+                ReactionParticipant(name="Product P", formula="P", coefficient=1.0, role="product", molecular_weight_g_mol=120.0, phase="solid"),
+            ],
+            operating_temperature_c=55.0,
+            operating_pressure_bar=2.0,
+            residence_time_hr=3.0,
+            yield_fraction=0.90,
+            selectivity_fraction=0.95,
+            catalysts=[],
+            separations=[],
+            scale_up_notes="",
+            route_score=7.8,
+            rationale="",
+            citations=["s1"],
+        )
+        blueprint = FlowsheetBlueprintArtifact(
+            blueprint_id="solid_specialty_bp",
+            route_id=route.route_id,
+            route_name=route.name,
+            steps=[
+                FlowsheetBlueprintStep(
+                    step_id="feed_prep",
+                    route_id=route.route_id,
+                    section_id="feed_handling",
+                    section_label="Feed handling",
+                    step_role="feed_preparation",
+                    unit_id="feed_prep",
+                    solver_anchor_unit_id="feed_prep",
+                    unit_type="feed_preparation",
+                    service="Feed charging",
+                ),
+                FlowsheetBlueprintStep(
+                    step_id="reactor",
+                    route_id=route.route_id,
+                    section_id="reaction",
+                    section_label="Reaction",
+                    step_role="reaction",
+                    unit_id="reactor",
+                    solver_anchor_unit_id="reactor",
+                    unit_type="batch_stirred_reactor",
+                    service="Main reaction",
+                ),
+                FlowsheetBlueprintStep(
+                    step_id="concentration",
+                    route_id=route.route_id,
+                    section_id="concentration",
+                    section_label="Crystallization",
+                    step_role="primary_separation",
+                    unit_id="concentration",
+                    solver_anchor_unit_id="concentration",
+                    unit_type="crystallizer",
+                    service="Crystallization and slurry hold",
+                    separation_basis_ref="crystallization",
+                    phase_basis="solid-liquid split",
+                ),
+                FlowsheetBlueprintStep(
+                    step_id="filtration",
+                    route_id=route.route_id,
+                    section_id="solids_finishing",
+                    section_label="Solids finishing",
+                    step_role="filtration",
+                    unit_id="filtration",
+                    solver_anchor_unit_id="filtration",
+                    unit_type="filtration",
+                    service="Filtration",
+                    separation_basis_ref="filtration",
+                    phase_basis="solid-liquid split",
+                ),
+                FlowsheetBlueprintStep(
+                    step_id="drying",
+                    route_id=route.route_id,
+                    section_id="solids_finishing",
+                    section_label="Solids finishing",
+                    step_role="drying",
+                    unit_id="drying",
+                    solver_anchor_unit_id="drying",
+                    unit_type="drying",
+                    service="Drying",
+                    phase_basis="solid finishing",
+                ),
+            ],
+            markdown="solid blueprint",
+            citations=["s1"],
+        )
+        kinetics = KineticAssessmentArtifact(
+            feasible=True,
+            activation_energy_kj_per_mol=32.0,
+            pre_exponential_factor=1.2e6,
+            apparent_order=1.0,
+            design_residence_time_hr=3.0,
+            markdown="seed",
+            citations=["s1"],
+        )
+        reaction_system = build_reaction_system(basis, route, kinetics, ["s1"], [])
+        stream_table = build_stream_table(basis, route, reaction_system, ["s1"], [], flowsheet_blueprint=blueprint)
+
+        self.assertTrue(any("Route-derived flowsheet blueprint overrides" in item for item in stream_table.assumptions))
+        self.assertIn("solids", " ".join(stream_table.assumptions).lower())
+        self.assertTrue(any(section.section_id == "concentration" for section in stream_table.sections))
+        self.assertTrue(any(section.section_id == "filtration" for section in stream_table.sections))
+        self.assertTrue(any(section.section_id == "drying" for section in stream_table.sections))
+        self.assertTrue(any(stream.destination_unit_id == "concentration" for stream in stream_table.streams))
+        self.assertTrue(any(stream.source_unit_id == "drying" for stream in stream_table.streams))
 
 
 if __name__ == "__main__":

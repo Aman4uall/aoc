@@ -1,0 +1,88 @@
+{
+  "citations": [],
+  "assumptions": [
+    "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences."
+  ],
+  "decision_id": "storage_choice",
+  "context": "Storage-philosophy selection for Ethylene Glycol.",
+  "criteria": [
+    {
+      "name": "Phase compatibility",
+      "weight": 0.4,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Storage type must match the dominant product phase."
+    },
+    {
+      "name": "Safety",
+      "weight": 0.25,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Storage arrangement must respect containment and handling risk."
+    },
+    {
+      "name": "Dispatch fit",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Storage should support realistic plant dispatch practice."
+    },
+    {
+      "name": "Economics",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Inventory philosophy should avoid unnecessary capital burden."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [],
+      "assumptions": [],
+      "candidate_id": "vertical_tank_farm",
+      "candidate_type": "storage_selector",
+      "description": "Vertical atmospheric tank farm",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 100.0,
+      "feasible": true
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "candidate_id": "pressure_bullets",
+      "candidate_type": "storage_selector",
+      "description": "Pressurized bullet storage",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 48.0,
+      "feasible": true
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "candidate_id": "silo_hopper",
+      "candidate_type": "storage_selector",
+      "description": "Silo and hopper storage",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 44.0,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "vertical_tank_farm",
+  "selected_summary": "Vertical atmospheric tank farm selected as the highest-ranked alternative.",
+  "hard_constraint_results": [
+    "Alternative must remain technically feasible for the inferred process archetype."
+  ],
+  "confidence": 0.84,
+  "scenario_stability": "stable",
+  "approval_required": false,
+  "blocked_value_ids": []
+}

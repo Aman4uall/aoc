@@ -524,6 +524,8 @@ def build_mechanical_design_artifact(equipment: EquipmentListArtifact) -> Mechan
                 equipment_type=spec.equipment_type,
                 design_pressure_bar=spec.design_pressure_bar,
                 design_temperature_c=spec.design_temperature_c,
+                allowable_stress_mpa=round(allowable_stress, 3),
+                joint_efficiency=round(joint_efficiency, 3),
                 corrosion_allowance_mm=round(corrosion_allowance, 3),
                 shell_thickness_mm=round(shell_thickness_mm, 3),
                 head_thickness_mm=round(head_thickness_mm, 3),

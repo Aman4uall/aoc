@@ -1,0 +1,151 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Capacity case scored deterministically from benchmark throughput and market basis."
+  ],
+  "decision_id": "capacity_case",
+  "context": "Capacity selection scored against market fit, scale economy, operability, and utility-integration leverage.",
+  "criteria": [
+    {
+      "name": "Scale fit",
+      "weight": 0.35,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Selected scale should remain close to the stated benchmark throughput."
+    },
+    {
+      "name": "Market fit",
+      "weight": 0.3,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "India demand and price basis must support the chosen scale."
+    },
+    {
+      "name": "Utility integration",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Large continuous plants gain more from heat and utility integration."
+    },
+    {
+      "name": "Operability",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Overbuilt or undersized plants distort staffing and reliability assumptions."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR."
+      ],
+      "candidate_id": "150000_tpa",
+      "candidate_type": "capacity_case",
+      "description": "150,000 TPA plant basis",
+      "inputs": {
+        "capacity_tpa": "150000",
+        "market_price_inr_per_kg": "63.00"
+      },
+      "outputs": {
+        "scale_fit": "70.0",
+        "market_fit": "72.0",
+        "utility_fit": "64.0",
+        "operability": "88.0"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "scale_fit": 70.0,
+        "market_fit": 72.0,
+        "utility_fit": 64.0,
+        "operability": 88.0
+      },
+      "total_score": 72.1,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR."
+      ],
+      "candidate_id": "200000_tpa",
+      "candidate_type": "capacity_case",
+      "description": "200,000 TPA plant basis",
+      "inputs": {
+        "capacity_tpa": "200000",
+        "market_price_inr_per_kg": "63.00"
+      },
+      "outputs": {
+        "scale_fit": "100.0",
+        "market_fit": "90.0",
+        "utility_fit": "91.0",
+        "operability": "86.0"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "scale_fit": 100.0,
+        "market_fit": 90.0,
+        "utility_fit": 91.0,
+        "operability": 86.0
+      },
+      "total_score": 93.1,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR."
+      ],
+      "candidate_id": "250000_tpa",
+      "candidate_type": "capacity_case",
+      "description": "250,000 TPA plant basis",
+      "inputs": {
+        "capacity_tpa": "250000",
+        "market_price_inr_per_kg": "63.00"
+      },
+      "outputs": {
+        "scale_fit": "70.0",
+        "market_fit": "78.0",
+        "utility_fit": "92.0",
+        "operability": "66.0"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "scale_fit": 70.0,
+        "market_fit": 78.0,
+        "utility_fit": 92.0,
+        "operability": 66.0
+      },
+      "total_score": 76.2,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "200000_tpa",
+  "selected_summary": "200,000 TPA plant basis selected because it best balances the benchmark throughput, market basis, and integration leverage.",
+  "hard_constraint_results": [
+    "Public-data-only market basis enforced.",
+    "India-only economic basis enforced."
+  ],
+  "confidence": 0.82,
+  "scenario_stability": "stable",
+  "approval_required": false,
+  "blocked_value_ids": []
+}

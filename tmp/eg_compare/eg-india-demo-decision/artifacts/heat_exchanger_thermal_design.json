@@ -1,0 +1,45 @@
+{
+  "citations": [
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Exchanger selector scored alternatives from gross unit duties."
+  ],
+  "exchanger_id": "E-101",
+  "selected_configuration": "Shell And Tube",
+  "governing_equations": [
+    "Q = U * A * LMTD",
+    "A = Q / (U * LMTD)",
+    "m_phase = Q / lambda"
+  ],
+  "thermal_inputs": {
+    "heat_load_kw": "34024.794",
+    "lmtd_k": "8.000",
+    "u_w_m2_k": "470.000",
+    "package_family": "process_exchange",
+    "circulation_flow_m3_hr": "1818.329",
+    "phase_change_load_kg_hr": "0.000",
+    "package_holdup_m3": "542.949",
+    "utility_topology": "shared HTM island network (shared_htm) with 1 utility islands",
+    "utility_architecture_family": "shared_htm",
+    "selected_train_step_id": "omega_catalytic_pinch_htm__shared_htm_step_01",
+    "selected_island_id": "omega_catalytic_pinch_htm__shared_htm_shared_htm_01",
+    "selected_header_level": "1",
+    "selected_cluster_id": "none",
+    "allocated_recovered_duty_target_kw": "42530.992",
+    "boiling_side_coefficient_w_m2_k": "1200.000",
+    "condensing_side_coefficient_w_m2_k": "1200.000"
+  },
+  "package_basis": {
+    "package_family": "process_exchange",
+    "selected_package_roles": "circulation, controls, exchanger, expansion, header, relief",
+    "selected_package_items": "omega_catalytic_pinch_htm__shared_htm_step_01_exchanger, omega_catalytic_pinch_htm__shared_htm_step_01_controls, omega_catalytic_pinch_htm__shared_htm_step_01_header, omega_catalytic_pinch_htm__shared_htm_step_01_circulation, omega_catalytic_pinch_htm__shared_htm_step_01_expansion, omega_catalytic_pinch_htm__shared_htm_step_01_relief"
+  },
+  "markdown": "Exchanger E-101 uses Shell And Tube configuration with area 9049.147 m2. Selected utility-train step: omega_catalytic_pinch_htm__shared_htm_step_01; package family: process_exchange; architecture family: shared_htm."
+}

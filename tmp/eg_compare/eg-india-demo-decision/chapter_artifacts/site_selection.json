@@ -1,0 +1,27 @@
+{
+  "chapter_id": "site_selection",
+  "title": "Site Selection",
+  "stage_id": "site_selection",
+  "status": "complete",
+  "required_inputs": [
+    "research_bundle"
+  ],
+  "produced_outputs": [
+    "site_selection",
+    "site_selection_decision"
+  ],
+  "blockers": [],
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis.",
+    "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis.",
+    "Site choice is ranked deterministically from scored India cluster attributes and configured preferences."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Site Selection\n\nDahej, Gujarat is selected because it best combines petrochemical integration, port logistics, utilities, industrial services, and a defendable India cost basis for a 200000 TPA EG plant.\n\n### Deterministic Site Decision\n\nDahej is selected because it provides the strongest combined cluster, logistics, utility, and India execution fit for a 200000 TPA EG plant."
+}

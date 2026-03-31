@@ -1,0 +1,374 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Exchanger selector scored alternatives from gross unit duties.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+    "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties."
+  ],
+  "items": [
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "equipment_id": "R-101",
+      "equipment_type": "Reactor",
+      "service": "Tubular Plug Flow Hydrator",
+      "design_basis": "tubular_plug_flow_hydrator selected at 1.00 h residence time and 0.960 conversion basis.",
+      "volume_m3": 27004.165,
+      "design_temperature_c": 255.0,
+      "design_pressure_bar": 20.0,
+      "material_of_construction": "Carbon Steel",
+      "duty_kw": 7600.213,
+      "notes": "Selector-driven reactor basis."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "equipment_id": "PU-201",
+      "equipment_type": "Distillation column",
+      "service": "Distillation and purification train",
+      "design_basis": "7 stages equivalent",
+      "volume_m3": 21.206,
+      "design_temperature_c": 140.0,
+      "design_pressure_bar": 2.0,
+      "material_of_construction": "Carbon Steel",
+      "duty_kw": 3179.805,
+      "notes": "Selector-driven process-unit envelope."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "equipment_id": "V-101",
+      "equipment_type": "Flash drum",
+      "service": "Intermediate disengagement",
+      "design_basis": "Generic separator hold-up",
+      "volume_m3": 4860.75,
+      "design_temperature_c": 85.0,
+      "design_pressure_bar": 3.0,
+      "material_of_construction": "Carbon Steel",
+      "duty_kw": 0.0,
+      "notes": "Generic separation hold-up vessel."
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+        "Exchanger selector scored alternatives from gross unit duties."
+      ],
+      "equipment_id": "E-101",
+      "equipment_type": "Heat exchanger",
+      "service": "R-rough to D-rough heat recovery",
+      "design_basis": "LMTD 8.0 K",
+      "volume_m3": 723.932,
+      "design_temperature_c": 180.0,
+      "design_pressure_bar": 8.0,
+      "material_of_construction": "Carbon Steel",
+      "duty_kw": 34024.794,
+      "notes": "Selector-driven exchanger basis."
+    },
+    {
+      "citations": [
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+        "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions."
+      ],
+      "equipment_id": "TK-301",
+      "equipment_type": "Storage tank",
+      "service": "Ethylene Glycol storage via vertical tank farm",
+      "design_basis": "14.1 days inventory",
+      "volume_m3": 8580.903,
+      "design_temperature_c": 45.0,
+      "design_pressure_bar": 1.2,
+      "material_of_construction": "SS304",
+      "duty_kw": 0.0,
+      "notes": "Selector-driven storage basis."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger."
+      ],
+      "equipment_id": "HX-01",
+      "equipment_type": "HTM loop exchanger",
+      "service": "R-rough to D-rough heat recovery",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_01; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 542.949,
+      "design_temperature_c": 213.0,
+      "design_pressure_bar": 11.0,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 34024.794,
+      "notes": "Primary exchanger item derived from selected utility-train step."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls."
+      ],
+      "equipment_id": "HX-01-CTRL",
+      "equipment_type": "Utility control package",
+      "service": "R-rough to D-rough heat recovery control valves, instrumentation, and bypass station",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_01; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 0.15,
+      "design_temperature_c": 203.0,
+      "design_pressure_bar": 9.0,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 0.0,
+      "notes": "Includes control valve station, bypass, and instrumentation package for the selected train step."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: header."
+      ],
+      "equipment_id": "HX-01-HDR",
+      "equipment_type": "Shared HTM header manifold",
+      "service": "R-rough to D-rough heat recovery network header and isolation package",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_01; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 0.851,
+      "design_temperature_c": 205.0,
+      "design_pressure_bar": 14.5,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 34024.794,
+      "notes": "Network-level header/manifold package added for richer heat-network architecture."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: circulation."
+      ],
+      "equipment_id": "HX-01-PMP",
+      "equipment_type": "HTM circulation skid",
+      "service": "R-rough to D-rough heat recovery circulation loop",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_01; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 0.25,
+      "design_temperature_c": 205.0,
+      "design_pressure_bar": 14.5,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 15.466,
+      "notes": "HTM circulation skid sized from recovered duty and selected train topology."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: expansion."
+      ],
+      "equipment_id": "HX-01-EXP",
+      "equipment_type": "HTM expansion tank",
+      "service": "R-rough to D-rough heat recovery HTM expansion and inventory hold-up",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_01; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 2.835,
+      "design_temperature_c": 210.0,
+      "design_pressure_bar": 6.0,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 0.0,
+      "notes": "Expansion volume estimated from recovered duty and HTM loop inventory basis."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: relief."
+      ],
+      "equipment_id": "HX-01-RV",
+      "equipment_type": "HTM relief package",
+      "service": "R-rough to D-rough heat recovery thermal relief and collection package",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_01; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 1.309,
+      "design_temperature_c": 213.0,
+      "design_pressure_bar": 13.5,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 0.0,
+      "notes": "Relief package includes relief device and small knock-out volume for HTM overpressure screening."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: exchanger."
+      ],
+      "equipment_id": "HX-02",
+      "equipment_type": "Heat integration exchanger",
+      "service": "D-rough to E-rough heat recovery",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_02; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 30.379,
+      "design_temperature_c": 162.0,
+      "design_pressure_bar": 6.5,
+      "material_of_construction": "SS316",
+      "duty_kw": 8506.198,
+      "notes": "Primary exchanger item derived from selected utility-train step."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Cluster id: none.",
+        "Header level: 1.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+        "Utility train package role: controls."
+      ],
+      "equipment_id": "HX-02-CTRL",
+      "equipment_type": "Utility control package",
+      "service": "D-rough to E-rough heat recovery control valves, instrumentation, and bypass station",
+      "design_basis": "Utility train package item for omega_catalytic_pinch_htm__shared_htm_step_02; island omega_catalytic_pinch_htm__shared_htm_shared_htm_01; header 1; cluster -",
+      "volume_m3": 0.15,
+      "design_temperature_c": 158.0,
+      "design_pressure_bar": 5.0,
+      "material_of_construction": "Carbon steel",
+      "duty_kw": 0.0,
+      "notes": "Includes control valve station, bypass, and instrumentation package for the selected train step."
+    }
+  ]
+}

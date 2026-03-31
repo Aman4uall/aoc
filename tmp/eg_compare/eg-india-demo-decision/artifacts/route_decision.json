@@ -1,0 +1,243 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties."
+  ],
+  "decision_id": "route_selection",
+  "context": "Final route and process architecture selection",
+  "criteria": [
+    {
+      "name": "Economic margin",
+      "weight": 0.22,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Selected route must preserve gross margin after heat-integration choice."
+    },
+    {
+      "name": "Utility intensity",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Residual purchased utility is critical in India-mode economics."
+    },
+    {
+      "name": "CAPEX intensity",
+      "weight": 0.18,
+      "hard_constraint": false,
+      "direction": "minimize",
+      "justification": "Route and recovery case should avoid excessive capital burden."
+    },
+    {
+      "name": "Industrial maturity",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Proven industrial precedent reduces decision risk."
+    },
+    {
+      "name": "Selectivity",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Higher MEG selectivity reduces downstream purification burden."
+    },
+    {
+      "name": "India fit",
+      "weight": 0.1,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Feedstock, cluster fit, and byproduct handling must align with India deployment."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties.",
+        "Route family `liquid_hydration_train` feeds final route ranking."
+      ],
+      "candidate_id": "eo_hydration",
+      "candidate_type": "route_selection",
+      "description": "Ethylene oxide hydration (Liquid Hydration Train) with Pinch + HTM loop",
+      "inputs": {},
+      "outputs": {
+        "route_family": "liquid_hydration_train",
+        "selected_heat_case": "eo_hydration_pinch_htm",
+        "economic_margin_inr": "6115793090.27",
+        "residual_hot_utility_kw": "49263.839",
+        "reactor_basis": "Tubular plug-flow hydrator",
+        "separation_train": "EO flash -> water removal -> vacuum glycol distillation"
+      },
+      "rejected_reasons": [
+        "dehydration_duty",
+        "glycol_split_vle_basis"
+      ],
+      "score_breakdown": {
+        "Economic margin": 0.0,
+        "Utility intensity": 0.0,
+        "CAPEX intensity": 0.0,
+        "Industrial maturity": 92.0,
+        "Selectivity": 93.0,
+        "India fit": 102.0
+      },
+      "total_score": 39.95,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+        "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties.",
+        "Route family `liquid_hydration_train` feeds final route ranking."
+      ],
+      "candidate_id": "omega_catalytic",
+      "candidate_type": "route_selection",
+      "description": "OMEGA catalytic route via ethylene carbonate (Liquid Hydration Train) with Pinch + HTM loop",
+      "inputs": {},
+      "outputs": {
+        "route_family": "liquid_hydration_train",
+        "selected_heat_case": "omega_catalytic_pinch_htm",
+        "economic_margin_inr": "6261556901.71",
+        "residual_hot_utility_kw": "43800.060",
+        "reactor_basis": "Tubular plug-flow hydrator",
+        "separation_train": "EO flash -> water removal -> vacuum glycol distillation"
+      },
+      "rejected_reasons": [
+        "dehydration_duty",
+        "glycol_split_vle_basis"
+      ],
+      "score_breakdown": {
+        "Economic margin": 16.922106078259546,
+        "Utility intensity": 14.814503939657797,
+        "CAPEX intensity": 90.33757113239633,
+        "Industrial maturity": 92.0,
+        "Selectivity": 99.0,
+        "India fit": 90.0
+      },
+      "total_score": 60.597,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `chlorinated_hydrolysis_train` drives rough utility/CAPEX screening.",
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `chlorinated_hydrolysis_train` drives rough utility/CAPEX screening.",
+        "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties.",
+        "Route family `chlorinated_hydrolysis_train` feeds final route ranking."
+      ],
+      "candidate_id": "chlorohydrin",
+      "candidate_type": "route_selection",
+      "description": "Ethylene chlorohydrin hydrolysis (Chlorinated Hydrolysis Train) with No recovery",
+      "inputs": {},
+      "outputs": {
+        "route_family": "chlorinated_hydrolysis_train",
+        "selected_heat_case": "chlorohydrin_no_recovery",
+        "economic_margin_inr": "6977174119.12",
+        "residual_hot_utility_kw": "13044.246",
+        "reactor_basis": "Agitated hydrolysis CSTR train",
+        "separation_train": "Salt removal -> brine handling -> water removal -> purification"
+      },
+      "rejected_reasons": [
+        "Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis.",
+        "chloride_waste_burden",
+        "brine_handling_penalty"
+      ],
+      "score_breakdown": {
+        "Economic margin": 100.0,
+        "Utility intensity": 100.0,
+        "CAPEX intensity": 100.0,
+        "Industrial maturity": 30.0,
+        "Selectivity": 82.0,
+        "India fit": 22.0
+      },
+      "total_score": -1.0,
+      "feasible": false
+    }
+  ],
+  "selected_candidate_id": "omega_catalytic",
+  "selected_summary": "OMEGA catalytic route via ethylene carbonate is selected within the `Liquid Hydration Train` family because it combines the strongest margin, residual utility burden, maturity, and India deployment fit under the selected recovery architecture.",
+  "hard_constraint_results": [
+    "chlorohydrin: Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis.",
+    "Selected route must remain atom-balanced.",
+    "Route-family critic escalation: route_family_critic_flags_present",
+    "Architecture thermo-basis escalation: architecture_package_fallback_thermo; architecture_package_sparse_data_compounded",
+    "Architecture kinetics-basis escalation: architecture_package_sparse_data_compounded"
+  ],
+  "confidence": 0.5800000000000001,
+  "scenario_stability": "borderline",
+  "approval_required": true,
+  "blocked_value_ids": []
+}

@@ -1,0 +1,25 @@
+{
+  "chapter_id": "block_flow_diagram",
+  "title": "Block Flow Diagram",
+  "stage_id": "block_diagram",
+  "status": "complete",
+  "required_inputs": [
+    "route_selection",
+    "route_survey",
+    "research_bundle"
+  ],
+  "produced_outputs": [
+    "process_narrative"
+  ],
+  "blockers": [],
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Seeded BFD used for deterministic stage execution."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Block Flow Diagram\n\n```mermaid\nflowchart LR\n  A[Feed Storage] --> B[Feed Preparation]\n  B --> C[Reactor]\n  C --> D[Separation]\n  D --> E[Purification]\n  E --> F[Product Storage]\n```"
+}

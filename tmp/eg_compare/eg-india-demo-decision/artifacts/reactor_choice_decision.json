@@ -1,0 +1,212 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening."
+  ],
+  "decision_id": "reactor_choice",
+  "context": "Reactor-family selection for route omega_catalytic.",
+  "criteria": [
+    {
+      "name": "Technical feasibility",
+      "weight": 0.35,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Reactor must match chemistry and phase system."
+    },
+    {
+      "name": "Heat management",
+      "weight": 0.3,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Thermal controllability is central to safe operation."
+    },
+    {
+      "name": "Operability",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Selected reactor should support stable production."
+    },
+    {
+      "name": "Economics",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Reactor family should not impose avoidable cost burden."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "tubular_plug_flow_hydrator",
+      "candidate_type": "reactor_selector",
+      "description": "Tubular or plug-flow hydrator service",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "heat_management": 94.0,
+        "selectivity": 90.0,
+        "operability": 88.0
+      },
+      "total_score": 102.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "jacketed_cstr_train",
+      "candidate_type": "reactor_selector",
+      "description": "Jacketed CSTR train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "heat_management": 76.0,
+        "selectivity": 72.0,
+        "operability": 82.0
+      },
+      "total_score": 88.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "fixed_bed_converter",
+      "candidate_type": "reactor_selector",
+      "description": "Fixed-bed catalytic converter",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "heat_management": 90.0,
+        "selectivity": 84.0,
+        "operability": 86.0
+      },
+      "total_score": 54.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "slurry_loop_reactor",
+      "candidate_type": "reactor_selector",
+      "description": "Slurry loop reactor",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "heat_management": 70.0,
+        "selectivity": 65.0,
+        "operability": 72.0
+      },
+      "total_score": 48.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "slurry_carboxylation_reactor",
+      "candidate_type": "reactor_selector",
+      "description": "Slurry carbonation/carboxylation reactor",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "heat_management": 82.0,
+        "selectivity": 78.0,
+        "operability": 76.0
+      },
+      "total_score": 52.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "high_pressure_carbonylation_loop",
+      "candidate_type": "reactor_selector",
+      "description": "High-pressure carbonylation loop reactor",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [
+        "dehydration_duty",
+        "glycol_split_vle_basis"
+      ],
+      "score_breakdown": {
+        "heat_management": 88.0,
+        "selectivity": 92.0,
+        "operability": 76.0
+      },
+      "total_score": 50.0,
+      "feasible": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "trickle_bed_oxidizer",
+      "candidate_type": "reactor_selector",
+      "description": "Trickle-bed or oxidation reactor train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "heat_management": 86.0,
+        "selectivity": 82.0,
+        "operability": 78.0
+      },
+      "total_score": 56.0,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "tubular_plug_flow_hydrator",
+  "selected_summary": "Tubular or plug-flow hydrator service selected as the highest-ranked alternative.",
+  "hard_constraint_results": [
+    "Alternative must remain technically feasible for the inferred process archetype.",
+    "Reactor kinetics-basis escalation: architecture_package_sparse_data_compounded"
+  ],
+  "confidence": 0.74,
+  "scenario_stability": "borderline",
+  "approval_required": true,
+  "blocked_value_ids": []
+}

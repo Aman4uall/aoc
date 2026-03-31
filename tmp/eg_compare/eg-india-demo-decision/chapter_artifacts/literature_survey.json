@@ -1,0 +1,24 @@
+{
+  "chapter_id": "literature_survey",
+  "title": "Literature Survey",
+  "stage_id": "literature_route_survey",
+  "status": "complete",
+  "required_inputs": [
+    "research_bundle"
+  ],
+  "produced_outputs": [
+    "route_survey"
+  ],
+  "blockers": [],
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Literature Survey\n\nThe route survey compares industrial EG pathways on maturity, selectivity, safety, utility intensity, and India feedstock fit. Ethylene oxide hydration remains the strongest basis because it is the most defensible large-scale route for a 200000 TPA feasibility-style home paper."
+}

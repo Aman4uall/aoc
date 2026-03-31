@@ -1,0 +1,217 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Operations planning uses deterministic route-family defaults and capacity scaling for pre-feasibility scheduling and inventory logic."
+  ],
+  "planning_id": "operations_planning",
+  "service_family": "continuous_liquid_purification",
+  "recommended_operating_mode": "continuous",
+  "availability_policy_label": "continuous_liquid_train",
+  "raw_material_buffer_days": 19.6,
+  "finished_goods_buffer_days": 9.4,
+  "operating_stock_days": 2.5,
+  "restart_buffer_days": 1.5,
+  "startup_ramp_days": 2.0,
+  "campaign_length_days": 170.0,
+  "cleaning_cycle_days": 150.0,
+  "cleaning_downtime_days": 2.0,
+  "turnaround_buffer_factor": 1.05,
+  "throughput_loss_fraction": 0.012344470588235294,
+  "restart_loss_fraction": 0.0061600000000000005,
+  "annual_restart_loss_kg": 16426.66666666667,
+  "buffer_basis_note": "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+  "markdown": "### Operations Planning Basis\n\nSelected operating mode: **continuous**\n\n| Parameter | Value |\n| --- | --- |\n| Service family | continuous_liquid_purification |\n| Availability policy | continuous_liquid_train |\n| Raw-material buffer (d) | 19.6 |\n| Finished-goods buffer (d) | 9.4 |\n| Operating stock (d) | 2.5 |\n| Restart buffer (d) | 1.5 |\n| Startup ramp (d) | 2.0 |\n| Campaign length (d) | 170.0 |\n| Cleaning cycle (d) | 150.0 |\n| Cleaning downtime (d) | 2.0 |\n| Restart loss fraction | 0.0062 |\n| Throughput loss fraction | 0.0123 |\n| Annual restart loss (kg/y) | 16,426.7 |",
+  "calc_traces": [
+    {
+      "trace_id": "ops_throughput_loss",
+      "title": "Operations throughput-loss basis",
+      "formula": "loss = cleaning downtime / campaign length + startup ramp / campaign length * restart loss fraction * 8",
+      "substitutions": {
+        "cleaning_downtime": "2.000",
+        "campaign_length": "170.000",
+        "startup_ramp": "2.000",
+        "restart_loss_fraction": "0.00616"
+      },
+      "result": "0.012344",
+      "units": "-",
+      "notes": "Used to keep availability and working-capital logic aligned with the operating-mode choice."
+    },
+    {
+      "trace_id": "ops_restart_loss",
+      "title": "Annual restart-loss basis",
+      "formula": "annual restart loss = daily output * startup ramp * restart loss fraction * restart events per year",
+      "substitutions": {
+        "daily_output_kg": "606060.606",
+        "startup_ramp_days": "2.000",
+        "restart_loss_fraction": "0.00616",
+        "restart_events_per_year": "2.200"
+      },
+      "result": "16426.667",
+      "units": "kg/y",
+      "notes": "This restart-loss basis is later valued in working capital and finance timing."
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+      ],
+      "value_id": "ops_raw_material_buffer_days",
+      "name": "Raw-material buffer days",
+      "value": "19.6",
+      "units": "days",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+      ],
+      "value_id": "ops_finished_goods_buffer_days",
+      "name": "Finished-goods buffer days",
+      "value": "9.4",
+      "units": "days",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+      ],
+      "value_id": "ops_operating_stock_days",
+      "name": "Operating stock days",
+      "value": "2.5",
+      "units": "days",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+      ],
+      "value_id": "ops_restart_loss_fraction",
+      "name": "Restart loss fraction",
+      "value": "0.00616",
+      "units": "-",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+      ],
+      "value_id": "ops_annual_restart_loss",
+      "name": "Annual restart loss",
+      "value": "16426.666667",
+      "units": "kg/y",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    }
+  ]
+}

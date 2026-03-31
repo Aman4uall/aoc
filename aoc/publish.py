@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 import re
 import textwrap
 
@@ -43,6 +44,7 @@ from aoc.models import (
     ResolvedSourceSet,
     ResolvedValueArtifact,
     RouteFamilyArtifact,
+    RouteSurveyArtifact,
     SolveResult,
     SparseDataPolicyArtifact,
     SourceRecord,
@@ -123,6 +125,150 @@ def markdown_table(headers: list[str], rows: list[list[str]]) -> str:
     return "\n".join([header_line, separator, *body])
 
 
+def _project_table_rows(headers: list[str], rows: list[list[str]], selected_headers: list[str]) -> list[list[str]]:
+    header_positions = {header: index for index, header in enumerate(headers)}
+    return [
+        [
+            row[header_positions[header]] if header in header_positions and header_positions[header] < len(row) else "n/a"
+            for header in selected_headers
+        ]
+        for row in rows
+    ]
+
+
+def _narrow_table_section(title: str, headers: list[str], rows: list[list[str]], selected_headers: list[str]) -> str:
+    return f"### {title}\n\n" + markdown_table(selected_headers, _project_table_rows(headers, rows, selected_headers)) + "\n"
+
+
+def _normalized_heading_label(heading_text: str) -> str:
+    label = re.sub(r"^#+\s*", "", heading_text).strip()
+    label = re.sub(r"^\d+\.\s*", "", label).strip()
+    return label or "Report Section"
+
+
+def _strip_leading_heading(markdown_text: str, heading_prefix: str) -> str:
+    lines = markdown_text.splitlines()
+    if lines and lines[0].strip().startswith(heading_prefix):
+        lines = lines[1:]
+        while lines and not lines[0].strip():
+            lines = lines[1:]
+    return "\n".join(lines).strip()
+
+
+def _is_markdown_table_start(lines: list[str], index: int) -> bool:
+    if index + 1 >= len(lines):
+        return False
+    first = lines[index].strip()
+    second = lines[index + 1].strip()
+    return first.startswith("|") and second.startswith("|") and "---" in second
+
+
+def _last_non_empty_line(lines: list[str]) -> str:
+    for line in reversed(lines):
+        if line.strip():
+            return line.strip()
+    return ""
+
+
+def _apply_caption_numbering(markdown_text: str) -> str:
+    lines = markdown_text.splitlines()
+    output: list[str] = []
+    current_heading = "Report Section"
+    table_counter = 0
+    figure_counter = 0
+
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            current_heading = _normalized_heading_label(stripped)
+            output.append(line)
+            continue
+        if _is_markdown_table_start(lines, index):
+            previous = _last_non_empty_line(output)
+            if not previous.startswith("**Table "):
+                table_counter += 1
+                output.extend([f"**Table {table_counter}. {current_heading}**", ""])
+            output.append(line)
+            continue
+        if stripped.startswith("```mermaid"):
+            previous = _last_non_empty_line(output)
+            if not previous.startswith("**Figure "):
+                figure_counter += 1
+                output.extend([f"**Figure {figure_counter}. {current_heading}**", ""])
+            output.append(line)
+            continue
+        output.append(line)
+    return "\n".join(output)
+
+
+def _caption_register_lines(markdown_text: str, caption_prefix: str) -> list[str]:
+    lines: list[str] = []
+    for line in markdown_text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(f"**{caption_prefix} ") and stripped.endswith("**"):
+            lines.append(stripped.strip("*"))
+    return lines
+
+
+def _build_caption_register_sections(markdown_text: str) -> str:
+    table_lines = _caption_register_lines(markdown_text, "Table")
+    figure_lines = _caption_register_lines(markdown_text, "Figure")
+    table_entries = [f"- {line}" for line in table_lines] or ["- No numbered tables captured."]
+    figure_entries = [f"- {line}" for line in figure_lines] or ["- No numbered figures captured."]
+    sections = [
+        "## List of Tables",
+        "",
+        *table_entries,
+        "",
+        "## List of Figures",
+        "",
+        *figure_entries,
+    ]
+    return "\n".join(sections).strip()
+
+
+def _replace_once(markdown_text: str, target: str, replacement: str) -> str:
+    return markdown_text.replace(target, replacement, 1) if target in markdown_text else markdown_text
+
+
+def _format_appendix_bundle(markdown_text: str) -> str:
+    appendix_body = markdown_text.strip()
+    appendix_heading_pairs = [
+        ("### Appendix A: Material Safety Data Sheet", "## Appendix A: Material Safety Data Sheet"),
+        ("### Appendix B: Python Code and Reproducibility Bundle", "## Appendix B: Python Code and Reproducibility Bundle"),
+        ("### Appendix C: Process Design Data Sheet", "## Appendix C: Process Design Data Sheet"),
+    ]
+    for original, promoted in appendix_heading_pairs:
+        appendix_body = _replace_once(appendix_body, original, promoted)
+        appendix_body = _replace_once(appendix_body, promoted, f"---\n\n{promoted}")
+
+    annexure_groups = [
+        ("### Benchmark Manifest", "## Annexure I: Evidence and Source Basis"),
+        ("### Property Table", "## Annexure II: Property and Thermodynamic Registers"),
+        ("### Reaction Extent Set", "## Annexure III: Process, Decision, and Critic Registers"),
+        ("### Stream Table", "## Annexure IV: Streams, Flowsheet, and Solver Registers"),
+        ("### Equipment Table", "## Annexure V: Equipment, Utility, and Financial Registers"),
+    ]
+    for marker, heading in annexure_groups:
+        appendix_body = _replace_once(appendix_body, marker, f"---\n\n{heading}\n\n{marker}")
+
+    navigation_lines = [
+        "## Appendix Navigation",
+        "",
+        "The appendix package is organized into report-style appendices followed by grouped annexure registers for evidence, properties, flowsheet state, and design backup.",
+        "",
+        "- Appendix A: Material Safety Data Sheet",
+        "- Appendix B: Python Code and Reproducibility Bundle",
+        "- Appendix C: Process Design Data Sheet",
+        "- Annexure I: Evidence and Source Basis",
+        "- Annexure II: Property and Thermodynamic Registers",
+        "- Annexure III: Process, Decision, and Critic Registers",
+        "- Annexure IV: Streams, Flowsheet, and Solver Registers",
+        "- Annexure V: Equipment, Utility, and Financial Registers",
+    ]
+    return "\n".join([*navigation_lines, "", appendix_body]).strip()
+
+
 def references_markdown(source_index: dict[str, SourceRecord]) -> str:
     lines = ["## References", ""]
     for source in sorted(source_index.values(), key=lambda item: item.title.lower()):
@@ -165,6 +311,7 @@ def annexures_markdown(
     benchmark_manifest: BenchmarkManifest | None,
     resolved_sources: ResolvedSourceSet | None,
     product_profile: ProductProfileArtifact,
+    route_survey: RouteSurveyArtifact | None,
     reaction_system: ReactionSystem | None,
     property_gap: PropertyGapArtifact | None,
     resolved_values: ResolvedValueArtifact | None,
@@ -299,6 +446,66 @@ def annexures_markdown(
         for location in india_locations
     ]
     source_rows = [[source.source_id, source.source_kind.value, source.source_domain.value, source.title, source.geographic_label or source.geographic_scope.value, (source.url_or_doi or source.local_path or "Local source")] for source in sources.values()]
+    selected_route = None
+    if route_survey:
+        selected_route_id = route_decision.selected_candidate_id if route_decision is not None else None
+        selected_route = next((route for route in route_survey.routes if route.route_id == selected_route_id), None)
+        if selected_route is None and route_survey.routes:
+            selected_route = route_survey.routes[0]
+    msds_rows: list[list[str]] = []
+    if selected_route is not None:
+        primary_hazard = selected_route.hazards[0].description if selected_route.hazards else (
+            f"{process_archetype.hazard_intensity.title()} hazard screening basis." if process_archetype else "Process hazard basis not explicitly classified."
+        )
+        primary_safeguard = selected_route.hazards[0].safeguard if selected_route.hazards else "Contained handling, isolation, and compatible storage basis."
+        seen_materials: set[str] = set()
+        for participant in selected_route.participants:
+            if participant.name in seen_materials:
+                continue
+            seen_materials.add(participant.name)
+            if participant.role == "product":
+                hazard_basis = "; ".join(product_profile.safety_notes[:2]) or primary_hazard
+                handling_basis = product_profile.safety_notes[0] if product_profile.safety_notes else primary_safeguard
+            else:
+                hazard_basis = primary_hazard
+                handling_basis = primary_safeguard
+            msds_rows.append(
+                [
+                    participant.name,
+                    participant.role.title(),
+                    participant.formula or "-",
+                    hazard_basis,
+                    handling_basis,
+                    "Contained transfer, routine PPE, emergency isolation, and plant-response procedures per the SHE chapter.",
+                ]
+            )
+    if not msds_rows:
+        msds_rows = [
+            [
+                product_profile.product_name,
+                "Product",
+                "-",
+                "; ".join(product_profile.safety_notes[:2]) or "Product safety basis not explicitly resolved.",
+                product_profile.safety_notes[0] if product_profile.safety_notes else "Use contained handling and compatible storage.",
+                "Contained transfer, routine PPE, and emergency isolation according to the plant SHE basis.",
+            ]
+        ]
+    appendix_code_rows = [
+        ["Pipeline entry", "aoc/pipeline.py", "Stage orchestration, chapter generation, final report assembly"],
+        ["Engineering calculators", "aoc/calculators.py", "Core process calculations and artifact builders"],
+        ["Unit-operation solvers", "aoc/solvers/units.py", "Reactor, separation, hydraulic, solids, and package design logic"],
+        ["Economics engine", "aoc/economics_v2.py", "Project cost, working capital, financing, and schedules"],
+        ["Property engine", "aoc/properties/engine.py", "Pure-component and phase-equilibrium property routing"],
+        ["Report publisher", "aoc/publish.py", "Markdown assembly, annexures, and PDF rendering support"],
+    ]
+    appendix_artifact_rows = [
+        ["Benchmark manifest", benchmark_manifest.benchmark_id if benchmark_manifest else "n/a", "Benchmark/report parity contract basis"],
+        ["Resolved values", str(len(resolved_values.values) if resolved_values else 0), "Cited and estimated value basis carried into the report"],
+        ["Stream table", str(len(stream_table.streams)), "Material-balance stream ledger and composition basis"],
+        ["Equipment list", str(len(equipment)), "Equipment inventory for sizing, cost, and datasheets"],
+        ["Calc trace sections", str(len(calc_sections)), "Trace bundle captured for engineering auditability"],
+        ["Financial schedule rows", str(len(financial_schedule.lines) if financial_schedule else 0), "Typed multi-year finance schedule"],
+    ]
     source_resolution_rows = []
     for group in (resolved_sources.groups if resolved_sources else []):
         for candidate in group.candidates:
@@ -999,8 +1206,128 @@ def annexures_markdown(
         ["Power (kW)", f"{pump_design.power_kw:.3f}"],
     ] if pump_design else []
 
+    mechanical_headers = [
+        "Equipment",
+        "Type",
+        "Shell t (mm)",
+        "Head t (mm)",
+        "Class",
+        "Hydrotest (bar)",
+        "Nozzle (mm)",
+        "Support",
+        "Load Case",
+        "Support t (mm)",
+        "Load (kN)",
+        "Wind (kN)",
+        "Seismic (kN)",
+        "Piping (kN)",
+        "Thermal Growth (mm)",
+        "Reinforcement (mm2)",
+        "Support Variant",
+        "Anchor Groups",
+        "Footprint (m2)",
+        "Clearance (m)",
+        "Ladder",
+        "Lifting Lugs",
+        "Reinf. Family",
+        "Shell Factor",
+        "Platform",
+        "Platform Area (m2)",
+    ]
+    mechanical_rows_view = mechanical_rows or [["n/a"] * len(mechanical_headers)]
+    utility_island_headers = [
+        "Island",
+        "Topology",
+        "Role",
+        "Header",
+        "Cluster",
+        "Units",
+        "Target Duty (kW)",
+        "Potential (kW)",
+        "Recovered Duty (kW)",
+        "Residual Hot Utility (kW)",
+        "Residual Cold Utility (kW)",
+        "Candidates",
+        "Direct Matches",
+        "Indirect Matches",
+        "HTM Inventory (m3)",
+        "Header Pressure (bar)",
+        "Pair Score",
+        "Control Factor",
+    ]
+    utility_island_rows_view = utility_island_rows or [["n/a"] * len(utility_island_headers)]
+    utility_package_headers = [
+        "Island",
+        "Cluster",
+        "Header",
+        "Step",
+        "Equipment",
+        "Role",
+        "Family",
+        "Type",
+        "Service",
+        "Design Temp (C)",
+        "Design Pressure (bar)",
+        "Volume (m3)",
+        "Duty (kW)",
+        "Power (kW)",
+        "Flow (m3/h)",
+        "LMTD (K)",
+        "Area (m2)",
+        "Phase Load (kg/h)",
+    ]
+    utility_package_rows_view = utility_package_rows or [["n/a"] * len(utility_package_headers)]
+    financial_schedule_headers = [
+        "Year",
+        "Capacity Utilization (%)",
+        "Availability (%)",
+        "Revenue Loss (INR)",
+        "Revenue (INR)",
+        "Operating Cost (INR)",
+        "Utility-Island Service (INR)",
+        "Utility-Island Replacement (INR)",
+        "Utility-Island Turnaround (INR)",
+        "Principal (INR)",
+        "Interest (INR)",
+        "Debt Service (INR)",
+        "CFADS (INR)",
+        "DSCR",
+        "Depreciation (INR)",
+        "PBT (INR)",
+        "Tax (INR)",
+        "PAT (INR)",
+        "Cash Accrual (INR)",
+    ]
+    financial_schedule_rows_view = schedule_rows or [["n/a"] * len(financial_schedule_headers)]
+
     sections = [
         "## Annexures",
+        "",
+        "### Appendix A: Material Safety Data Sheet",
+        "",
+        "Screening MSDS-style sheets derived from the selected-route hazard basis, product safety notes, and the report's SHE basis.",
+        "",
+        "#### Material Safety Data Sheet Summary",
+        markdown_table(
+            ["Material", "Role", "Formula", "Hazard Summary", "Handling / Storage Basis", "Emergency / PPE Basis"],
+            msds_rows,
+        ),
+        "",
+        "### Appendix B: Python Code and Reproducibility Bundle",
+        "",
+        "#### Core Module Register",
+        markdown_table(["Bundle Item", "Path", "Purpose"], appendix_code_rows),
+        "",
+        "#### Reproducibility Artifact Register",
+        markdown_table(["Artifact", "Value / Count", "Purpose"], appendix_artifact_rows),
+        "",
+        "### Appendix C: Process Design Data Sheet",
+        "",
+        "#### Process Design Data Sheet Summary",
+        markdown_table(["Equipment", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "MoC"], datasheet_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        "",
+        "#### Process Design Data Sheet Bundle",
+        equipment_datasheets_markdown or "No equipment datasheet bundle captured.",
         "",
         "### Benchmark Manifest",
         markdown_table(["Field", "Value"], benchmark_rows or [["n/a", "n/a"]]),
@@ -1151,39 +1478,22 @@ def annexures_markdown(
         "### Equipment Table",
         markdown_table(["ID", "Type", "Service", "Volume (m3)", "Design Temp (C)", "Design Pressure (bar)", "MoC"], equipment_rows),
         "",
-        "### Mechanical Design Table",
-        markdown_table(
-            [
-                "Equipment",
-                "Type",
-                "Shell t (mm)",
-                "Head t (mm)",
-                "Class",
-                "Hydrotest (bar)",
-                "Nozzle (mm)",
-                "Support",
-                "Load Case",
-                "Support t (mm)",
-                "Load (kN)",
-                "Wind (kN)",
-                "Seismic (kN)",
-                "Piping (kN)",
-                "Thermal Growth (mm)",
-                "Reinforcement (mm2)",
-                "Support Variant",
-                "Anchor Groups",
-                "Footprint (m2)",
-                "Clearance (m)",
-                "Ladder",
-                "Lifting Lugs",
-                "Reinf. Family",
-                "Shell Factor",
-                "Platform",
-                "Platform Area (m2)",
-            ],
-            mechanical_rows
-            or [["n/a"] * 26],
+        _narrow_table_section(
+            "Mechanical Design Summary View",
+            mechanical_headers,
+            mechanical_rows_view,
+            ["Equipment", "Type", "Shell t (mm)", "Head t (mm)", "Class", "Support", "Load Case", "Platform"],
         ),
+        "",
+        _narrow_table_section(
+            "Mechanical Load and Foundation View",
+            mechanical_headers,
+            mechanical_rows_view,
+            ["Equipment", "Load (kN)", "Wind (kN)", "Seismic (kN)", "Piping (kN)", "Anchor Groups", "Footprint (m2)", "Clearance (m)"],
+        ),
+        "",
+        "### Mechanical Design Table",
+        markdown_table(mechanical_headers, mechanical_rows_view),
         "",
         "### Utility Table",
         markdown_table(["Utility", "Load", "Units", "Basis"], utility_rows),
@@ -1307,7 +1617,21 @@ def annexures_markdown(
         markdown_table(["Scenario", "Utility Cost (INR/y)", "Transport/Service (INR/y)", "Utility-Island Burden (INR/y)", "Operating Cost (INR/y)", "Revenue (INR/y)", "Gross Margin (INR/y)"], scenario_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Multi-Year Financial Schedule",
-        markdown_table(["Year", "Capacity Utilization (%)", "Availability (%)", "Revenue Loss (INR)", "Revenue (INR)", "Operating Cost (INR)", "Utility-Island Service (INR)", "Utility-Island Replacement (INR)", "Utility-Island Turnaround (INR)", "Principal (INR)", "Interest (INR)", "Debt Service (INR)", "CFADS (INR)", "DSCR", "Depreciation (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)", "Cash Accrual (INR)"], schedule_rows or [["n/a"] * 19]),
+        _narrow_table_section(
+            "Financial Schedule Summary View",
+            financial_schedule_headers,
+            financial_schedule_rows_view,
+            ["Year", "Capacity Utilization (%)", "Availability (%)", "Revenue (INR)", "Operating Cost (INR)", "CFADS (INR)", "DSCR", "Cash Accrual (INR)"],
+        ),
+        "",
+        _narrow_table_section(
+            "Financial Schedule Debt and Profit View",
+            financial_schedule_headers,
+            financial_schedule_rows_view,
+            ["Year", "Principal (INR)", "Interest (INR)", "Debt Service (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)"],
+        ),
+        "",
+        markdown_table(financial_schedule_headers, financial_schedule_rows_view),
         "",
         "### Typed Financial Schedule",
         markdown_table(["Year", "Capacity Utilization (%)", "Availability (%)", "DSCR", "CFADS", "Revenue", "Opex", "PBT", "Cash Accrual"], financial_schedule_rows or [["n/a"] * 9]),
@@ -1325,13 +1649,41 @@ def annexures_markdown(
         markdown_table(["Interval", "Shifted Upper (C)", "Shifted Lower (C)", "Hot Duty (kW)", "Cold Duty (kW)", "Net Duty (kW)"], composite_interval_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Utility Islands",
-        markdown_table(["Island", "Topology", "Role", "Header", "Cluster", "Units", "Target Duty (kW)", "Potential (kW)", "Recovered Duty (kW)", "Residual Hot Utility (kW)", "Residual Cold Utility (kW)", "Candidates", "Direct Matches", "Indirect Matches", "HTM Inventory (m3)", "Header Pressure (bar)", "Pair Score", "Control Factor"], utility_island_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        _narrow_table_section(
+            "Utility Island Summary View",
+            utility_island_headers,
+            utility_island_rows_view,
+            ["Island", "Topology", "Role", "Header", "Units", "Target Duty (kW)", "Recovered Duty (kW)", "Residual Hot Utility (kW)"],
+        ),
+        "",
+        _narrow_table_section(
+            "Utility Island Operating Window View",
+            utility_island_headers,
+            utility_island_rows_view,
+            ["Island", "Candidates", "Direct Matches", "Indirect Matches", "HTM Inventory (m3)", "Header Pressure (bar)", "Pair Score", "Control Factor"],
+        ),
+        "",
+        markdown_table(utility_island_headers, utility_island_rows_view),
         "",
         "### Selected Utility Train",
         markdown_table(["Exchanger", "Island", "Cluster", "Header", "Topology", "Service", "Hot Unit", "Cold Unit", "Recovered Duty (kW)", "Medium"], utility_train_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Utility Train Packages",
-        markdown_table(["Island", "Cluster", "Header", "Step", "Equipment", "Role", "Family", "Type", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "Duty (kW)", "Power (kW)", "Flow (m3/h)", "LMTD (K)", "Area (m2)", "Phase Load (kg/h)"], utility_package_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
+        _narrow_table_section(
+            "Utility Train Package Summary View",
+            utility_package_headers,
+            utility_package_rows_view,
+            ["Equipment", "Role", "Family", "Type", "Service", "Design Temp (C)", "Design Pressure (bar)", "Duty (kW)", "Area (m2)"],
+        ),
+        "",
+        _narrow_table_section(
+            "Utility Train Package Hydraulic View",
+            utility_package_headers,
+            utility_package_rows_view,
+            ["Equipment", "Header", "Volume (m3)", "Power (kW)", "Flow (m3/h)", "LMTD (K)", "Phase Load (kg/h)"],
+        ),
+        "",
+        markdown_table(utility_package_headers, utility_package_rows_view),
         "",
         _decision_markdown("Operating Mode Decision", process_synthesis.operating_mode_decision if process_synthesis else None),
         "",
@@ -1359,9 +1711,6 @@ def annexures_markdown(
         "",
         "### Economic Scenario Model",
         economic_scenarios.markdown if economic_scenarios else "No economic scenario model captured.",
-        "",
-        "### Process Design Datasheet",
-        markdown_table(["Equipment", "Service", "Design Temp (C)", "Design Pressure (bar)", "Volume (m3)", "MoC"], datasheet_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]]),
         "",
         "### Reactor Design Basis",
         markdown_table(["Field", "Value"], reactor_basis_rows or [["n/a", "n/a"]]),
@@ -1395,9 +1744,6 @@ def annexures_markdown(
         "### Tax and Depreciation Basis",
         tax_depreciation_basis.markdown if tax_depreciation_basis else "No tax/depreciation basis captured.",
         "",
-        "### Equipment Datasheet Bundle",
-        equipment_datasheets_markdown or "No equipment datasheet bundle captured.",
-        "",
         "### Source Extracts",
         markdown_table(["Source ID", "Kind", "Domain", "Title", "Geography", "Location"], source_rows),
         "",
@@ -1413,52 +1759,216 @@ def assemble_report(project_basis: ProjectBasis, chapters: list[ChapterArtifact]
     order = EG_CHAPTER_ORDER if project_basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA else GENERIC_CHAPTER_ORDER
     chapter_map = {chapter.chapter_id: chapter for chapter in chapters}
     ordered = [chapter_map[chapter_id] for chapter_id in order if chapter_id in chapter_map]
-    toc_lines = [f"{index}. {chapter.title}" for index, chapter in enumerate(ordered, start=1)]
+    toc_lines = ["- List of Tables", "- List of Figures", ""]
+    toc_lines.extend(f"{index}. {chapter.title}" for index, chapter in enumerate(ordered, start=1))
+    references_number = len(ordered) + 1
+    appendices_number = len(ordered) + 2
+    index_rows = [[str(index), chapter.title, str(index)] for index, chapter in enumerate(ordered, start=1)]
+    appendix_index_rows = [
+        ["A", "Material Safety Data Sheet", "Appendix A"],
+        ["B", "Python Code and Reproducibility Bundle", "Appendix B"],
+        ["C", "Process Design Data Sheet", "Appendix C"],
+    ]
+    toc_lines.extend(
+        [
+            f"{references_number}. References",
+            f"{appendices_number}. Appendices and Annexures",
+            "   - Appendix A: Material Safety Data Sheet",
+            "   - Appendix B: Python Code and Reproducibility Bundle",
+            "   - Appendix C: Process Design Data Sheet",
+        ]
+    )
+    basis_rows = [
+        ["Target product", project_basis.target_product],
+        ["Capacity", f"{project_basis.capacity_tpa:.2f} TPA"],
+        ["Purity target", f"{project_basis.target_purity_wt_pct:.2f} wt%"],
+        ["Operating mode", project_basis.operating_mode],
+        ["Region", project_basis.region],
+        ["Currency", project_basis.currency],
+        ["Process template", project_basis.process_template.value],
+    ]
+    control_rows = [
+        ["Report type", "End-to-end techno-economic feasibility and plant design report"],
+        ["Issue date", date.today().isoformat()],
+        ["Report basis", "Solver-backed benchmark-parity report package"],
+        ["Document coverage", "Chapters, references, appendices, annexures, and datasheet bundle"],
+    ]
+    formatted_annexures = _format_appendix_bundle(_strip_leading_heading(annexures_md, "## Annexures"))
     body = [
         f"# {project_basis.target_product} Plant Design Report",
         "",
-        f"- Capacity: {project_basis.capacity_tpa:.2f} TPA",
-        f"- Purity target: {project_basis.target_purity_wt_pct:.2f} wt%",
-        f"- Operating mode: {project_basis.operating_mode}",
-        f"- Region / currency: {project_basis.region} / {project_basis.currency}",
+        "## Preliminary Techno-Economic Feasibility Report",
+        "",
+        f"**Target product:** {project_basis.target_product}",
+        "",
+        f"**Design capacity:** {project_basis.capacity_tpa:.2f} TPA",
+        "",
+        f"**Region:** {project_basis.region}",
+        "",
+        f"**Issue date:** {date.today().isoformat()}",
+        "",
+        "---",
+        "",
+        "## Report Basis",
+        "",
+        markdown_table(["Field", "Value"], basis_rows),
+        "",
+        "## Document Control",
+        "",
+        markdown_table(["Field", "Value"], control_rows),
         "",
         "## Table of Contents",
         "\n".join(toc_lines),
         "",
+        "## Index",
+        "",
+        markdown_table(["Sr. No.", "Content", "Section"], index_rows),
+        "",
+        "## Appendix Index",
+        "",
+        markdown_table(["Appendix", "Content", "Section"], appendix_index_rows),
+        "",
     ]
-    for chapter in ordered:
+    for index, chapter in enumerate(ordered, start=1):
+        if index > 1:
+            body.extend(["---", ""])
+        body.append(f"# {index}. {chapter.title}")
+        body.append("")
         body.append(chapter.rendered_markdown.strip())
         body.append("")
-    body.extend([references_md, "", annexures_md, ""])
-    return "\n".join(body).strip() + "\n"
+    body.extend(
+        [
+            "---",
+            "",
+            f"# {references_number}. References",
+            "",
+            _strip_leading_heading(references_md, "## References"),
+            "",
+            "---",
+            "",
+            f"# {appendices_number}. Appendices and Annexures",
+            "",
+            formatted_annexures,
+            "",
+        ]
+    )
+    captioned_report = _apply_caption_numbering("\n".join(body).strip())
+    register_sections = _build_caption_register_sections(captioned_report)
+    if ordered:
+        first_chapter_heading = f"# 1. {ordered[0].title}"
+        captioned_report = captioned_report.replace(f"\n{first_chapter_heading}", f"\n{register_sections}\n\n{first_chapter_heading}", 1)
+    else:
+        captioned_report = "\n".join([captioned_report, "", register_sections]).strip()
+    return captioned_report + "\n"
 
 
 def render_pdf(markdown_text: str, output_path: str, title: str) -> str:
     clean_text = re.sub(r"`", "", markdown_text)
+    clean_text = re.sub(r"\*\*(.*?)\*\*", r"\1", clean_text)
     clean_text = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1", clean_text)
-    lines: list[str] = []
-    for paragraph in clean_text.splitlines():
-        if not paragraph.strip():
-            lines.append("")
-            continue
-        prefix = ""
-        text = paragraph
-        if paragraph.startswith("#"):
-            hashes = len(paragraph) - len(paragraph.lstrip("#"))
-            prefix = " " * max(0, hashes - 1)
-            text = paragraph.lstrip("#").strip().upper()
-        lines.extend(prefix + part for part in textwrap.wrap(text, width=92))
     document = fitz.open()
-    page = document.new_page()
-    page.set_mediabox(fitz.Rect(0, 0, 595, 842))
+    page_headers: list[str | None] = []
+    page = None
     y = 48
-    for line in lines:
-        if y > 790:
-            page = document.new_page()
-            page.set_mediabox(fitz.Rect(0, 0, 595, 842))
-            y = 48
-        page.insert_text((48, y), line, fontsize=10, fontname="cour")
-        y += 12 if line else 8
+    clean_lines = clean_text.splitlines()
+    current_header: str | None = None
+
+    def create_page(header_text: str | None = None, top_y: float | None = None) -> None:
+        nonlocal page, y
+        page = document.new_page()
+        page.set_mediabox(fitz.Rect(0, 0, 595, 842))
+        page_headers.append(header_text)
+        y = 48 if top_y is None else top_y
+
+    create_page()
+
+    def ensure_space(required_bottom: float = 790) -> None:
+        nonlocal page, y
+        if y > required_bottom:
+            create_page(current_header, top_y=60 if current_header else 48)
+
+    def render_wrapped(text: str, fontsize: int = 10, line_spacing: int = 12, wrap_width: int = 92, indent: int = 0) -> None:
+        nonlocal y
+        wrapped = textwrap.wrap(text, width=wrap_width) or [text]
+        for line in wrapped:
+            ensure_space()
+            page.insert_text((48 + indent, y), line, fontsize=fontsize, fontname="helv")
+            y += line_spacing
+
+    index = 0
+    while index < len(clean_lines):
+        paragraph = clean_lines[index]
+        stripped = paragraph.strip()
+        if not stripped:
+            y += 8
+            index += 1
+            continue
+        if stripped == "---":
+            ensure_space()
+            page.draw_line(fitz.Point(48, y), fitz.Point(547, y), color=(0, 0, 0), width=0.5)
+            y += 10
+            index += 1
+            continue
+        if _is_markdown_table_start(clean_lines, index):
+            headers = [cell.strip() for cell in clean_lines[index].strip().strip("|").split("|")]
+            render_wrapped("Columns: " + "; ".join(headers), fontsize=9, line_spacing=11, wrap_width=76)
+            index += 2
+            row_number = 1
+            while index < len(clean_lines) and clean_lines[index].strip().startswith("|"):
+                values = [cell.strip() for cell in clean_lines[index].strip().strip("|").split("|")]
+                row_pairs = [
+                    (headers[cell_index] if cell_index < len(headers) else f"Field {cell_index + 1}", values[cell_index] if cell_index < len(values) else "-")
+                    for cell_index in range(max(len(headers), len(values)))
+                ]
+                if len(headers) > 6:
+                    render_wrapped(f"Row {row_number}", fontsize=9, line_spacing=11, wrap_width=84)
+                    for header, value in row_pairs:
+                        render_wrapped(f"{header}: {value}", fontsize=9, line_spacing=10, wrap_width=74, indent=12)
+                else:
+                    render_wrapped(
+                        f"Row {row_number}: " + " | ".join(f"{header}: {value}" for header, value in row_pairs),
+                        fontsize=9,
+                        line_spacing=10,
+                        wrap_width=74,
+                    )
+                row_number += 1
+                index += 1
+            y += 4
+            continue
+        level = 0
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            stripped = stripped.lstrip("#").strip()
+        if level == 1 or stripped.startswith("Appendix "):
+            current_header = stripped
+        if (level == 1 or stripped.startswith("Appendix ")) and y > 80:
+            create_page(current_header, top_y=60 if current_header else 48)
+        fontsize = 10
+        wrap_width = 92
+        line_spacing = 12
+        if level == 1:
+            fontsize = 16
+            wrap_width = 62
+            line_spacing = 18
+        elif level == 2:
+            fontsize = 13
+            wrap_width = 72
+            line_spacing = 15
+        elif level == 3:
+            fontsize = 11
+            wrap_width = 84
+            line_spacing = 13
+        render_wrapped(stripped, fontsize=fontsize, line_spacing=line_spacing, wrap_width=wrap_width)
+        y += 4 if level else 2
+        index += 1
+    for page_index in range(document.page_count):
+        pdf_page = document[page_index]
+        header_text = page_headers[page_index] if page_index < len(page_headers) else None
+        if header_text:
+            pdf_page.insert_text((48, 24), f"{title} | {header_text}", fontsize=8, fontname="helv")
+            pdf_page.draw_line(fitz.Point(48, 32), fitz.Point(547, 32), color=(0, 0, 0), width=0.4)
+            pdf_page.draw_line(fitz.Point(48, 808), fitz.Point(547, 808), color=(0, 0, 0), width=0.4)
+        pdf_page.insert_text((260, 820), f"Page {page_index + 1}", fontsize=9, fontname="helv")
     document.set_metadata({"title": title})
     document.save(output_path)
     document.close()

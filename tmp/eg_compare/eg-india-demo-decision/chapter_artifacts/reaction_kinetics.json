@@ -1,0 +1,26 @@
+{
+  "chapter_id": "reaction_kinetics",
+  "title": "Reaction Kinetics",
+  "stage_id": "kinetic_feasibility",
+  "status": "complete",
+  "required_inputs": [
+    "route_selection",
+    "route_survey",
+    "research_bundle"
+  ],
+  "produced_outputs": [
+    "kinetic_assessment",
+    "kinetics_method_decision"
+  ],
+  "blockers": [],
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Reaction Kinetics\n\n### Selected Kinetic Method\n\nUse cited industrial or literature rate law directly. selected as the primary kinetic basis.\n\n| Method | Feasible | Score | Rejected Reasons |\n| --- | --- | --- | --- |\n| cited_rate_law | yes | 92.00 | - |\n| arrhenius_fit | yes | 88.50 | - |\n| apparent_order_fit | yes | 72.50 | - |\n| conservative_analogy | yes | 56.50 | - |\n\n### Kinetic Interpretation\n\nThe seeded kinetics package supports a practical residence-time basis for preliminary equipment sizing."
+}

@@ -1,0 +1,366 @@
+{
+  "citations": [],
+  "assumptions": [],
+  "framework_id": "ethylene_glycol_report_parity_framework",
+  "benchmark_id": "ethylene_glycol",
+  "overall_status": "partial",
+  "complete_chapter_count": 22,
+  "partial_chapter_count": 3,
+  "missing_chapter_count": 0,
+  "complete_support_count": 4,
+  "partial_support_count": 0,
+  "missing_support_count": 0,
+  "missing_chapter_ids": [],
+  "missing_support_ids": [],
+  "chapter_results": [
+    {
+      "chapter_id": "executive_summary",
+      "benchmark_title": "Executive Summary",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a standalone executive summary chapter."
+      ]
+    },
+    {
+      "chapter_id": "introduction_product_profile",
+      "benchmark_title": "Introduction",
+      "status": "complete",
+      "present": true,
+      "citation_count": 3,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark introduction includes identity and physical-property tables."
+      ]
+    },
+    {
+      "chapter_id": "market_capacity_selection",
+      "benchmark_title": "Capacity Selection",
+      "status": "complete",
+      "present": true,
+      "citation_count": 3,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Current report structure carries market and capacity basis as a dedicated chapter even though the benchmark PDF folds it into surrounding sections."
+      ]
+    },
+    {
+      "chapter_id": "literature_survey",
+      "benchmark_title": "Literature Survey",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a standalone literature survey chapter."
+      ]
+    },
+    {
+      "chapter_id": "process_selection",
+      "benchmark_title": "Process Selection",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes process-route comparison and selection rationale."
+      ]
+    },
+    {
+      "chapter_id": "site_selection",
+      "benchmark_title": "Site Selection",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes site-factor and India location rationale."
+      ]
+    },
+    {
+      "chapter_id": "thermodynamic_feasibility",
+      "benchmark_title": "Thermodynamics of Reaction",
+      "status": "complete",
+      "present": true,
+      "citation_count": 3,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report contains dedicated thermodynamic basis and reaction feasibility discussion."
+      ]
+    },
+    {
+      "chapter_id": "reaction_kinetics",
+      "benchmark_title": "Kinetics of Reaction",
+      "status": "complete",
+      "present": true,
+      "citation_count": 3,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report contains a dedicated kinetics chapter."
+      ]
+    },
+    {
+      "chapter_id": "block_flow_diagram",
+      "benchmark_title": "Block Diagram",
+      "status": "partial",
+      "present": true,
+      "citation_count": 3,
+      "missing_outputs": [],
+      "missing_markers": [
+        "graph TD"
+      ],
+      "notes": [
+        "Benchmark report includes a standalone process block diagram."
+      ]
+    },
+    {
+      "chapter_id": "process_description",
+      "benchmark_title": "Process Description",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a long narrative process description."
+      ]
+    },
+    {
+      "chapter_id": "material_balance",
+      "benchmark_title": "Material Balance",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes long unitwise stream tables."
+      ]
+    },
+    {
+      "chapter_id": "energy_balance",
+      "benchmark_title": "Energy Balance",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes long unitwise energy-balance tables."
+      ]
+    },
+    {
+      "chapter_id": "heat_integration_strategy",
+      "benchmark_title": "Heat Integration Strategy",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Current report structure carries heat integration as a dedicated chapter-equivalent engineering section."
+      ]
+    },
+    {
+      "chapter_id": "equipment_design_sizing",
+      "benchmark_title": "Sizing of Equipment",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes an equipment-wide sizing chapter."
+      ]
+    },
+    {
+      "chapter_id": "mechanical_design_moc",
+      "benchmark_title": "Mechanical Design and Material of Construction",
+      "status": "partial",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [
+        "mechanical_design_moc"
+      ],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report separates mechanical design and MoC into dedicated sections."
+      ]
+    },
+    {
+      "chapter_id": "storage_utilities",
+      "benchmark_title": "Storage & Utilities",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes dedicated storage and utility architecture coverage."
+      ]
+    },
+    {
+      "chapter_id": "instrumentation_control",
+      "benchmark_title": "Instrumentation & Process Control",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a dedicated control philosophy chapter."
+      ]
+    },
+    {
+      "chapter_id": "hazop",
+      "benchmark_title": "HAZOP",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes node-based HAZOP tables."
+      ]
+    },
+    {
+      "chapter_id": "safety_health_environment_waste",
+      "benchmark_title": "Safety, Health & Environment",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a dedicated SHE chapter."
+      ]
+    },
+    {
+      "chapter_id": "layout",
+      "benchmark_title": "Project & Plant Layout",
+      "status": "partial",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [
+        "layout"
+      ],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes plant layout figures and notes."
+      ]
+    },
+    {
+      "chapter_id": "project_cost",
+      "benchmark_title": "Project Cost",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes project-cost buildup tables."
+      ]
+    },
+    {
+      "chapter_id": "cost_of_production",
+      "benchmark_title": "Cost of Production",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes cost-of-production breakdown tables."
+      ]
+    },
+    {
+      "chapter_id": "working_capital",
+      "benchmark_title": "Working Capital",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a dedicated working-capital chapter."
+      ]
+    },
+    {
+      "chapter_id": "financial_analysis",
+      "benchmark_title": "Financial Analysis",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes multi-year finance schedules and returns."
+      ]
+    },
+    {
+      "chapter_id": "conclusion",
+      "benchmark_title": "Conclusion",
+      "status": "complete",
+      "present": true,
+      "citation_count": 4,
+      "missing_outputs": [],
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a standalone conclusion chapter."
+      ]
+    }
+  ],
+  "support_results": [
+    {
+      "support_id": "references",
+      "benchmark_title": "References",
+      "status": "complete",
+      "present": true,
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report includes a dedicated references chapter."
+      ]
+    },
+    {
+      "support_id": "appendix_msds",
+      "benchmark_title": "Appendix A: Material Safety Data Sheet",
+      "status": "complete",
+      "present": true,
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report contains an MSDS appendix."
+      ]
+    },
+    {
+      "support_id": "appendix_code_backup",
+      "benchmark_title": "Appendix B: Python Code",
+      "status": "complete",
+      "present": true,
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report contains a code appendix."
+      ]
+    },
+    {
+      "support_id": "appendix_process_design_datasheets",
+      "benchmark_title": "Appendix C: Process Design Data Sheet",
+      "status": "complete",
+      "present": true,
+      "missing_markers": [],
+      "notes": [
+        "Benchmark report contains a process design datasheet appendix."
+      ]
+    }
+  ],
+  "markdown": "## Report Parity Assessment\n\n- Benchmark profile: `ethylene_glycol`\n- Overall status: `partial`\n- Chapters complete / partial / missing: `22/3/0`\n- Support sections complete / partial / missing: `4/0/0`\n\n### Missing Chapter IDs\n\nNone.\n\n### Missing Support IDs\n\nNone.\n\n### Chapter Status Table\n\n| Chapter ID | Benchmark Title | Status | Missing Outputs | Missing Markers |\n| --- | --- | --- | --- | --- |\n| executive_summary | Executive Summary | complete | - | - |\n| introduction_product_profile | Introduction | complete | - | - |\n| market_capacity_selection | Capacity Selection | complete | - | - |\n| literature_survey | Literature Survey | complete | - | - |\n| process_selection | Process Selection | complete | - | - |\n| site_selection | Site Selection | complete | - | - |\n| thermodynamic_feasibility | Thermodynamics of Reaction | complete | - | - |\n| reaction_kinetics | Kinetics of Reaction | complete | - | - |\n| block_flow_diagram | Block Diagram | partial | - | graph TD |\n| process_description | Process Description | complete | - | - |\n| material_balance | Material Balance | complete | - | - |\n| energy_balance | Energy Balance | complete | - | - |\n| heat_integration_strategy | Heat Integration Strategy | complete | - | - |\n| equipment_design_sizing | Sizing of Equipment | complete | - | - |\n| mechanical_design_moc | Mechanical Design and Material of Construction | partial | mechanical_design_moc | - |\n| storage_utilities | Storage & Utilities | complete | - | - |\n| instrumentation_control | Instrumentation & Process Control | complete | - | - |\n| hazop | HAZOP | complete | - | - |\n| safety_health_environment_waste | Safety, Health & Environment | complete | - | - |\n| layout | Project & Plant Layout | partial | layout | - |\n| project_cost | Project Cost | complete | - | - |\n| cost_of_production | Cost of Production | complete | - | - |\n| working_capital | Working Capital | complete | - | - |\n| financial_analysis | Financial Analysis | complete | - | - |\n| conclusion | Conclusion | complete | - | - |\n\n### Support Section Status Table\n\n| Support ID | Benchmark Title | Status | Missing Markers |\n| --- | --- | --- | --- |\n| references | References | complete | - |\n| appendix_msds | Appendix A: Material Safety Data Sheet | complete | - |\n| appendix_code_backup | Appendix B: Python Code | complete | - |\n| appendix_process_design_datasheets | Appendix C: Process Design Data Sheet | complete | - |"
+}

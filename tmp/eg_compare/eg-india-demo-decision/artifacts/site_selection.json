@@ -1,0 +1,122 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+  ],
+  "candidates": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "name": "Dahej",
+      "state": "Gujarat",
+      "raw_material_score": 9,
+      "logistics_score": 9,
+      "utility_score": 9,
+      "business_score": 8,
+      "total_score": 35,
+      "rationale": "Strong petrochemical ecosystem, port access, and utility backbone."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "name": "Jamnagar",
+      "state": "Gujarat",
+      "raw_material_score": 9,
+      "logistics_score": 8,
+      "utility_score": 8,
+      "business_score": 8,
+      "total_score": 33,
+      "rationale": "Refining and petrochemical integration advantages."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "name": "Paradip",
+      "state": "Odisha",
+      "raw_material_score": 7,
+      "logistics_score": 8,
+      "utility_score": 7,
+      "business_score": 7,
+      "total_score": 29,
+      "rationale": "Port access and eastern India logistics upside, but weaker integration than Gujarat."
+    }
+  ],
+  "selected_site": "Dahej",
+  "india_location_data": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "location_id": "loc_dahej",
+      "site_name": "Dahej",
+      "state": "Gujarat",
+      "country": "India",
+      "port_access": "Dahej/Hazira marine access",
+      "utility_note": "Mature industrial utility ecosystem and steam/power availability.",
+      "logistics_note": "Strong chemical-cluster logistics and export connectivity.",
+      "regulatory_note": "Established chemical-zone operating context with mature compliance ecosystem.",
+      "reference_year": 2025
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "location_id": "loc_jamnagar",
+      "site_name": "Jamnagar",
+      "state": "Gujarat",
+      "country": "India",
+      "port_access": "West coast port connectivity",
+      "utility_note": "Integrated refining-petrochemical utility environment.",
+      "logistics_note": "Good feedstock and product dispatch linkages.",
+      "regulatory_note": "Industrial cluster advantage but site-specific compliance envelope still required.",
+      "reference_year": 2025
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "location_id": "loc_paradip",
+      "site_name": "Paradip",
+      "state": "Odisha",
+      "country": "India",
+      "port_access": "Deep-water east-coast port access",
+      "utility_note": "Industrial utility support available with project-specific development.",
+      "logistics_note": "Useful for eastern dispatch but less dense chemical services.",
+      "regulatory_note": "Would need stronger project-specific ecosystem build-out.",
+      "reference_year": 2025
+    }
+  ],
+  "markdown": "Dahej, Gujarat is selected because it best combines petrochemical integration, port logistics, utilities, industrial services, and a defendable India cost basis for a 200000 TPA EG plant."
+}

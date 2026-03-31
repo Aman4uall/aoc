@@ -20,10 +20,17 @@ from aoc.calculators import (
     reaction_is_balanced,
     sensible_duty_kw,
 )
-from aoc.economics_v2 import build_financing_basis_decision, evaluate_financing_basis_decision
+from aoc.economics_v2 import (
+    build_financing_basis_decision,
+    build_route_economic_basis_artifact,
+    build_route_site_fit_artifact,
+    evaluate_financing_basis_decision,
+)
 from aoc.utility_architecture import build_utility_architecture_decision
 from aoc.models import (
     DecisionRecord,
+    FlowsheetBlueprintArtifact,
+    FlowsheetBlueprintStep,
     GeographicScope,
     HeatIntegrationCase,
     HeatMatch,
@@ -36,6 +43,7 @@ from aoc.models import (
     ProcessTemplate,
     ProjectBasis,
     ReactionParticipant,
+    RouteSelectionArtifact,
     RouteOption,
     ScenarioCase,
     ScenarioPolicy,
@@ -237,6 +245,176 @@ class CalculatorTests(unittest.TestCase):
         self.assertTrue(financial.selected_financing_candidate_id)
         self.assertIsInstance(financial.covenant_breach_codes, list)
         self.assertIsInstance(financial.covenant_warnings, list)
+
+    def test_route_site_fit_and_route_economic_basis_flow_into_cost_model(self):
+        basis = self._basis()
+        route = self._route()
+        kinetics = KineticAssessmentArtifact(
+            feasible=True,
+            activation_energy_kj_per_mol=73.0,
+            pre_exponential_factor=4.8e8,
+            apparent_order=1.0,
+            design_residence_time_hr=0.75,
+            markdown="seed",
+            citations=["s1"],
+        )
+        thermo = ThermoAssessmentArtifact(
+            feasible=True,
+            estimated_reaction_enthalpy_kj_per_mol=-90.4,
+            estimated_gibbs_kj_per_mol=-31.5,
+            equilibrium_comment="seed",
+            markdown="seed",
+            citations=["s1"],
+        )
+        reaction_system = build_reaction_system(basis, route, kinetics, ["s1"], [])
+        stream_table = build_stream_table(basis, route, reaction_system, ["s1"], [])
+        energy = build_energy_balance(route, stream_table, thermo)
+        reactor = build_reactor_design(basis, route, reaction_system, stream_table, energy, kinetics=kinetics)
+        column = build_column_design(basis, route, stream_table, energy)
+        exchanger = build_heat_exchanger_design(route, energy)
+        operations_planning = OperationsPlanningArtifact(
+            planning_id="ops",
+            service_family="continuous_liquid_purification",
+            recommended_operating_mode="batch",
+            availability_policy_label="campaign_batch_train",
+            raw_material_buffer_days=14.0,
+            finished_goods_buffer_days=6.0,
+            operating_stock_days=3.0,
+            restart_buffer_days=1.0,
+            startup_ramp_days=2.0,
+            campaign_length_days=45.0,
+            cleaning_cycle_days=30.0,
+            cleaning_downtime_days=3.5,
+            turnaround_buffer_factor=1.10,
+            throughput_loss_fraction=0.03,
+            restart_loss_fraction=0.008,
+            annual_restart_loss_kg=900.0,
+            buffer_basis_note="test",
+            markdown="test",
+            citations=["s1"],
+        )
+        storage = build_storage_design(basis, 1113.0, ["s1"], [], operations_planning=operations_planning)
+        equipment_list = build_equipment_list(route, reactor, column, exchanger, storage, energy)
+        utilities = compute_utilities(basis, energy, equipment_list, build_utility_basis(basis, ["s1"], []), ["s1"], [])
+        market = MarketAssessmentArtifact(
+            estimated_price_per_kg=63.0,
+            price_range="INR 58-70/kg",
+            competitor_notes=["seed"],
+            demand_drivers=["seed"],
+            capacity_rationale="seed",
+            india_price_data=[
+                IndianPriceDatum(datum_id="eo", category="raw_material", item_name="Ethylene oxide", region="India", units="INR/kg", value_inr=62.0, reference_year=2025, normalization_year=2025, citations=["s1"]),
+                IndianPriceDatum(datum_id="water", category="raw_material", item_name="Process water", region="India", units="INR/kg", value_inr=0.02, reference_year=2025, normalization_year=2025, citations=["s1"]),
+                IndianPriceDatum(datum_id="power", category="utility", item_name="Electricity", region="India", units="INR/kWh", value_inr=8.5, reference_year=2025, normalization_year=2025, citations=["s1"]),
+                IndianPriceDatum(datum_id="steam", category="utility", item_name="Steam", region="India", units="INR/kg", value_inr=1.8, reference_year=2025, normalization_year=2025, citations=["s1"]),
+                IndianPriceDatum(datum_id="cw", category="utility", item_name="Cooling water", region="India", units="INR/m3", value_inr=8.0, reference_year=2025, normalization_year=2025, citations=["s1"]),
+                IndianPriceDatum(datum_id="labor", category="labor", item_name="Operating labour", region="India", units="INR/person-year", value_inr=650000.0, reference_year=2025, normalization_year=2025, citations=["s1"]),
+            ],
+            markdown="seed",
+            citations=["s1"],
+        )
+        site = SiteSelectionArtifact(
+            candidates=[SiteOption(name="Dahej", state="Gujarat", raw_material_score=9, logistics_score=9, utility_score=9, business_score=8, total_score=35, rationale="seed", citations=["s1"])],
+            selected_site="Dahej",
+            india_location_data=[
+                IndianLocationDatum(location_id="loc1", site_name="Dahej", state="Gujarat", country="India", port_access="Near port-based chemical cluster", utility_note="seed", logistics_note="seed", regulatory_note="seed", reference_year=2025, citations=["s1"])
+            ],
+            markdown="seed",
+            citations=["s1"],
+        )
+        route_selection = RouteSelectionArtifact(
+            selected_route_id=route.route_id,
+            justification="seed",
+            comparison_markdown="seed",
+            citations=["s1"],
+            assumptions=[],
+        )
+        blueprint = FlowsheetBlueprintArtifact(
+            blueprint_id="bp-1",
+            route_id=route.route_id,
+            route_name=route.name,
+            route_origin="hybrid",
+            steps=[
+                FlowsheetBlueprintStep(
+                    step_id="s1",
+                    route_id=route.route_id,
+                    section_id="react",
+                    section_label="Reaction",
+                    step_role="reaction",
+                    unit_id="R-101",
+                    unit_tag="R001",
+                    unit_type="reactor",
+                    service="Catalytic reactor",
+                ),
+                FlowsheetBlueprintStep(
+                    step_id="s2",
+                    route_id=route.route_id,
+                    section_id="purify",
+                    section_label="Purification",
+                    step_role="separation",
+                    unit_id="D-101",
+                    unit_tag="DC001",
+                    unit_type="distillation column",
+                    service="Primary purification",
+                    upstream_step_ids=["s1"],
+                ),
+            ],
+            separation_duties=[],
+            recycle_intents=[],
+            batch_capable=True,
+            selected_unit_tags=["R001", "DC001"],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=[],
+        )
+        route_site_fit = build_route_site_fit_artifact(
+            basis,
+            site,
+            route_selection,
+            blueprint,
+            operations_planning,
+            ["s1"],
+            [],
+        )
+        route_economic_basis = build_route_economic_basis_artifact(
+            basis,
+            site,
+            route_selection,
+            stream_table,
+            market,
+            blueprint,
+            operations_planning,
+            route_site_fit,
+            ["s1"],
+            [],
+        )
+        cost_model = build_cost_model(
+            basis,
+            equipment=equipment_list,
+            utilities=utilities,
+            stream_table=stream_table,
+            market=market,
+            site=site,
+            citations=["s1"],
+            assumptions=[],
+            route_site_fit=route_site_fit,
+            route_economic_basis=route_economic_basis,
+            column_design=column,
+        )
+
+        self.assertGreater(route_site_fit.overall_fit_score, 0.0)
+        self.assertGreaterEqual(route_economic_basis.raw_material_complexity_factor, 1.0)
+        self.assertGreaterEqual(route_economic_basis.site_input_cost_factor, 1.0)
+        self.assertGreaterEqual(route_economic_basis.logistics_intensity_factor, 1.0)
+        self.assertGreaterEqual(cost_model.route_site_fit_score, route_site_fit.overall_fit_score - 0.01)
+        self.assertGreaterEqual(cost_model.route_feedstock_cluster_factor, 1.0)
+        self.assertGreaterEqual(cost_model.route_logistics_penalty_factor, 1.0)
+        self.assertGreaterEqual(cost_model.route_batch_penalty_fraction, 0.0)
+        self.assertGreaterEqual(cost_model.route_solvent_recovery_service_cost_inr, 0.0)
+        self.assertGreaterEqual(cost_model.route_catalyst_service_cost_inr, 0.0)
+        self.assertGreaterEqual(cost_model.route_waste_treatment_burden_inr, 0.0)
+        self.assertTrue(any(trace.trace_id == "route_site_fit_cost_basis" for trace in cost_model.calc_traces))
+        self.assertTrue(any(trace.trace_id == "route_economic_basis" for trace in cost_model.calc_traces))
 
     def test_financing_basis_reranking_responds_to_covenant_pressure(self):
         basis = self._basis()

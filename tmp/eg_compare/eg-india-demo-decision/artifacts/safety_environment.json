@@ -1,0 +1,10 @@
+{
+  "citations": [],
+  "assumptions": [
+    "Waste treatment remains conceptual until detailed composition data is available."
+  ],
+  "artifact_id": "safety_environment",
+  "title": "Safety, Health, Environment, and Waste Management",
+  "markdown": "The SHE basis prioritizes EO containment, inerting, high-integrity relief and vent routing, hot glycol burn protection, wastewater segregation, and recovery of water and heavy glycol side streams before discharge or disposal. Vent, spill, and emergency response provisions are tied directly to the hydrator, flash, and column sections rather than presented as generic safety text.",
+  "summary": "SHE narrative ties process hazards to operating controls, emergency response, and waste handling."
+}

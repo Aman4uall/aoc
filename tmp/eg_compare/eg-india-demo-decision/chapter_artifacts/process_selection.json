@@ -1,0 +1,61 @@
+{
+  "chapter_id": "process_selection",
+  "title": "Process Selection",
+  "stage_id": "route_selection",
+  "status": "complete",
+  "required_inputs": [
+    "route_survey",
+    "rough_alternatives",
+    "heat_integration_study",
+    "market_assessment"
+  ],
+  "produced_outputs": [
+    "route_selection",
+    "route_decision",
+    "reactor_choice_decision",
+    "separation_choice_decision",
+    "utility_network_decision",
+    "route_family_profiles",
+    "unit_operation_family",
+    "chemistry_family_adapter",
+    "sparse_data_policy"
+  ],
+  "blockers": [],
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors.",
+    "Sparse-data policy is generated from the chemistry-family adapter and current property-engine coverage.",
+    "Detailed design stages may block even when screening solvers still allow explicit heuristic fallback."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Process Selection\n\n### Route Comparison\n\n| Route | Family | Total score | Residual hot utility (kW) | Heat case | Scenario stability |\n| --- | --- | --- | --- | --- | --- |\n| eo_hydration | liquid_hydration_train | 39.95 | 49263.839 | eo_hydration_pinch_htm | reviewed |\n| omega_catalytic | liquid_hydration_train | 60.60 | 43800.060 | omega_catalytic_pinch_htm | stable |\n| chlorohydrin | chlorinated_hydrolysis_train | -1.00 | 13044.246 | chlorohydrin_no_recovery | reviewed |\n\n### Selected Route\n\nOMEGA catalytic route via ethylene carbonate is selected because the `Liquid Hydration Train` route family stays economically competitive after the chosen heat-integration case `omega_catalytic_pinch_htm`, while retaining credible industrial maturity and India fit.\n\n### Route Family Profiles\n\n| Route | Family | Reactor Basis | Separation Train | Heat Style | India Blocker |\n| --- | --- | --- | --- | --- | --- |\n| eo_hydration | Liquid Hydration Train | Tubular plug-flow hydrator | EO flash -> water removal -> vacuum glycol distillation | condenser_reboiler_cluster | none |\n| omega_catalytic | Liquid Hydration Train | Tubular plug-flow hydrator | EO flash -> water removal -> vacuum glycol distillation | condenser_reboiler_cluster | none |\n| chlorohydrin | Chlorinated Hydrolysis Train | Agitated hydrolysis CSTR train | Salt removal -> brine handling -> water removal -> purification | utility_led_with_brine_management | Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis. |\n\n### Unit-Operation Family Expansion\n\nRoute `omega_catalytic` is expanded into the `Liquid Hydration Train` unit-operation family.\n\n| Service Group | Candidate | Status | Score | Rationale |\n| --- | --- | --- | --- | --- |\n| reactor | tubular_plug_flow_hydrator | preferred | 102.0 | Tubular hydrator with strong dehydration integration fit |\n| reactor | jacketed_cstr_train | preferred | 78.0 | CSTR fallback for liquid hydration service |\n| reactor | high_pressure_carbonylation_loop | blocked | 18.0 | High-pressure carbonylation loop |\n| separation | distillation_train | preferred | 100.0 | Flash and glycol distillation train |\n| separation | extractive_distillation_train | fallback | 82.0 | Extractive/vacuum polishing distillation |\n| separation | packed_absorption_train | blocked | 20.0 | Packed absorption train |\n\n- Supporting unit operations: flash, dehydration_column, glycol_polishing_column, heat_exchanger_cluster, reactor, distillation, heat_exchanger\n- Applicability critics: dehydration_duty, glycol_split_vle_basis, water_recycle_closure, relative_volatility_claims, reboiler_duty_burden\n\n### Chemistry Family Adapter\n\nAdapter `continuous_liquid_organic_train` supports continuous liquid organic train under a organic chemistry basis.\n\n- Route hints: hydration, carbonylation, hydrogenation, dehydration cleanup\n- Property priority: molecular_weight, normal_boiling_point, liquid_density, liquid_viscosity, liquid_heat_capacity, heat_of_vaporization, antoine_constants, binary_interaction_parameters\n- Preferred reactor candidates: tubular_plug_flow_hydrator, jacketed_cstr_train\n- Preferred separation candidates: distillation_train, extraction_recovery_train\n- Common unit operations: reactor, flash, distillation, heat_exchanger, storage\n- Corrosion cues: organic_acid_presence, water_content, chloride_trace_monitoring\n- Heat-integration patterns: reboiler_condenser_cluster, shared_htm_island_network, moderate_temperature_recovery\n- Critic focus: relative_volatility_claims, water_recycle_closure, reboiler_duty_burden\n- Sparse-data blockers: missing_vle_basis, missing_density_viscosity_for_column_hydraulics\n\n### Sparse-Data Policy\n\n| Stage | Subject | Artifact Family | Est. | Analogy | Heuristic Fallback | Min Confidence | Status | Triggered Items |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| thermodynamic_feasibility | molecular_weight | pure_component_identity | yes | no | no | 0.55 | covered | - |\n| thermodynamic_feasibility | normal_boiling_point | pure_component_thermo | yes | no | no | 0.60 | covered | - |\n| energy_balance | liquid_heat_capacity | bulk_thermal_properties | yes | no | no | 0.55 | covered | - |\n| energy_balance | heat_of_vaporization | bulk_thermal_properties | yes | no | no | 0.55 | covered | - |\n| reactor_design | liquid_density | transport_properties | yes | no | no | 0.60 | covered | - |\n| reactor_design | liquid_viscosity | transport_properties | yes | no | no | 0.60 | covered | - |\n| distillation_design | liquid_density | separation_transport | yes | no | no | 0.60 | covered | - |\n| distillation_design | liquid_viscosity | separation_transport | yes | no | no | 0.60 | covered | - |\n| distillation_design | binary_interaction_parameters | vle_nonideal_basis | no | no | yes | 0.00 | warning | ethylene_glycol__ethylene_oxide, ethylene_glycol__water, ethylene_oxide__water |\n\n### Selected Reactor Basis\n\nTubular or plug-flow hydrator service selected as the highest-ranked alternative.\n\n### Selected Separation Basis\n\nDistillation and flash purification train selected as the highest-ranked alternative.\n\n### Selected Heat-Integration Case\n\nPinch + HTM loop: Pinch-based heat recovery with an indirect hot-oil loop materially reduces purchased steam."
+}

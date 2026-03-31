@@ -1,0 +1,18 @@
+{
+  "target_product": "Ibuprofen",
+  "capacity_tpa": 500.0,
+  "target_purity_wt_pct": 99.0,
+  "operating_mode": "batch",
+  "annual_operating_days": 330,
+  "region": "India",
+  "currency": "INR",
+  "site_assumptions": [],
+  "process_template": "generic_small_molecule",
+  "target_state": null,
+  "target_city": null,
+  "tariff_reference_year": 2025,
+  "utility_basis_year": 2025,
+  "labor_basis_year": 2025,
+  "economic_reference_year": 2025,
+  "india_only": false
+}

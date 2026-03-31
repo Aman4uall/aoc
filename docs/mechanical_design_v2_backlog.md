@@ -89,3 +89,24 @@ Acceptance reached:
 1. Start Stage 7 economics/finance v4 so replacement cycles, procurement timing, and outage-linked revenue impacts become more realistic.
 2. Push the new mechanical basis into richer package-level cost correlations and maintenance scopes.
 3. Deepen relief, piping-class, and connection schedule logic if we want to keep extending mechanical depth later.
+
+## Benchmark Parity Continuation
+
+Status:
+- complete
+
+Current parity slice delivered:
+- the `mechanical_design_moc` chapter now includes explicit shell/head thickness derivation, support/overturning derivation, and nozzle reinforcement / connection basis tables
+- the MoC chapter path now includes an equipment-wise justification matrix with corrosion driver, alternate MoC, and inspection / cleaning basis
+- utility and storage services now have a dedicated MoC summary table instead of being left implicit inside the selected-material matrix
+- the chapter now includes a mechanical design input matrix, piping / connection class basis, MoC option screening, and inspection / maintainability basis tables
+- equipment datasheets now carry richer mechanical appendix detail including allowable stress, joint efficiency, corrosion allowance, shell/head thickness, and rack tie-in basis
+
+Acceptance reached:
+- the dedicated mechanical and MoC chapter now reads like a benchmark-style engineering chapter rather than only a screening summary
+- the chapter contract in `report_parity` now requires the deeper mechanical/MoC sections
+- appendix datasheets now reflect the same mechanical depth so the chapter and datasheet bundle stay aligned
+
+Next benchmark-parity moves:
+1. Close the remaining report-body parity gaps in project cost, cost of production, working capital, and financial analysis presentation.
+2. After report-body completion, move to appendix parity for MSDS, code backup, and process design datasheet bundles.

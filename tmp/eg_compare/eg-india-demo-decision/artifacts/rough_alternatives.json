@@ -1,0 +1,131 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Operating-mode decision uses operations-planning buffers, restart losses, and campaign burden instead of a fixed throughput-only rule.",
+    "Rough alternative duties are used for early process architecture and heat-integration ranking, not final equipment design."
+  ],
+  "cases": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "candidate_id": "alt_eo_hydration",
+      "route_id": "eo_hydration",
+      "route_name": "Ethylene oxide hydration",
+      "route_family_id": "liquid_hydration_train",
+      "route_family_label": "Liquid Hydration Train",
+      "operating_mode": "continuous",
+      "reactor_class": "Tubular plug-flow hydrator",
+      "separation_train": "EO flash -> water removal -> vacuum glycol distillation",
+      "heat_recovery_style": "condenser_reboiler_cluster",
+      "estimated_heating_kw": 100977.873,
+      "estimated_cooling_kw": 82875.055,
+      "estimated_capex_inr": 8772137268.01,
+      "estimated_annual_utility_cost_inr": 2830457924.27,
+      "estimated_annual_total_opex_inr": 7930457924.27,
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ],
+      "notes": "Liquid Hydration Train rough balance uses route-family factors for utility and CAPEX intensity. dehydration_duty glycol_split_vle_basis"
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "candidate_id": "alt_omega_catalytic",
+      "route_id": "omega_catalytic",
+      "route_name": "OMEGA catalytic route via ethylene carbonate",
+      "route_family_id": "liquid_hydration_train",
+      "route_family_label": "Liquid Hydration Train",
+      "operating_mode": "continuous",
+      "reactor_class": "Tubular plug-flow hydrator",
+      "separation_train": "EO flash -> water removal -> vacuum glycol distillation",
+      "heat_recovery_style": "condenser_reboiler_cluster",
+      "estimated_heating_kw": 91056.718,
+      "estimated_cooling_kw": 75731.824,
+      "estimated_capex_inr": 8643519410.09,
+      "estimated_annual_utility_cost_inr": 2560037724.0,
+      "estimated_annual_total_opex_inr": 7660037724.0,
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ],
+      "notes": "Liquid Hydration Train rough balance uses route-family factors for utility and CAPEX intensity. dehydration_duty glycol_split_vle_basis"
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `chlorinated_hydrolysis_train` drives rough utility/CAPEX screening."
+      ],
+      "candidate_id": "alt_chlorohydrin",
+      "route_id": "chlorohydrin",
+      "route_name": "Ethylene chlorohydrin hydrolysis",
+      "route_family_id": "chlorinated_hydrolysis_train",
+      "route_family_label": "Chlorinated Hydrolysis Train",
+      "operating_mode": "continuous",
+      "reactor_class": "Agitated hydrolysis CSTR train",
+      "separation_train": "Salt removal -> brine handling -> water removal -> purification",
+      "heat_recovery_style": "utility_led_with_brine_management",
+      "estimated_heating_kw": 13044.246,
+      "estimated_cooling_kw": 11433.301,
+      "estimated_capex_inr": 9209762554.69,
+      "estimated_annual_utility_cost_inr": 390825880.88,
+      "estimated_annual_total_opex_inr": 5622825880.88,
+      "critic_flags": [
+        "chloride_waste_burden",
+        "brine_handling_penalty",
+        "corrosion_material_risk"
+      ],
+      "notes": "Chlorinated Hydrolysis Train rough balance uses route-family factors for utility and CAPEX intensity. chloride_waste_burden brine_handling_penalty"
+    }
+  ],
+  "markdown": "Rough alternative balances and duties convert each route architecture into first-pass utility and cost intensity.\n\n| Route | Family | Heating (kW) | Cooling (kW) | CAPEX (INR bn) | Utility OPEX (INR bn/y) |\n| --- | --- | --- | --- | --- | --- |\n| eo_hydration | Liquid Hydration Train | 100977.9 | 82875.1 | 8.77 | 2.83 |\n| omega_catalytic | Liquid Hydration Train | 91056.7 | 75731.8 | 8.64 | 2.56 |\n| chlorohydrin | Chlorinated Hydrolysis Train | 13044.2 | 11433.3 | 9.21 | 0.39 |"
+}

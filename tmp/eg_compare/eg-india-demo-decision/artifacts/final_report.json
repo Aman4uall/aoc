@@ -1,0 +1,19 @@
+{
+  "project_id": "eg-india-demo-decision",
+  "markdown_path": "/Users/ayzaman/.gemini/antigravity/scratch/AoC/tmp/eg_compare/eg-india-demo-decision/final_report.md",
+  "pdf_path": "/Users/ayzaman/.gemini/antigravity/scratch/AoC/tmp/eg_compare/eg-india-demo-decision/final_report.pdf",
+  "references": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "eg_kinetics",
+    "eg_market_india",
+    "eg_sites_india",
+    "eg_utilities_gujarat",
+    "eg_safety"
+  ],
+  "annexure_paths": [
+    "/Users/ayzaman/.gemini/antigravity/scratch/AoC/tmp/eg_compare/eg-india-demo-decision/annexures"
+  ]
+}

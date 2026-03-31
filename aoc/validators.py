@@ -2,14 +2,22 @@ from __future__ import annotations
 
 from aoc.calculators import operating_hours_per_year, reaction_balance_delta, reaction_is_balanced
 from aoc.models import (
+    BenchmarkManifest,
     ChemistryFamilyAdapter,
     ChapterArtifact,
+    DocumentFactCollectionArtifact,
+    ReportAcceptanceArtifact,
+    ReportAcceptanceStatus,
+    ReportParityArtifact,
+    ReportParityFrameworkArtifact,
     ColumnDesign,
+    ControlPlanArtifact,
     ControlArchitectureDecision,
     CostModel,
     DecisionRecord,
     EnergyBalance,
     FinancialModel,
+    FlowsheetBlueprintArtifact,
     FlowsheetCase,
     FlowsheetGraph,
     GeographicScope,
@@ -24,6 +32,7 @@ from aoc.models import (
     OperationsPlanningArtifact,
     ProcessArchetype,
     PropertyGapArtifact,
+    PropertyDemandPlan,
     ProvenanceTag,
     ProjectConfig,
     ProjectRunState,
@@ -34,6 +43,10 @@ from aoc.models import (
     ResolvedSourceSet,
     ResolvedValueArtifact,
     RouteFamilyArtifact,
+    RouteChemistryArtifact,
+    RouteEconomicBasisArtifact,
+    RouteSiteFitArtifact,
+    RouteSelectionComparisonArtifact,
     RouteSelectionArtifact,
     SiteSelectionArtifact,
     ScenarioStability,
@@ -43,6 +56,7 @@ from aoc.models import (
     SourceRecord,
     StreamTable,
     ThermoAssessmentArtifact,
+    UnitTrainCandidateSet,
     UnitOperationFamilyArtifact,
     UtilitySummaryArtifact,
     UtilityArchitectureDecision,
@@ -1262,6 +1276,139 @@ def validate_site_selection_consistency(site_selection: SiteSelectionArtifact, s
     return issues
 
 
+def validate_route_site_fit_artifact(
+    route_site_fit: RouteSiteFitArtifact,
+    site_selection: SiteSelectionArtifact | None = None,
+    route_selection: RouteSelectionArtifact | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not route_site_fit.route_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_site_fit_route",
+                severity=Severity.BLOCKED,
+                message="Route site-fit artifact is missing a route id.",
+                artifact_ref="route_site_fit",
+            )
+        )
+    if not route_site_fit.selected_site:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_site_fit_site",
+                severity=Severity.BLOCKED,
+                message="Route site-fit artifact is missing a selected site.",
+                artifact_ref="route_site_fit",
+            )
+        )
+    if route_site_fit.feedstock_cluster_factor <= 0.0 or route_site_fit.logistics_penalty_factor <= 0.0 or route_site_fit.utility_reliability_factor <= 0.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_route_site_fit_factors",
+                severity=Severity.BLOCKED,
+                message="Route site-fit factors must all be positive.",
+                artifact_ref="route_site_fit",
+            )
+        )
+    if not 0.0 <= route_site_fit.overall_fit_score <= 100.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_route_site_fit_score",
+                severity=Severity.BLOCKED,
+                message="Route site-fit score must lie between 0 and 100.",
+                artifact_ref="route_site_fit",
+            )
+        )
+    if site_selection is not None and site_selection.selected_site and route_site_fit.selected_site != site_selection.selected_site:
+        issues.append(
+            ValidationIssue(
+                code="route_site_fit_site_mismatch",
+                severity=Severity.BLOCKED,
+                message=f"Route site-fit site '{route_site_fit.selected_site}' does not match selected site '{site_selection.selected_site}'.",
+                artifact_ref="route_site_fit",
+            )
+        )
+    if route_selection is not None and route_selection.selected_route_id and route_site_fit.route_id != route_selection.selected_route_id:
+        issues.append(
+            ValidationIssue(
+                code="route_site_fit_route_mismatch",
+                severity=Severity.BLOCKED,
+                message=f"Route site-fit route '{route_site_fit.route_id}' does not match selected route '{route_selection.selected_route_id}'.",
+                artifact_ref="route_site_fit",
+            )
+        )
+    return issues
+
+
+def validate_route_economic_basis_artifact(
+    route_economic_basis: RouteEconomicBasisArtifact,
+    route_site_fit: RouteSiteFitArtifact | None = None,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not route_economic_basis.route_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_economic_basis_route",
+                severity=Severity.BLOCKED,
+                message="Route-derived economic basis is missing a route id.",
+                artifact_ref="route_economic_basis",
+            )
+        )
+    if route_economic_basis.raw_material_complexity_factor <= 0.0 or route_economic_basis.site_input_cost_factor <= 0.0 or route_economic_basis.logistics_intensity_factor <= 0.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_route_economic_basis_factors",
+                severity=Severity.BLOCKED,
+                message="Route-derived economic basis multipliers must all be positive.",
+                artifact_ref="route_economic_basis",
+            )
+        )
+    if route_economic_basis.batch_occupancy_penalty_fraction < 0.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_route_batch_penalty",
+                severity=Severity.BLOCKED,
+                message="Route-derived batch occupancy penalty cannot be negative.",
+                artifact_ref="route_economic_basis",
+            )
+        )
+    if any(
+        burden < 0.0
+        for burden in (
+            route_economic_basis.solvent_recovery_service_cost_inr,
+            route_economic_basis.catalyst_service_cost_inr,
+            route_economic_basis.waste_treatment_burden_inr,
+        )
+    ):
+        issues.append(
+            ValidationIssue(
+                code="negative_route_economic_burden",
+                severity=Severity.BLOCKED,
+                message="Route-derived economic service burdens cannot be negative.",
+                artifact_ref="route_economic_basis",
+            )
+        )
+    if route_site_fit is not None:
+        if route_economic_basis.route_id != route_site_fit.route_id:
+            issues.append(
+                ValidationIssue(
+                    code="route_economic_route_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Route-derived economic basis route id does not match the route site-fit artifact.",
+                    artifact_ref="route_economic_basis",
+                )
+            )
+        if route_economic_basis.selected_site != route_site_fit.selected_site:
+            issues.append(
+                ValidationIssue(
+                    code="route_economic_site_mismatch",
+                    severity=Severity.BLOCKED,
+                    message="Route-derived economic basis site does not match the route site-fit artifact.",
+                    artifact_ref="route_economic_basis",
+                )
+            )
+    return issues
+
+
 def validate_route_balance(route) -> list[ValidationIssue]:
     if reaction_is_balanced(route):
         return []
@@ -2001,6 +2148,85 @@ def validate_chapter(chapter: ChapterArtifact, available_source_ids: set[str], s
     return issues
 
 
+def validate_report_parity_framework(
+    framework: ReportParityFrameworkArtifact,
+    benchmark_manifest: BenchmarkManifest,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    contract_ids = {contract.chapter_id for contract in framework.chapter_contracts}
+    missing_contracts = [chapter_id for chapter_id in benchmark_manifest.required_chapters if chapter_id not in contract_ids]
+    if missing_contracts:
+        issues.append(
+            ValidationIssue(
+                code="missing_report_parity_contracts",
+                severity=Severity.BLOCKED,
+                message="Report parity framework is missing required chapter contracts: " + ", ".join(missing_contracts) + ".",
+                artifact_ref="report_parity_framework",
+            )
+        )
+    if not framework.support_contracts:
+        issues.append(
+            ValidationIssue(
+                code="missing_report_support_contracts",
+                severity=Severity.BLOCKED,
+                message="Report parity framework did not define benchmark support-section contracts.",
+                artifact_ref="report_parity_framework",
+            )
+        )
+    return issues
+
+
+def validate_report_parity(parity: ReportParityArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if parity.missing_chapter_ids:
+        issues.append(
+            ValidationIssue(
+                code="missing_benchmark_report_chapters",
+                severity=Severity.BLOCKED,
+                message="Benchmark-required report chapters are missing: " + ", ".join(parity.missing_chapter_ids) + ".",
+                artifact_ref="report_parity",
+            )
+        )
+    if parity.partial_chapter_count or parity.partial_support_count or parity.missing_support_count:
+        issues.append(
+            ValidationIssue(
+                code="report_parity_gap_remaining",
+                severity=Severity.WARNING,
+                message=(
+                    "Report parity is not complete yet: "
+                    f"{parity.partial_chapter_count} partial chapters, "
+                    f"{parity.partial_support_count} partial support sections, "
+                    f"{parity.missing_support_count} missing support sections."
+                ),
+                artifact_ref="report_parity",
+            )
+        )
+    return issues
+
+
+def validate_report_acceptance(acceptance: ReportAcceptanceArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if acceptance.overall_status == ReportAcceptanceStatus.BLOCKED:
+        issues.append(
+            ValidationIssue(
+                code="benchmark_acceptance_blocked",
+                severity=Severity.BLOCKED,
+                message=acceptance.summary,
+                artifact_ref="report_acceptance",
+            )
+        )
+    elif acceptance.overall_status == ReportAcceptanceStatus.CONDITIONAL:
+        issues.append(
+            ValidationIssue(
+                code="benchmark_acceptance_conditional",
+                severity=Severity.WARNING,
+                message=acceptance.summary,
+                artifact_ref="report_acceptance",
+            )
+        )
+    return issues
+
+
 def validate_utility_network_decision(utility_network_decision: UtilityNetworkDecision, config: ProjectConfig) -> list[ValidationIssue]:
     issues = validate_decision_record(utility_network_decision.decision, "utility_network_decision")
     selected_case = next((item for item in utility_network_decision.cases if item.case_id == utility_network_decision.selected_case_id), None)
@@ -2354,6 +2580,167 @@ def validate_research_bundle(bundle: ResearchBundle, config: ProjectConfig) -> t
                 )
             )
     return issues, sorted(set(missing_groups)), sorted(set(stale_groups))
+
+
+def validate_document_fact_collection(collection: DocumentFactCollectionArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if collection.documents and collection.process_option_count <= 0:
+        issues.append(
+            ValidationIssue(
+                code="missing_document_process_options",
+                severity=Severity.WARNING,
+                message="User documents were ingested, but no structured process options were extracted.",
+                artifact_ref="user_document_facts",
+            )
+        )
+    for document in collection.documents:
+        seen_ids: set[str] = set()
+        for comparison in document.process_comparisons:
+            for option in comparison.options:
+                if option.option_id in seen_ids:
+                    issues.append(
+                        ValidationIssue(
+                            code="duplicate_document_option_id",
+                            severity=Severity.BLOCKED,
+                            message=f"Document option id '{option.option_id}' is duplicated within extracted document facts.",
+                            artifact_ref="user_document_facts",
+                        )
+                    )
+                seen_ids.add(option.option_id)
+    return issues
+
+
+def validate_route_chemistry_artifact(artifact: RouteChemistryArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    for graph in artifact.route_graphs:
+        for issue in graph.unresolved_issues:
+            severity = Severity.WARNING
+            issues.append(
+                ValidationIssue(
+                    code=issue.issue_code,
+                    severity=severity,
+                    message=issue.message,
+                    artifact_ref="route_chemistry",
+                    source_refs=issue.citations,
+                )
+            )
+        if not graph.species_nodes:
+            issues.append(
+                ValidationIssue(
+                    code="missing_route_species_graph",
+                    severity=Severity.BLOCKED,
+                    message=f"Route '{graph.route_id}' has no species nodes in the route chemistry graph.",
+                    artifact_ref="route_chemistry",
+                )
+            )
+    return issues
+
+
+def validate_property_demand_plan(plan: PropertyDemandPlan) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not plan.items:
+        issues.append(
+            ValidationIssue(
+                code="missing_property_demand_items",
+                severity=Severity.BLOCKED,
+                message="Property demand plan is empty.",
+                artifact_ref="property_demand_plan",
+            )
+        )
+        return issues
+    if plan.blocking_species_ids:
+        issues.append(
+            ValidationIssue(
+                code="species_property_coverage_blocked",
+                severity=Severity.BLOCKED,
+                message=f"Species-aware property coverage remains blocked for: {', '.join(plan.blocking_species_ids[:8])}.",
+                artifact_ref="property_demand_plan",
+            )
+        )
+    return issues
+
+
+def validate_route_selection_comparison(artifact: RouteSelectionComparisonArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.rows:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_selection_comparison_rows",
+                severity=Severity.BLOCKED,
+                message="Route-selection comparison artifact is empty.",
+                artifact_ref="route_selection_comparison",
+            )
+        )
+        return issues
+    selected_rows = [row for row in artifact.rows if row.selected]
+    if len(selected_rows) != 1:
+        issues.append(
+            ValidationIssue(
+                code="invalid_route_selection_comparison_selection",
+                severity=Severity.BLOCKED,
+                message="Route-selection comparison must contain exactly one selected route row.",
+                artifact_ref="route_selection_comparison",
+            )
+        )
+    return issues
+
+
+def validate_unit_train_candidate_set(candidate_set: UnitTrainCandidateSet) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not candidate_set.blueprints:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_train_candidates",
+                severity=Severity.BLOCKED,
+                message="No unit-train candidates were synthesized from route chemistry.",
+                artifact_ref="unit_train_candidates",
+            )
+        )
+        return issues
+    for blueprint in candidate_set.blueprints:
+        if not blueprint.steps:
+            issues.append(
+                ValidationIssue(
+                    code="empty_flowsheet_blueprint",
+                    severity=Severity.BLOCKED,
+                    message=f"Flowsheet blueprint '{blueprint.blueprint_id}' has no steps.",
+                    artifact_ref="unit_train_candidates",
+                )
+            )
+    return issues
+
+
+def validate_flowsheet_blueprint(blueprint: FlowsheetBlueprintArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not blueprint.steps:
+        issues.append(
+            ValidationIssue(
+                code="missing_flowsheet_blueprint_steps",
+                severity=Severity.BLOCKED,
+                message="Selected flowsheet blueprint has no steps.",
+                artifact_ref="flowsheet_blueprint",
+            )
+        )
+        return issues
+    if not any(step.step_role == "reaction" for step in blueprint.steps):
+        issues.append(
+            ValidationIssue(
+                code="missing_flowsheet_blueprint_reaction_step",
+                severity=Severity.BLOCKED,
+                message="Selected flowsheet blueprint has no reaction step.",
+                artifact_ref="flowsheet_blueprint",
+            )
+        )
+    if not any(step.step_role in {"primary_separation", "purification", "filtration", "drying"} for step in blueprint.steps):
+        issues.append(
+            ValidationIssue(
+                code="missing_flowsheet_blueprint_separation_step",
+                severity=Severity.WARNING,
+                message="Selected flowsheet blueprint has no explicit downstream separation or finishing step.",
+                artifact_ref="flowsheet_blueprint",
+            )
+        )
+    return issues
 
 
 def validate_india_price_data(
@@ -3255,6 +3642,29 @@ def validate_cost_model(cost_model: CostModel, available_source_ids: set[str], c
                 artifact_ref="cost_model",
             )
         )
+    route_service_total = (
+        cost_model.route_solvent_recovery_service_cost_inr
+        + cost_model.route_catalyst_service_cost_inr
+        + cost_model.route_waste_treatment_burden_inr
+    )
+    if route_service_total > 0.0 and cost_model.annual_transport_service_cost + 1.0 < route_service_total:
+        issues.append(
+            ValidationIssue(
+                code="route_service_burden_missing_from_cost_model",
+                severity=Severity.BLOCKED,
+                message="Route-derived service burdens exceed the total transport/service burden carried by the cost model.",
+                artifact_ref="cost_model",
+            )
+        )
+    if cost_model.route_site_fit_score < 0.0 or cost_model.route_site_fit_score > 100.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_route_site_fit_score_in_cost_model",
+                severity=Severity.BLOCKED,
+                message="Route site-fit score on the cost model must lie between 0 and 100.",
+                artifact_ref="cost_model",
+            )
+        )
     return issues
 
 
@@ -3485,17 +3895,103 @@ def validate_control_architecture(control_architecture: ControlArchitectureDecis
     return issues
 
 
-def validate_hazop_node_register(register: HazopNodeRegister) -> list[ValidationIssue]:
-    if register.nodes:
-        return []
-    return [
-        ValidationIssue(
-            code="hazop_register_empty",
-            severity=Severity.BLOCKED,
-            message="HAZOP node register is empty.",
-            artifact_ref="hazop_node_register",
+def validate_control_plan(control_plan: ControlPlanArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not control_plan.control_loops:
+        issues.append(
+            ValidationIssue(
+                code="control_plan_empty",
+                severity=Severity.BLOCKED,
+                message="Control plan did not emit any control loops.",
+                artifact_ref="control_plan",
+            )
         )
-    ]
+        return issues
+    missing_objective = [loop.control_id for loop in control_plan.control_loops if not loop.objective]
+    missing_startup = [loop.control_id for loop in control_plan.control_loops if not loop.startup_logic]
+    missing_override = [loop.control_id for loop in control_plan.control_loops if not loop.override_logic]
+    if missing_objective:
+        issues.append(
+            ValidationIssue(
+                code="control_plan_missing_objective",
+                severity=Severity.WARNING,
+                message=f"Control loops are missing explicit objective basis: {', '.join(missing_objective[:5])}.",
+                artifact_ref="control_plan",
+            )
+        )
+    if missing_startup:
+        issues.append(
+            ValidationIssue(
+                code="control_plan_missing_startup_logic",
+                severity=Severity.WARNING,
+                message=f"Control loops are missing startup / shutdown logic: {', '.join(missing_startup[:5])}.",
+                artifact_ref="control_plan",
+            )
+        )
+    if missing_override:
+        issues.append(
+            ValidationIssue(
+                code="control_plan_missing_override_logic",
+                severity=Severity.WARNING,
+                message=f"Control loops are missing override / permissive basis: {', '.join(missing_override[:5])}.",
+                artifact_ref="control_plan",
+            )
+        )
+    return issues
+
+
+def validate_hazop_node_register(register: HazopNodeRegister) -> list[ValidationIssue]:
+    if not register.nodes:
+        return [
+            ValidationIssue(
+                code="hazop_register_empty",
+                severity=Severity.BLOCKED,
+                message="HAZOP node register is empty.",
+                artifact_ref="hazop_node_register",
+            )
+        ]
+    issues: list[ValidationIssue] = []
+    missing_deviation = [node.node_id for node in register.nodes if not node.deviation]
+    missing_design_intent = [node.node_id for node in register.nodes if not node.design_intent]
+    missing_safeguards = [node.node_id for node in register.nodes if not node.safeguards]
+    missing_tracking = [node.node_id for node in register.nodes if not node.recommendation_priority or not node.recommendation_status]
+    if missing_deviation:
+        issues.append(
+            ValidationIssue(
+                code="hazop_missing_deviation_basis",
+                severity=Severity.WARNING,
+                message=f"HAZOP nodes are missing explicit deviation wording: {', '.join(missing_deviation[:5])}.",
+                artifact_ref="hazop_node_register",
+            )
+        )
+    if missing_design_intent:
+        issues.append(
+            ValidationIssue(
+                code="hazop_missing_design_intent",
+                severity=Severity.WARNING,
+                message=f"HAZOP nodes are missing design intent basis: {', '.join(missing_design_intent[:5])}.",
+                artifact_ref="hazop_node_register",
+            )
+        )
+    if missing_safeguards:
+        issues.append(
+            ValidationIssue(
+                code="hazop_missing_safeguards",
+                severity=Severity.BLOCKED,
+                message=f"HAZOP nodes are missing safeguards: {', '.join(missing_safeguards[:5])}.",
+                artifact_ref="hazop_node_register",
+            )
+        )
+    if missing_tracking:
+        issues.append(
+            ValidationIssue(
+                code="hazop_missing_recommendation_tracking",
+                severity=Severity.WARNING,
+                message=f"HAZOP nodes are missing recommendation priority/status tracking: {', '.join(missing_tracking[:5])}.",
+                artifact_ref="hazop_node_register",
+            )
+        )
+    return issues
 
 
 def validate_cross_chapter_consistency(

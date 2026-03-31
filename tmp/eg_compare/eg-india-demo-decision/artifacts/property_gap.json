@@ -1,0 +1,129 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+  ],
+  "values": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "value_id": "molecular_weight",
+      "name": "Molecular weight",
+      "value": "62.07",
+      "units": "g/mol",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "tight",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "value_id": "melting_point",
+      "name": "Melting point",
+      "value": "-12.9",
+      "units": "C",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "tight",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "value_id": "boiling_point",
+      "name": "Boiling point",
+      "value": "197.3",
+      "units": "C",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "tight",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "value_id": "density",
+      "name": "Density",
+      "value": "1.113",
+      "units": "g/cm3",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "tight",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "value_id": "water_solubility",
+      "name": "Water solubility",
+      "value": "Miscible",
+      "units": "-",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "tight",
+      "sensitivity": "low",
+      "blocking": false
+    }
+  ],
+  "assumptions_log": [
+    {
+      "assumption_id": "property_resolution_policy",
+      "statement": "Property values are carried into design with explicit provenance and sensitivity tagging.",
+      "reason": "Decision and economics stages need blocking behavior for weak high-sensitivity values.",
+      "impact_scope": "product profile, balances, utilities, economics",
+      "expiry_review_condition": "Replace if higher-quality cited property data becomes available."
+    }
+  ],
+  "unresolved_high_sensitivity": [],
+  "markdown": "| Property | Value | Units | Method | Sensitivity | Blocking |\n| --- | --- | --- | --- | --- | --- |\n| Molecular weight | 62.07 | g/mol | sourced | high | no |\n| Melting point | -12.9 | C | sourced | medium | no |\n| Boiling point | 197.3 | C | sourced | medium | no |\n| Density | 1.113 | g/cm3 | sourced | high | no |\n| Water solubility | Miscible | - | sourced | low | no |"
+}

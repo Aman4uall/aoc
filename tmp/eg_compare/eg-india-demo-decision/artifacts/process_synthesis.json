@@ -1,0 +1,677 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Operating-mode decision uses operations-planning buffers, restart losses, and campaign burden instead of a fixed throughput-only rule."
+  ],
+  "operating_mode_decision": {
+    "citations": [
+      "eg_handbook",
+      "india_sheet_1",
+      "user_doc_1",
+      "user_doc_2"
+    ],
+    "assumptions": [
+      "Mock EG route survey uses seeded industrial route families.",
+      "Mock EG product profile uses seeded but realistic property values.",
+      "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+      "Mock EG route survey uses seeded industrial route families.",
+      "Mock EG product profile uses seeded but realistic property values.",
+      "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+      "Operating-mode decision uses operations-planning buffers, restart losses, and campaign burden instead of a fixed throughput-only rule."
+    ],
+    "decision_id": "operating_mode",
+    "context": "Plant operating mode",
+    "criteria": [
+      {
+        "name": "Throughput support",
+        "weight": 0.28,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Large dedicated plants need a mode that can hold throughput without excessive campaign fragmentation."
+      },
+      {
+        "name": "Changeover burden",
+        "weight": 0.16,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Cleaning and campaign turnover directly affect uptime and staffing."
+      },
+      {
+        "name": "Heat integration fit",
+        "weight": 0.22,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Steady heat duties usually reward continuous operation, especially in integrated trains."
+      },
+      {
+        "name": "Outage recovery burden",
+        "weight": 0.18,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Startup losses and ramp time should be explicit in the operating-mode choice."
+      },
+      {
+        "name": "Inventory burden",
+        "weight": 0.16,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Higher buffer and operating-stock requirements should penalize the weaker mode."
+      }
+    ],
+    "alternatives": [
+      {
+        "citations": [
+          "eg_handbook",
+          "india_sheet_1",
+          "user_doc_1",
+          "user_doc_2"
+        ],
+        "assumptions": [
+          "Mock EG route survey uses seeded industrial route families.",
+          "Mock EG product profile uses seeded but realistic property values.",
+          "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+          "Mock EG route survey uses seeded industrial route families.",
+          "Mock EG product profile uses seeded but realistic property values.",
+          "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+        ],
+        "candidate_id": "continuous",
+        "candidate_type": "operating_mode",
+        "description": "Continuous operation",
+        "inputs": {
+          "service_family": "continuous_liquid_purification",
+          "capacity_tpa": "200000"
+        },
+        "outputs": {
+          "campaign_length_days": "170.0",
+          "throughput_loss_fraction": "0.0123",
+          "restart_loss_fraction": "0.0062"
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "Throughput support": 98.0,
+          "Changeover burden": 84.11764705882354,
+          "Heat integration fit": 96.0,
+          "Outage recovery burden": 59.698,
+          "Inventory burden": 51.51199999999999
+        },
+        "total_score": 81.006,
+        "feasible": true
+      }
+    ],
+    "selected_candidate_id": "continuous",
+    "selected_summary": "Continuous operation is selected for the continuous liquid purification service because it gives the stronger throughput, outage-recovery, and inventory balance.",
+    "hard_constraint_results": [
+      "Capacity basis: 200,000 TPA",
+      "Service family: continuous_liquid_purification",
+      "Availability policy: continuous_liquid_train",
+      "Operating-mode critic escalation: operating_mode_integrated_economics_tension"
+    ],
+    "confidence": 0.8,
+    "scenario_stability": "borderline",
+    "approval_required": true,
+    "blocked_value_ids": []
+  },
+  "route_candidates": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Route family `liquid_hydration_train` drives first-pass synthesis scoring."
+      ],
+      "candidate_id": "alt_eo_hydration",
+      "candidate_type": "process_architecture",
+      "description": "Ethylene oxide hydration with continuous operation",
+      "inputs": {
+        "route_id": "eo_hydration",
+        "operating_mode": "continuous",
+        "route_family": "liquid_hydration_train",
+        "reactor_class": "Tubular plug-flow hydrator"
+      },
+      "outputs": {
+        "separation_train": "EO flash -> water removal -> vacuum glycol distillation",
+        "heat_recovery_style": "condenser_reboiler_cluster",
+        "maturity_score": "92.00",
+        "india_fit_score": "90.00"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "maturity": 92.0,
+        "india_fit": 90.0,
+        "safety": 35.0,
+        "operability": 84.0
+      },
+      "total_score": 78.5,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Route family `liquid_hydration_train` drives first-pass synthesis scoring."
+      ],
+      "candidate_id": "alt_omega_catalytic",
+      "candidate_type": "process_architecture",
+      "description": "OMEGA catalytic route via ethylene carbonate with continuous operation",
+      "inputs": {
+        "route_id": "omega_catalytic",
+        "operating_mode": "continuous",
+        "route_family": "liquid_hydration_train",
+        "reactor_class": "Tubular plug-flow hydrator"
+      },
+      "outputs": {
+        "separation_train": "EO flash -> water removal -> vacuum glycol distillation",
+        "heat_recovery_style": "condenser_reboiler_cluster",
+        "maturity_score": "92.00",
+        "india_fit_score": "90.00"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "maturity": 92.0,
+        "india_fit": 90.0,
+        "safety": 60.0,
+        "operability": 84.0
+      },
+      "total_score": 83.49999999999999,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Route family `chlorinated_hydrolysis_train` drives first-pass synthesis scoring."
+      ],
+      "candidate_id": "alt_chlorohydrin",
+      "candidate_type": "process_architecture",
+      "description": "Ethylene chlorohydrin hydrolysis with continuous operation",
+      "inputs": {
+        "route_id": "chlorohydrin",
+        "operating_mode": "continuous",
+        "route_family": "chlorinated_hydrolysis_train",
+        "reactor_class": "Agitated hydrolysis CSTR train"
+      },
+      "outputs": {
+        "separation_train": "Salt removal -> brine handling -> water removal -> purification",
+        "heat_recovery_style": "utility_led_with_brine_management",
+        "maturity_score": "30.00",
+        "india_fit_score": "22.00"
+      },
+      "rejected_reasons": [
+        "Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis."
+      ],
+      "score_breakdown": {
+        "maturity": 30.0,
+        "india_fit": 22.0,
+        "safety": 60.0,
+        "operability": 48.0
+      },
+      "total_score": 37.6,
+      "feasible": false
+    }
+  ],
+  "archetype": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook"
+    ],
+    "assumptions": [
+      "Mock EG route survey uses seeded industrial route families.",
+      "Mock EG product profile uses seeded but realistic property values.",
+      "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+    ],
+    "archetype_id": "organic_liquid_distillation_flash",
+    "compound_family": "organic",
+    "dominant_product_phase": "liquid",
+    "dominant_feed_phase": "mixed",
+    "operating_mode_candidates": [
+      "continuous"
+    ],
+    "dominant_separation_family": "distillation_flash",
+    "heat_management_profile": "moderate_temperature_integrated",
+    "hazard_intensity": "high",
+    "rationale": "Classified from public route patterns, product/participant phase cues, and sensitivity-checked property gaps. High-sensitivity unresolved properties: none.",
+    "benchmark_profile": "ethylene_glycol",
+    "chemistry_family_adapter_id": "continuous_liquid_organic_train"
+  },
+  "family_adapter": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook",
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook"
+    ],
+    "assumptions": [
+      "Mock EG route survey uses seeded industrial route families.",
+      "Mock EG product profile uses seeded but realistic property values.",
+      "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+      "Mock EG product profile uses seeded but realistic property values.",
+      "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+      "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+    ],
+    "adapter_id": "continuous_liquid_organic_train",
+    "family_label": "Continuous Liquid Organic Train",
+    "compound_family": "organic",
+    "dominant_phase_system": "liquid",
+    "route_generation_hints": [
+      "hydration",
+      "carbonylation",
+      "hydrogenation",
+      "dehydration cleanup"
+    ],
+    "property_priority_order": [
+      "molecular_weight",
+      "normal_boiling_point",
+      "liquid_density",
+      "liquid_viscosity",
+      "liquid_heat_capacity",
+      "heat_of_vaporization",
+      "antoine_constants",
+      "binary_interaction_parameters"
+    ],
+    "preferred_reactor_candidates": [
+      "tubular_plug_flow_hydrator",
+      "jacketed_cstr_train"
+    ],
+    "preferred_separation_candidates": [
+      "distillation_train",
+      "extraction_recovery_train"
+    ],
+    "preferred_storage_candidates": [
+      "vertical_tank_farm"
+    ],
+    "moc_bias_candidates": [
+      "ss316l",
+      "carbon_steel"
+    ],
+    "common_unit_operations": [
+      "reactor",
+      "flash",
+      "distillation",
+      "heat_exchanger",
+      "storage"
+    ],
+    "corrosion_cues": [
+      "organic_acid_presence",
+      "water_content",
+      "chloride_trace_monitoring"
+    ],
+    "heat_integration_patterns": [
+      "reboiler_condenser_cluster",
+      "shared_htm_island_network",
+      "moderate_temperature_recovery"
+    ],
+    "critic_focus": [
+      "relative_volatility_claims",
+      "water_recycle_closure",
+      "reboiler_duty_burden"
+    ],
+    "sparse_data_blockers": [
+      "missing_vle_basis",
+      "missing_density_viscosity_for_column_hydraulics"
+    ],
+    "benchmark_profiles": [
+      "ethylene_glycol",
+      "ethylene_glycol",
+      "acetic_acid"
+    ],
+    "rationale": "Adapter selected for liquid-phase organic trains where throughput, VLE basis, and thermal integration dominate the design envelope.",
+    "markdown": "Adapter `continuous_liquid_organic_train` supports continuous liquid organic train under a organic chemistry basis.\n\n- Route hints: hydration, carbonylation, hydrogenation, dehydration cleanup\n- Property priority: molecular_weight, normal_boiling_point, liquid_density, liquid_viscosity, liquid_heat_capacity, heat_of_vaporization, antoine_constants, binary_interaction_parameters\n- Preferred reactor candidates: tubular_plug_flow_hydrator, jacketed_cstr_train\n- Preferred separation candidates: distillation_train, extraction_recovery_train\n- Common unit operations: reactor, flash, distillation, heat_exchanger, storage\n- Corrosion cues: organic_acid_presence, water_content, chloride_trace_monitoring\n- Heat-integration patterns: reboiler_condenser_cluster, shared_htm_island_network, moderate_temperature_recovery\n- Critic focus: relative_volatility_claims, water_recycle_closure, reboiler_duty_burden\n- Sparse-data blockers: missing_vle_basis, missing_density_viscosity_for_column_hydraulics"
+  },
+  "alternative_sets": [
+    {
+      "citations": [],
+      "assumptions": [],
+      "set_id": "capacity_case",
+      "context": "Early capacity screening before detailed synthesis.",
+      "criteria": [
+        {
+          "name": "Scale fit",
+          "weight": 1.0,
+          "hard_constraint": false,
+          "direction": "maximize",
+          "justification": "Keeps conceptual design tied to requested throughput."
+        }
+      ],
+      "alternatives": [
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "150000_tpa",
+          "candidate_type": "capacity_case",
+          "description": "150,000 TPA design basis",
+          "inputs": {},
+          "outputs": {
+            "capacity_tpa": "150000"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "scale_fit": 82.5
+          },
+          "total_score": 82.5,
+          "feasible": true
+        },
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "200000_tpa",
+          "candidate_type": "capacity_case",
+          "description": "200,000 TPA design basis",
+          "inputs": {},
+          "outputs": {
+            "capacity_tpa": "200000"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "scale_fit": 100.0
+          },
+          "total_score": 100.0,
+          "feasible": true
+        },
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "250000_tpa",
+          "candidate_type": "capacity_case",
+          "description": "250,000 TPA design basis",
+          "inputs": {},
+          "outputs": {
+            "capacity_tpa": "250000"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "scale_fit": 82.5
+          },
+          "total_score": 82.5,
+          "feasible": true
+        }
+      ],
+      "selected_candidate_id": "200000_tpa",
+      "scenario_stability": "stable",
+      "markdown": "Capacity alternatives ranked against the requested design basis."
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "set_id": "operating_mode",
+      "context": "Operating-mode screening from throughput, flexibility, and control needs.",
+      "criteria": [
+        {
+          "name": "Throughput support",
+          "weight": 0.65,
+          "hard_constraint": false,
+          "direction": "maximize",
+          "justification": "Large plants favor continuous operation."
+        },
+        {
+          "name": "Flexibility fit",
+          "weight": 0.35,
+          "hard_constraint": false,
+          "direction": "maximize",
+          "justification": "Low-volume or solids-heavy service may justify batch operation."
+        }
+      ],
+      "alternatives": [
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "continuous",
+          "candidate_type": "operating_mode",
+          "description": "Continuous operation",
+          "inputs": {},
+          "outputs": {
+            "mode": "continuous"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "throughput_support": 90.0,
+            "flexibility_fit": 55.0
+          },
+          "total_score": 77.75,
+          "feasible": true
+        }
+      ],
+      "selected_candidate_id": "continuous",
+      "scenario_stability": "stable",
+      "markdown": "Operating-mode candidates ranked against throughput and flexibility needs."
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "set_id": "route_screen",
+      "context": "Public-source route alternatives before architecture lock.",
+      "criteria": [
+        {
+          "name": "Route maturity and fit",
+          "weight": 1.0,
+          "hard_constraint": false,
+          "direction": "maximize",
+          "justification": "Uses route survey scoring as the first deterministic route screen."
+        }
+      ],
+      "alternatives": [
+        {
+          "citations": [
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1",
+            "eg_handbook"
+          ],
+          "assumptions": [],
+          "candidate_id": "eo_hydration",
+          "candidate_type": "route",
+          "description": "Ethylene oxide hydration",
+          "inputs": {},
+          "outputs": {
+            "yield": "0.920",
+            "selectivity": "0.930"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "route_score": 95.0
+          },
+          "total_score": 95.0,
+          "feasible": true
+        },
+        {
+          "citations": [
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1",
+            "eg_handbook"
+          ],
+          "assumptions": [],
+          "candidate_id": "omega_catalytic",
+          "candidate_type": "route",
+          "description": "OMEGA catalytic route via ethylene carbonate",
+          "inputs": {},
+          "outputs": {
+            "yield": "0.960",
+            "selectivity": "0.990"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "route_score": 89.0
+          },
+          "total_score": 89.0,
+          "feasible": true
+        },
+        {
+          "citations": [
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1",
+            "eg_handbook"
+          ],
+          "assumptions": [],
+          "candidate_id": "chlorohydrin",
+          "candidate_type": "route",
+          "description": "Ethylene chlorohydrin hydrolysis",
+          "inputs": {},
+          "outputs": {
+            "yield": "0.750",
+            "selectivity": "0.820"
+          },
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "route_score": 59.0
+          },
+          "total_score": 59.0,
+          "feasible": true
+        }
+      ],
+      "selected_candidate_id": "eo_hydration",
+      "scenario_stability": "stable",
+      "markdown": "Route candidates carried from the route survey into the generic architecture layer."
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "set_id": "reactor_family",
+      "context": "Generic reactor-family screening from archetype and throughput.",
+      "criteria": [
+        {
+          "name": "Family fit",
+          "weight": 1.0,
+          "hard_constraint": false,
+          "direction": "maximize",
+          "justification": "Scores reactor families against throughput, controllability, and phase handling."
+        }
+      ],
+      "alternatives": [
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "cstr_train",
+          "candidate_type": "reactor_family",
+          "description": "CSTR train",
+          "inputs": {},
+          "outputs": {},
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "controllability": 72.0
+          },
+          "total_score": 72.0,
+          "feasible": true
+        },
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "pfr_tubular",
+          "candidate_type": "reactor_family",
+          "description": "Tubular PFR",
+          "inputs": {},
+          "outputs": {},
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "throughput": 88.0
+          },
+          "total_score": 88.0,
+          "feasible": true
+        },
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "batch_agitated",
+          "candidate_type": "reactor_family",
+          "description": "Batch agitated vessel",
+          "inputs": {},
+          "outputs": {},
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "flexibility": 58.0
+          },
+          "total_score": 58.0,
+          "feasible": true
+        }
+      ],
+      "selected_candidate_id": "pfr_tubular",
+      "scenario_stability": "stable",
+      "markdown": "Reactor-family candidates ranked for the inferred archetype."
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "set_id": "separation_family",
+      "context": "Generic separation-family screening from route and phase structure.",
+      "criteria": [
+        {
+          "name": "Separation fit",
+          "weight": 1.0,
+          "hard_constraint": false,
+          "direction": "maximize",
+          "justification": "Uses archetype signals from route descriptions and phase hints."
+        }
+      ],
+      "alternatives": [
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "distillation_flash",
+          "candidate_type": "separation_family",
+          "description": "distillation flash",
+          "inputs": {},
+          "outputs": {},
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "archetype_fit": 86.0
+          },
+          "total_score": 86.0,
+          "feasible": true
+        },
+        {
+          "citations": [],
+          "assumptions": [],
+          "candidate_id": "mixed_purification",
+          "candidate_type": "separation_family",
+          "description": "Mixed purification train",
+          "inputs": {},
+          "outputs": {},
+          "rejected_reasons": [],
+          "score_breakdown": {
+            "archetype_fit": 68.0
+          },
+          "total_score": 68.0,
+          "feasible": true
+        }
+      ],
+      "selected_candidate_id": "distillation_flash",
+      "scenario_stability": "stable",
+      "markdown": "Separation-family candidates ranked for the inferred archetype."
+    }
+  ],
+  "markdown": "The synthesis layer generates route-specific process architectures before detailed sizing. At this stage the system locks operating mode and the first-pass reactor/separation families, but defers final route choice until rough duties and heat recovery have been evaluated.\n\n| Candidate | Reactor | Separation Train | Feasible |\n| --- | --- | --- | --- |\n| eo_hydration | Tubular plug-flow hydrator | EO flash -> water removal -> vacuum glycol distillation | yes |\n| omega_catalytic | Tubular plug-flow hydrator | EO flash -> water removal -> vacuum glycol distillation | yes |\n| chlorohydrin | Agitated hydrolysis CSTR train | Salt removal -> brine handling -> water removal -> purification | no |"
+}

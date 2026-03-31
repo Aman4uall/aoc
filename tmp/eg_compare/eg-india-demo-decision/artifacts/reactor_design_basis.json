@@ -1,0 +1,64 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Mock kinetic parameters are seeded values for workflow verification."
+  ],
+  "reactor_id": "R-101",
+  "selected_reactor_type": "Tubular Plug Flow Hydrator",
+  "governing_equations": [
+    "V = tau * volumetric_flow",
+    "k = A * exp(-Ea/RT)",
+    "Da = k * tau",
+    "Q = U * A * LMTD",
+    "Nu = 0.023 * Re^0.8 * Pr^0.4"
+  ],
+  "design_inputs": {
+    "residence_time_hr": "1.000",
+    "design_volume_m3": "27004.165",
+    "design_conversion_fraction": "0.9600",
+    "phase_regime": "gas_phase_catalytic",
+    "kinetic_rate_constant_1_hr": "14.9632",
+    "kinetic_space_time_hr": "0.6000",
+    "kinetic_damkohler_number": "14.9632",
+    "heat_duty_kw": "7600.213",
+    "heat_release_density_kw_m3": "0.281",
+    "adiabatic_temperature_rise_c": "414.729",
+    "heat_removal_capacity_kw": "8512.239",
+    "heat_removal_margin_fraction": "0.1200",
+    "thermal_stability_score": "5.00",
+    "runaway_risk_label": "moderate",
+    "integrated_thermal_duty_kw": "0.000",
+    "residual_utility_duty_kw": "7600.213",
+    "integrated_lmtd_k": "0.000",
+    "integrated_exchange_area_m2": "0.000",
+    "allocated_recovered_duty_target_kw": "0.000"
+  },
+  "operating_envelope": {
+    "temperature_c": "255.0",
+    "pressure_bar": "20.00",
+    "cooling_medium": "Dowtherm A / cooling water",
+    "utility_topology": "shared HTM island network (shared_htm) with 1 utility islands",
+    "utility_architecture_family": "shared_htm",
+    "coupled_service_basis": "standalone utility service",
+    "selected_utility_islands": "none",
+    "selected_header_levels": "none",
+    "selected_cluster_ids": "none",
+    "catalyst_name": "CO2 catalytic loop",
+    "catalyst_inventory_kg": "4914758.026",
+    "catalyst_cycle_days": "270.0",
+    "catalyst_regeneration_days": "5.0",
+    "catalyst_whsv_1_hr": "0.0055"
+  },
+  "markdown": "Reactor R-101 uses Tubular Plug Flow Hydrator basis in gas_phase_catalytic service with k=14.9632 1/h and Da=14.963. Thermal stability basis gives DeltaTad=414.73 C and heat-removal margin 0.120. Integrated duty basis is 0.000 kW via shared HTM island network (shared_htm) with 1 utility islands [shared_htm], with explicit coupled area 0.000 m2 at 0.000 K."
+}

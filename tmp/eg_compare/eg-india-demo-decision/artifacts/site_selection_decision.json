@@ -1,0 +1,139 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis.",
+    "Site choice is ranked deterministically from scored India cluster attributes and configured preferences."
+  ],
+  "decision_id": "site_selection",
+  "context": "India site selection",
+  "criteria": [
+    {
+      "name": "Feedstock and cluster fit",
+      "weight": 0.35,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Petrochemical integration and cluster density dominate EG site practicality."
+    },
+    {
+      "name": "Logistics",
+      "weight": 0.25,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Port connectivity and outbound distribution materially affect India economics."
+    },
+    {
+      "name": "Utilities",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Utility reliability and industrial support are required for continuous EG service."
+    },
+    {
+      "name": "Business and compliance fit",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Landability, compliance maturity, and local industrial ecosystem matter at scale."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "Dahej",
+      "candidate_type": "site_selection",
+      "description": "Dahej, Gujarat",
+      "inputs": {},
+      "outputs": {
+        "state": "Gujarat",
+        "cluster_score": "9.0",
+        "logistics_score": "9.0",
+        "utilities_score": "9.0"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "Feedstock and cluster fit": 90.0,
+        "Logistics": 90.0,
+        "Utilities": 90.0,
+        "Business and compliance fit": 80.0
+      },
+      "total_score": 94.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "Jamnagar",
+      "candidate_type": "site_selection",
+      "description": "Jamnagar, Gujarat",
+      "inputs": {},
+      "outputs": {
+        "state": "Gujarat",
+        "cluster_score": "9.0",
+        "logistics_score": "8.0",
+        "utilities_score": "8.0"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "Feedstock and cluster fit": 90.0,
+        "Logistics": 80.0,
+        "Utilities": 80.0,
+        "Business and compliance fit": 80.0
+      },
+      "total_score": 89.5,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "Paradip",
+      "candidate_type": "site_selection",
+      "description": "Paradip, Odisha",
+      "inputs": {},
+      "outputs": {
+        "state": "Odisha",
+        "cluster_score": "7.0",
+        "logistics_score": "8.0",
+        "utilities_score": "7.0"
+      },
+      "rejected_reasons": [],
+      "score_breakdown": {
+        "Feedstock and cluster fit": 70.0,
+        "Logistics": 80.0,
+        "Utilities": 70.0,
+        "Business and compliance fit": 70.0
+      },
+      "total_score": 78.5,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "Dahej",
+  "selected_summary": "Dahej is selected because it provides the strongest combined cluster, logistics, utility, and India execution fit for a 200000 TPA EG plant.",
+  "hard_constraint_results": [
+    "Site candidates are restricted to India-only locations."
+  ],
+  "confidence": 0.72,
+  "scenario_stability": "borderline",
+  "approval_required": true,
+  "blocked_value_ids": []
+}

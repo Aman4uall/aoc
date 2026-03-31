@@ -90,6 +90,21 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
             "thermal_conductivity": (0.026, "W/m-K"),
         },
     },
+    "hydrogen": {
+        "aliases": ["h2"],
+        "formula": "H2",
+        "cas_number": "1333-74-0",
+        "properties": {
+            "molecular_weight": (2.016, "g/mol"),
+            "normal_boiling_point": (-252.9, "C"),
+            "melting_point": (-259.2, "C"),
+            "liquid_density": (70.8, "kg/m3"),
+            "liquid_viscosity": (8.9e-06, "Pa.s"),
+            "liquid_heat_capacity": (14.30, "kJ/kg-K"),
+            "heat_of_vaporization": (446.0, "kJ/kg"),
+            "thermal_conductivity": (0.180, "W/m-K"),
+        },
+    },
     "ethylene_chlorohydrin": {
         "aliases": ["2-chloroethanol"],
         "formula": "C2H5ClO",

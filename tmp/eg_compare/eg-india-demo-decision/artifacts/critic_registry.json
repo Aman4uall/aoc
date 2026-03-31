@@ -1,0 +1,500 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Residence time basis retained at 1.00 h.",
+    "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+    "Seeded BFD used for deterministic stage execution.",
+    "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+    "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing."
+  ],
+  "findings": [
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "distillation_design:sparse_data_policy_warning:sparse_data_policy",
+      "stage_id": "distillation_design",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "sparse_data_policy_warning",
+      "message": "Stage 'distillation_design' is proceeding under sparse-data warning 'binary_interaction_parameters' for 'Continuous Liquid Organic Train': ethylene_glycol__ethylene_oxide, ethylene_glycol__water, ethylene_oxide__water.",
+      "artifact_ref": "sparse_data_policy",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "sparse_data_policy_warning"
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Seeded BFD used for deterministic stage execution.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "finding_id": "energy_balance:solve_result:0",
+      "stage_id": "energy_balance",
+      "critic_family": "flowsheet_solver",
+      "severity": "warning",
+      "code": "solve_result_critic_message",
+      "message": "Unit 'recycle_recovery' closure is 3.767%, which is outside the converged range.",
+      "artifact_ref": "solve_result",
+      "recommended_action": "Review the solved flowsheet packets and close the critic message before treating the design as robust.",
+      "source_issue_codes": [
+        "solve_result_critic_message"
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Seeded BFD used for deterministic stage execution.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "finding_id": "energy_balance:solve_result:1",
+      "stage_id": "energy_balance",
+      "critic_family": "flowsheet_solver",
+      "severity": "warning",
+      "code": "solve_result_critic_message",
+      "message": "Unit 'purification' retains estimated composition closure.",
+      "artifact_ref": "solve_result",
+      "recommended_action": "Review the solved flowsheet packets and close the critic message before treating the design as robust.",
+      "source_issue_codes": [
+        "solve_result_critic_message"
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Seeded BFD used for deterministic stage execution.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "finding_id": "energy_balance:solve_result:2",
+      "stage_id": "energy_balance",
+      "critic_family": "flowsheet_solver",
+      "severity": "warning",
+      "code": "solve_result_critic_message",
+      "message": "Recycle loop 'purification_recycle_loop' remains estimated and needs review before freezing detailed design.",
+      "artifact_ref": "solve_result",
+      "recommended_action": "Review the solved flowsheet packets and close the critic message before treating the design as robust.",
+      "source_issue_codes": [
+        "solve_result_critic_message"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "equipment_sizing:reactor_choice_family_critic_flags_present:reactor_choice",
+      "stage_id": "equipment_sizing",
+      "critic_family": "unit_applicability",
+      "severity": "warning",
+      "code": "reactor_choice_family_critic_flags_present",
+      "message": "Selected reactor family still carries applicability critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure.",
+      "artifact_ref": "reactor_choice",
+      "recommended_action": "Re-rank the unit family or revise the equipment basis to match the route family.",
+      "source_issue_codes": [
+        "reactor_choice_family_critic_flags_present"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "equipment_sizing:separation_choice_family_critic_flags_present:separation_choice",
+      "stage_id": "equipment_sizing",
+      "critic_family": "separation_design",
+      "severity": "warning",
+      "code": "separation_choice_family_critic_flags_present",
+      "message": "Selected separation family still carries applicability critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure.",
+      "artifact_ref": "separation_choice",
+      "recommended_action": "Recheck the selected separation family and design basis against the solved process.",
+      "source_issue_codes": [
+        "separation_choice_family_critic_flags_present"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "final_report:benchmark_acceptance_conditional:report_acceptance",
+      "stage_id": "final_report",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "benchmark_acceptance_conditional",
+      "message": "Benchmark 'ethylene_glycol' completed without a hard block, but the acceptance gate remains conditional.",
+      "artifact_ref": "report_acceptance",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "benchmark_acceptance_conditional"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "final_report:report_parity_gap_remaining:report_parity",
+      "stage_id": "final_report",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "report_parity_gap_remaining",
+      "message": "Report parity is not complete yet: 3 partial chapters, 0 partial support sections, 0 missing support sections.",
+      "artifact_ref": "report_parity",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "report_parity_gap_remaining"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:economic_basis_counterfactual_selected:economic_basis_decision",
+      "stage_id": "financial_analysis",
+      "critic_family": "economics_finance",
+      "severity": "warning",
+      "code": "economic_basis_counterfactual_selected",
+      "message": "Economic basis selected 'no_recovery_counterfactual' instead of the integrated base case for route 'omega_catalytic'.",
+      "artifact_ref": "economic_basis_decision",
+      "recommended_action": "Align the economic and financing basis with the technical architecture and scenarios.",
+      "source_issue_codes": [
+        "economic_basis_counterfactual_selected"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:economic_basis_rejects_selected_recovery:economic_basis_decision",
+      "stage_id": "financial_analysis",
+      "critic_family": "economics_finance",
+      "severity": "warning",
+      "code": "economic_basis_rejects_selected_recovery",
+      "message": "Economic basis rejected the selected recovery case 'omega_catalytic_pinch_htm' even though it recovers 47256.7 kW and reduces annual utility cost.",
+      "artifact_ref": "economic_basis_decision",
+      "recommended_action": "Align the economic and financing basis with the technical architecture and scenarios.",
+      "source_issue_codes": [
+        "economic_basis_rejects_selected_recovery"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:financing_operability_tension:financing_basis_decision",
+      "stage_id": "financial_analysis",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "financing_operability_tension",
+      "message": "Higher-leverage financing is being held against an operating mode with meaningful outage or restart-loss burden.",
+      "artifact_ref": "financing_basis_decision",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "financing_operability_tension"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:heat_recovery_without_economic_benefit:cost_model",
+      "stage_id": "financial_analysis",
+      "critic_family": "economics_finance",
+      "severity": "warning",
+      "code": "heat_recovery_without_economic_benefit",
+      "message": "Selected heat-recovery architecture claims meaningful recovered duty but does not reduce annual utility cost in the economic model.",
+      "artifact_ref": "cost_model",
+      "recommended_action": "Align the economic and financing basis with the technical architecture and scenarios.",
+      "source_issue_codes": [
+        "heat_recovery_without_economic_benefit"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:operating_mode_integrated_economics_tension:operating_mode",
+      "stage_id": "financial_analysis",
+      "critic_family": "economics_finance",
+      "severity": "warning",
+      "code": "operating_mode_integrated_economics_tension",
+      "message": "Operating mode remains tuned for continuous integrated service while the selected economic basis has moved to a counterfactual case.",
+      "artifact_ref": "operating_mode",
+      "recommended_action": "Align the economic and financing basis with the technical architecture and scenarios.",
+      "source_issue_codes": [
+        "operating_mode_integrated_economics_tension"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:weak_dscr_screening:financial_model",
+      "stage_id": "financial_analysis",
+      "critic_family": "cross_chapter",
+      "severity": "warning",
+      "code": "weak_dscr_screening",
+      "message": "Financial model minimum DSCR is below 1.0 under the current screening basis.",
+      "artifact_ref": "financial_model",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "weak_dscr_screening"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:weak_llcr_screening:financial_model",
+      "stage_id": "financial_analysis",
+      "critic_family": "cross_chapter",
+      "severity": "warning",
+      "code": "weak_llcr_screening",
+      "message": "Financial model LLCR is below 1.30 under the current screening basis.",
+      "artifact_ref": "financial_model",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "weak_llcr_screening"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "financial_analysis:weak_plcr_screening:financial_model",
+      "stage_id": "financial_analysis",
+      "critic_family": "cross_chapter",
+      "severity": "warning",
+      "code": "weak_plcr_screening",
+      "message": "Financial model PLCR is below 1.45 under the current screening basis.",
+      "artifact_ref": "financial_model",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "weak_plcr_screening"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "kinetic_feasibility:architecture_package_fallback_thermo:separation_thermo",
+      "stage_id": "kinetic_feasibility",
+      "critic_family": "thermo_property",
+      "severity": "warning",
+      "code": "architecture_package_fallback_thermo",
+      "message": "Selected architecture is still relying on fallback or idealized thermodynamics for the chosen liquid separation family.",
+      "artifact_ref": "separation_thermo",
+      "recommended_action": "Resolve the missing thermodynamic/property basis or explicitly downgrade the design claim.",
+      "source_issue_codes": [
+        "architecture_package_fallback_thermo"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "kinetic_feasibility:architecture_package_sparse_data_compounded:sparse_data_policy",
+      "stage_id": "kinetic_feasibility",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "architecture_package_sparse_data_compounded",
+      "message": "Selected architecture has compounded sparse-data pressure across thermo/kinetics/design stages: binary_interaction_parameters.",
+      "artifact_ref": "sparse_data_policy",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "architecture_package_sparse_data_compounded"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "material_balance:composition_closure_estimated:stream_table",
+      "stage_id": "material_balance",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "composition_closure_estimated",
+      "message": "Unit 'purification' retains estimated composition closure.",
+      "artifact_ref": "stream_table",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "composition_closure_estimated"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "material_balance:flowsheet_unit_unresolved_basis:flowsheet_case",
+      "stage_id": "material_balance",
+      "critic_family": "evidence",
+      "severity": "warning",
+      "code": "flowsheet_unit_unresolved_basis",
+      "message": "Unit 'purification' still carries unresolved basis items: mixed or unresolved phase basis remains in solved streams.",
+      "artifact_ref": "flowsheet_case",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "flowsheet_unit_unresolved_basis"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "route_selection:distillation_family_property_coverage_weak:property_packages",
+      "stage_id": "route_selection",
+      "critic_family": "thermo_property",
+      "severity": "warning",
+      "code": "distillation_family_property_coverage_weak",
+      "message": "Selected separation family still has unresolved binary-interaction coverage: ethylene_glycol__ethylene_oxide, ethylene_glycol__water, ethylene_oxide__water.",
+      "artifact_ref": "property_packages",
+      "recommended_action": "Resolve the missing thermodynamic/property basis or explicitly downgrade the design claim.",
+      "source_issue_codes": [
+        "distillation_family_property_coverage_weak"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "route_selection:route_family_critic_flags_present:route_selection",
+      "stage_id": "route_selection",
+      "critic_family": "cross_chapter",
+      "severity": "warning",
+      "code": "route_family_critic_flags_present",
+      "message": "Selected route family 'Liquid Hydration Train' still carries critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure.",
+      "artifact_ref": "route_selection",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "route_family_critic_flags_present"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "thermodynamic_feasibility:architecture_package_fallback_thermo:separation_thermo",
+      "stage_id": "thermodynamic_feasibility",
+      "critic_family": "thermo_property",
+      "severity": "warning",
+      "code": "architecture_package_fallback_thermo",
+      "message": "Selected architecture is still relying on fallback or idealized thermodynamics for the chosen liquid separation family.",
+      "artifact_ref": "separation_thermo",
+      "recommended_action": "Resolve the missing thermodynamic/property basis or explicitly downgrade the design claim.",
+      "source_issue_codes": [
+        "architecture_package_fallback_thermo"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "thermodynamic_feasibility:architecture_package_sparse_data_compounded:sparse_data_policy",
+      "stage_id": "thermodynamic_feasibility",
+      "critic_family": "general",
+      "severity": "warning",
+      "code": "architecture_package_sparse_data_compounded",
+      "message": "Selected architecture has compounded sparse-data pressure across thermo/kinetics/design stages: binary_interaction_parameters.",
+      "artifact_ref": "sparse_data_policy",
+      "recommended_action": "Review the critic finding and either improve the basis or require analyst approval.",
+      "source_issue_codes": [
+        "architecture_package_sparse_data_compounded"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "thermodynamic_feasibility:missing_binary_interaction_coverage:separation_thermo",
+      "stage_id": "thermodynamic_feasibility",
+      "critic_family": "thermo_property",
+      "severity": "warning",
+      "code": "missing_binary_interaction_coverage",
+      "message": "Binary interaction coverage remains incomplete for the selected separation thermo basis: ethylene_glycol__water.",
+      "artifact_ref": "separation_thermo",
+      "recommended_action": "Resolve the missing thermodynamic/property basis or explicitly downgrade the design claim.",
+      "source_issue_codes": [
+        "missing_binary_interaction_coverage"
+      ]
+    },
+    {
+      "citations": [],
+      "assumptions": [],
+      "finding_id": "thermodynamic_feasibility:separation_thermo_fallback_active:separation_thermo",
+      "stage_id": "thermodynamic_feasibility",
+      "critic_family": "thermo_property",
+      "severity": "warning",
+      "code": "separation_thermo_fallback_active",
+      "message": "Separation thermodynamics is relying on fallback assumptions: Binary interaction parameters for Water / Ethylene Glycol were not resolved from cited/public sources.; Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair..",
+      "artifact_ref": "separation_thermo",
+      "recommended_action": "Resolve the missing thermodynamic/property basis or explicitly downgrade the design claim.",
+      "source_issue_codes": [
+        "separation_thermo_fallback_active"
+      ]
+    }
+  ],
+  "warning_count": 26,
+  "blocked_count": 0,
+  "markdown": "| Stage | Family | Severity | Code | Artifact | Message |\n| --- | --- | --- | --- | --- | --- |\n| distillation_design | general | warning | sparse_data_policy_warning | sparse_data_policy | Stage 'distillation_design' is proceeding under sparse-data warning 'binary_interaction_parameters' for 'Continuous Liquid Organic Train': ethylene_glycol__ethylene_oxide, ethylene_glycol__water, ethylene_oxide__water. |\n| energy_balance | flowsheet_solver | warning | solve_result_critic_message | solve_result | Unit 'recycle_recovery' closure is 3.767%, which is outside the converged range. |\n| energy_balance | flowsheet_solver | warning | solve_result_critic_message | solve_result | Unit 'purification' retains estimated composition closure. |\n| energy_balance | flowsheet_solver | warning | solve_result_critic_message | solve_result | Recycle loop 'purification_recycle_loop' remains estimated and needs review before freezing detailed design. |\n| equipment_sizing | unit_applicability | warning | reactor_choice_family_critic_flags_present | reactor_choice | Selected reactor family still carries applicability critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure. |\n| equipment_sizing | separation_design | warning | separation_choice_family_critic_flags_present | separation_choice | Selected separation family still carries applicability critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure. |\n| final_report | general | warning | benchmark_acceptance_conditional | report_acceptance | Benchmark 'ethylene_glycol' completed without a hard block, but the acceptance gate remains conditional. |\n| final_report | general | warning | report_parity_gap_remaining | report_parity | Report parity is not complete yet: 3 partial chapters, 0 partial support sections, 0 missing support sections. |\n| financial_analysis | economics_finance | warning | economic_basis_counterfactual_selected | economic_basis_decision | Economic basis selected 'no_recovery_counterfactual' instead of the integrated base case for route 'omega_catalytic'. |\n| financial_analysis | economics_finance | warning | economic_basis_rejects_selected_recovery | economic_basis_decision | Economic basis rejected the selected recovery case 'omega_catalytic_pinch_htm' even though it recovers 47256.7 kW and reduces annual utility cost. |\n| financial_analysis | general | warning | financing_operability_tension | financing_basis_decision | Higher-leverage financing is being held against an operating mode with meaningful outage or restart-loss burden. |\n| financial_analysis | economics_finance | warning | heat_recovery_without_economic_benefit | cost_model | Selected heat-recovery architecture claims meaningful recovered duty but does not reduce annual utility cost in the economic model. |\n| financial_analysis | economics_finance | warning | operating_mode_integrated_economics_tension | operating_mode | Operating mode remains tuned for continuous integrated service while the selected economic basis has moved to a counterfactual case. |\n| financial_analysis | cross_chapter | warning | weak_dscr_screening | financial_model | Financial model minimum DSCR is below 1.0 under the current screening basis. |\n| financial_analysis | cross_chapter | warning | weak_llcr_screening | financial_model | Financial model LLCR is below 1.30 under the current screening basis. |\n| financial_analysis | cross_chapter | warning | weak_plcr_screening | financial_model | Financial model PLCR is below 1.45 under the current screening basis. |\n| kinetic_feasibility | thermo_property | warning | architecture_package_fallback_thermo | separation_thermo | Selected architecture is still relying on fallback or idealized thermodynamics for the chosen liquid separation family. |\n| kinetic_feasibility | general | warning | architecture_package_sparse_data_compounded | sparse_data_policy | Selected architecture has compounded sparse-data pressure across thermo/kinetics/design stages: binary_interaction_parameters. |\n| material_balance | general | warning | composition_closure_estimated | stream_table | Unit 'purification' retains estimated composition closure. |\n| material_balance | evidence | warning | flowsheet_unit_unresolved_basis | flowsheet_case | Unit 'purification' still carries unresolved basis items: mixed or unresolved phase basis remains in solved streams. |\n| route_selection | thermo_property | warning | distillation_family_property_coverage_weak | property_packages | Selected separation family still has unresolved binary-interaction coverage: ethylene_glycol__ethylene_oxide, ethylene_glycol__water, ethylene_oxide__water. |\n| route_selection | cross_chapter | warning | route_family_critic_flags_present | route_selection | Selected route family 'Liquid Hydration Train' still carries critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure. |\n| thermodynamic_feasibility | thermo_property | warning | architecture_package_fallback_thermo | separation_thermo | Selected architecture is still relying on fallback or idealized thermodynamics for the chosen liquid separation family. |\n| thermodynamic_feasibility | general | warning | architecture_package_sparse_data_compounded | sparse_data_policy | Selected architecture has compounded sparse-data pressure across thermo/kinetics/design stages: binary_interaction_parameters. |\n| thermodynamic_feasibility | thermo_property | warning | missing_binary_interaction_coverage | separation_thermo | Binary interaction coverage remains incomplete for the selected separation thermo basis: ethylene_glycol__water. |\n| thermodynamic_feasibility | thermo_property | warning | separation_thermo_fallback_active | separation_thermo | Separation thermodynamics is relying on fallback assumptions: Binary interaction parameters for Water / Ethylene Glycol were not resolved from cited/public sources.; Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair.. |"
+}

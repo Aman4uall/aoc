@@ -1,0 +1,214 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families."
+  ],
+  "routes": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "route_id": "eo_hydration",
+      "name": "Ethylene oxide hydration",
+      "reaction_equation": "C2H4O + H2O -> C2H6O2",
+      "participants": [
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "coefficient": 1.0,
+          "role": "reactant",
+          "molecular_weight_g_mol": 44.05,
+          "phase": "liquid"
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "coefficient": 1.0,
+          "role": "reactant",
+          "molecular_weight_g_mol": 18.015,
+          "phase": "liquid"
+        },
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "coefficient": 1.0,
+          "role": "product",
+          "molecular_weight_g_mol": 62.07,
+          "phase": "liquid"
+        }
+      ],
+      "catalysts": [],
+      "operating_temperature_c": 190.0,
+      "operating_pressure_bar": 14.0,
+      "residence_time_hr": 0.75,
+      "yield_fraction": 0.92,
+      "selectivity_fraction": 0.93,
+      "byproducts": [
+        "Diethylene glycol",
+        "Triethylene glycol"
+      ],
+      "separations": [
+        "EO flash",
+        "Water removal",
+        "Vacuum distillation",
+        "Heavy glycol split"
+      ],
+      "scale_up_notes": "Industrial precedent is strong; energy demand is dominated by dehydration and purification.",
+      "hazards": [
+        {
+          "severity": "high",
+          "description": "Ethylene oxide flammability and toxicity",
+          "safeguard": "Inerted closed handling and relief design"
+        }
+      ],
+      "route_score": 9.5,
+      "rationale": "Best industrial maturity and strongest fit for a high-capacity India plant."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "route_id": "omega_catalytic",
+      "name": "OMEGA catalytic route via ethylene carbonate",
+      "reaction_equation": "C2H4O + H2O -> C2H6O2",
+      "participants": [
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "coefficient": 1.0,
+          "role": "reactant",
+          "molecular_weight_g_mol": 44.05,
+          "phase": "gas"
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "coefficient": 1.0,
+          "role": "reactant",
+          "molecular_weight_g_mol": 18.015,
+          "phase": "gas"
+        },
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "coefficient": 1.0,
+          "role": "product",
+          "molecular_weight_g_mol": 62.07,
+          "phase": "gas"
+        }
+      ],
+      "catalysts": [
+        "CO2 catalytic loop",
+        "Carbonate hydrolysis catalyst"
+      ],
+      "operating_temperature_c": 240.0,
+      "operating_pressure_bar": 18.0,
+      "residence_time_hr": 1.0,
+      "yield_fraction": 0.96,
+      "selectivity_fraction": 0.99,
+      "byproducts": [
+        "Trace heavy glycols"
+      ],
+      "separations": [
+        "Carbonate loop cleanup",
+        "Hydrolysis",
+        "Low-water purification"
+      ],
+      "scale_up_notes": "Modern high-selectivity route with a far lower dehydration burden than thermal hydration.",
+      "hazards": [
+        {
+          "severity": "moderate",
+          "description": "Catalytic loop and CO2 handling complexity",
+          "safeguard": "Closed-loop catalyst management and pressure control"
+        }
+      ],
+      "route_score": 8.9,
+      "rationale": "State-of-the-art route with strong selectivity and materially lower steam intensity."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "route_id": "chlorohydrin",
+      "name": "Ethylene chlorohydrin hydrolysis",
+      "reaction_equation": "C2H5ClO + NaOH -> C2H6O2 + NaCl",
+      "participants": [
+        {
+          "name": "Ethylene chlorohydrin",
+          "formula": "C2H5ClO",
+          "coefficient": 1.0,
+          "role": "reactant",
+          "molecular_weight_g_mol": 80.51,
+          "phase": "liquid"
+        },
+        {
+          "name": "Sodium hydroxide",
+          "formula": "NaOH",
+          "coefficient": 1.0,
+          "role": "reactant",
+          "molecular_weight_g_mol": 40.0,
+          "phase": "liquid"
+        },
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "coefficient": 1.0,
+          "role": "product",
+          "molecular_weight_g_mol": 62.07,
+          "phase": "liquid"
+        },
+        {
+          "name": "Sodium chloride",
+          "formula": "NaCl",
+          "coefficient": 1.0,
+          "role": "byproduct",
+          "molecular_weight_g_mol": 58.44,
+          "phase": "liquid"
+        }
+      ],
+      "catalysts": [],
+      "operating_temperature_c": 95.0,
+      "operating_pressure_bar": 3.0,
+      "residence_time_hr": 1.8,
+      "yield_fraction": 0.75,
+      "selectivity_fraction": 0.82,
+      "byproducts": [
+        "Saline waste",
+        "chlorinated residues"
+      ],
+      "separations": [
+        "Salt removal",
+        "Water removal",
+        "Distillation"
+      ],
+      "scale_up_notes": "Older route with corrosive service and undesirable waste burden.",
+      "hazards": [
+        {
+          "severity": "moderate",
+          "description": "Caustic and chlorinated service",
+          "safeguard": "Corrosion control and brine management"
+        }
+      ],
+      "route_score": 5.9,
+      "rationale": "Inferior sustainability and waste profile versus modern EO hydration."
+    }
+  ],
+  "markdown": "The route survey compares industrial EG pathways on maturity, selectivity, safety, utility intensity, and India feedstock fit. Ethylene oxide hydration remains the strongest basis because it is the most defensible large-scale route for a 200000 TPA feasibility-style home paper."
+}

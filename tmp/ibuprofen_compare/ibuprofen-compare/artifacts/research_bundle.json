@@ -1,0 +1,107 @@
+{
+  "sources": [
+    {
+      "source_id": "user_doc_1",
+      "source_kind": "user_document",
+      "source_domain": "technical",
+      "title": "Ibuprofen home paper",
+      "url_or_doi": null,
+      "access_date": "2026-03-31T04:48:16+00:00",
+      "citation_text": "Ibuprofen home paper (user supplied document)",
+      "extraction_snippet": "Design a Plant to manufacture 500MTA of Ibuprofen \nHome Paper Final Submission \nsubmitted to the \nINSTITUTE OF CHEMICAL TECHNOLOGY, MUMBAI \nfor the award of the degree of \nBachelor of Chemical Engineering \nby \nShivani Manhas \n19CHE102 \n \n \n \nDepartment of Chemical Engineering \n Institute of Chemical Technology, Mumbai \n(University under Section 3 of UGC Act 1956; \nElite Status and Centre of Excellence, Government of Maharashtra) \nMaharashtra, India \nApril, 2023 \n \n VKR \n\n \n \nContents \n \nExecutive Summary .....................................................................................................................  \nChapter 1: Introduction ................................................................................................................  \n1.1. Introduction ......................................................................................................................1 \n1.2. Physical and Chemical Properties .....................................................................................1 \n1.3. Mechanism of Ibuprofen ...................................................................................................2 \n1.4. Side Effects of Ibuprofen .....",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": "/Users/ayzaman/Downloads/19CHE102HPsub.pdf",
+      "geographic_scope": "india",
+      "geographic_label": "India",
+      "reference_year": null,
+      "normalization_year": null,
+      "country": "India"
+    },
+    {
+      "source_id": "seed_source_1",
+      "source_kind": "handbook",
+      "source_domain": "technical",
+      "title": "Ibuprofen property note",
+      "url_or_doi": "https://example.com/ibuprofen/properties",
+      "access_date": "2026-03-31T04:48:16+00:00",
+      "citation_text": "Seed property note for Ibuprofen",
+      "extraction_snippet": "Compiled product property note used for deterministic test runs.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": null,
+      "reference_year": 2024,
+      "normalization_year": null,
+      "country": null
+    },
+    {
+      "source_id": "seed_source_2",
+      "source_kind": "literature",
+      "source_domain": "technical",
+      "title": "Ibuprofen route note",
+      "url_or_doi": "https://example.com/ibuprofen/routes",
+      "access_date": "2026-03-31T04:48:16+00:00",
+      "citation_text": "Seed route note for Ibuprofen",
+      "extraction_snippet": "Route selection note with yields and operating conditions.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": null,
+      "reference_year": 2024,
+      "normalization_year": null,
+      "country": null
+    },
+    {
+      "source_id": "seed_source_3",
+      "source_kind": "sds",
+      "source_domain": "safety",
+      "title": "Ibuprofen safety note",
+      "url_or_doi": "https://example.com/ibuprofen/safety",
+      "access_date": "2026-03-31T04:48:16+00:00",
+      "citation_text": "Seed safety note for Ibuprofen",
+      "extraction_snippet": "Safety note with exposure and hazard summary.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": null,
+      "reference_year": 2024,
+      "normalization_year": null,
+      "country": null
+    },
+    {
+      "source_id": "seed_source_4",
+      "source_kind": "market",
+      "source_domain": "market",
+      "title": "Ibuprofen market note",
+      "url_or_doi": "https://example.com/ibuprofen/market",
+      "access_date": "2026-03-31T04:48:16+00:00",
+      "citation_text": "Seed market note for Ibuprofen",
+      "extraction_snippet": "Market note with plausible specialty chemical pricing.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": "global",
+      "reference_year": 2024,
+      "normalization_year": null,
+      "country": null
+    }
+  ],
+  "technical_source_ids": [
+    "user_doc_1",
+    "seed_source_1",
+    "seed_source_2",
+    "seed_source_3"
+  ],
+  "india_source_ids": [
+    "user_doc_1"
+  ],
+  "corpus_excerpt": "[user_doc_1] Ibuprofen home paper\nDesign a Plant to manufacture 500MTA of Ibuprofen \nHome Paper Final Submission \nsubmitted to the \nINSTITUTE OF CHEMICAL TECHNOLOGY, MUMBAI \nfor the award of the degree of \nBachelor of Chemical Engineering \nby \nShivani Manhas \n19CHE102 \n \n \n \nDepartment of Chemical Engineering \n Institute of Chemical Technology, Mumbai \n(University under Section 3 of UGC Act 1956; \nElite Status and Centre of Excellence, Government of Maharashtra) \nMaharashtra, India \nApril, 2023 \n \n VKR \n\n \n \nContents \n \nExecutive Summary .....................................................................................................................  \nChapter 1: Introduction ................................................................................................................  \n1.1. Introduction ......................................................................................................................1 \n1.2. Physical and Chemical Properties .....................................................................................1 \n1.3. Mechanism of Ibuprofen ...................................................................................................2 \n1.4. Side Effects of Ibuprofen ..................................................................................................3 \n1.5. Companies manufacturing Ibuprofen and their capacities ..................................................3 \n1.6. Export-Import Data ...........................................................................................................4 \nChapter 2: ................................................................................................................................5 \nProcess Selection .....................................................................................................................5 \n2.1. Processes available to produce Ibuprofen ..........................................................................6 \n2.1.1Process 1 ..........................................................................................................................6 \n2.1.2. Process 2 ........................................................................................................................6 \n2.1.3. Process 3 ........................................................................................................................7 \n2.1.4. Process 4 ........................................................................................................................7 \n2.1.5. Process 5 ........................................................................................................................8 \n2.1.6. Process 6 ........................................................................................................................9 \n2.1.7. Process 7 ........................................................................................................................9 \n2.2. Comparison between different processes ......................................................................... 10 \n2.3. Process Selected ............................................................................................................. 11 \nChapter 3: .............................................................................................................................. 12 \nBlock Diagram ...................................................................................................................... 12 \n3.1. Process Block Diagram ................................................................................................... 13 \nChapter 4: .............................................................................................................................. 14 \nSite Selection ......................................................................................................................... 14 \n4.1. Site Selection .................................................................................................................. 15 \n4.1.1. Factors affecting Site Selection .................................................................................... 15 \n4.1.1.2. Prosperity Factors ..................................................................................................... 15 \n4.1.1.3 Profitability Factors.................................................................................................... 16 \n\n \n \n4.1.1.4 Productivity Factors ................................................................................................... 17 \nTable 5: Comparison between different sites .......................................................................... 18 \n4.2. Suggested Site ................................................................................................................ 18 \nChapter 5: Thermodynamic Aspects ...................................................................................... 20 \n5.1. Standard Gibb’s Free Energy for the reaction .................................................................. 22 \n5.2. Gibb’s Free Energy Calculations ..................................................................................... 23 \nChapter 6: Process Flow Diagram .......................................................................................... 24 \nChapter 7: .............................................................................................................................. 28 \nMass Balance ........................................................................................................................ 28 \n7.1. Mass Balance .................................................................................................................. 29 \n7.1.1 Mixer M001: - .............................................................................................................. 31 \n7.1.2. Plug Flow Reactor-PFR: - ............................................................................................ 32 \n7.1.3. Three Phase Separator-3S001: - ................................................................................... 33 \n7.1.4. Distillation Column-DC001: - ...................................................................................... 34 \n7.1.5. Distillation Column-DC002: - ...................................................................................... 34 \n7.1.6. Stirred Tank Recator-R001: - ....................................................................................... 35 \n7.1.7. Two phase Seperator-S001: - ....................................................................................... 36 \n7.1.8. Distillation Column-DC003: - ...................................................................................... 37 \n7.1.9. Distillation Column-DC004: - ...................................................................................... 38 \n7.1.10. Stirred Tank Recator-R002: - ..................................................................................... 39 \n7.1.11. Two phase Seperator-S002: - ..................................................................................... 40 \n7.1.12. Stirred Tank Recator-R003: - ..................................................................................... 41 \n7.1.13. Two phase Seperator-S003: - ..................................................................................... 42 \n7.1.14. Evaporator-E001: - ..................................................................................................... 43 \nChapter 8: .............................................................................................................................. 44 \nEnergy Balance ..................................................................................................................... 44 \n8.1. Energy Balance Calculations: ......................................................................................... 45 \n8.1.1. Mixer M001: - .....................................................\n\n[seed_source_1] Ibuprofen property note\nCompiled product property note used for deterministic test runs.\n\n[seed_source_2] Ibuprofen route note\nRoute selection note with yields and operating conditions.\n\n[seed_source_3] Ibuprofen safety note\nSafety note with exposure and hazard summary.\n\n[seed_source_4] Ibuprofen market note\nMarket note with plausible specialty chemical pricing.\n\nSeed research bundle for Ibuprofen.",
+  "user_document_ids": [
+    "user_doc_1"
+  ]
+}

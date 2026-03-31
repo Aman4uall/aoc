@@ -183,6 +183,7 @@ def build_equipment_datasheets(
     column: ColumnDesign,
     exchanger: HeatExchangerDesign,
     storage: StorageDesign,
+    pump: PumpDesign | None = None,
     mechanical_design: MechanicalDesignArtifact | None = None,
     vessel_designs: list[VesselMechanicalDesign] | None = None,
     mechanical_basis: MechanicalDesignBasis | None = None,
@@ -192,22 +193,29 @@ def build_equipment_datasheets(
     mechanical_index = {item.equipment_id: item for item in (mechanical_design.items if mechanical_design else [])}
     vessel_index = {item.equipment_id: item for item in (vessel_designs or [])}
 
-    def _datasheet_markdown(equipment: EquipmentSpec, design_data: dict[str, str], notes: list[str]) -> str:
+    def _datasheet_markdown(
+        equipment: EquipmentSpec,
+        design_data: dict[str, str],
+        notes: list[str],
+        package_derivations: list[str] | None = None,
+        mechanical_basis_rows: list[str] | None = None,
+    ) -> str:
         rows = [f"- `{key}`: {value}" for key, value in design_data.items()]
         note_rows = [f"- {note}" for note in notes] or ["- none"]
-        return "\n".join(
-            [
-                f"### {equipment.equipment_id} Datasheet",
-                "",
-                f"Service: {equipment.service}",
-                "",
-                "### Design Data",
-                *rows,
-                "",
-                "### Notes",
-                *note_rows,
-            ]
-        )
+        sections = [
+            f"### {equipment.equipment_id} Datasheet",
+            "",
+            f"Service: {equipment.service}",
+            "",
+            "### Design Data",
+            *rows,
+        ]
+        if package_derivations:
+            sections.extend(["", "### Package Derivation Basis", *package_derivations])
+        if mechanical_basis_rows:
+            sections.extend(["", "### Mechanical Basis", *mechanical_basis_rows])
+        sections.extend(["", "### Notes", *note_rows])
+        return "\n".join(sections)
 
     for equipment in equipment_list.items:
         design_data = {
@@ -216,6 +224,8 @@ def build_equipment_datasheets(
             "volume_m3": f"{equipment.volume_m3:.3f}",
             "material_of_construction": equipment.material_of_construction,
         }
+        package_derivations: list[str] = []
+        mechanical_basis_rows: list[str] = []
         if equipment.equipment_id == reactor.reactor_id:
             design_data["phase_regime"] = reactor.phase_regime or "n/a"
             design_data["design_conversion_fraction"] = f"{reactor.design_conversion_fraction:.4f}"
@@ -239,6 +249,19 @@ def build_equipment_datasheets(
             design_data["reactor_utility_topology"] = reactor.utility_topology or "standalone"
             design_data["reactor_utility_architecture_family"] = reactor.utility_architecture_family or "base"
             design_data["reactor_selected_utility_islands"] = ", ".join(reactor.selected_utility_island_ids) or "none"
+            package_derivations.extend(
+                [
+                    f"- `volumetric_throughput_basis`: {reactor.design_volume_m3 / max(reactor.residence_time_hr, 1e-9):.3f} m3/h from V/tau",
+                    f"- `damkohler_basis`: {reactor.kinetic_rate_constant_1_hr * reactor.residence_time_hr:.4f} from k*tau",
+                    (
+                        f"- `heat_transfer_area_check`: "
+                        f"{(reactor.heat_duty_kw * 1000.0) / max(reactor.overall_u_w_m2_k * max(reactor.integrated_lmtd_k, 1.0), 1.0):.3f} m2 from Q/(U*LMTD)"
+                        if reactor.integrated_lmtd_k > 0.0
+                        else "- `heat_transfer_area_check`: n/a"
+                    ),
+                    f"- `residual_utility_basis`: {reactor.residual_utility_duty_kw:.3f} kW after integrated duty {reactor.integrated_thermal_duty_kw:.3f} kW",
+                ]
+            )
         if equipment.equipment_id == column.column_id:
             design_data["design_stages"] = str(column.design_stages)
             design_data["theoretical_stages"] = f"{column.theoretical_stages:.3f}"
@@ -266,6 +289,15 @@ def build_equipment_datasheets(
             design_data["column_selected_utility_islands"] = ", ".join(column.selected_utility_island_ids) or "none"
             design_data["equilibrium_model"] = column.equilibrium_model or "none"
             design_data["equilibrium_parameter_ids"] = ", ".join(column.equilibrium_parameter_ids) or "none"
+            package_derivations.extend(
+                [
+                    f"- `fenske_min_stage_basis`: {column.min_stages:.3f}",
+                    f"- `underwood_min_reflux_basis`: {column.minimum_reflux_ratio:.3f}",
+                    f"- `gilliland_stage_basis`: {column.theoretical_stages:.3f} at R/Rmin {column.reflux_ratio_multiple_of_min:.3f}",
+                    f"- `rectifying_split_basis`: {column.rectifying_theoretical_stages:.3f} stages / {column.rectifying_vapor_load_kg_hr:.3f} kg/h vapor",
+                    f"- `stripping_split_basis`: {column.stripping_theoretical_stages:.3f} stages / {column.stripping_vapor_load_kg_hr:.3f} kg/h vapor",
+                ]
+            )
             if column.absorber_key_component:
                 design_data["absorber_key_component"] = column.absorber_key_component
                 design_data["absorber_capture_fraction"] = f"{column.absorber_capture_fraction:.3f}"
@@ -293,6 +325,14 @@ def build_equipment_datasheets(
                 design_data["absorber_flooding_margin_fraction"] = f"{column.absorber_flooding_margin_fraction:.3f}"
                 design_data["absorber_pressure_drop_per_m_kpa_m"] = f"{column.absorber_pressure_drop_per_m_kpa_m:.3f}"
                 design_data["absorber_total_pressure_drop_kpa"] = f"{column.absorber_total_pressure_drop_kpa:.3f}"
+                package_derivations.extend(
+                    [
+                        f"- `absorber_henry_slope_basis`: {column.absorber_equilibrium_slope:.6f} from Henry-law screening",
+                        f"- `absorber_absorption_factor`: {column.absorber_solvent_to_gas_ratio / max(column.absorber_equilibrium_slope, 1e-9):.6f}",
+                        f"- `absorber_height_basis`: {column.absorber_ntu * column.absorber_htu_m:.3f} m from NTU*HTU",
+                        f"- `absorber_pressure_drop_basis`: {column.absorber_pressure_drop_per_m_kpa_m * column.absorber_packed_height_m:.3f} kPa",
+                    ]
+                )
             if column.crystallizer_key_component:
                 design_data["crystallizer_key_component"] = column.crystallizer_key_component
                 design_data["crystallizer_yield_fraction"] = f"{column.crystallizer_yield_fraction:.3f}"
@@ -331,6 +371,14 @@ def build_equipment_datasheets(
                 design_data["dryer_heat_transfer_coefficient_w_m2_k"] = f"{column.dryer_heat_transfer_coefficient_w_m2_k:.3f}"
                 design_data["dryer_heat_transfer_area_m2"] = f"{column.dryer_heat_transfer_area_m2:.3f}"
                 design_data["dryer_refined_duty_kw"] = f"{column.dryer_refined_duty_kw:.3f}"
+                package_derivations.extend(
+                    [
+                        f"- `supersaturation_basis`: {column.crystallizer_feed_loading_kg_per_kg / max(column.crystallizer_solubility_limit_kg_per_kg, 1e-9):.6f}",
+                        f"- `yield_basis`: {column.crystallizer_precipitated_mass_kg_hr / max(column.crystallizer_precipitated_mass_kg_hr + column.crystallizer_dissolved_mass_kg_hr, 1e-9):.6f}",
+                        f"- `filter_cycle_basis`: {(column.filter_cake_formation_time_hr + column.filter_wash_time_hr + column.filter_discharge_time_hr):.6f} h/cycle",
+                        f"- `dryer_specific_evaporation`: {column.dryer_evaporation_load_kg_hr / max(column.dryer_dry_air_flow_kg_hr, 1e-9):.6f} kg/kg",
+                    ]
+                )
         if equipment.equipment_id == exchanger.exchanger_id:
             design_data["heat_load_kw"] = f"{exchanger.heat_load_kw:.3f}"
             design_data["area_m2"] = f"{exchanger.area_m2:.3f}"
@@ -341,15 +389,73 @@ def build_equipment_datasheets(
             design_data["condensing_side_coefficient_w_m2_k"] = f"{exchanger.condensing_side_coefficient_w_m2_k:.3f}"
             design_data["selected_package_roles"] = ", ".join(exchanger.selected_package_roles) or "none"
             design_data["selected_train_step_id"] = exchanger.selected_train_step_id or "none"
+            package_derivations.extend(
+                [
+                    f"- `thermal_area_basis`: {exchanger.area_m2:.3f} m2 from Q/(U*LMTD)",
+                    f"- `package_family`: {exchanger.package_family or 'generic'}",
+                    f"- `phase_change_load_basis`: {exchanger.phase_change_load_kg_hr:.3f} kg/h",
+                ]
+            )
         if equipment.equipment_id == storage.storage_id:
             design_data["inventory_days"] = f"{storage.inventory_days:.1f}"
+            design_data["working_volume_m3"] = f"{storage.working_volume_m3:.3f}"
             design_data["total_volume_m3"] = f"{storage.total_volume_m3:.3f}"
+            design_data["dispatch_buffer_days"] = f"{storage.dispatch_buffer_days:.1f}"
+            design_data["operating_stock_days"] = f"{storage.operating_stock_days:.1f}"
+            design_data["restart_buffer_days"] = f"{storage.restart_buffer_days:.1f}"
+            design_data["tank_diameter_m"] = f"{storage.diameter_m:.3f}"
+            design_data["straight_side_height_m"] = f"{storage.straight_side_height_m:.3f}"
+            package_derivations.extend(
+                [
+                    f"- `working_to_total_volume_ratio`: {storage.working_volume_m3 / max(storage.total_volume_m3, 1e-9):.6f}",
+                    f"- `inventory_basis`: {storage.inventory_days:.1f} d with dispatch {storage.dispatch_buffer_days:.1f} d and restart {storage.restart_buffer_days:.1f} d buffers",
+                    f"- `tank_slenderness_basis`: {storage.straight_side_height_m / max(storage.diameter_m, 1e-9):.6f} H/D",
+                ]
+            )
+        if equipment.equipment_id.endswith("_packing") and column.absorber_key_component:
+            packed_cross_section = 3.14159 * (column.column_diameter_m / 2.0) ** 2 * max(1.0 - column.downcomer_area_fraction, 0.25)
+            packed_volume = packed_cross_section * max(column.absorber_packed_height_m, 0.0)
+            package_derivations.extend(
+                [
+                    f"- `packed_volume_basis`: {packed_volume:.3f} m3 from pi/4*D2*Z",
+                    f"- `effective_area_inventory`: {column.absorber_effective_interfacial_area_m2_m3 * packed_volume:.3f} m2",
+                    f"- `flooding_utilization`: {column.absorber_operating_velocity_m_s / max(column.absorber_flooding_velocity_m_s, 1e-9):.4f}",
+                ]
+            )
+        if equipment.equipment_id.endswith("_classifier") and column.crystallizer_key_component:
+            package_derivations.extend(
+                [
+                    f"- `classifier_turnover`: {column.slurry_circulation_rate_m3_hr / max(column.crystallizer_holdup_m3, 1e-9):.4f} 1/h",
+                    f"- `cut_size_basis`: {column.crystal_classifier_cut_size_mm:.3f} mm",
+                ]
+            )
+        if equipment.equipment_id.endswith("_filter") and column.crystallizer_key_component:
+            package_derivations.extend(
+                [
+                    f"- `filter_solids_capacity`: {column.filter_area_m2 * column.filter_cake_throughput_kg_m2_hr:.3f} kg/h",
+                    f"- `solids_per_cycle`: {(column.filter_area_m2 * column.filter_cake_throughput_kg_m2_hr) / max(column.filter_cycles_per_hr, 1e-9):.3f} kg/cycle",
+                    f"- `cake_resistance_basis`: {column.filter_specific_cake_resistance_m_kg:.3e} m/kg",
+                ]
+            )
+        if equipment.equipment_id.endswith("_dryer_air") and column.crystallizer_key_component:
+            package_derivations.extend(
+                [
+                    f"- `dryer_area_duty_density`: {column.dryer_refined_duty_kw / max(column.dryer_heat_transfer_area_m2, 1e-9):.3f} kW/m2",
+                    f"- `dry_air_moisture_pickup`: {column.dryer_evaporation_load_kg_hr / max(column.dryer_dry_air_flow_kg_hr, 1e-9):.6f} kg/kg",
+                    f"- `dryer_humidity_lift`: {(column.dryer_exhaust_humidity_ratio_kg_kg - column.dryer_inlet_humidity_ratio_kg_kg):.6f} kg/kg",
+                ]
+            )
         mechanical_item = mechanical_index.get(equipment.equipment_id)
         vessel_item = vessel_index.get(equipment.equipment_id)
         notes = [equipment.notes] if equipment.notes else []
         if mechanical_item:
             design_data["pressure_class"] = mechanical_item.pressure_class or "n/a"
             design_data["hydrotest_pressure_bar"] = f"{mechanical_item.hydrotest_pressure_bar:.3f}"
+            design_data["allowable_stress_mpa"] = f"{mechanical_item.allowable_stress_mpa:.3f}"
+            design_data["joint_efficiency"] = f"{mechanical_item.joint_efficiency:.3f}"
+            design_data["corrosion_allowance_mm"] = f"{mechanical_item.corrosion_allowance_mm:.3f}"
+            design_data["shell_thickness_mm"] = f"{mechanical_item.shell_thickness_mm:.3f}"
+            design_data["head_thickness_mm"] = f"{mechanical_item.head_thickness_mm:.3f}"
             design_data["support_type"] = mechanical_item.support_type
             design_data["support_variant"] = mechanical_item.support_variant or mechanical_item.support_type
             design_data["support_load_case"] = mechanical_item.support_load_case or "n/a"
@@ -362,9 +468,25 @@ def build_equipment_datasheets(
             design_data["platform_area_m2"] = f"{mechanical_item.platform_area_m2:.3f}"
             design_data["access_ladder_required"] = "yes" if mechanical_item.access_ladder_required else "no"
             design_data["lifting_lug_required"] = "yes" if mechanical_item.lifting_lug_required else "no"
+            design_data["pipe_rack_tie_in_required"] = "yes" if mechanical_item.pipe_rack_tie_in_required else "no"
             design_data["anchor_group_count"] = str(mechanical_item.anchor_group_count)
             design_data["nozzle_reinforcement_family"] = mechanical_item.nozzle_reinforcement_family or "n/a"
             design_data["local_shell_load_interaction_factor"] = f"{mechanical_item.local_shell_load_interaction_factor:.3f}"
+            mechanical_basis_rows.extend(
+                [
+                    f"- `pressure_class`: {mechanical_item.pressure_class or 'n/a'}",
+                    f"- `allowable_stress_mpa`: {mechanical_item.allowable_stress_mpa:.3f}",
+                    f"- `joint_efficiency`: {mechanical_item.joint_efficiency:.3f}",
+                    f"- `corrosion_allowance_mm`: {mechanical_item.corrosion_allowance_mm:.3f}",
+                    f"- `shell_thickness_mm`: {mechanical_item.shell_thickness_mm:.3f}",
+                    f"- `head_thickness_mm`: {mechanical_item.head_thickness_mm:.3f}",
+                    f"- `support_variant`: {mechanical_item.support_variant or mechanical_item.support_type or 'n/a'}",
+                    f"- `support_load_case`: {mechanical_item.support_load_case or 'n/a'}",
+                    f"- `foundation_footprint_m2`: {mechanical_item.foundation_footprint_m2:.3f}",
+                    f"- `anchor_group_count`: {mechanical_item.anchor_group_count}",
+                    f"- `pipe_rack_tie_in_required`: {'yes' if mechanical_item.pipe_rack_tie_in_required else 'no'}",
+                ]
+            )
             notes.append(
                 f"Mechanical basis uses {mechanical_item.support_variant or mechanical_item.support_type} support with "
                 f"{mechanical_item.nozzle_reinforcement_family or 'screening'} nozzle reinforcement."
@@ -393,9 +515,51 @@ def build_equipment_datasheets(
                 service=equipment.service,
                 design_data=design_data,
                 notes=notes,
-                markdown=_datasheet_markdown(equipment, design_data, notes),
+                markdown=_datasheet_markdown(equipment, design_data, notes, package_derivations or None, mechanical_basis_rows or None),
                 citations=equipment.citations,
                 assumptions=equipment.assumptions,
+            )
+        )
+    if pump is not None and not any(item.equipment_id == pump.pump_id for item in datasheets):
+        pump_equipment = EquipmentSpec(
+            equipment_id=pump.pump_id,
+            equipment_type="Transfer pump",
+            service=pump.service,
+            design_basis="Storage-transfer pump sizing",
+            volume_m3=0.0,
+            design_temperature_c=45.0,
+            design_pressure_bar=2.0,
+            material_of_construction=storage.material_of_construction,
+            duty_kw=pump.power_kw,
+            notes="Dedicated storage transfer pump basis included to complete equipment-family coverage.",
+            citations=storage.citations,
+            assumptions=storage.assumptions,
+        )
+        pump_design_data = {
+            "flow_m3_hr": f"{pump.flow_m3_hr:.3f}",
+            "differential_head_m": f"{pump.differential_head_m:.3f}",
+            "power_kw": f"{pump.power_kw:.3f}",
+            "npsh_margin_m": f"{pump.npsh_margin_m:.3f}",
+            "material_of_construction": storage.material_of_construction,
+            "service_basis": "storage transfer and dispatch support",
+        }
+        pump_package_derivations = [
+            f"- `specific_head_basis`: {pump.differential_head_m / max(pump.flow_m3_hr, 1e-9):.6f} m per m3/h",
+            f"- `power_density_basis`: {pump.power_kw / max(pump.flow_m3_hr, 1e-9):.6f} kW per m3/h",
+            f"- `dispatch_turnover_basis`: {pump.flow_m3_hr / max(storage.working_volume_m3, 1e-9):.6f} 1/h against working storage volume",
+        ]
+        pump_notes = ["Pump datasheet emitted separately because the pump is a designed auxiliary, not a vessel-family equipment item in `equipment_list`."]
+        datasheets.append(
+            EquipmentDatasheet(
+                datasheet_id=f"{pump.pump_id}_datasheet",
+                equipment_id=pump.pump_id,
+                equipment_type="Transfer pump",
+                service=pump.service,
+                design_data=pump_design_data,
+                notes=pump_notes,
+                markdown=_datasheet_markdown(pump_equipment, pump_design_data, pump_notes, pump_package_derivations, None),
+                citations=storage.citations,
+                assumptions=storage.assumptions,
             )
         )
     for equipment in equipment_map.values():

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import fitz
 
+from aoc.document_facts import extract_document_facts
 from aoc.models import (
     GeographicScope,
     ProjectConfig,
@@ -101,6 +102,8 @@ class ResearchManager:
         sources: list[SourceRecord] = []
         corpus_sections: list[str] = []
         user_ids: list[str] = []
+        user_document_facts = []
+        document_process_options = []
         seen_ids: set[str] = set()
 
         for index, document in enumerate(config.user_documents, start=1):
@@ -115,6 +118,18 @@ class ResearchManager:
             )
             self._append_source(sources, corpus_sections, seen_ids, record, text)
             user_ids.append(record.source_id)
+            facts = extract_document_facts(record.source_id, document.label, text, config.basis.target_product)
+            user_document_facts.append(facts)
+            document_process_options.extend(
+                option
+                for comparison in facts.process_comparisons
+                for option in comparison.options
+            )
+            if facts.markdown:
+                corpus_sections.append(f"[{record.source_id}_facts] {facts.markdown}")
+            for comparison in facts.process_comparisons:
+                if comparison.markdown:
+                    corpus_sections.append(f"[{record.source_id}_processes]\n{comparison.markdown}")
 
         for index, sheet in enumerate(config.india_market_sheets, start=1):
             label = Path(sheet).stem.replace("_", " ").replace("-", " ").title()
@@ -147,4 +162,6 @@ class ResearchManager:
             india_source_ids=india_source_ids,
             corpus_excerpt="\n\n".join(corpus_sections)[:32000],
             user_document_ids=user_ids,
+            user_document_facts=user_document_facts,
+            document_process_options=document_process_options,
         )

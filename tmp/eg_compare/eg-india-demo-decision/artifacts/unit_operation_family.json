@@ -1,0 +1,202 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors.",
+    "Unit-operation family expansion is derived from the selected route family, chemistry-family adapter, and archetype."
+  ],
+  "route_id": "omega_catalytic",
+  "route_family_id": "liquid_hydration_train",
+  "route_family_label": "Liquid Hydration Train",
+  "dominant_phase_pattern": "liquid_reactive",
+  "reactor_candidates": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "candidate_id": "tubular_plug_flow_hydrator",
+      "service_group": "reactor",
+      "family_label": "Liquid Hydration Train",
+      "description": "Tubular hydrator with strong dehydration integration fit",
+      "applicability_score": 102.0,
+      "applicability_status": "preferred",
+      "rationale": "Hydration trains favor plug-flow hydrator geometry and steady exotherm management.",
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "candidate_id": "jacketed_cstr_train",
+      "service_group": "reactor",
+      "family_label": "Liquid Hydration Train",
+      "description": "CSTR fallback for liquid hydration service",
+      "applicability_score": 78.0,
+      "applicability_status": "preferred",
+      "rationale": "Agitated trains remain a fallback when plug-flow precedent is weak.",
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "candidate_id": "high_pressure_carbonylation_loop",
+      "service_group": "reactor",
+      "family_label": "Liquid Hydration Train",
+      "description": "High-pressure carbonylation loop",
+      "applicability_score": 18.0,
+      "applicability_status": "blocked",
+      "rationale": "Carbonylation loops do not match hydration-family chemistry.",
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ]
+    }
+  ],
+  "separation_candidates": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "candidate_id": "distillation_train",
+      "service_group": "separation",
+      "family_label": "Liquid Hydration Train",
+      "description": "Flash and glycol distillation train",
+      "applicability_score": 100.0,
+      "applicability_status": "preferred",
+      "rationale": "Hydration purification remains distillation-led with strong water-removal burden.",
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "candidate_id": "extractive_distillation_train",
+      "service_group": "separation",
+      "family_label": "Liquid Hydration Train",
+      "description": "Extractive/vacuum polishing distillation",
+      "applicability_score": 82.0,
+      "applicability_status": "fallback",
+      "rationale": "Extractive polishing can support difficult finishing service.",
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "candidate_id": "packed_absorption_train",
+      "service_group": "separation",
+      "family_label": "Liquid Hydration Train",
+      "description": "Packed absorption train",
+      "applicability_score": 20.0,
+      "applicability_status": "blocked",
+      "rationale": "Absorption-led trains are not the primary purification basis for this family.",
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ]
+    }
+  ],
+  "supporting_unit_operations": [
+    "flash",
+    "dehydration_column",
+    "glycol_polishing_column",
+    "heat_exchanger_cluster",
+    "reactor",
+    "distillation",
+    "heat_exchanger"
+  ],
+  "applicability_critics": [
+    "dehydration_duty",
+    "glycol_split_vle_basis",
+    "water_recycle_closure",
+    "relative_volatility_claims",
+    "reboiler_duty_burden"
+  ],
+  "markdown": "Route `omega_catalytic` is expanded into the `Liquid Hydration Train` unit-operation family.\n\n| Service Group | Candidate | Status | Score | Rationale |\n| --- | --- | --- | --- | --- |\n| reactor | tubular_plug_flow_hydrator | preferred | 102.0 | Tubular hydrator with strong dehydration integration fit |\n| reactor | jacketed_cstr_train | preferred | 78.0 | CSTR fallback for liquid hydration service |\n| reactor | high_pressure_carbonylation_loop | blocked | 18.0 | High-pressure carbonylation loop |\n| separation | distillation_train | preferred | 100.0 | Flash and glycol distillation train |\n| separation | extractive_distillation_train | fallback | 82.0 | Extractive/vacuum polishing distillation |\n| separation | packed_absorption_train | blocked | 20.0 | Packed absorption train |\n\n- Supporting unit operations: flash, dehydration_column, glycol_polishing_column, heat_exchanger_cluster, reactor, distillation, heat_exchanger\n- Applicability critics: dehydration_duty, glycol_split_vle_basis, water_recycle_closure, relative_volatility_claims, reboiler_duty_burden"
+}

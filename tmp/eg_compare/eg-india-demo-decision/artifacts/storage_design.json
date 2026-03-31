@@ -1,0 +1,99 @@
+{
+  "citations": [
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+    "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions."
+  ],
+  "storage_id": "TK-301",
+  "service": "Ethylene Glycol storage via vertical tank farm",
+  "inventory_days": 14.07,
+  "working_volume_m3": 7661.521,
+  "total_volume_m3": 8580.903,
+  "material_of_construction": "SS304",
+  "operating_stock_days": 2.5,
+  "dispatch_buffer_days": 9.4,
+  "restart_buffer_days": 1.5,
+  "turnaround_buffer_factor": 1.05,
+  "diameter_m": 13.979,
+  "straight_side_height_m": 55.914,
+  "calc_traces": [
+    {
+      "trace_id": "storage_inventory_basis",
+      "title": "Storage inventory-day basis",
+      "formula": "inventory days = (dispatch + operating stock + restart buffer) * turnaround buffer factor",
+      "substitutions": {
+        "dispatch_buffer_days": "9.400",
+        "operating_stock_days": "2.500",
+        "restart_buffer_days": "1.500",
+        "turnaround_buffer_factor": "1.050"
+      },
+      "result": "14.070",
+      "units": "days",
+      "notes": "Operations planning now drives finished-product storage instead of a fixed weekly heuristic."
+    },
+    {
+      "trace_id": "storage_volume",
+      "title": "Storage volume",
+      "formula": "V = throughput * days / density",
+      "substitutions": {
+        "days": "14.1"
+      },
+      "result": "7661.521",
+      "units": "m3",
+      "notes": ""
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values."
+      ],
+      "value_id": "storage_inventory_days",
+      "name": "Inventory days",
+      "value": "14.07",
+      "units": "days",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock EG product profile uses seeded but realistic property values."
+      ],
+      "value_id": "storage_total_volume",
+      "name": "Storage total volume",
+      "value": "8580.903373",
+      "units": "m3",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    }
+  ]
+}

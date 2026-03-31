@@ -1,0 +1,26 @@
+{
+  "chapter_id": "market_capacity_selection",
+  "title": "Market and Capacity Selection",
+  "stage_id": "market_capacity",
+  "status": "complete",
+  "required_inputs": [
+    "research_bundle"
+  ],
+  "produced_outputs": [
+    "market_assessment",
+    "capacity_decision"
+  ],
+  "blockers": [],
+  "citations": [
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Capacity case scored deterministically from benchmark throughput and market basis."
+  ],
+  "summary": "200000 TPA is large enough to justify continuous purification, utility integration, and capital recovery for an EO-based route.",
+  "rendered_markdown": "## Market and Capacity Selection\n\nThe 200000 TPA basis is framed as a large continuous petrochemical train aligned with India polyester and resin demand rather than a niche batch-chemical facility. The market case depends on large throughput, stable EO integration, and India-based logistics and tariff assumptions, all normalized in INR.\n\n### Capacity Decision\n\n200,000 TPA plant basis selected because it best balances the benchmark throughput, market basis, and integration leverage."
+}

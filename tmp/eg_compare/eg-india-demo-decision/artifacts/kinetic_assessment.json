@@ -1,0 +1,87 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification."
+  ],
+  "feasible": true,
+  "activation_energy_kj_per_mol": 58.0,
+  "pre_exponential_factor": 12000000.0,
+  "apparent_order": 1.0,
+  "design_residence_time_hr": 1.0,
+  "markdown": "### Selected Kinetic Method\n\nUse cited industrial or literature rate law directly. selected as the primary kinetic basis.\n\n| Method | Feasible | Score | Rejected Reasons |\n| --- | --- | --- | --- |\n| cited_rate_law | yes | 92.00 | - |\n| arrhenius_fit | yes | 88.50 | - |\n| apparent_order_fit | yes | 72.50 | - |\n| conservative_analogy | yes | 56.50 | - |\n\n### Kinetic Interpretation\n\nThe seeded kinetics package supports a practical residence-time basis for preliminary equipment sizing.",
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "kinetic_activation_energy",
+      "name": "Activation energy",
+      "value": "58",
+      "units": "kJ/mol",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "kinetic_pre_exponential",
+      "name": "Pre-exponential factor",
+      "value": "12000000",
+      "units": "1/h",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "kinetic_residence_time",
+      "name": "Design residence time",
+      "value": "1",
+      "units": "h",
+      "provenance_method": "sourced",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    }
+  ]
+}

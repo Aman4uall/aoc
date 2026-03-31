@@ -1,0 +1,89 @@
+{
+  "citations": [],
+  "assumptions": [],
+  "benchmark_id": "ibuprofen",
+  "overall_status": "blocked",
+  "pipeline_status": "blocked",
+  "report_parity_status": null,
+  "blocked_stage_id": "project_intake",
+  "satisfied_expected_decision_count": 0,
+  "missing_expected_decision_count": 8,
+  "missing_expected_decisions": [
+    "capacity_case",
+    "operating_mode",
+    "route_selection",
+    "site_selection",
+    "reactor_choice",
+    "separation_choice",
+    "utility_basis",
+    "economic_basis"
+  ],
+  "blocking_issue_codes": [
+    "missing_india_coverage",
+    "unresolved_source_conflicts"
+  ],
+  "decision_results": [
+    {
+      "decision_id": "capacity_case",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "operating_mode",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "route_selection",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "site_selection",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "reactor_choice",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "separation_choice",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "utility_basis",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    },
+    {
+      "decision_id": "economic_basis",
+      "present": false,
+      "notes": [
+        "Expected benchmark decision not yet resolved."
+      ]
+    }
+  ],
+  "conditional_notes": [
+    "Report parity has not been evaluated for this run state yet.",
+    "Expected benchmark decisions still missing: capacity_case, operating_mode, route_selection, site_selection, reactor_choice, separation_choice, utility_basis, economic_basis."
+  ],
+  "summary": "Benchmark 'ibuprofen' is honestly blocked at stage 'project_intake' with 2 blocking issues.",
+  "markdown": "## Final Acceptance Gate\n\n- Benchmark profile: `ibuprofen`\n- Pipeline status at evaluation: `blocked`\n- Acceptance status: `blocked`\n- Report parity status: `not_evaluated`\n- Blocked stage: `project_intake`\n- Expected decisions satisfied / missing: `0/8`\n- Blocking issue codes: `missing_india_coverage, unresolved_source_conflicts`\n\n### Acceptance Summary\n\nBenchmark 'ibuprofen' is honestly blocked at stage 'project_intake' with 2 blocking issues.\n\n### Conditional Notes\n\n- Report parity has not been evaluated for this run state yet.\n- Expected benchmark decisions still missing: capacity_case, operating_mode, route_selection, site_selection, reactor_choice, separation_choice, utility_basis, economic_basis.\n\n### Expected Decision Coverage\n\n| Decision | Present | Notes |\n| --- | --- | --- |\n| capacity_case | no | Expected benchmark decision not yet resolved. |\n| operating_mode | no | Expected benchmark decision not yet resolved. |\n| route_selection | no | Expected benchmark decision not yet resolved. |\n| site_selection | no | Expected benchmark decision not yet resolved. |\n| reactor_choice | no | Expected benchmark decision not yet resolved. |\n| separation_choice | no | Expected benchmark decision not yet resolved. |\n| utility_basis | no | Expected benchmark decision not yet resolved. |\n| economic_basis | no | Expected benchmark decision not yet resolved. |"
+}

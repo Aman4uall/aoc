@@ -1,0 +1,19 @@
+{
+  "citations": [
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+    "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions."
+  ],
+  "pump_id": "TK-301_pump",
+  "service": "Ethylene Glycol storage via vertical tank farm transfer",
+  "flow_m3_hr": 957.69,
+  "differential_head_m": 52.0,
+  "power_kw": 159.36,
+  "npsh_margin_m": 2.5,
+  "markdown": "Screening product-transfer pump sized at 957.690 m3/h and 52.0 m head."
+}

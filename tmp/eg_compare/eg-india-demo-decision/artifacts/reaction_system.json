@@ -1,0 +1,267 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+  ],
+  "route_id": "omega_catalytic",
+  "main_reaction": "C2H4O + H2O -> C2H6O2",
+  "side_reactions": [
+    "Byproduct allocation to Trace heavy glycols"
+  ],
+  "conversion_fraction": 0.96,
+  "selectivity_fraction": 0.99,
+  "excess_ratio": 1.05,
+  "notes": "Fallback reaction system uses route yield/selectivity as preliminary conversion basis.",
+  "reaction_extent_set": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook"
+    ],
+    "assumptions": [],
+    "route_id": "omega_catalytic",
+    "extents": [
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "extent_id": "omega_catalytic_main_extent",
+        "reaction_label": "C2H4O + H2O -> C2H6O2",
+        "kind": "main",
+        "representative_component": "Ethylene glycol",
+        "representative_formula": "C2H6O2",
+        "representative_molecular_weight_g_mol": 62.07,
+        "representative_phase": "gas",
+        "extent_fraction_of_converted_feed": 0.99,
+        "status": "converged",
+        "notes": [
+          "Main-reaction extent equals selected product selectivity basis."
+        ]
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "extent_id": "omega_catalytic_side_extent_1",
+        "reaction_label": "Byproduct allocation to Trace heavy glycols",
+        "kind": "byproduct",
+        "representative_component": "Trace heavy glycols",
+        "representative_formula": null,
+        "representative_molecular_weight_g_mol": 99.312,
+        "representative_phase": "liquid",
+        "extent_fraction_of_converted_feed": 0.01,
+        "status": "estimated",
+        "notes": [
+          "Allocation fraction distributed evenly because no explicit byproduct stoichiometry is available."
+        ]
+      }
+    ],
+    "unallocated_selectivity_fraction": 0.0,
+    "closure_status": "estimated",
+    "notes": [
+      "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+    ]
+  },
+  "byproduct_closure": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook"
+    ],
+    "assumptions": [],
+    "route_id": "omega_catalytic",
+    "declared_byproducts": [
+      "Trace heavy glycols"
+    ],
+    "explicit_byproduct_components": [],
+    "estimates": [
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "estimate_id": "omega_catalytic_byproduct_1",
+        "component_name": "Trace heavy glycols",
+        "formula": null,
+        "molecular_weight_g_mol": 99.312,
+        "phase": "liquid",
+        "allocation_fraction": 1.0,
+        "basis": "Declared route byproducts",
+        "provenance": "declared_trace",
+        "status": "estimated",
+        "notes": [
+          "Allocation fraction distributed evenly because no explicit byproduct stoichiometry is available."
+        ]
+      }
+    ],
+    "unresolved_byproducts": [],
+    "selectivity_gap_fraction": 0.01,
+    "closure_status": "estimated",
+    "blocking": false,
+    "notes": [
+      "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+    ]
+  },
+  "calc_traces": [
+    {
+      "trace_id": "rxn_byproduct_gap",
+      "title": "Byproduct selectivity gap",
+      "formula": "Gap = 1 - S",
+      "substitutions": {
+        "S": "0.9900"
+      },
+      "result": "0.0100",
+      "units": "fraction of converted feed",
+      "notes": "Gap is allocated explicitly across the reaction-network closure artifact before stream solving."
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "rxn_conversion",
+      "name": "Reaction conversion",
+      "value": "0.96",
+      "units": "fraction",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "rxn_selectivity",
+      "name": "Reaction selectivity",
+      "value": "0.99",
+      "units": "fraction",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "rxn_excess_ratio",
+      "name": "Excess ratio",
+      "value": "1.05",
+      "units": "mol/mol",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "rxn_byproduct_gap_fraction",
+      "name": "Byproduct selectivity gap",
+      "value": "0.01",
+      "units": "fraction",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    }
+  ]
+}

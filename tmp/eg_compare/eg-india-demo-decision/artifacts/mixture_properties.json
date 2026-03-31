@@ -1,0 +1,233 @@
+{
+  "citations": [
+    "eg_handbook",
+    "user_doc_1"
+  ],
+  "assumptions": [
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+  ],
+  "packages": [
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mixture properties are built from mass-fraction weighting and simple density/viscosity mixing rules in Property Engine v1."
+      ],
+      "mixture_id": "feed_prep_mixture_properties",
+      "unit_id": "feed_prep",
+      "state_id": "feed_prep_composition_state",
+      "dominant_phase": "gas",
+      "component_mass_fraction": {
+        "Ethylene oxide": 0.699587,
+        "Water": 0.300413
+      },
+      "component_package_ids": {
+        "Ethylene oxide": "ethylene_oxide_package",
+        "Water": "water_package"
+      },
+      "liquid_heat_capacity_kj_kg_k": 2.815805,
+      "liquid_density_kg_m3": 913.65963,
+      "liquid_viscosity_pa_s": 0.00109696,
+      "heat_of_vaporization_kj_kg": 1069.800861,
+      "thermal_conductivity_w_m_k": 0.277589,
+      "resolution_status": "estimated",
+      "estimated_properties": [
+        "heat_of_vaporization",
+        "liquid_density",
+        "liquid_heat_capacity",
+        "liquid_viscosity",
+        "thermal_conductivity"
+      ],
+      "blocking_properties": [],
+      "notes": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mixture properties are built from mass-fraction weighting and simple density/viscosity mixing rules in Property Engine v1."
+      ],
+      "mixture_id": "primary_flash_mixture_properties",
+      "unit_id": "primary_flash",
+      "state_id": "primary_flash_composition_state",
+      "dominant_phase": "gas",
+      "component_mass_fraction": {
+        "Ethylene oxide": 0.028399,
+        "Trace heavy glycols": 0.009526,
+        "Water": 0.0113,
+        "Ethylene glycol": 0.950775
+      },
+      "component_package_ids": {
+        "Ethylene oxide": "ethylene_oxide_package",
+        "Water": "water_package",
+        "Ethylene glycol": "ethylene_glycol_package"
+      },
+      "liquid_heat_capacity_kj_kg_k": 2.421918,
+      "liquid_density_kg_m3": 1.160609,
+      "liquid_viscosity_pa_s": 0.01356677,
+      "heat_of_vaporization_kj_kg": 816.31654,
+      "thermal_conductivity_w_m_k": 0.256271,
+      "resolution_status": "estimated",
+      "estimated_properties": [
+        "heat_of_vaporization",
+        "liquid_density",
+        "liquid_heat_capacity",
+        "liquid_viscosity",
+        "thermal_conductivity"
+      ],
+      "blocking_properties": [],
+      "notes": [
+        "Trace heavy glycols uses a surrogate property estimate because no dedicated component package is available."
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mixture properties are built from mass-fraction weighting and simple density/viscosity mixing rules in Property Engine v1."
+      ],
+      "mixture_id": "purification_mixture_properties",
+      "unit_id": "purification",
+      "state_id": "purification_composition_state",
+      "dominant_phase": "gas",
+      "component_mass_fraction": {
+        "Ethylene oxide": 0.018398,
+        "Water": 0.020157,
+        "Ethylene glycol": 0.961446
+      },
+      "component_package_ids": {
+        "Ethylene oxide": "ethylene_oxide_package",
+        "Water": "water_package",
+        "Ethylene glycol": "ethylene_glycol_package"
+      },
+      "liquid_heat_capacity_kj_kg_k": 2.451983,
+      "liquid_density_kg_m3": 1.157576,
+      "liquid_viscosity_pa_s": 0.01447883,
+      "heat_of_vaporization_kj_kg": 824.954029,
+      "thermal_conductivity_w_m_k": 0.262683,
+      "resolution_status": "estimated",
+      "estimated_properties": [
+        "heat_of_vaporization",
+        "liquid_density",
+        "liquid_heat_capacity",
+        "liquid_viscosity",
+        "thermal_conductivity"
+      ],
+      "blocking_properties": [],
+      "notes": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mixture properties are built from mass-fraction weighting and simple density/viscosity mixing rules in Property Engine v1."
+      ],
+      "mixture_id": "reactor_mixture_properties",
+      "unit_id": "reactor",
+      "state_id": "reactor_composition_state",
+      "dominant_phase": "gas",
+      "component_mass_fraction": {
+        "Ethylene glycol": 0.93688,
+        "Ethylene oxide": 0.027983,
+        "Trace heavy glycols": 0.009387,
+        "Water": 0.02575
+      },
+      "component_package_ids": {
+        "Ethylene glycol": "ethylene_glycol_package",
+        "Ethylene oxide": "ethylene_oxide_package",
+        "Water": "water_package"
+      },
+      "liquid_heat_capacity_kj_kg_k": 2.447612,
+      "liquid_density_kg_m3": 1.177802,
+      "liquid_viscosity_pa_s": 0.01303724,
+      "heat_of_vaporization_kj_kg": 837.37273,
+      "thermal_conductivity_w_m_k": 0.261266,
+      "resolution_status": "estimated",
+      "estimated_properties": [
+        "heat_of_vaporization",
+        "liquid_density",
+        "liquid_heat_capacity",
+        "liquid_viscosity",
+        "thermal_conductivity"
+      ],
+      "blocking_properties": [],
+      "notes": [
+        "Trace heavy glycols uses a surrogate property estimate because no dedicated component package is available."
+      ]
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+        "Mixture properties are built from mass-fraction weighting and simple density/viscosity mixing rules in Property Engine v1."
+      ],
+      "mixture_id": "recycle_recovery_mixture_properties",
+      "unit_id": "recycle_recovery",
+      "state_id": "recycle_recovery_composition_state",
+      "dominant_phase": "gas",
+      "component_mass_fraction": {
+        "Ethylene glycol": 0.949921,
+        "Ethylene oxide": 0.01968,
+        "Trace heavy glycols": 0.009137,
+        "Water": 0.021262
+      },
+      "component_package_ids": {
+        "Ethylene glycol": "ethylene_glycol_package",
+        "Ethylene oxide": "ethylene_oxide_package",
+        "Water": "water_package"
+      },
+      "liquid_heat_capacity_kj_kg_k": 2.441621,
+      "liquid_density_kg_m3": 1.162047,
+      "liquid_viscosity_pa_s": 0.01351854,
+      "heat_of_vaporization_kj_kg": 832.651434,
+      "thermal_conductivity_w_m_k": 0.260778,
+      "resolution_status": "estimated",
+      "estimated_properties": [
+        "heat_of_vaporization",
+        "liquid_density",
+        "liquid_heat_capacity",
+        "liquid_viscosity",
+        "thermal_conductivity"
+      ],
+      "blocking_properties": [],
+      "notes": [
+        "Trace heavy glycols uses a surrogate property estimate because no dedicated component package is available."
+      ]
+    }
+  ],
+  "blocked_unit_ids": [],
+  "markdown": "| Unit | Dominant Phase | Cp (kJ/kg-K) | Density (kg/m3) | Viscosity (Pa.s) | Status |\n| --- | --- | --- | --- | --- | --- |\n| feed_prep | gas | 2.815805 | 913.65963 | 0.00109696 | estimated |\n| primary_flash | gas | 2.421918 | 1.160609 | 0.01356677 | estimated |\n| purification | gas | 2.451983 | 1.157576 | 0.01447883 | estimated |\n| reactor | gas | 2.447612 | 1.177802 | 0.01303724 | estimated |\n| recycle_recovery | gas | 2.441621 | 1.162047 | 0.01351854 | estimated |"
+}

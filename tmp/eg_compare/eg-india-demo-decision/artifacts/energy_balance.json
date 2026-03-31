@@ -1,0 +1,366 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+  ],
+  "duties": [
+    {
+      "unit_id": "E-101",
+      "heating_kw": 4532.727,
+      "cooling_kw": 0.0,
+      "notes": "Feed preheat to operating temperature.",
+      "duty_type": "sensible",
+      "hot_stream_id": null,
+      "cold_stream_id": "S-150"
+    },
+    {
+      "unit_id": "R-101",
+      "heating_kw": 0.0,
+      "cooling_kw": 7600.213,
+      "notes": "Net reactor thermal duty from the selected thermodynamic basis.",
+      "duty_type": "reaction",
+      "hot_stream_id": "S-201",
+      "cold_stream_id": null
+    },
+    {
+      "unit_id": "SEP-201",
+      "heating_kw": 1248.737,
+      "cooling_kw": 624.369,
+      "notes": "Generic purification duty.",
+      "duty_type": "sensible",
+      "hot_stream_id": null,
+      "cold_stream_id": null
+    }
+  ],
+  "total_heating_kw": 5781.464,
+  "total_cooling_kw": 8224.582,
+  "unit_thermal_packets": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "packet_id": "E-101_thermal_packet",
+      "unit_id": "E-101",
+      "service": "Feed preheat to operating temperature.",
+      "duty_type": "sensible",
+      "heating_kw": 4532.727,
+      "cooling_kw": 0.0,
+      "hot_stream_id": null,
+      "cold_stream_id": "S-150",
+      "hot_supply_temp_c": 270.0,
+      "hot_target_temp_c": 255.0,
+      "cold_supply_temp_c": 225.0,
+      "cold_target_temp_c": 240.0,
+      "recoverable_duty_kw": 0.0,
+      "candidate_media": [
+        "steam",
+        "hot oil"
+      ],
+      "notes": [
+        "Feed preheat to operating temperature."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "packet_id": "R-101_thermal_packet",
+      "unit_id": "R-101",
+      "service": "Net reactor thermal duty from the selected thermodynamic basis.",
+      "duty_type": "reaction",
+      "heating_kw": 0.0,
+      "cooling_kw": 7600.213,
+      "hot_stream_id": "S-201",
+      "cold_stream_id": null,
+      "hot_supply_temp_c": 240.0,
+      "hot_target_temp_c": 195.0,
+      "cold_supply_temp_c": 30.0,
+      "cold_target_temp_c": 42.0,
+      "recoverable_duty_kw": 0.0,
+      "candidate_media": [
+        "Dowtherm A",
+        "cooling water"
+      ],
+      "notes": [
+        "Net reactor thermal duty from the selected thermodynamic basis."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "packet_id": "SEP-201_thermal_packet",
+      "unit_id": "SEP-201",
+      "service": "Generic purification duty.",
+      "duty_type": "sensible",
+      "heating_kw": 1248.737,
+      "cooling_kw": 624.369,
+      "hot_stream_id": null,
+      "cold_stream_id": null,
+      "hot_supply_temp_c": 270.0,
+      "hot_target_temp_c": 245.0,
+      "cold_supply_temp_c": 30.0,
+      "cold_target_temp_c": 75.0,
+      "recoverable_duty_kw": 624.369,
+      "candidate_media": [
+        "cooling water",
+        "steam",
+        "hot oil"
+      ],
+      "notes": [
+        "Generic purification duty."
+      ]
+    }
+  ],
+  "network_candidates": [
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing."
+      ],
+      "candidate_id": "R-101_to_SEP-201",
+      "source_unit_id": "R-101",
+      "sink_unit_id": "SEP-201",
+      "hot_packet_id": "R-101_thermal_packet",
+      "cold_packet_id": "SEP-201_thermal_packet",
+      "topology": "direct",
+      "recovered_duty_kw": 1123.863,
+      "minimum_approach_temp_c": 20.0,
+      "feasible": true,
+      "notes": "Direct packet-level recovery candidate."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing."
+      ],
+      "candidate_id": "SEP-201_to_E-101",
+      "source_unit_id": "SEP-201",
+      "sink_unit_id": "E-101",
+      "hot_packet_id": "SEP-201_thermal_packet",
+      "cold_packet_id": "E-101_thermal_packet",
+      "topology": "direct",
+      "recovered_duty_kw": 561.932,
+      "minimum_approach_temp_c": 20.0,
+      "feasible": true,
+      "notes": "Direct packet-level recovery candidate."
+    }
+  ],
+  "calc_traces": [
+    {
+      "trace_id": "energy_preheat",
+      "title": "Feed preheat duty",
+      "formula": "Q = m * Cp * dT / 3600",
+      "substitutions": {
+        "m": "25952.368 kg/h",
+        "dT": "215.0 K"
+      },
+      "result": "4532.727",
+      "units": "kW",
+      "notes": ""
+    },
+    {
+      "trace_id": "energy_reaction",
+      "title": "Reaction duty",
+      "formula": "Q = |n * dH| / 3600",
+      "substitutions": {
+        "n": "402.364225 kmol/h",
+        "dH": "-68.000 kJ/mol"
+      },
+      "result": "7600.213",
+      "units": "kW",
+      "notes": ""
+    },
+    {
+      "trace_id": "energy_unit_count",
+      "title": "Unitwise duty expansion",
+      "formula": "duty_count = number of explicit unit duties in the solved energy envelope",
+      "substitutions": {},
+      "result": "3",
+      "units": "duties",
+      "notes": "The generic energy solver now emits duty rows for each major process section rather than a single family-level total."
+    },
+    {
+      "trace_id": "energy_thermal_packets",
+      "title": "Thermal packet expansion",
+      "formula": "packet_count = number of unitwise thermal packets carried into utility and equipment design",
+      "substitutions": {},
+      "result": "3",
+      "units": "packets",
+      "notes": "These packets preserve unit-level hot and cold thermal interfaces downstream."
+    },
+    {
+      "trace_id": "energy_network_candidates",
+      "title": "Packet-derived exchanger candidates",
+      "formula": "candidate_count = number of packet-to-packet heat-recovery candidates",
+      "substitutions": {},
+      "result": "2",
+      "units": "candidates",
+      "notes": "These candidates seed utility-architecture selection and detailed exchanger sizing."
+    },
+    {
+      "trace_id": "energy_composition_basis",
+      "title": "Composition-driven thermal basis",
+      "formula": "Cp and latent-duty basis are derived from solved unit composition states and mixture-property packages",
+      "substitutions": {
+        "feed_state": "feed_prep_composition_state",
+        "primary_state": "primary_flash_composition_state",
+        "purification_state": "purification_composition_state",
+        "feed_cp": "2.816",
+        "product_cp": "2.452",
+        "mixture_packages": "5"
+      },
+      "result": "generic",
+      "units": "family",
+      "notes": "The energy solver now consumes mixture-property packages first and only retains heuristics as a compatibility fallback."
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use."
+      ],
+      "value_id": "energy_total_heating",
+      "name": "Total heating duty",
+      "value": "5781.464",
+      "units": "kW",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use."
+      ],
+      "value_id": "energy_total_cooling",
+      "name": "Total cooling duty",
+      "value": "8224.582",
+      "units": "kW",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use."
+      ],
+      "value_id": "energy_reaction_duty",
+      "name": "Reaction duty",
+      "value": "7600.213139",
+      "units": "kW",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    }
+  ]
+}

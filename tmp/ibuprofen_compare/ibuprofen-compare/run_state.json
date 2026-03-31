@@ -1,0 +1,42 @@
+{
+  "project_id": "ibuprofen-compare",
+  "model_name": "gemini-3.1-pro-preview",
+  "strict_citation_policy": true,
+  "current_stage_index": 0,
+  "current_stage_id": "project_intake",
+  "run_status": "blocked",
+  "completed_stages": [],
+  "blocked_stage_id": "project_intake",
+  "awaiting_gate_id": null,
+  "gates": {},
+  "chapter_index": {},
+  "blocking_issues": [
+    {
+      "code": "missing_india_coverage",
+      "severity": "blocked",
+      "message": "Missing India evidence groups: india_market, india_site, india_utilities.",
+      "artifact_ref": "research_bundle",
+      "source_refs": []
+    },
+    {
+      "code": "unresolved_source_conflicts",
+      "severity": "blocked",
+      "message": "Source conflicts remain for: economics, market, site.",
+      "artifact_ref": "resolved_sources",
+      "source_refs": [
+        "seed_source_1",
+        "seed_source_3",
+        "seed_source_4",
+        "user_doc_1"
+      ]
+    }
+  ],
+  "missing_india_coverage": [
+    "india_market",
+    "india_site",
+    "india_utilities"
+  ],
+  "stale_source_groups": [],
+  "created_at": "2026-03-31T04:48:16+00:00",
+  "last_updated": "2026-03-31T04:48:16+00:00"
+}

@@ -22,6 +22,10 @@ from aoc.models import (
     PlantCostSummary,
     ProcurementPackageImpact,
     ProjectBasis,
+    RouteEconomicBasisArtifact,
+    RouteEconomicItem,
+    RouteSelectionArtifact,
+    RouteSiteFitArtifact,
     ScenarioStability,
     ScenarioPolicy,
     ScenarioResult,
@@ -34,6 +38,7 @@ from aoc.models import (
     UtilityArchitectureDecision,
     UtilitySummaryArtifact,
     WorkingCapitalModel,
+    FlowsheetBlueprintArtifact,
 )
 from aoc.value_engine import make_value_record
 
@@ -56,6 +61,249 @@ def _find_price(price_data: list[IndianPriceDatum], item_name: str, default: flo
 def _sum_utility_load(utilities: UtilitySummaryArtifact, prefix: str) -> float:
     lowered = prefix.lower()
     return sum(item.load for item in utilities.items if item.utility_type.lower().startswith(lowered))
+
+
+def _selected_location_datum(site: SiteSelectionArtifact):
+    for location in site.india_location_data:
+        if location.site_name.lower() == site.selected_site.lower():
+            return location
+    return site.india_location_data[0] if site.india_location_data else None
+
+
+def _blueprint_metrics(flowsheet_blueprint: FlowsheetBlueprintArtifact | None) -> tuple[int, int, int, bool]:
+    if flowsheet_blueprint is None:
+        return 0, 0, 0, False
+    return (
+        len(flowsheet_blueprint.steps),
+        len(flowsheet_blueprint.separation_duties),
+        len(flowsheet_blueprint.recycle_intents),
+        flowsheet_blueprint.batch_capable,
+    )
+
+
+def build_route_site_fit_artifact(
+    basis: ProjectBasis,
+    site: SiteSelectionArtifact,
+    route_selection: RouteSelectionArtifact,
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None,
+    operations_planning: OperationsPlanningArtifact,
+    citations: list[str],
+    assumptions: list[str],
+) -> RouteSiteFitArtifact:
+    location = _selected_location_datum(site)
+    site_name = site.selected_site
+    lower_port_note = (location.port_access.lower() if location is not None else "")
+    coastal = "port" in lower_port_note or site_name.lower() in {"dahej", "jamnagar", "paradip", "mangalore", "vizag"}
+    blueprint_step_count, separation_duty_count, recycle_intent_count, batch_capable = _blueprint_metrics(flowsheet_blueprint)
+    complexity_index = max(blueprint_step_count - 4, 0) + separation_duty_count + recycle_intent_count
+    port_dependency_factor = min(
+        0.10 + 0.05 * separation_duty_count + 0.04 * recycle_intent_count + 0.015 * max(blueprint_step_count - 5, 0),
+        0.85,
+    )
+    feedstock_cluster_factor = 1.0 + 0.012 * recycle_intent_count + 0.008 * max(blueprint_step_count - 5, 0)
+    if not coastal and not batch_capable:
+        feedstock_cluster_factor += 0.035
+    logistics_penalty_factor = 1.0 + (0.020 if coastal else 0.060) + port_dependency_factor * (0.020 if coastal else 0.085)
+    utility_reliability_factor = 1.0 + 0.010 * separation_duty_count + (0.008 if not coastal and complexity_index >= 3 else 0.0)
+    batch_site_factor = 0.97 if batch_capable and not coastal else 1.04 if batch_capable else 1.0
+    overall_fit_score = max(
+        55.0,
+        92.0
+        - max(feedstock_cluster_factor - 1.0, 0.0) * 120.0
+        - max(logistics_penalty_factor - 1.0, 0.0) * 90.0
+        - max(utility_reliability_factor - 1.0, 0.0) * 80.0
+        + (3.0 if batch_capable and not coastal else 0.0),
+    )
+    notes = (
+        f"Selected site `{site_name}` is screened against blueprint complexity "
+        f"({blueprint_step_count} steps, {separation_duty_count} separation duties, {recycle_intent_count} recycle intents) "
+        f"for route `{route_selection.selected_route_id}`."
+    )
+    if batch_capable:
+        notes += f" Batch-capable route handling uses `{operations_planning.availability_policy_label}` to soften inland penalties where appropriate."
+    markdown = "\n".join(
+        [
+            "| Metric | Value |",
+            "| --- | --- |",
+            f"| Selected site | {site_name} |",
+            f"| Route | {route_selection.selected_route_id} |",
+            f"| Blueprint steps | {blueprint_step_count} |",
+            f"| Separation duties | {separation_duty_count} |",
+            f"| Recycle intents | {recycle_intent_count} |",
+            f"| Batch-capable | {'yes' if batch_capable else 'no'} |",
+            f"| Port dependency factor | {port_dependency_factor:.3f} |",
+            f"| Feedstock cluster factor | {feedstock_cluster_factor:.3f} |",
+            f"| Logistics penalty factor | {logistics_penalty_factor:.3f} |",
+            f"| Utility reliability factor | {utility_reliability_factor:.3f} |",
+            f"| Batch-site factor | {batch_site_factor:.3f} |",
+            f"| Overall site-fit score | {overall_fit_score:.2f} |",
+        ]
+    )
+    return RouteSiteFitArtifact(
+        route_id=route_selection.selected_route_id,
+        selected_site=site_name,
+        blueprint_id=flowsheet_blueprint.blueprint_id if flowsheet_blueprint is not None else "",
+        blueprint_step_count=blueprint_step_count,
+        separation_duty_count=separation_duty_count,
+        recycle_intent_count=recycle_intent_count,
+        batch_capable=batch_capable,
+        port_dependency_factor=round(port_dependency_factor, 6),
+        feedstock_cluster_factor=round(feedstock_cluster_factor, 6),
+        logistics_penalty_factor=round(logistics_penalty_factor, 6),
+        utility_reliability_factor=round(utility_reliability_factor, 6),
+        batch_site_factor=round(batch_site_factor, 6),
+        overall_fit_score=round(overall_fit_score, 3),
+        notes=notes,
+        markdown=markdown,
+        citations=citations,
+        assumptions=assumptions + ["Route site-fit screening couples selected site data to route blueprint complexity rather than using site label alone."],
+    )
+
+
+def build_route_economic_basis_artifact(
+    basis: ProjectBasis,
+    site: SiteSelectionArtifact,
+    route_selection: RouteSelectionArtifact,
+    stream_table: StreamTable,
+    market: MarketAssessmentArtifact,
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None,
+    operations_planning: OperationsPlanningArtifact,
+    route_site_fit: RouteSiteFitArtifact,
+    citations: list[str],
+    assumptions: list[str],
+) -> RouteEconomicBasisArtifact:
+    blueprint_step_count, separation_duty_count, recycle_intent_count, batch_capable = _blueprint_metrics(flowsheet_blueprint)
+    annual_hours = _operating_hours(basis)
+    feed_components = {
+        component.name
+        for stream in stream_table.streams
+        if stream.stream_role == "feed"
+        for component in stream.components
+    }
+    recycle_component_count = len(
+        {
+            component.name
+            for stream in stream_table.streams
+            if stream.stream_role == "recycle"
+            for component in stream.components
+        }
+    )
+    feed_component_count = len(feed_components)
+    raw_material_complexity_factor = 1.0 + 0.020 * max(feed_component_count - 1, 0) + 0.012 * recycle_intent_count + 0.010 * separation_duty_count
+    site_input_cost_factor = route_site_fit.feedstock_cluster_factor * (1.0 + route_site_fit.port_dependency_factor * 0.04)
+    logistics_intensity_factor = 1.0 + 0.015 * max(blueprint_step_count - 5, 0) + 0.020 * separation_duty_count + route_site_fit.port_dependency_factor * 0.05
+    batch_occupancy_penalty_fraction = 0.0
+    if batch_capable or basis.operating_mode == "batch":
+        batch_occupancy_penalty_fraction = min(
+            0.030
+            + 0.006 * max(blueprint_step_count - 4, 0)
+            + 0.004 * separation_duty_count
+            + max(operations_planning.cleaning_downtime_days, 0.0) / max(operations_planning.campaign_length_days, 1.0) * 0.60,
+            0.22,
+        )
+    recycle_mass_kg_hr = sum(
+        component.mass_flow_kg_hr
+        for stream in stream_table.streams
+        if stream.stream_role == "recycle"
+        for component in stream.components
+    )
+    solvent_recovery_service_cost_inr = recycle_mass_kg_hr * annual_hours * 0.04 * (0.60 + 0.25 * separation_duty_count)
+    catalyst_hint = " ".join(step.service.lower() for step in (flowsheet_blueprint.steps if flowsheet_blueprint is not None else []))
+    catalyst_service_cost_inr = (
+        annual_hours * (250.0 + 80.0 * recycle_intent_count)
+        if any(token in catalyst_hint for token in ("catalyst", "converter", "fixed-bed", "reactor"))
+        else 0.0
+    )
+    waste_flow_kg_hr = sum(
+        component.mass_flow_kg_hr
+        for stream in stream_table.streams
+        if stream.stream_role in {"waste", "vent", "purge"}
+        for component in stream.components
+    )
+    waste_treatment_burden_inr = waste_flow_kg_hr * annual_hours * 0.02 * (1.0 + 0.20 * separation_duty_count)
+    coverage_status = "grounded" if market.india_price_data and route_site_fit.overall_fit_score >= 75.0 else "hybrid" if market.india_price_data else "screening"
+    items = [
+        RouteEconomicItem(
+            component_name=", ".join(sorted(feed_components)) or basis.target_product,
+            role="raw_materials",
+            annualized_burden_inr=round(raw_material_complexity_factor * site_input_cost_factor, 6),
+            notes="Composite feedstock complexity and selected-site input-cost multiplier.",
+            citations=citations,
+            assumptions=assumptions,
+        ),
+        RouteEconomicItem(
+            component_name="Recycle / solvent recovery",
+            role="service",
+            annualized_burden_inr=round(solvent_recovery_service_cost_inr, 2),
+            recovery_fraction=min(0.95, 0.30 + 0.08 * recycle_intent_count),
+            notes="Annualized service burden from recycle-heavy route handling.",
+            citations=citations,
+            assumptions=assumptions,
+        ),
+        RouteEconomicItem(
+            component_name="Catalyst / reactor service",
+            role="service",
+            annualized_burden_inr=round(catalyst_service_cost_inr, 2),
+            notes="Annualized recurring burden from catalyst/converter style service where inferred.",
+            citations=citations,
+            assumptions=assumptions,
+        ),
+        RouteEconomicItem(
+            component_name="Waste treatment",
+            role="waste",
+            annualized_burden_inr=round(waste_treatment_burden_inr, 2),
+            notes="Annualized waste and purge burden from route-derived waste streams.",
+            citations=citations,
+            assumptions=assumptions,
+        ),
+    ]
+    markdown = "\n".join(
+        [
+            "| Metric | Value |",
+            "| --- | --- |",
+            f"| Route | {route_selection.selected_route_id} |",
+            f"| Selected site | {site.selected_site} |",
+            f"| Operating mode | {basis.operating_mode} |",
+            f"| Blueprint steps | {blueprint_step_count} |",
+            f"| Separation duties | {separation_duty_count} |",
+            f"| Recycle intents | {recycle_intent_count} |",
+            f"| Major feed components | {', '.join(sorted(feed_components)) or '-'} |",
+            f"| Recycle component count | {recycle_component_count} |",
+            f"| Raw-material complexity factor | {raw_material_complexity_factor:.3f} |",
+            f"| Site input-cost factor | {site_input_cost_factor:.3f} |",
+            f"| Logistics intensity factor | {logistics_intensity_factor:.3f} |",
+            f"| Batch occupancy penalty | {batch_occupancy_penalty_fraction:.3f} |",
+            f"| Solvent recovery service | {solvent_recovery_service_cost_inr:,.2f} INR/y |",
+            f"| Catalyst service | {catalyst_service_cost_inr:,.2f} INR/y |",
+            f"| Waste treatment burden | {waste_treatment_burden_inr:,.2f} INR/y |",
+            f"| Coverage status | {coverage_status} |",
+        ]
+    )
+    return RouteEconomicBasisArtifact(
+        route_id=route_selection.selected_route_id,
+        selected_site=site.selected_site,
+        blueprint_id=flowsheet_blueprint.blueprint_id if flowsheet_blueprint is not None else "",
+        operating_mode=basis.operating_mode,
+        blueprint_step_count=blueprint_step_count,
+        separation_duty_count=separation_duty_count,
+        recycle_intent_count=recycle_intent_count,
+        batch_capable=batch_capable,
+        major_feed_components=sorted(feed_components),
+        recycle_component_count=recycle_component_count,
+        raw_material_complexity_factor=round(raw_material_complexity_factor, 6),
+        site_input_cost_factor=round(site_input_cost_factor, 6),
+        logistics_intensity_factor=round(logistics_intensity_factor, 6),
+        batch_occupancy_penalty_fraction=round(batch_occupancy_penalty_fraction, 6),
+        solvent_recovery_service_cost_inr=round(solvent_recovery_service_cost_inr, 2),
+        catalyst_service_cost_inr=round(catalyst_service_cost_inr, 2),
+        waste_treatment_burden_inr=round(waste_treatment_burden_inr, 2),
+        coverage_status=coverage_status,
+        items=items,
+        notes="Route-derived economics now uses selected-site fit, stream recycle burden, and blueprint complexity to adjust cost realism.",
+        markdown=markdown,
+        citations=citations,
+        assumptions=assumptions + ["Route-derived economics uses stream-table feed/recycle/waste burdens and blueprint complexity instead of route label alone."],
+    )
 
 
 def _equipment_cost_terms(
@@ -1035,14 +1283,52 @@ def _utility_train_cost_items(
     return items, round(installed_total, 2)
 
 
-def build_procurement_basis_decision(site: SiteSelectionArtifact, equipment: list[EquipmentSpec]) -> DecisionRecord:
+def build_procurement_basis_decision(
+    site: SiteSelectionArtifact,
+    equipment: list[EquipmentSpec],
+    route_site_fit: RouteSiteFitArtifact | None = None,
+    route_economic_basis: RouteEconomicBasisArtifact | None = None,
+) -> DecisionRecord:
     coastal = "port" in " ".join(location.port_access.lower() for location in site.india_location_data)
+    route_notes: list[str] = []
+    domestic_score = 92.0 if coastal else 86.0
+    mixed_score = 84.0 if coastal else 72.0
+    import_score = 68.0 if coastal else 55.0
+    if route_site_fit is not None:
+        route_notes.append(
+            f"route site-fit {route_site_fit.overall_fit_score:.1f} with blueprint "
+            f"{route_site_fit.blueprint_step_count} steps / {route_site_fit.separation_duty_count} separation duties"
+        )
+        domestic_score -= max(route_site_fit.logistics_penalty_factor - 1.0, 0.0) * 120.0
+        domestic_score -= max(route_site_fit.port_dependency_factor - 0.20, 0.0) * 45.0
+        mixed_score += max(route_site_fit.port_dependency_factor - 0.18, 0.0) * 65.0
+        import_score += route_site_fit.port_dependency_factor * (25.0 if coastal else 40.0)
+        if route_site_fit.batch_capable:
+            domestic_score += 4.0 if not coastal else 1.0
+            mixed_score += 2.0
+    if route_economic_basis is not None:
+        route_notes.append(
+            f"raw-material complexity {route_economic_basis.raw_material_complexity_factor:.3f}; "
+            f"logistics intensity {route_economic_basis.logistics_intensity_factor:.3f}"
+        )
+        domestic_score -= max(route_economic_basis.raw_material_complexity_factor - 1.0, 0.0) * 30.0
+        domestic_score -= max(route_economic_basis.logistics_intensity_factor - 1.0, 0.0) * 55.0
+        mixed_score += max(route_economic_basis.logistics_intensity_factor - 1.0, 0.0) * 42.0
+        import_score += max(route_economic_basis.logistics_intensity_factor - 1.0, 0.0) * 68.0
+        if route_economic_basis.coverage_status == "grounded":
+            domestic_score += 2.0
+            mixed_score += 2.0
+        elif route_economic_basis.coverage_status == "screening":
+            import_score -= 3.0
+    context = f"Procurement basis for {site.selected_site} and {len(equipment)} equipment items."
+    if route_notes:
+        context += " Route/blueprint context: " + "; ".join(route_notes) + "."
     options = [
-        AlternativeOption(candidate_id="domestic_cluster_procurement", candidate_type="procurement_basis", description="Domestic cluster-led procurement", total_score=92.0 if coastal else 86.0, feasible=True, citations=site.citations, assumptions=site.assumptions),
-        AlternativeOption(candidate_id="mixed_import_domestic", candidate_type="procurement_basis", description="Mixed import and domestic procurement", total_score=84.0 if coastal else 72.0, feasible=True, citations=site.citations, assumptions=site.assumptions),
-        AlternativeOption(candidate_id="import_heavy", candidate_type="procurement_basis", description="Import-heavy procurement", total_score=68.0 if coastal else 55.0, feasible=True, citations=site.citations, assumptions=site.assumptions),
+        AlternativeOption(candidate_id="domestic_cluster_procurement", candidate_type="procurement_basis", description="Domestic cluster-led procurement", total_score=round(domestic_score, 3), feasible=True, citations=site.citations, assumptions=site.assumptions),
+        AlternativeOption(candidate_id="mixed_import_domestic", candidate_type="procurement_basis", description="Mixed import and domestic procurement", total_score=round(mixed_score, 3), feasible=True, citations=site.citations, assumptions=site.assumptions),
+        AlternativeOption(candidate_id="import_heavy", candidate_type="procurement_basis", description="Import-heavy procurement", total_score=round(import_score, 3), feasible=True, citations=site.citations, assumptions=site.assumptions),
     ]
-    return _decision("procurement_basis", f"Procurement basis for {site.selected_site} and {len(equipment)} equipment items.", options, site.citations, site.assumptions)
+    return _decision("procurement_basis", context, options, site.citations, site.assumptions)
 
 
 def build_financing_basis_decision(basis: ProjectBasis, site: SiteSelectionArtifact) -> DecisionRecord:
@@ -1259,13 +1545,38 @@ def evaluate_financing_basis_decision(
     return reranked_decision, selected_model
 
 
-def build_logistics_basis_decision(site: SiteSelectionArtifact, market: MarketAssessmentArtifact) -> DecisionRecord:
+def build_logistics_basis_decision(
+    site: SiteSelectionArtifact,
+    market: MarketAssessmentArtifact,
+    route_site_fit: RouteSiteFitArtifact | None = None,
+    route_economic_basis: RouteEconomicBasisArtifact | None = None,
+) -> DecisionRecord:
     coastal = site.selected_site.lower() in {"dahej", "jamnagar", "paradip"}
+    coastal_score = 92.0 if coastal else 70.0
+    inland_score = 84.0 if not coastal else 78.0
+    context = f"Logistics basis for {site.selected_site}."
+    if route_site_fit is not None:
+        coastal_score += route_site_fit.port_dependency_factor * (18.0 if coastal else 28.0)
+        coastal_score -= max(route_site_fit.logistics_penalty_factor - 1.0, 0.0) * 90.0
+        inland_score += (4.0 if route_site_fit.batch_capable and not coastal else 0.0)
+        inland_score -= max(route_site_fit.port_dependency_factor - 0.15, 0.0) * 24.0
+        context += (
+            f" Route site-fit score {route_site_fit.overall_fit_score:.1f} with "
+            f"port dependency {route_site_fit.port_dependency_factor:.3f}."
+        )
+    if route_economic_basis is not None:
+        coastal_score += max(route_economic_basis.logistics_intensity_factor - 1.0, 0.0) * (40.0 if coastal else 18.0)
+        inland_score -= max(route_economic_basis.logistics_intensity_factor - 1.0, 0.0) * 36.0
+        inland_score += route_economic_basis.batch_occupancy_penalty_fraction * (18.0 if not coastal else 8.0)
+        context += (
+            f" Blueprint-driven logistics intensity {route_economic_basis.logistics_intensity_factor:.3f} "
+            f"and batch penalty {route_economic_basis.batch_occupancy_penalty_fraction:.3f} were applied."
+        )
     options = [
-        AlternativeOption(candidate_id="coastal_cluster_dispatch", candidate_type="logistics_basis", description="Coastal cluster dispatch basis", total_score=92.0 if coastal else 70.0, feasible=True, citations=site.citations + market.citations, assumptions=site.assumptions + market.assumptions),
-        AlternativeOption(candidate_id="rail_road_inland", candidate_type="logistics_basis", description="Rail-road inland dispatch basis", total_score=84.0 if not coastal else 78.0, feasible=True, citations=site.citations + market.citations, assumptions=site.assumptions + market.assumptions),
+        AlternativeOption(candidate_id="coastal_cluster_dispatch", candidate_type="logistics_basis", description="Coastal cluster dispatch basis", total_score=round(coastal_score, 3), feasible=True, citations=site.citations + market.citations, assumptions=site.assumptions + market.assumptions),
+        AlternativeOption(candidate_id="rail_road_inland", candidate_type="logistics_basis", description="Rail-road inland dispatch basis", total_score=round(inland_score, 3), feasible=True, citations=site.citations + market.citations, assumptions=site.assumptions + market.assumptions),
     ]
-    return _decision("logistics_basis", f"Logistics basis for {site.selected_site}.", options, site.citations + market.citations, site.assumptions + market.assumptions)
+    return _decision("logistics_basis", context, options, site.citations + market.citations, site.assumptions + market.assumptions)
 
 
 def build_cost_model_v2(
@@ -1280,6 +1591,8 @@ def build_cost_model_v2(
     assumptions: list[str],
     procurement_basis: DecisionRecord,
     logistics_basis: DecisionRecord,
+    route_site_fit: RouteSiteFitArtifact | None = None,
+    route_economic_basis: RouteEconomicBasisArtifact | None = None,
     utility_architecture: UtilityArchitectureDecision | None = None,
     column_design: ColumnDesign | None = None,
 ) -> CostModel:
@@ -1421,8 +1734,19 @@ def build_cost_model_v2(
     if utility_train_items:
         equipment_cost_items.extend(utility_train_items)
         purchase_cost += sum(item.bare_cost_inr for item in utility_train_items)
+    route_feedstock_cluster_factor = route_site_fit.feedstock_cluster_factor if route_site_fit is not None else 1.0
+    route_logistics_penalty_factor = route_site_fit.logistics_penalty_factor if route_site_fit is not None else 1.0
+    route_batch_penalty_fraction = route_economic_basis.batch_occupancy_penalty_fraction if route_economic_basis is not None else 0.0
+    route_solvent_recovery_service_cost = route_economic_basis.solvent_recovery_service_cost_inr if route_economic_basis is not None else 0.0
+    route_catalyst_service_cost = route_economic_basis.catalyst_service_cost_inr if route_economic_basis is not None else 0.0
+    route_waste_treatment_burden = route_economic_basis.waste_treatment_burden_inr if route_economic_basis is not None else 0.0
+    raw_material_complexity_factor = route_economic_basis.raw_material_complexity_factor if route_economic_basis is not None else 1.0
+    site_input_cost_factor = route_economic_basis.site_input_cost_factor if route_economic_basis is not None else 1.0
+    logistics_intensity_factor = route_economic_basis.logistics_intensity_factor if route_economic_basis is not None else 1.0
     installed_factor = 2.15 if procurement_basis.selected_candidate_id == "domestic_cluster_procurement" else 2.35
+    installed_factor *= 1.0 + 0.015 * max(raw_material_complexity_factor - 1.0, 0.0)
     logistics_penalty = 0.02 if logistics_basis.selected_candidate_id == "coastal_cluster_dispatch" else 0.06
+    logistics_penalty *= route_logistics_penalty_factor * (0.98 + 0.06 * max(logistics_intensity_factor - 1.0, 0.0))
     installed_cost = purchase_cost * installed_factor
     direct_cost = installed_cost * (1.14 + logistics_penalty)
     indirect_cost = direct_cost * 0.24
@@ -1438,11 +1762,18 @@ def build_cost_model_v2(
     feed_mass = sum(
         component.mass_flow_kg_hr
         for stream in stream_table.streams
-        if stream.stream_id.startswith("S-10")
+        if stream.stream_role == "feed"
         for component in stream.components
     ) * annual_hours
+    if feed_mass <= 0.0:
+        feed_mass = sum(
+            component.mass_flow_kg_hr
+            for stream in stream_table.streams
+            if stream.stream_id.startswith("S-10")
+            for component in stream.components
+        ) * annual_hours
     benchmark_raw_material_price = market.estimated_price_per_kg * 0.58
-    raw_material_cost = feed_mass * benchmark_raw_material_price
+    raw_material_cost = feed_mass * benchmark_raw_material_price * raw_material_complexity_factor * site_input_cost_factor
     utility_price_power = (
         utilities.utility_basis.power_cost_inr_per_kwh
         if utilities.utility_basis is not None
@@ -1471,7 +1802,7 @@ def build_cost_model_v2(
         citations,
         assumptions,
     )
-    labor_cost = 240.0 * _find_price(price_data, "Operating labour", 650000.0)
+    labor_cost = 240.0 * _find_price(price_data, "Operating labour", 650000.0) * (1.0 + route_batch_penalty_fraction * 0.40)
     transport_service_cost = (
         annual_packing_replacement_cost
         + annual_classifier_service_cost
@@ -1479,6 +1810,9 @@ def build_cost_model_v2(
         + annual_dryer_exhaust_treatment_cost
         + annual_utility_island_service_cost
         + annual_utility_island_replacement_cost
+        + route_solvent_recovery_service_cost
+        + route_catalyst_service_cost
+        + route_waste_treatment_burden
     )
     maintenance_turnaround_cycle_years = int(availability_policy["turnaround_cycle_years"])
     maintenance_turnaround_event_cost = (
@@ -1628,6 +1962,13 @@ def build_cost_model_v2(
         procurement_schedule=procurement_schedule,
         procurement_package_impacts=procurement_package_impacts,
         annual_overheads=round(overheads, 2),
+        route_site_fit_score=round(route_site_fit.overall_fit_score, 3) if route_site_fit is not None else 0.0,
+        route_feedstock_cluster_factor=round(route_feedstock_cluster_factor, 6),
+        route_logistics_penalty_factor=round(route_logistics_penalty_factor, 6),
+        route_batch_penalty_fraction=round(route_batch_penalty_fraction, 6),
+        route_solvent_recovery_service_cost_inr=round(route_solvent_recovery_service_cost, 2),
+        route_catalyst_service_cost_inr=round(route_catalyst_service_cost, 2),
+        route_waste_treatment_burden_inr=round(route_waste_treatment_burden, 2),
         calc_traces=[
             CalcTrace(trace_id="capex", title="Total CAPEX", formula="CAPEX = direct + indirect + contingency", substitutions={"direct": f"{direct_cost:.2f}", "indirect": f"{indirect_cost:.2f}", "contingency": f"{contingency:.2f}"}, result=f"{total_capex:.2f}", units="INR"),
             CalcTrace(
@@ -1660,6 +2001,35 @@ def build_cost_model_v2(
                 units="INR",
             ),
             CalcTrace(trace_id="opex", title="Annual OPEX", formula="OPEX = RM + utilities + labor + maintenance + overheads", substitutions={"RM": f"{raw_material_cost:.2f}", "utilities": f"{utility_cost:.2f}", "labor": f"{labor_cost:.2f}"}, result=f"{annual_opex:.2f}", units="INR/y"),
+            CalcTrace(
+                trace_id="route_site_fit_cost_basis",
+                title="Route/site-fit cost basis",
+                formula="Selected-site logistics and feedstock multipliers are derived from route blueprint complexity, recycle burden, and batch handling fit.",
+                substitutions={
+                    "site_fit_score": f"{route_site_fit.overall_fit_score:.2f}" if route_site_fit is not None else "0.00",
+                    "feedstock_cluster_factor": f"{route_feedstock_cluster_factor:.3f}",
+                    "logistics_penalty_factor": f"{route_logistics_penalty_factor:.3f}",
+                    "logistics_basis": logistics_basis.selected_candidate_id or "n/a",
+                },
+                result=f"{direct_cost:.2f}",
+                units="INR",
+            ),
+            CalcTrace(
+                trace_id="route_economic_basis",
+                title="Route-derived economics basis",
+                formula="Raw-material cost and recurring burdens are adjusted using feed complexity, site input cost, batch occupancy, solvent recovery, catalyst, and waste burdens from the selected route blueprint.",
+                substitutions={
+                    "raw_material_complexity_factor": f"{raw_material_complexity_factor:.3f}",
+                    "site_input_cost_factor": f"{site_input_cost_factor:.3f}",
+                    "logistics_intensity_factor": f"{logistics_intensity_factor:.3f}",
+                    "batch_penalty_fraction": f"{route_batch_penalty_fraction:.3f}",
+                    "solvent_recovery_service": f"{route_solvent_recovery_service_cost:.2f}",
+                    "catalyst_service": f"{route_catalyst_service_cost:.2f}",
+                    "waste_treatment_burden": f"{route_waste_treatment_burden:.2f}",
+                },
+                result=f"{transport_service_cost:.2f}",
+                units="INR/y",
+            ),
             CalcTrace(trace_id="integration_train_capex", title="Selected utility-train CAPEX", formula="CAPEX = sum(installed cost of selected utility-train items)", result=f"{utility_train_installed_capex:.2f}", units="INR"),
             CalcTrace(trace_id="transport_penalty_utility_basis", title="Transport-limited utility penalties", formula="Penalty utilities = absorber hydraulic electricity + solids auxiliaries + dryer endpoint steam", substitutions={"steam_load": f"{steam_load:.2f}", "power_load": f"{power_load:.2f}"}, result=f"{utility_cost:.2f}", units="INR/y"),
             CalcTrace(

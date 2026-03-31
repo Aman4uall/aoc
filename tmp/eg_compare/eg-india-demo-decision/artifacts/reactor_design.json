@@ -1,0 +1,361 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Mock kinetic parameters are seeded values for workflow verification."
+  ],
+  "reactor_id": "R-101",
+  "reactor_type": "Tubular Plug Flow Hydrator",
+  "design_basis": "tubular_plug_flow_hydrator selected at 1.00 h residence time and 0.960 conversion basis.",
+  "phase_regime": "gas_phase_catalytic",
+  "residence_time_hr": 1.0,
+  "liquid_holdup_m3": 22884.886,
+  "design_volume_m3": 27004.165,
+  "design_temperature_c": 255.0,
+  "design_pressure_bar": 20.0,
+  "design_conversion_fraction": 0.96,
+  "kinetic_rate_constant_1_hr": 14.963167,
+  "kinetic_space_time_hr": 0.6,
+  "kinetic_damkohler_number": 14.963167,
+  "heat_duty_kw": 7600.213,
+  "heat_release_density_kw_m3": 0.281446,
+  "adiabatic_temperature_rise_c": 414.729242,
+  "heat_removal_capacity_kw": 8512.23856,
+  "heat_removal_margin_fraction": 0.12,
+  "thermal_stability_score": 5.0,
+  "runaway_risk_label": "moderate",
+  "heat_transfer_area_m2": 50.578,
+  "shell_diameter_m": 19.016,
+  "shell_length_m": 95.081,
+  "overall_u_w_m2_k": 850.0,
+  "reynolds_number": 1000.0,
+  "prandtl_number": 122.136,
+  "nusselt_number": 39.49,
+  "catalyst_name": "CO2 catalytic loop",
+  "catalyst_inventory_kg": 4914758.026086,
+  "catalyst_cycle_days": 270.0,
+  "catalyst_regeneration_days": 5.0,
+  "catalyst_void_fraction": 0.35,
+  "catalyst_weight_hourly_space_velocity_1_hr": 0.005484,
+  "number_of_tubes": 24,
+  "tube_length_m": 83.671,
+  "cooling_medium": "Dowtherm A / cooling water",
+  "utility_topology": "shared HTM island network (shared_htm) with 1 utility islands",
+  "utility_architecture_family": "shared_htm",
+  "integrated_thermal_duty_kw": 0.0,
+  "residual_utility_duty_kw": 7600.213,
+  "integrated_lmtd_k": 0.0,
+  "integrated_exchange_area_m2": 0.0,
+  "allocated_recovered_duty_target_kw": 0.0,
+  "coupled_service_basis": "standalone utility service",
+  "selected_utility_island_ids": [],
+  "selected_utility_header_levels": [],
+  "selected_utility_cluster_ids": [],
+  "selected_train_step_ids": [],
+  "calc_traces": [
+    {
+      "trace_id": "reactor_holdup",
+      "title": "Reactor holdup",
+      "formula": "V = Qv * tau * factor",
+      "substitutions": {
+        "Qv": "22884.886",
+        "tau": "1.000"
+      },
+      "result": "22884.886",
+      "units": "m3",
+      "notes": ""
+    },
+    {
+      "trace_id": "reactor_design_volume",
+      "title": "Reactor design volume",
+      "formula": "Vd = V * design_factor",
+      "substitutions": {
+        "V": "22884.886",
+        "factor": "1.180"
+      },
+      "result": "27004.165",
+      "units": "m3",
+      "notes": ""
+    },
+    {
+      "trace_id": "reactor_kinetic_basis",
+      "title": "Kinetics-coupled sizing basis",
+      "formula": "k = A*exp(-Ea/RT); tau_design from kinetic space time, route time, and solved conversion target",
+      "substitutions": {
+        "Ea_kJ_mol": "58.000",
+        "A_1_hr": "1.200e+07",
+        "T_K": "513.15",
+        "k_1_hr": "14.9632",
+        "tau_kin_hr": "0.6000",
+        "X_target": "0.9600"
+      },
+      "result": "1.000",
+      "units": "h",
+      "notes": "Stage 3 reactor design now ties residence time to the selected kinetic basis instead of only a fixed route heuristic."
+    },
+    {
+      "trace_id": "reactor_reynolds",
+      "title": "Reactor-side Reynolds number",
+      "formula": "Re = rho * v * Dh / mu",
+      "substitutions": {
+        "rho": "1.2",
+        "v": "0.200",
+        "Dh": "0.032",
+        "mu": "0.01304"
+      },
+      "result": "1000.0",
+      "units": "-",
+      "notes": ""
+    },
+    {
+      "trace_id": "reactor_nusselt",
+      "title": "Reactor-side Nusselt number",
+      "formula": "Nu = 0.023 Re^0.8 Pr^0.4",
+      "substitutions": {
+        "Re": "1000.0",
+        "Pr": "122.14"
+      },
+      "result": "39.49",
+      "units": "-",
+      "notes": ""
+    },
+    {
+      "trace_id": "reactor_property_basis",
+      "title": "Reactor property-package basis",
+      "formula": "Pr = Cp * mu / k using mixture-property package values when available",
+      "substitutions": {
+        "Cp": "2.448",
+        "mu": "0.013037",
+        "k": "0.2613",
+        "mixture_package": "reactor_mixture_properties"
+      },
+      "result": "122.14",
+      "units": "-",
+      "notes": ""
+    },
+    {
+      "trace_id": "reactor_packet_basis",
+      "title": "Solved reactor packet basis",
+      "formula": "reactor packet -> inlet mass and thermal duty",
+      "substitutions": {
+        "packet_inlet_mass_kg_hr": "26953.864",
+        "thermal_packet": "R-101_thermal_packet",
+        "composition_state": "reactor_composition_state"
+      },
+      "result": "7600.213",
+      "units": "kW",
+      "notes": "Reactor sizing now reads the solved reactor unit packet, composition state, and thermal packet before falling back to route-level heuristics."
+    },
+    {
+      "trace_id": "reactor_utility_integration_basis",
+      "title": "Reactor utility-train coupling",
+      "formula": "Integrated reactor duty = sum(selected train steps tied to reactor source/sink)",
+      "substitutions": {
+        "selected_steps": "none",
+        "topology": "shared HTM island network (shared_htm) with 1 utility islands",
+        "architecture_family": "shared_htm",
+        "selected_islands": "none",
+        "header_levels": "none",
+        "allocated_target_kw": "0.000"
+      },
+      "result": "0.000",
+      "units": "kW",
+      "notes": "This captures recovered reactor duty exported to or imported from the selected utility train."
+    },
+    {
+      "trace_id": "reactor_integrated_heat_transfer",
+      "title": "Reactor integrated heat-transfer basis",
+      "formula": "A_int = Q_int / (U * LMTD_int)",
+      "substitutions": {
+        "Q_int": "0.0",
+        "U": "850.0",
+        "LMTD_int": "0.00"
+      },
+      "result": "0.000",
+      "units": "m2",
+      "notes": "Integrated heat-transfer area is derived from the selected train-step thermal driving force, not only aggregate recovered duty."
+    },
+    {
+      "trace_id": "reactor_thermal_stability_basis",
+      "title": "Reactor thermal stability basis",
+      "formula": "DeltaTad = Q/(m*Cp); margin = (Qcap-Qduty)/Qduty",
+      "substitutions": {
+        "Qduty": "7600.213",
+        "m_feed": "26953.864",
+        "Cp_kJ_kg_K": "2.448",
+        "DeltaTad": "414.729",
+        "Qcap": "8512.239"
+      },
+      "result": "0.1200",
+      "units": "fraction margin",
+      "notes": "This is a screening runaway and heat-removal check to keep reactor selection tied to thermal controllability."
+    },
+    {
+      "trace_id": "reactor_catalyst_service_basis",
+      "title": "Catalyst service basis",
+      "formula": "mcat = V*(1-eps)*rhobulk ; WHSV = mfeed/mcat",
+      "substitutions": {
+        "catalyst": "CO2 catalytic loop",
+        "void_fraction": "0.350",
+        "inventory_kg": "4914758.026",
+        "WHSV_1_hr": "0.0055",
+        "cycle_days": "270.0"
+      },
+      "result": "4914758.026",
+      "units": "kg",
+      "notes": "Catalyst inventory and cycle are screening values used to connect reactor selection with service-life assumptions."
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "value_id": "reactor_design_volume",
+      "name": "Reactor design volume",
+      "value": "27004.164978",
+      "units": "m3",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "value_id": "reactor_heat_duty",
+      "name": "Reactor heat duty",
+      "value": "7600.213",
+      "units": "kW",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification."
+      ],
+      "value_id": "reactor_kinetic_rate_constant",
+      "name": "Reactor rate constant",
+      "value": "14.963167",
+      "units": "1/h",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "value_id": "reactor_heat_removal_margin",
+      "name": "Reactor heat-removal margin",
+      "value": "0.12",
+      "units": "-",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "value_id": "reactor_catalyst_inventory",
+      "name": "Catalyst inventory",
+      "value": "4914758.026086",
+      "units": "kg",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "value_id": "reactor_catalyst_cycle_days",
+      "name": "Catalyst cycle length",
+      "value": "270",
+      "units": "days",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    }
+  ]
+}

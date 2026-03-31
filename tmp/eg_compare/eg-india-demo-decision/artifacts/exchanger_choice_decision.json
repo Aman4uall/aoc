@@ -1,0 +1,135 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Exchanger selector scored alternatives from gross unit duties."
+  ],
+  "decision_id": "exchanger_choice",
+  "context": "Heat-exchanger family selection from the process energy envelope.",
+  "criteria": [
+    {
+      "name": "Technical feasibility",
+      "weight": 0.35,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Selected exchanger must handle the identified duty and service."
+    },
+    {
+      "name": "Heat-management fit",
+      "weight": 0.3,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Thermal service and fouling tendency guide exchanger choice."
+    },
+    {
+      "name": "Operability",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Maintainability and controllability matter at feasibility stage."
+    },
+    {
+      "name": "Economics",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Exchanger choice affects both CAPEX and maintenance burden."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "candidate_id": "shell_and_tube",
+      "candidate_type": "exchanger_selector",
+      "description": "Shell-and-tube exchanger basis",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 88.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "candidate_id": "plate_exchanger",
+      "candidate_type": "exchanger_selector",
+      "description": "Plate exchanger basis",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 70.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "candidate_id": "air_cooler",
+      "candidate_type": "exchanger_selector",
+      "description": "Air cooler basis",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 68.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "candidate_id": "kettle_reboiler",
+      "candidate_type": "exchanger_selector",
+      "description": "Kettle/thermosyphon reboiler basis",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 58.0,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "shell_and_tube",
+  "selected_summary": "Shell-and-tube exchanger basis selected as the highest-ranked alternative.",
+  "hard_constraint_results": [
+    "Alternative must remain technically feasible for the inferred process archetype."
+  ],
+  "confidence": 0.84,
+  "scenario_stability": "stable",
+  "approval_required": false,
+  "blocked_value_ids": []
+}

@@ -1,0 +1,187 @@
+{
+  "citations": [
+    "eg_handbook",
+    "user_doc_1"
+  ],
+  "assumptions": [
+    "Non-ideal separation thermodynamics uses modified Raoult's law when cited binary interaction parameters are available.",
+    "Key-pair activity coefficients are evaluated with an equimolar liquid-phase screening basis in v1 of the non-ideal engine.",
+    "When cited binary interaction parameters are unavailable, gamma defaults to 1.0 and the basis falls back to ideal Raoult's law."
+  ],
+  "artifact_id": "omega_catalytic_separation_thermo",
+  "route_id": "omega_catalytic",
+  "separation_family": "distillation",
+  "system_pressure_bar": 3.24,
+  "nominal_top_temp_c": 108.0,
+  "nominal_bottom_temp_c": 203.3,
+  "light_key": "Water",
+  "heavy_key": "Ethylene Glycol",
+  "activity_model": "ideal_raoult_missing_bip_fallback",
+  "top_k_values": [
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "estimate_id": "ethylene_glycol_top_k",
+      "identifier_id": "ethylene_glycol",
+      "component_name": "Ethylene Glycol",
+      "temperature_c": 108.0,
+      "pressure_bar": 3.24,
+      "vapor_pressure_bar": 0.051753,
+      "activity_coefficient": 1.0,
+      "k_value": 0.015973,
+      "method": "ideal_raoult_missing_bip_clausius_clapeyron",
+      "activity_model": "ideal_raoult_missing_bip_fallback",
+      "binary_pair_id": null,
+      "resolution_status": "estimated"
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "estimate_id": "ethylene_oxide_top_k",
+      "identifier_id": "ethylene_oxide",
+      "component_name": "Ethylene oxide",
+      "temperature_c": 108.0,
+      "pressure_bar": 3.24,
+      "vapor_pressure_bar": 14.607998,
+      "activity_coefficient": 1.0,
+      "k_value": 4.508641,
+      "method": "ideal_raoult_clausius_clapeyron",
+      "activity_model": "ideal_raoult",
+      "binary_pair_id": null,
+      "resolution_status": "estimated"
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "estimate_id": "water_top_k",
+      "identifier_id": "water",
+      "component_name": "Water",
+      "temperature_c": 108.0,
+      "pressure_bar": 3.24,
+      "vapor_pressure_bar": 1.340862,
+      "activity_coefficient": 1.0,
+      "k_value": 0.413846,
+      "method": "ideal_raoult_missing_bip_antoine_extrapolated",
+      "activity_model": "ideal_raoult_missing_bip_fallback",
+      "binary_pair_id": null,
+      "resolution_status": "estimated"
+    }
+  ],
+  "bottom_k_values": [
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "estimate_id": "ethylene_glycol_bottom_k",
+      "identifier_id": "ethylene_glycol",
+      "component_name": "Ethylene Glycol",
+      "temperature_c": 203.3,
+      "pressure_bar": 3.24,
+      "vapor_pressure_bar": 1.188912,
+      "activity_coefficient": 1.0,
+      "k_value": 0.366948,
+      "method": "ideal_raoult_missing_bip_clausius_clapeyron",
+      "activity_model": "ideal_raoult_missing_bip_fallback",
+      "binary_pair_id": null,
+      "resolution_status": "estimated"
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "estimate_id": "ethylene_oxide_bottom_k",
+      "identifier_id": "ethylene_oxide",
+      "component_name": "Ethylene oxide",
+      "temperature_c": 203.3,
+      "pressure_bar": 3.24,
+      "vapor_pressure_bar": 69.312327,
+      "activity_coefficient": 1.0,
+      "k_value": 21.392694,
+      "method": "ideal_raoult_clausius_clapeyron",
+      "activity_model": "ideal_raoult",
+      "binary_pair_id": null,
+      "resolution_status": "estimated"
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Chemical identifier is resolved from route participants, product profile, and benchmark/library matching."
+      ],
+      "estimate_id": "water_bottom_k",
+      "identifier_id": "water",
+      "component_name": "Water",
+      "temperature_c": 203.3,
+      "pressure_bar": 3.24,
+      "vapor_pressure_bar": 17.118932,
+      "activity_coefficient": 1.0,
+      "k_value": 5.283621,
+      "method": "ideal_raoult_missing_bip_antoine_extrapolated",
+      "activity_model": "ideal_raoult_missing_bip_fallback",
+      "binary_pair_id": null,
+      "resolution_status": "estimated"
+    }
+  ],
+  "binary_interaction_parameters": [],
+  "missing_binary_pairs": [
+    "ethylene_glycol__water"
+  ],
+  "fallback_notes": [
+    "Binary interaction parameters for Water / Ethylene Glycol were not resolved from cited/public sources.",
+    "Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair."
+  ],
+  "relative_volatility": {
+    "citations": [
+      "eg_handbook",
+      "user_doc_1"
+    ],
+    "assumptions": [
+      "Non-ideal separation thermodynamics uses modified Raoult's law when cited binary interaction parameters are available.",
+      "Key-pair activity coefficients are evaluated with an equimolar liquid-phase screening basis in v1 of the non-ideal engine.",
+      "When cited binary interaction parameters are unavailable, gamma defaults to 1.0 and the basis falls back to ideal Raoult's law."
+    ],
+    "estimate_id": "omega_catalytic_relative_volatility",
+    "light_key_identifier_id": "water",
+    "heavy_key_identifier_id": "ethylene_glycol",
+    "light_key": "Water",
+    "heavy_key": "Ethylene Glycol",
+    "top_alpha": 25.909097,
+    "bottom_alpha": 14.398828,
+    "average_alpha": 19.314777,
+    "method": "ideal_raoult_missing_bip_fallback",
+    "feasible": true,
+    "notes": [
+      "Top alpha from K-values at 108.0 C and 3.24 bar.",
+      "Bottom alpha from K-values at 203.3 C and 3.24 bar.",
+      "Binary interaction parameters for Water / Ethylene Glycol were not resolved from cited/public sources.",
+      "Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair."
+    ]
+  },
+  "blocked_component_ids": [],
+  "markdown": "| Component | Ttop (C) | Gamma top | Ktop | Method | Tbottom (C) | Gamma bottom | Kbottom | Method |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| Ethylene Glycol | 108.0 | 1.0000 | 0.0160 | ideal_raoult_missing_bip_clausius_clapeyron | 203.3 | 1.0000 | 0.3669 | ideal_raoult_missing_bip_clausius_clapeyron |\n| Ethylene oxide | 108.0 | 1.0000 | 4.5086 | ideal_raoult_clausius_clapeyron | 203.3 | 1.0000 | 21.3927 | ideal_raoult_clausius_clapeyron |\n| Water | 108.0 | 1.0000 | 0.4138 | ideal_raoult_missing_bip_antoine_extrapolated | 203.3 | 1.0000 | 5.2836 | ideal_raoult_missing_bip_antoine_extrapolated |\n\nLight key: `Water`\nHeavy key: `Ethylene Glycol`\nActivity model: `ideal_raoult_missing_bip_fallback`\nAverage relative volatility: `19.3148`\nSystem pressure: `3.240` bar\n\nFallback notes:\n- Binary interaction parameters for Water / Ethylene Glycol were not resolved from cited/public sources.\n- Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair."
+}

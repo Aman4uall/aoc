@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from aoc.models import (
+    FlowsheetBlueprintArtifact,
     ProcessTemplate,
     ProjectBasis,
     ReactionSystem,
@@ -25,6 +26,7 @@ def build_stream_table_generic(
     citations: list[str],
     assumptions: list[str],
     property_packages: PropertyPackageArtifact | None = None,
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None = None,
 ) -> StreamTable:
     solve_result = build_generic_sequence_streams(
         product_mass_kg_hr=_hourly_output_kg(basis),
@@ -33,6 +35,7 @@ def build_stream_table_generic(
         citations=citations,
         assumptions=assumptions,
         property_packages=property_packages,
+        flowsheet_blueprint=flowsheet_blueprint,
     )
     composition_states, composition_closures = build_unit_composition_artifacts(
         solve_result.streams,
@@ -42,10 +45,18 @@ def build_stream_table_generic(
     )
     extra_assumptions = [
         "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
-        f"Sequence family inferred as `{solve_result.sequence_family}` from route separations and expanded into the stage path: {', '.join(solve_result.stage_labels)}.",
+        (
+            f"Sequence family inferred as `{solve_result.sequence_family}` from the selected route-derived blueprint and expanded into the stage path: {', '.join(solve_result.stage_labels)}."
+            if flowsheet_blueprint is not None and flowsheet_blueprint.steps
+            else f"Sequence family inferred as `{solve_result.sequence_family}` from route separations and expanded into the stage path: {', '.join(solve_result.stage_labels)}."
+        ),
         f"Sectioned flowsheet topology is now emitted explicitly with {len(solve_result.sections)} solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
         "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
     ]
+    if flowsheet_blueprint is not None and flowsheet_blueprint.steps:
+        extra_assumptions.append(
+            f"Route-derived flowsheet blueprint overrides the canonical family train with {len(flowsheet_blueprint.steps)} mapped blueprint steps before stream solving."
+        )
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA:
         extra_assumptions.append("Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.")
     return StreamTable(

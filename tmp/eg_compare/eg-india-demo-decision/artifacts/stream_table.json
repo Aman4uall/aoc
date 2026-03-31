@@ -1,0 +1,2058 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+    "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+    "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+    "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+    "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+  ],
+  "streams": [
+    {
+      "stream_id": "S-101",
+      "description": "Ethylene oxide fresh feed",
+      "temperature_c": 25.0,
+      "pressure_bar": 18.0,
+      "components": [
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 18378.663,
+          "molar_flow_kmol_hr": 417.22277
+        }
+      ],
+      "source_unit_id": "battery_limits",
+      "destination_unit_id": "feed_prep",
+      "phase_hint": "gas",
+      "stream_role": "feed",
+      "section_id": "feed_handling"
+    },
+    {
+      "stream_id": "S-102",
+      "description": "Water fresh feed",
+      "temperature_c": 25.0,
+      "pressure_bar": 18.0,
+      "components": [
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 7573.705,
+          "molar_flow_kmol_hr": 420.411049
+        }
+      ],
+      "source_unit_id": "battery_limits",
+      "destination_unit_id": "feed_prep",
+      "phase_hint": "gas",
+      "stream_role": "feed",
+      "section_id": "feed_handling"
+    },
+    {
+      "stream_id": "S-150",
+      "description": "Mixed reactor feed",
+      "temperature_c": 225.0,
+      "pressure_bar": 18.0,
+      "components": [
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 18856.564,
+          "molar_flow_kmol_hr": 428.071822
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 8097.3,
+          "molar_flow_kmol_hr": 449.475413
+        }
+      ],
+      "source_unit_id": "feed_prep",
+      "destination_unit_id": "reactor",
+      "phase_hint": "gas",
+      "stream_role": "intermediate",
+      "section_id": "reaction"
+    },
+    {
+      "stream_id": "S-201",
+      "description": "Reactor effluent",
+      "temperature_c": 240.0,
+      "pressure_bar": 18.0,
+      "components": [
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "mass_flow_kg_hr": 25252.525,
+          "molar_flow_kmol_hr": 406.83946
+        },
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 754.263,
+          "molar_flow_kmol_hr": 17.122873
+        },
+        {
+          "name": "Trace heavy glycols",
+          "formula": null,
+          "mass_flow_kg_hr": 253.021,
+          "molar_flow_kmol_hr": 2.547741
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 694.054,
+          "molar_flow_kmol_hr": 38.526464
+        }
+      ],
+      "source_unit_id": "reactor",
+      "destination_unit_id": "primary_flash",
+      "phase_hint": "gas",
+      "stream_role": "intermediate",
+      "section_id": "reaction"
+    },
+    {
+      "stream_id": "S-202",
+      "description": "Primary separation overhead / vent / purge",
+      "temperature_c": 205.0,
+      "pressure_bar": 16.5,
+      "components": [
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 709.007,
+          "molar_flow_kmol_hr": 16.095501
+        },
+        {
+          "name": "Trace heavy glycols",
+          "formula": null,
+          "mass_flow_kg_hr": 10.121,
+          "molar_flow_kmol_hr": 0.10191
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 258.493,
+          "molar_flow_kmol_hr": 14.348765
+        }
+      ],
+      "source_unit_id": "primary_flash",
+      "destination_unit_id": "waste_treatment",
+      "phase_hint": "gas",
+      "stream_role": "vent",
+      "section_id": "primary_recovery"
+    },
+    {
+      "stream_id": "S-203",
+      "description": "Primary separation bottoms / rich liquid",
+      "temperature_c": 230.0,
+      "pressure_bar": 17.2,
+      "components": [
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "mass_flow_kg_hr": 25252.525,
+          "molar_flow_kmol_hr": 406.83946
+        },
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 45.256,
+          "molar_flow_kmol_hr": 1.027372
+        },
+        {
+          "name": "Trace heavy glycols",
+          "formula": null,
+          "mass_flow_kg_hr": 242.9,
+          "molar_flow_kmol_hr": 2.445831
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 41.643,
+          "molar_flow_kmol_hr": 2.311588
+        }
+      ],
+      "source_unit_id": "primary_flash",
+      "destination_unit_id": "recycle_recovery",
+      "phase_hint": "gas",
+      "stream_role": "intermediate",
+      "section_id": "primary_recovery"
+    },
+    {
+      "stream_id": "S-301",
+      "description": "Cleanup / recycle recovery stream",
+      "temperature_c": 215.0,
+      "pressure_bar": 17.0,
+      "components": [
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "mass_flow_kg_hr": 25252.525,
+          "molar_flow_kmol_hr": 406.83946
+        },
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 523.157,
+          "molar_flow_kmol_hr": 11.876425
+        },
+        {
+          "name": "Trace heavy glycols",
+          "formula": null,
+          "mass_flow_kg_hr": 242.9,
+          "molar_flow_kmol_hr": 2.445831
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 565.238,
+          "molar_flow_kmol_hr": 31.375952
+        }
+      ],
+      "source_unit_id": "recycle_recovery",
+      "destination_unit_id": "purification",
+      "phase_hint": "gas",
+      "stream_role": "recycle",
+      "section_id": "recycle_recovery_carbonate_loop_cleanup"
+    },
+    {
+      "stream_id": "S-401",
+      "description": "Light ends / recoverable recycle",
+      "temperature_c": 45.0,
+      "pressure_bar": 1.0,
+      "components": [
+        {
+          "name": "Ethylene oxide",
+          "formula": "C2H4O",
+          "mass_flow_kg_hr": 477.901,
+          "molar_flow_kmol_hr": 10.849052
+        },
+        {
+          "name": "Water",
+          "formula": "H2O",
+          "mass_flow_kg_hr": 523.595,
+          "molar_flow_kmol_hr": 29.064364
+        }
+      ],
+      "source_unit_id": "purification",
+      "destination_unit_id": "feed_prep",
+      "phase_hint": "gas",
+      "stream_role": "recycle",
+      "section_id": "purification"
+    },
+    {
+      "stream_id": "S-402",
+      "description": "On-spec product",
+      "temperature_c": 45.0,
+      "pressure_bar": 1.1,
+      "components": [
+        {
+          "name": "Ethylene glycol",
+          "formula": "C2H6O2",
+          "mass_flow_kg_hr": 24974.747,
+          "molar_flow_kmol_hr": 402.364225
+        }
+      ],
+      "source_unit_id": "purification",
+      "destination_unit_id": "storage",
+      "phase_hint": "gas",
+      "stream_role": "product",
+      "section_id": "purification"
+    },
+    {
+      "stream_id": "S-403",
+      "description": "Waste / purge / heavy ends",
+      "temperature_c": 55.0,
+      "pressure_bar": 1.05,
+      "components": [],
+      "source_unit_id": "purification",
+      "destination_unit_id": "waste_treatment",
+      "phase_hint": "mixed",
+      "stream_role": "waste",
+      "section_id": "purification"
+    }
+  ],
+  "closure_error_pct": 0.0,
+  "calc_traces": [
+    {
+      "trace_id": "sequence_main_extent",
+      "title": "Main reaction extent",
+      "formula": "extent = product_kmol / nu_product",
+      "substitutions": {
+        "product_kmol": "406.839460",
+        "nu_product": "1.000"
+      },
+      "result": "406.839460",
+      "units": "kmol/h",
+      "notes": ""
+    },
+    {
+      "trace_id": "sequence_feed_extent",
+      "title": "Feed extent with conversion/selectivity",
+      "formula": "feed_extent = (product_kmol / nu_product) / (selectivity * conversion)",
+      "substitutions": {
+        "selectivity": "0.9900",
+        "conversion": "0.9600"
+      },
+      "result": "428.071822",
+      "units": "kmol/h",
+      "notes": ""
+    },
+    {
+      "trace_id": "sequence_byproduct_closure",
+      "title": "Byproduct closure allocation",
+      "formula": "Residual byproduct mass is allocated across explicit byproduct-closure estimates",
+      "substitutions": {
+        "closure_status": "estimated",
+        "estimate_count": "1",
+        "residual_mass_kg_hr": "253.021"
+      },
+      "result": "1 estimates",
+      "units": "items",
+      "notes": "This replaces the older implicit heavy-ends fallback whenever the reaction system carries a byproduct-closure artifact."
+    },
+    {
+      "trace_id": "sequence_recycle_components",
+      "title": "Multi-component recycle solution",
+      "formula": "Solve recycle per reactant using target_total, consumed, recovery, and purge fractions",
+      "substitutions": {
+        "Ethylene oxide": "fresh=417.223; recycle=10.849; total=428.072",
+        "Water": "fresh=420.411; recycle=29.064; total=449.475"
+      },
+      "result": "2 components solved",
+      "units": "components",
+      "notes": "This is the first generic convergence slice: reactants are solved through the same recycle/purge loop instead of family-specific inline math."
+    },
+    {
+      "trace_id": "sequence_stage_count",
+      "title": "Unit-sequence expansion",
+      "formula": "stream_count = feeds + mixed feed + reactor + separation + recycle + product/waste",
+      "substitutions": {
+        "family": "generic"
+      },
+      "result": "10",
+      "units": "streams",
+      "notes": ""
+    },
+    {
+      "trace_id": "sequence_closure",
+      "title": "Fresh-feed to external-out closure",
+      "formula": "closure = |fresh_feed - external_out| / fresh_feed",
+      "substitutions": {
+        "fresh_feed": "25952.368",
+        "external_out": "25952.368"
+      },
+      "result": "0.000000",
+      "units": "%",
+      "notes": ""
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "value_id": "stream_product_mass_flow",
+      "name": "Product mass flow",
+      "value": "25252.525253",
+      "units": "kg/h",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "value_id": "stream_total_feed_mass",
+      "name": "Total fresh-feed mass flow",
+      "value": "25952.368042",
+      "units": "kg/h",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "value_id": "stream_total_external_out",
+      "name": "Total external outlet mass flow",
+      "value": "25952.368",
+      "units": "kg/h",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+        "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+        "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+        "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+        "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+        "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice."
+      ],
+      "value_id": "stream_closure_error",
+      "name": "Mass-balance closure error",
+      "value": "0",
+      "units": "%",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    }
+  ],
+  "composition_states": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "state_id": "feed_prep_composition_state",
+      "unit_id": "feed_prep",
+      "unit_type": "feed_preparation",
+      "inlet_stream_ids": [
+        "S-101",
+        "S-102",
+        "S-401"
+      ],
+      "outlet_stream_ids": [
+        "S-150"
+      ],
+      "inlet_component_molar_kmol_hr": {
+        "Ethylene oxide": 428.071822,
+        "Water": 449.475413
+      },
+      "outlet_component_molar_kmol_hr": {
+        "Ethylene oxide": 428.071822,
+        "Water": 449.475413
+      },
+      "inlet_component_mass_kg_hr": {
+        "Ethylene oxide": 18856.564,
+        "Water": 8097.3
+      },
+      "outlet_component_mass_kg_hr": {
+        "Ethylene oxide": 18856.564,
+        "Water": 8097.3
+      },
+      "inlet_component_mole_fraction": {
+        "Ethylene oxide": 0.487805,
+        "Water": 0.512195
+      },
+      "outlet_component_mole_fraction": {
+        "Ethylene oxide": 0.487805,
+        "Water": 0.512195
+      },
+      "inlet_component_mass_fraction": {
+        "Ethylene oxide": 0.699587,
+        "Water": 0.300413
+      },
+      "outlet_component_mass_fraction": {
+        "Ethylene oxide": 0.699587,
+        "Water": 0.300413
+      },
+      "dominant_inlet_phase": "gas",
+      "dominant_outlet_phase": "gas",
+      "status": "converged",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "state_id": "primary_flash_composition_state",
+      "unit_id": "primary_flash",
+      "unit_type": "flash",
+      "inlet_stream_ids": [
+        "S-201"
+      ],
+      "outlet_stream_ids": [
+        "S-202",
+        "S-203"
+      ],
+      "inlet_component_molar_kmol_hr": {
+        "Ethylene glycol": 406.83946,
+        "Ethylene oxide": 17.122873,
+        "Trace heavy glycols": 2.547741,
+        "Water": 38.526464
+      },
+      "outlet_component_molar_kmol_hr": {
+        "Ethylene oxide": 17.122873,
+        "Trace heavy glycols": 2.547741,
+        "Water": 16.660353,
+        "Ethylene glycol": 406.83946
+      },
+      "inlet_component_mass_kg_hr": {
+        "Ethylene glycol": 25252.525,
+        "Ethylene oxide": 754.263,
+        "Trace heavy glycols": 253.021,
+        "Water": 694.054
+      },
+      "outlet_component_mass_kg_hr": {
+        "Ethylene oxide": 754.263,
+        "Trace heavy glycols": 253.021,
+        "Water": 300.136,
+        "Ethylene glycol": 25252.525
+      },
+      "inlet_component_mole_fraction": {
+        "Ethylene glycol": 0.874855,
+        "Ethylene oxide": 0.03682,
+        "Trace heavy glycols": 0.005479,
+        "Water": 0.082846
+      },
+      "outlet_component_mole_fraction": {
+        "Ethylene oxide": 0.038637,
+        "Trace heavy glycols": 0.005749,
+        "Water": 0.037594,
+        "Ethylene glycol": 0.91802
+      },
+      "inlet_component_mass_fraction": {
+        "Ethylene glycol": 0.93688,
+        "Ethylene oxide": 0.027983,
+        "Trace heavy glycols": 0.009387,
+        "Water": 0.02575
+      },
+      "outlet_component_mass_fraction": {
+        "Ethylene oxide": 0.028399,
+        "Trace heavy glycols": 0.009526,
+        "Water": 0.0113,
+        "Ethylene glycol": 0.950775
+      },
+      "dominant_inlet_phase": "gas",
+      "dominant_outlet_phase": "gas",
+      "status": "converged",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "state_id": "purification_composition_state",
+      "unit_id": "purification",
+      "unit_type": "distillation",
+      "inlet_stream_ids": [
+        "S-301"
+      ],
+      "outlet_stream_ids": [
+        "S-401",
+        "S-402",
+        "S-403"
+      ],
+      "inlet_component_molar_kmol_hr": {
+        "Ethylene glycol": 406.83946,
+        "Ethylene oxide": 11.876425,
+        "Trace heavy glycols": 2.445831,
+        "Water": 31.375952
+      },
+      "outlet_component_molar_kmol_hr": {
+        "Ethylene oxide": 10.849052,
+        "Water": 29.064364,
+        "Ethylene glycol": 402.364225
+      },
+      "inlet_component_mass_kg_hr": {
+        "Ethylene glycol": 25252.525,
+        "Ethylene oxide": 523.157,
+        "Trace heavy glycols": 242.9,
+        "Water": 565.238
+      },
+      "outlet_component_mass_kg_hr": {
+        "Ethylene oxide": 477.901,
+        "Water": 523.595,
+        "Ethylene glycol": 24974.747
+      },
+      "inlet_component_mole_fraction": {
+        "Ethylene glycol": 0.899018,
+        "Ethylene oxide": 0.026244,
+        "Trace heavy glycols": 0.005405,
+        "Water": 0.069333
+      },
+      "outlet_component_mole_fraction": {
+        "Ethylene oxide": 0.02453,
+        "Water": 0.065715,
+        "Ethylene glycol": 0.909755
+      },
+      "inlet_component_mass_fraction": {
+        "Ethylene glycol": 0.949921,
+        "Ethylene oxide": 0.01968,
+        "Trace heavy glycols": 0.009137,
+        "Water": 0.021262
+      },
+      "outlet_component_mass_fraction": {
+        "Ethylene oxide": 0.018398,
+        "Water": 0.020157,
+        "Ethylene glycol": 0.961446
+      },
+      "dominant_inlet_phase": "gas",
+      "dominant_outlet_phase": "gas",
+      "status": "estimated",
+      "notes": [
+        "Unit packet coverage is partial."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "state_id": "reactor_composition_state",
+      "unit_id": "reactor",
+      "unit_type": "reactor",
+      "inlet_stream_ids": [
+        "S-150"
+      ],
+      "outlet_stream_ids": [
+        "S-201"
+      ],
+      "inlet_component_molar_kmol_hr": {
+        "Ethylene oxide": 428.071822,
+        "Water": 449.475413
+      },
+      "outlet_component_molar_kmol_hr": {
+        "Ethylene glycol": 406.83946,
+        "Ethylene oxide": 17.122873,
+        "Trace heavy glycols": 2.547741,
+        "Water": 38.526464
+      },
+      "inlet_component_mass_kg_hr": {
+        "Ethylene oxide": 18856.564,
+        "Water": 8097.3
+      },
+      "outlet_component_mass_kg_hr": {
+        "Ethylene glycol": 25252.525,
+        "Ethylene oxide": 754.263,
+        "Trace heavy glycols": 253.021,
+        "Water": 694.054
+      },
+      "inlet_component_mole_fraction": {
+        "Ethylene oxide": 0.487805,
+        "Water": 0.512195
+      },
+      "outlet_component_mole_fraction": {
+        "Ethylene glycol": 0.874855,
+        "Ethylene oxide": 0.03682,
+        "Trace heavy glycols": 0.005479,
+        "Water": 0.082846
+      },
+      "inlet_component_mass_fraction": {
+        "Ethylene oxide": 0.699587,
+        "Water": 0.300413
+      },
+      "outlet_component_mass_fraction": {
+        "Ethylene glycol": 0.93688,
+        "Ethylene oxide": 0.027983,
+        "Trace heavy glycols": 0.009387,
+        "Water": 0.02575
+      },
+      "dominant_inlet_phase": "gas",
+      "dominant_outlet_phase": "gas",
+      "status": "converged",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "state_id": "recycle_recovery_composition_state",
+      "unit_id": "recycle_recovery",
+      "unit_type": "recycle",
+      "inlet_stream_ids": [
+        "S-203"
+      ],
+      "outlet_stream_ids": [
+        "S-301"
+      ],
+      "inlet_component_molar_kmol_hr": {
+        "Ethylene glycol": 406.83946,
+        "Ethylene oxide": 1.027372,
+        "Trace heavy glycols": 2.445831,
+        "Water": 2.311588
+      },
+      "outlet_component_molar_kmol_hr": {
+        "Ethylene glycol": 406.83946,
+        "Ethylene oxide": 11.876425,
+        "Trace heavy glycols": 2.445831,
+        "Water": 31.375952
+      },
+      "inlet_component_mass_kg_hr": {
+        "Ethylene glycol": 25252.525,
+        "Ethylene oxide": 45.256,
+        "Trace heavy glycols": 242.9,
+        "Water": 41.643
+      },
+      "outlet_component_mass_kg_hr": {
+        "Ethylene glycol": 25252.525,
+        "Ethylene oxide": 523.157,
+        "Trace heavy glycols": 242.9,
+        "Water": 565.238
+      },
+      "inlet_component_mole_fraction": {
+        "Ethylene glycol": 0.98598,
+        "Ethylene oxide": 0.00249,
+        "Trace heavy glycols": 0.005928,
+        "Water": 0.005602
+      },
+      "outlet_component_mole_fraction": {
+        "Ethylene glycol": 0.899018,
+        "Ethylene oxide": 0.026244,
+        "Trace heavy glycols": 0.005405,
+        "Water": 0.069333
+      },
+      "inlet_component_mass_fraction": {
+        "Ethylene glycol": 0.987108,
+        "Ethylene oxide": 0.001769,
+        "Trace heavy glycols": 0.009495,
+        "Water": 0.001628
+      },
+      "outlet_component_mass_fraction": {
+        "Ethylene glycol": 0.949921,
+        "Ethylene oxide": 0.01968,
+        "Trace heavy glycols": 0.009137,
+        "Water": 0.021262
+      },
+      "dominant_inlet_phase": "gas",
+      "dominant_outlet_phase": "gas",
+      "status": "converged",
+      "notes": [
+        "Unit packet coverage is partial."
+      ]
+    }
+  ],
+  "composition_closures": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "closure_id": "feed_prep_composition_closure",
+      "unit_id": "feed_prep",
+      "reactive": false,
+      "inlet_fraction_sum": 1.0,
+      "outlet_fraction_sum": 1.0,
+      "new_outlet_components": [],
+      "missing_outlet_components": [],
+      "composition_error_pct": 0.0,
+      "closure_status": "converged",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "closure_id": "primary_flash_composition_closure",
+      "unit_id": "primary_flash",
+      "reactive": false,
+      "inlet_fraction_sum": 1.0,
+      "outlet_fraction_sum": 1.0,
+      "new_outlet_components": [],
+      "missing_outlet_components": [],
+      "composition_error_pct": 0.0,
+      "closure_status": "converged",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "closure_id": "purification_composition_closure",
+      "unit_id": "purification",
+      "reactive": false,
+      "inlet_fraction_sum": 1.0,
+      "outlet_fraction_sum": 1.0,
+      "new_outlet_components": [],
+      "missing_outlet_components": [
+        "Trace heavy glycols"
+      ],
+      "composition_error_pct": 0.0,
+      "closure_status": "estimated",
+      "notes": [
+        "Unit packet coverage is partial.",
+        "Non-reactive unit has component-set drift: new=-; missing=Trace heavy glycols."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "closure_id": "reactor_composition_closure",
+      "unit_id": "reactor",
+      "reactive": true,
+      "inlet_fraction_sum": 1.0,
+      "outlet_fraction_sum": 1.0,
+      "new_outlet_components": [
+        "Ethylene glycol",
+        "Trace heavy glycols"
+      ],
+      "missing_outlet_components": [],
+      "composition_error_pct": 0.0,
+      "closure_status": "converged",
+      "notes": [
+        "Reactive unit allows transformed component sets between inlet and outlet."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "closure_id": "recycle_recovery_composition_closure",
+      "unit_id": "recycle_recovery",
+      "reactive": false,
+      "inlet_fraction_sum": 1.0,
+      "outlet_fraction_sum": 1.0,
+      "new_outlet_components": [],
+      "missing_outlet_components": [],
+      "composition_error_pct": 0.0,
+      "closure_status": "converged",
+      "notes": [
+        "Unit packet coverage is partial."
+      ]
+    }
+  ],
+  "unit_operation_packets": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "feed_prep_unit_packet",
+      "unit_id": "feed_prep",
+      "unit_type": "feed_preparation",
+      "service": "Feed preparation",
+      "inlet_stream_ids": [
+        "S-101",
+        "S-102",
+        "S-401"
+      ],
+      "outlet_stream_ids": [
+        "S-150"
+      ],
+      "inlet_mass_flow_kg_hr": 26953.864,
+      "outlet_mass_flow_kg_hr": 26953.864,
+      "closure_error_pct": 0.0,
+      "coverage_status": "complete",
+      "missing_source_stream_ids": [],
+      "missing_destination_stream_ids": [],
+      "status": "converged",
+      "unresolved_sensitivities": [],
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "primary_flash_unit_packet",
+      "unit_id": "primary_flash",
+      "unit_type": "flash",
+      "service": "Primary flash and vent recovery",
+      "inlet_stream_ids": [
+        "S-201"
+      ],
+      "outlet_stream_ids": [
+        "S-202",
+        "S-203"
+      ],
+      "inlet_mass_flow_kg_hr": 26953.863,
+      "outlet_mass_flow_kg_hr": 26953.863,
+      "closure_error_pct": 0.0,
+      "coverage_status": "complete",
+      "missing_source_stream_ids": [],
+      "missing_destination_stream_ids": [],
+      "status": "converged",
+      "unresolved_sensitivities": [],
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "purification_unit_packet",
+      "unit_id": "purification",
+      "unit_type": "distillation",
+      "service": "Purification train",
+      "inlet_stream_ids": [
+        "S-301"
+      ],
+      "outlet_stream_ids": [
+        "S-401",
+        "S-402",
+        "S-403"
+      ],
+      "inlet_mass_flow_kg_hr": 26583.82,
+      "outlet_mass_flow_kg_hr": 26583.82,
+      "closure_error_pct": 0.0,
+      "coverage_status": "partial",
+      "missing_source_stream_ids": [],
+      "missing_destination_stream_ids": [],
+      "status": "converged",
+      "unresolved_sensitivities": [
+        "mixed or unresolved phase basis remains in solved streams"
+      ],
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "reactor_unit_packet",
+      "unit_id": "reactor",
+      "unit_type": "reactor",
+      "service": "Reaction zone",
+      "inlet_stream_ids": [
+        "S-150"
+      ],
+      "outlet_stream_ids": [
+        "S-201"
+      ],
+      "inlet_mass_flow_kg_hr": 26953.864,
+      "outlet_mass_flow_kg_hr": 26953.863,
+      "closure_error_pct": 4e-6,
+      "coverage_status": "complete",
+      "missing_source_stream_ids": [],
+      "missing_destination_stream_ids": [],
+      "status": "converged",
+      "unresolved_sensitivities": [],
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "recycle_recovery_unit_packet",
+      "unit_id": "recycle_recovery",
+      "unit_type": "recycle",
+      "service": "Recycle recovery",
+      "inlet_stream_ids": [
+        "S-203"
+      ],
+      "outlet_stream_ids": [
+        "S-301"
+      ],
+      "inlet_mass_flow_kg_hr": 25582.324,
+      "outlet_mass_flow_kg_hr": 26583.82,
+      "closure_error_pct": 3.767314,
+      "coverage_status": "partial",
+      "missing_source_stream_ids": [],
+      "missing_destination_stream_ids": [],
+      "status": "estimated",
+      "unresolved_sensitivities": [
+        "material closure above converged range"
+      ],
+      "notes": [
+        "Unit closure is 3.767%, so this unit needs review before detailed design."
+      ]
+    }
+  ],
+  "phase_split_specs": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "spec_id": "primary_flash_phase_split_spec",
+      "unit_id": "primary_flash",
+      "separation_family": "flash",
+      "split_basis": "temperature/volatility",
+      "mechanism": "vapor_liquid_equilibrium",
+      "inlet_phases": [
+        "gas"
+      ],
+      "product_phase_target": "gas",
+      "waste_phase_target": "gas",
+      "recycle_phase_target": "",
+      "side_draw_phase_target": "",
+      "equilibrium_model": "",
+      "equilibrium_parameter_ids": [],
+      "equilibrium_fallback": false,
+      "phase_split_status": "complete",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "spec_id": "purification_phase_split_spec",
+      "unit_id": "purification",
+      "separation_family": "distillation",
+      "split_basis": "temperature/volatility",
+      "mechanism": "vapor_liquid_equilibrium",
+      "inlet_phases": [
+        "gas"
+      ],
+      "product_phase_target": "gas",
+      "waste_phase_target": "mixed",
+      "recycle_phase_target": "gas",
+      "side_draw_phase_target": "",
+      "equilibrium_model": "",
+      "equilibrium_parameter_ids": [],
+      "equilibrium_fallback": false,
+      "phase_split_status": "complete",
+      "notes": []
+    }
+  ],
+  "separator_performances": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "performance_id": "primary_flash_separator_performance",
+      "unit_id": "primary_flash",
+      "separation_family": "flash",
+      "inlet_stream_ids": [
+        "S-201"
+      ],
+      "product_stream_ids": [
+        "S-203"
+      ],
+      "waste_stream_ids": [
+        "S-202"
+      ],
+      "recycle_stream_ids": [],
+      "side_draw_stream_ids": [],
+      "component_split_to_product": {
+        "Ethylene glycol": 1.0,
+        "Ethylene oxide": 0.06,
+        "Trace heavy glycols": 0.96,
+        "Water": 0.06
+      },
+      "component_split_to_waste": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.94,
+        "Trace heavy glycols": 0.04,
+        "Water": 0.94
+      },
+      "component_split_to_recycle": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "component_split_to_side_draw": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "dominant_product_phase": "gas",
+      "dominant_waste_phase": "gas",
+      "dominant_recycle_phase": "",
+      "product_mass_fraction": 0.949115,
+      "waste_mass_fraction": 0.050885,
+      "recycle_mass_fraction": 0.0,
+      "side_draw_mass_fraction": 0.0,
+      "split_closure_pct": 0.0,
+      "equilibrium_model": "",
+      "equilibrium_parameter_ids": [],
+      "equilibrium_fallback": false,
+      "performance_status": "converged",
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "performance_id": "purification_separator_performance",
+      "unit_id": "purification",
+      "separation_family": "distillation",
+      "inlet_stream_ids": [
+        "S-301"
+      ],
+      "product_stream_ids": [
+        "S-402"
+      ],
+      "waste_stream_ids": [
+        "S-403"
+      ],
+      "recycle_stream_ids": [
+        "S-401"
+      ],
+      "side_draw_stream_ids": [],
+      "component_split_to_product": {
+        "Ethylene glycol": 0.989,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "component_split_to_waste": {
+        "Ethylene glycol": 0.011,
+        "Ethylene oxide": 0.086505,
+        "Trace heavy glycols": 1.0,
+        "Water": 0.073674
+      },
+      "component_split_to_recycle": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.913495,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.926326
+      },
+      "component_split_to_side_draw": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "dominant_product_phase": "gas",
+      "dominant_waste_phase": "mixed",
+      "dominant_recycle_phase": "gas",
+      "product_mass_fraction": 0.939472,
+      "waste_mass_fraction": 0.022855,
+      "recycle_mass_fraction": 0.037673,
+      "side_draw_mass_fraction": 0.0,
+      "split_closure_pct": 0.0,
+      "equilibrium_model": "",
+      "equilibrium_parameter_ids": [],
+      "equilibrium_fallback": false,
+      "performance_status": "converged",
+      "notes": []
+    }
+  ],
+  "separation_packets": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "primary_flash_separation_packet",
+      "unit_id": "primary_flash",
+      "separation_family": "flash",
+      "driving_force": "temperature/volatility",
+      "inlet_stream_ids": [
+        "S-201"
+      ],
+      "product_stream_ids": [
+        "S-203"
+      ],
+      "waste_stream_ids": [
+        "S-202"
+      ],
+      "recycle_stream_ids": [],
+      "side_draw_stream_ids": [],
+      "phase_split_spec_id": "primary_flash_phase_split_spec",
+      "separator_performance_id": "primary_flash_separator_performance",
+      "split_basis": "temperature/volatility",
+      "component_split_to_product": {
+        "Ethylene glycol": 1.0,
+        "Ethylene oxide": 0.06,
+        "Trace heavy glycols": 0.96,
+        "Water": 0.06
+      },
+      "component_split_to_waste": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.94,
+        "Trace heavy glycols": 0.04,
+        "Water": 0.94
+      },
+      "component_split_to_recycle": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "component_split_to_side_draw": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "dominant_product_phase": "gas",
+      "dominant_waste_phase": "gas",
+      "dominant_recycle_phase": "",
+      "product_mass_fraction": 0.949115,
+      "waste_mass_fraction": 0.050885,
+      "recycle_mass_fraction": 0.0,
+      "side_draw_mass_fraction": 0.0,
+      "split_closure_pct": 0.0,
+      "equilibrium_model": "",
+      "equilibrium_parameter_ids": [],
+      "equilibrium_fallback": false,
+      "split_status": "converged",
+      "closure_error_pct": 0.0,
+      "notes": []
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "purification_separation_packet",
+      "unit_id": "purification",
+      "separation_family": "distillation",
+      "driving_force": "temperature/volatility",
+      "inlet_stream_ids": [
+        "S-301"
+      ],
+      "product_stream_ids": [
+        "S-402"
+      ],
+      "waste_stream_ids": [
+        "S-403"
+      ],
+      "recycle_stream_ids": [
+        "S-401"
+      ],
+      "side_draw_stream_ids": [],
+      "phase_split_spec_id": "purification_phase_split_spec",
+      "separator_performance_id": "purification_separator_performance",
+      "split_basis": "temperature/volatility",
+      "component_split_to_product": {
+        "Ethylene glycol": 0.989,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "component_split_to_waste": {
+        "Ethylene glycol": 0.011,
+        "Ethylene oxide": 0.086505,
+        "Trace heavy glycols": 1.0,
+        "Water": 0.073674
+      },
+      "component_split_to_recycle": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.913495,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.926326
+      },
+      "component_split_to_side_draw": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 0.0,
+        "Trace heavy glycols": 0.0,
+        "Water": 0.0
+      },
+      "dominant_product_phase": "gas",
+      "dominant_waste_phase": "mixed",
+      "dominant_recycle_phase": "gas",
+      "product_mass_fraction": 0.939472,
+      "waste_mass_fraction": 0.022855,
+      "recycle_mass_fraction": 0.037673,
+      "side_draw_mass_fraction": 0.0,
+      "split_closure_pct": 0.0,
+      "equilibrium_model": "",
+      "equilibrium_parameter_ids": [],
+      "equilibrium_fallback": false,
+      "split_status": "converged",
+      "closure_error_pct": 0.0,
+      "notes": []
+    }
+  ],
+  "recycle_packets": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "recycle_recovery_recycle_loop_packet",
+      "loop_id": "recycle_recovery_recycle_loop",
+      "recycle_source_unit_id": "recycle_recovery",
+      "recycle_target_unit_id": "purification",
+      "source_section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "target_section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "recycle_stream_ids": [
+        "S-301"
+      ],
+      "purge_stream_ids": [],
+      "component_targets_kmol_hr": {
+        "Ethylene glycol": 406.83946,
+        "Ethylene oxide": 223.712043,
+        "Trace heavy glycols": 2.445831,
+        "Water": 233.332979
+      },
+      "component_fresh_kmol_hr": {
+        "Ethylene glycol": 0.406839,
+        "Ethylene oxide": 211.847494,
+        "Trace heavy glycols": 0.002446,
+        "Water": 201.988403
+      },
+      "component_recycle_kmol_hr": {
+        "Ethylene glycol": 406.432621,
+        "Ethylene oxide": 11.864549,
+        "Trace heavy glycols": 2.443385,
+        "Water": 31.344576
+      },
+      "component_purge_kmol_hr": {
+        "Ethylene glycol": 0.406839,
+        "Ethylene oxide": 0.011876,
+        "Trace heavy glycols": 0.002446,
+        "Water": 0.031376
+      },
+      "component_convergence_error_pct": {
+        "Ethylene glycol": 0.1,
+        "Ethylene oxide": 0.099996,
+        "Trace heavy glycols": 0.100007,
+        "Water": 0.1
+      },
+      "component_iterations": {
+        "Ethylene glycol": 2,
+        "Ethylene oxide": 2,
+        "Trace heavy glycols": 2,
+        "Water": 2
+      },
+      "purge_policy_by_family": {
+        "aqueous_diluent": 0.001,
+        "heavy_byproducts": 0.001,
+        "recoverable_reactants": 0.001
+      },
+      "impurity_family_components": {
+        "heavy_byproducts": [
+          "Ethylene glycol",
+          "Trace heavy glycols"
+        ],
+        "recoverable_reactants": [
+          "Ethylene oxide"
+        ],
+        "aqueous_diluent": [
+          "Water"
+        ]
+      },
+      "convergence_summary_id": "recycle_recovery_recycle_loop_summary",
+      "convergence_status": "converged",
+      "closure_error_pct": 0.0,
+      "max_iterations": 2,
+      "notes": [
+        "No explicit purge stream is present for this recycle loop; purge policy is structural and should be reviewed.",
+        "Loop purge policy is biased by section topology: source section `recycle_recovery_carbonate_loop_cleanup` returning to `purification`."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "packet_id": "purification_recycle_loop_packet",
+      "loop_id": "purification_recycle_loop",
+      "recycle_source_unit_id": "purification",
+      "recycle_target_unit_id": "feed_prep",
+      "source_section_id": "purification",
+      "target_section_id": "feed_handling",
+      "recycle_stream_ids": [
+        "S-401"
+      ],
+      "purge_stream_ids": [
+        "S-403"
+      ],
+      "component_targets_kmol_hr": {
+        "Ethylene glycol": 4.475234,
+        "Ethylene oxide": 204.359779,
+        "Trace heavy glycols": 2.445831,
+        "Water": 216.142434
+      },
+      "component_fresh_kmol_hr": {
+        "Ethylene glycol": 4.475234,
+        "Ethylene oxide": 194.449222,
+        "Trace heavy glycols": 2.445831,
+        "Water": 189.219362
+      },
+      "component_recycle_kmol_hr": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 9.910557,
+        "Trace heavy glycols": 0.0,
+        "Water": 26.923072
+      },
+      "component_purge_kmol_hr": {
+        "Ethylene glycol": 4.475234,
+        "Ethylene oxide": 1.965867,
+        "Trace heavy glycols": 2.445831,
+        "Water": 4.45288
+      },
+      "component_convergence_error_pct": {
+        "Ethylene glycol": 0.0,
+        "Ethylene oxide": 8.650479,
+        "Trace heavy glycols": 0.0,
+        "Water": 7.367414
+      },
+      "component_iterations": {
+        "Ethylene glycol": 1,
+        "Ethylene oxide": 2,
+        "Trace heavy glycols": 1,
+        "Water": 2
+      },
+      "purge_policy_by_family": {
+        "aqueous_diluent": 0.14192,
+        "heavy_byproducts": 1.0,
+        "recoverable_reactants": 0.165527
+      },
+      "impurity_family_components": {
+        "heavy_byproducts": [
+          "Ethylene glycol",
+          "Trace heavy glycols"
+        ],
+        "recoverable_reactants": [
+          "Ethylene oxide"
+        ],
+        "aqueous_diluent": [
+          "Water"
+        ]
+      },
+      "convergence_summary_id": "purification_recycle_loop_summary",
+      "convergence_status": "estimated",
+      "closure_error_pct": 0.0,
+      "max_iterations": 2,
+      "notes": [
+        "Loop purge policy is biased by section topology: source section `purification` returning to `feed_prep`."
+      ]
+    }
+  ],
+  "convergence_summaries": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "summary_id": "recycle_recovery_recycle_loop_summary",
+      "loop_id": "recycle_recovery_recycle_loop",
+      "recycle_source_unit_id": "recycle_recovery",
+      "recycle_target_unit_id": "purification",
+      "source_section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "target_section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "recycle_stream_ids": [
+        "S-301"
+      ],
+      "purge_stream_ids": [],
+      "component_count": 4,
+      "converged_components": [
+        "Ethylene glycol",
+        "Ethylene oxide",
+        "Trace heavy glycols",
+        "Water"
+      ],
+      "estimated_components": [],
+      "blocked_components": [],
+      "max_component_error_pct": 0.100007,
+      "mean_component_error_pct": 0.100001,
+      "max_iterations": 2,
+      "purge_policy_by_family": {
+        "aqueous_diluent": 0.001,
+        "heavy_byproducts": 0.001,
+        "recoverable_reactants": 0.001
+      },
+      "impurity_family_components": {
+        "heavy_byproducts": [
+          "Ethylene glycol",
+          "Trace heavy glycols"
+        ],
+        "recoverable_reactants": [
+          "Ethylene oxide"
+        ],
+        "aqueous_diluent": [
+          "Water"
+        ]
+      },
+      "convergence_status": "converged",
+      "notes": [
+        "No explicit purge stream is present for this recycle loop; purge policy is structural and should be reviewed.",
+        "Loop purge policy is biased by section topology: source section `recycle_recovery_carbonate_loop_cleanup` returning to `purification`."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "summary_id": "purification_recycle_loop_summary",
+      "loop_id": "purification_recycle_loop",
+      "recycle_source_unit_id": "purification",
+      "recycle_target_unit_id": "feed_prep",
+      "source_section_id": "purification",
+      "target_section_id": "feed_handling",
+      "recycle_stream_ids": [
+        "S-401"
+      ],
+      "purge_stream_ids": [
+        "S-403"
+      ],
+      "component_count": 4,
+      "converged_components": [
+        "Ethylene glycol",
+        "Trace heavy glycols"
+      ],
+      "estimated_components": [
+        "Ethylene oxide",
+        "Water"
+      ],
+      "blocked_components": [],
+      "max_component_error_pct": 8.650479,
+      "mean_component_error_pct": 4.004473,
+      "max_iterations": 2,
+      "purge_policy_by_family": {
+        "aqueous_diluent": 0.14192,
+        "heavy_byproducts": 1.0,
+        "recoverable_reactants": 0.165527
+      },
+      "impurity_family_components": {
+        "heavy_byproducts": [
+          "Ethylene glycol",
+          "Trace heavy glycols"
+        ],
+        "recoverable_reactants": [
+          "Ethylene oxide"
+        ],
+        "aqueous_diluent": [
+          "Water"
+        ]
+      },
+      "convergence_status": "estimated",
+      "notes": [
+        "Loop purge policy is biased by section topology: source section `purification` returning to `feed_prep`."
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "section_id": "feed_handling",
+      "section_type": "feed_preparation",
+      "label": "Feed handling",
+      "sequence_index": 1,
+      "unit_ids": [
+        "feed_prep"
+      ],
+      "inlet_stream_ids": [
+        "S-101",
+        "S-102",
+        "S-401"
+      ],
+      "outlet_stream_ids": [
+        "S-150"
+      ],
+      "side_draw_stream_ids": [],
+      "recycle_loop_ids": [],
+      "status": "converged",
+      "notes": [
+        "Fresh feeds and recycle returns are mixed here before entering the reactor train."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "section_id": "reaction",
+      "section_type": "reaction",
+      "label": "Reaction",
+      "sequence_index": 2,
+      "unit_ids": [
+        "reactor"
+      ],
+      "inlet_stream_ids": [
+        "S-150"
+      ],
+      "outlet_stream_ids": [
+        "S-201"
+      ],
+      "side_draw_stream_ids": [],
+      "recycle_loop_ids": [],
+      "status": "converged",
+      "notes": [
+        "Reaction section basis starts from the selected route and kinetics package."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "section_id": "primary_recovery",
+      "section_type": "primary_recovery",
+      "label": "Primary recovery",
+      "sequence_index": 3,
+      "unit_ids": [
+        "primary_flash"
+      ],
+      "inlet_stream_ids": [
+        "S-201"
+      ],
+      "outlet_stream_ids": [
+        "S-202",
+        "S-203"
+      ],
+      "side_draw_stream_ids": [],
+      "recycle_loop_ids": [],
+      "status": "converged",
+      "notes": [
+        "Fallback primary-recovery section added because route descriptors were sparse."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "section_type": "recycle_recovery",
+      "label": "Carbonate loop cleanup",
+      "sequence_index": 4,
+      "unit_ids": [
+        "recycle_recovery"
+      ],
+      "inlet_stream_ids": [
+        "S-203"
+      ],
+      "outlet_stream_ids": [
+        "S-301"
+      ],
+      "side_draw_stream_ids": [],
+      "recycle_loop_ids": [
+        "recycle_recovery_recycle_loop"
+      ],
+      "status": "estimated",
+      "notes": [
+        "Derived directly from route separation descriptor `Carbonate loop cleanup`.",
+        "Unit `recycle_recovery` retains partial packet coverage.",
+        "Section contains one or more recycle return streams."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "section_id": "purification",
+      "section_type": "purification",
+      "label": "Purification",
+      "sequence_index": 5,
+      "unit_ids": [
+        "purification"
+      ],
+      "inlet_stream_ids": [
+        "S-301"
+      ],
+      "outlet_stream_ids": [
+        "S-401",
+        "S-402",
+        "S-403"
+      ],
+      "side_draw_stream_ids": [],
+      "recycle_loop_ids": [
+        "purification_recycle_loop"
+      ],
+      "status": "estimated",
+      "notes": [
+        "Fallback purification section added because route descriptors were sparse.",
+        "Unit `purification` retains partial packet coverage.",
+        "Section contains one or more recycle return streams."
+      ]
+    }
+  ]
+}

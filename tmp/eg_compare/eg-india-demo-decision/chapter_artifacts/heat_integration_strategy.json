@@ -1,0 +1,36 @@
+{
+  "chapter_id": "heat_integration_strategy",
+  "title": "Heat Integration and Utility Optimization",
+  "stage_id": "heat_integration_optimization",
+  "status": "complete",
+  "required_inputs": [
+    "rough_alternatives",
+    "market_assessment"
+  ],
+  "produced_outputs": [
+    "heat_integration_study"
+  ],
+  "blockers": [],
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Operating-mode decision uses operations-planning buffers, restart losses, and campaign burden instead of a fixed throughput-only rule.",
+    "Rough alternative duties are used for early process architecture and heat-integration ranking, not final equipment design.",
+    "Heat-integration cases are route-specific and feed the final route choice."
+  ],
+  "summary": "",
+  "rendered_markdown": "## Heat Integration and Utility Optimization\n\nThe heat-integration study evaluates no-recovery, multi-effect, and pinch/HTM-loop cases before final route choice. Routes that remain utility-heavy after recovery are penalized in downstream economics.\n\n| Route | Selected case | Recovered duty (kW) | Residual hot utility (kW) | Savings (INR bn/y) | Payback (y) | Stability |\n| --- | --- | --- | --- | --- | --- | --- |\n| eo_hydration | Pinch + HTM loop | 51714.0 | 49263.8 | 1.45 | 0.40 | stable |\n| omega_catalytic | Pinch + HTM loop | 47256.7 | 43800.1 | 1.32 | 0.44 | stable |\n| chlorohydrin | No recovery | 0.0 | 13044.2 | 0.00 | 0.00 | stable |"
+}

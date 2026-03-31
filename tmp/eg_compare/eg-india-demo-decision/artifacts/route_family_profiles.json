@@ -1,0 +1,144 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors.",
+    "Route-family profiles are deterministic classifications built from route descriptors, participant phases, and chemistry-family adapter cues."
+  ],
+  "profiles": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "route_id": "eo_hydration",
+      "route_family_id": "liquid_hydration_train",
+      "family_label": "Liquid Hydration Train",
+      "dominant_phase_pattern": "liquid_reactive",
+      "primary_reactor_class": "Tubular plug-flow hydrator",
+      "primary_separation_train": "EO flash -> water removal -> vacuum glycol distillation",
+      "heat_recovery_style": "condenser_reboiler_cluster",
+      "maturity_score": 92.0,
+      "india_fit_score": 90.0,
+      "utility_intensity_factor": 1.12,
+      "capex_intensity_factor": 1.0,
+      "operability_score": 84.0,
+      "data_anchor_requirements": [
+        "binary_interaction_parameters",
+        "liquid_density",
+        "liquid_viscosity",
+        "missing_vle_basis",
+        "missing_density_viscosity_for_column_hydraulics"
+      ],
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ],
+      "route_descriptors": [
+        "eo_flash",
+        "water_removal",
+        "vacuum_distillation",
+        "heavy_glycol_split"
+      ],
+      "india_deployment_blocker": "",
+      "markdown": "`eo_hydration` is classified as `liquid_hydration_train` (Liquid Hydration Train).\n\n- Reactor basis: Tubular plug-flow hydrator\n- Separation train: EO flash -> water removal -> vacuum glycol distillation\n- Heat recovery style: condenser_reboiler_cluster\n- Data anchors: binary_interaction_parameters, liquid_density, liquid_viscosity, missing_vle_basis, missing_density_viscosity_for_column_hydraulics\n- Critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure, relative_volatility_claims\n- India blocker: none"
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "route_id": "omega_catalytic",
+      "route_family_id": "liquid_hydration_train",
+      "family_label": "Liquid Hydration Train",
+      "dominant_phase_pattern": "liquid_reactive",
+      "primary_reactor_class": "Tubular plug-flow hydrator",
+      "primary_separation_train": "EO flash -> water removal -> vacuum glycol distillation",
+      "heat_recovery_style": "condenser_reboiler_cluster",
+      "maturity_score": 92.0,
+      "india_fit_score": 90.0,
+      "utility_intensity_factor": 1.12,
+      "capex_intensity_factor": 1.0,
+      "operability_score": 84.0,
+      "data_anchor_requirements": [
+        "binary_interaction_parameters",
+        "liquid_density",
+        "liquid_viscosity",
+        "missing_vle_basis",
+        "missing_density_viscosity_for_column_hydraulics"
+      ],
+      "critic_flags": [
+        "dehydration_duty",
+        "glycol_split_vle_basis",
+        "water_recycle_closure",
+        "relative_volatility_claims"
+      ],
+      "route_descriptors": [
+        "carbonate_loop_cleanup",
+        "hydrolysis",
+        "low-water_purification"
+      ],
+      "india_deployment_blocker": "",
+      "markdown": "`omega_catalytic` is classified as `liquid_hydration_train` (Liquid Hydration Train).\n\n- Reactor basis: Tubular plug-flow hydrator\n- Separation train: EO flash -> water removal -> vacuum glycol distillation\n- Heat recovery style: condenser_reboiler_cluster\n- Data anchors: binary_interaction_parameters, liquid_density, liquid_viscosity, missing_vle_basis, missing_density_viscosity_for_column_hydraulics\n- Critic flags: dehydration_duty, glycol_split_vle_basis, water_recycle_closure, relative_volatility_claims\n- India blocker: none"
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "route_id": "chlorohydrin",
+      "route_family_id": "chlorinated_hydrolysis_train",
+      "family_label": "Chlorinated Hydrolysis Train",
+      "dominant_phase_pattern": "liquid_salt_slurry",
+      "primary_reactor_class": "Agitated hydrolysis CSTR train",
+      "primary_separation_train": "Salt removal -> brine handling -> water removal -> purification",
+      "heat_recovery_style": "utility_led_with_brine_management",
+      "maturity_score": 30.0,
+      "india_fit_score": 22.0,
+      "utility_intensity_factor": 1.18,
+      "capex_intensity_factor": 1.22,
+      "operability_score": 48.0,
+      "data_anchor_requirements": [
+        "liquid_density",
+        "liquid_viscosity",
+        "chloride_corrosion_basis",
+        "missing_vle_basis",
+        "missing_density_viscosity_for_column_hydraulics"
+      ],
+      "critic_flags": [
+        "chloride_waste_burden",
+        "brine_handling_penalty",
+        "corrosion_material_risk"
+      ],
+      "route_descriptors": [
+        "salt_removal",
+        "water_removal",
+        "distillation"
+      ],
+      "india_deployment_blocker": "Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis.",
+      "markdown": "`chlorohydrin` is classified as `chlorinated_hydrolysis_train` (Chlorinated Hydrolysis Train).\n\n- Reactor basis: Agitated hydrolysis CSTR train\n- Separation train: Salt removal -> brine handling -> water removal -> purification\n- Heat recovery style: utility_led_with_brine_management\n- Data anchors: liquid_density, liquid_viscosity, chloride_corrosion_basis, missing_vle_basis, missing_density_viscosity_for_column_hydraulics\n- Critic flags: chloride_waste_burden, brine_handling_penalty, corrosion_material_risk\n- India blocker: Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis."
+    }
+  ],
+  "markdown": "| Route | Family | Reactor Basis | Separation Train | Heat Style | India Blocker |\n| --- | --- | --- | --- | --- | --- |\n| eo_hydration | Liquid Hydration Train | Tubular plug-flow hydrator | EO flash -> water removal -> vacuum glycol distillation | condenser_reboiler_cluster | none |\n| omega_catalytic | Liquid Hydration Train | Tubular plug-flow hydrator | EO flash -> water removal -> vacuum glycol distillation | condenser_reboiler_cluster | none |\n| chlorohydrin | Chlorinated Hydrolysis Train | Agitated hydrolysis CSTR train | Salt removal -> brine handling -> water removal -> purification | utility_led_with_brine_management | Route generates chloride-heavy waste and is not preferred for India deployment under the current policy basis. |"
+}

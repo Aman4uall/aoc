@@ -1,0 +1,53 @@
+{
+  "benchmark_id": "ethylene_glycol",
+  "target_product": "Ethylene glycol",
+  "archetype_family": "continuous_liquid_organic_heat_integrated",
+  "required_chapters": [
+    "executive_summary",
+    "introduction_product_profile",
+    "market_capacity_selection",
+    "literature_survey",
+    "process_selection",
+    "site_selection",
+    "thermodynamic_feasibility",
+    "reaction_kinetics",
+    "block_flow_diagram",
+    "process_description",
+    "material_balance",
+    "energy_balance",
+    "heat_integration_strategy",
+    "equipment_design_sizing",
+    "mechanical_design_moc",
+    "storage_utilities",
+    "instrumentation_control",
+    "hazop",
+    "safety_health_environment_waste",
+    "layout",
+    "project_cost",
+    "cost_of_production",
+    "working_capital",
+    "financial_analysis",
+    "conclusion"
+  ],
+  "expected_decisions": [
+    "capacity_case",
+    "operating_mode",
+    "route_selection",
+    "site_selection",
+    "reactor_choice",
+    "separation_choice",
+    "utility_basis",
+    "economic_basis"
+  ],
+  "required_public_source_domains": [
+    "technical",
+    "safety",
+    "market",
+    "site",
+    "utilities",
+    "logistics",
+    "regulatory",
+    "economics"
+  ],
+  "notes": "Primary benchmark for continuous liquid organic synthesis with strong utility integration pressure."
+}

@@ -6,6 +6,8 @@ from aoc.models import (
     DecisionRecord,
     FinancialModel,
     GeographicScope,
+    HazopNode,
+    HazopNodeRegister,
     HeatExchangerDesign,
     HeatIntegrationCase,
     MechanicalComponentDesign,
@@ -48,6 +50,7 @@ from aoc.validators import (
     validate_financial_model,
     validate_financing_decision_alignment,
     validate_financing_operability_critics,
+    validate_hazop_node_register,
     validate_kinetics_method_critics,
     validate_mechanical_design_artifact,
     validate_reactor_hazard_basis_critics,
@@ -64,6 +67,38 @@ from aoc.validators import (
 
 
 class ValidatorTests(unittest.TestCase):
+    def test_hazop_validation_requires_safeguards_and_tracks_recommendations(self):
+        register = HazopNodeRegister(
+            nodes=[
+                HazopNode(
+                    node_id="R-101",
+                    node_family="reactor",
+                    design_intent="Maintain safe conversion.",
+                    parameter="Temperature",
+                    guide_word="More",
+                    deviation="Higher than intended reactor temperature",
+                    causes=["Cooling failure"],
+                    consequences=["Runaway tendency"],
+                    safeguards=[],
+                    linked_control_loops=["TIC-R-101"],
+                    consequence_severity="high",
+                    recommendation_priority="high",
+                    recommendation_status="open",
+                    recommendation="Add HH trip.",
+                    citations=["s1"],
+                    assumptions=["seed"],
+                )
+            ],
+            coverage_summary="1 node",
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_hazop_node_register(register)
+
+        self.assertTrue(any(issue.code == "hazop_missing_safeguards" for issue in issues))
+
     def _make_route(self, route_id: str = "oxidation_route") -> RouteOption:
         return RouteOption(
             route_id=route_id,

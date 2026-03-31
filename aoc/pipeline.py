@@ -33,6 +33,7 @@ from aoc.decision_engine import (
     select_route_architecture,
     selected_heat_case,
 )
+from aoc.document_facts import build_document_fact_collection, build_document_process_options
 from aoc.critics import merge_critic_registry
 from aoc.economics_v2 import (
     build_debt_schedule,
@@ -42,11 +43,18 @@ from aoc.economics_v2 import (
     build_logistics_basis_decision,
     build_plant_cost_summary,
     build_procurement_basis_decision,
+    build_route_economic_basis_artifact,
+    build_route_site_fit_artifact,
     build_tax_depreciation_basis,
     evaluate_financing_basis_decision,
 )
 from aoc.evidence import build_resolved_source_set, build_resolved_value_artifact, extend_resolved_value_artifact
 from aoc.family_adapters import build_chemistry_family_adapter
+from aoc.flowsheet_blueprint import (
+    build_process_narrative_from_blueprint,
+    build_unit_train_candidate_set,
+    select_flowsheet_blueprint,
+)
 from aoc.flowsheet import (
     build_control_architecture_decision,
     build_control_plan_from_flowsheet,
@@ -56,7 +64,10 @@ from aoc.flowsheet import (
 )
 from aoc.methods import build_capacity_decision, build_kinetics_method_decision, build_thermo_method_decision
 from aoc.mechanical import build_mechanical_design_artifact, build_mechanical_design_basis, build_vessel_mechanical_designs
-from aoc.route_families import build_route_family_artifact
+from aoc.route_families import build_route_family_artifact, profile_for_route
+from aoc.route_chemistry import build_property_demand_plan, build_route_chemistry_artifact
+from aoc.route_planning import build_route_selection_comparison
+from aoc.report_parity import build_report_parity_framework, evaluate_report_acceptance, evaluate_report_parity
 from aoc.models import (
     AgentDecisionFabricArtifact,
     BenchmarkManifest,
@@ -71,6 +82,8 @@ from aoc.models import (
     CriticRegistryArtifact,
     DebtSchedule,
     DecisionRecord,
+    DocumentFactCollectionArtifact,
+    DocumentProcessOptionsArtifact,
     EquipmentDatasheet,
     EconomicScenarioModel,
     EnergyBalance,
@@ -79,6 +92,7 @@ from aoc.models import (
     FinancialModel,
     FinancialSchedule,
     FlowsheetGraph,
+    FlowsheetBlueprintArtifact,
     FlowsheetCase,
     GateDecision,
     GateStatus,
@@ -101,11 +115,16 @@ from aoc.models import (
     ProcessArchetype,
     ProcessSynthesisArtifact,
     ProcessNarrativeArtifact,
+    PropertyDemandPlan,
     PropertyGapArtifact,
     ProductProfileArtifact,
     ProvenanceTag,
     ProjectConfig,
     ProjectRunState,
+    ReportAcceptanceArtifact,
+    ReportParityArtifact,
+    ReportParityFrameworkArtifact,
+    ReactionParticipant,
     ReactionSystem,
     ReactorDesign,
     ReactorDesignBasis,
@@ -114,8 +133,12 @@ from aoc.models import (
     ResolvedValueArtifact,
     RoughAlternativeSummaryArtifact,
     RouteOption,
+    RouteChemistryArtifact,
     RouteFamilyArtifact,
+    RouteSelectionComparisonArtifact,
     RouteSelectionArtifact,
+    RouteEconomicBasisArtifact,
+    RouteSiteFitArtifact,
     RouteSurveyArtifact,
     RunStatus,
     SolveResult,
@@ -128,6 +151,7 @@ from aoc.models import (
     StreamTable,
     TaxDepreciationBasis,
     ThermoAssessmentArtifact,
+    UnitTrainCandidateSet,
     UtilityArchitectureDecision,
     UnitOperationFamilyArtifact,
     UtilitySummaryArtifact,
@@ -184,12 +208,15 @@ from aoc.validators import (
     validate_cost_model,
     validate_cross_chapter_consistency,
     validate_decision_record,
+    validate_document_fact_collection,
     validate_energy_balance,
     validate_equipment_applicability,
     validate_financing_decision_alignment,
     validate_financial_model,
+    validate_flowsheet_blueprint,
     validate_flowsheet_case,
     validate_flowsheet_graph,
+    validate_control_plan,
     validate_control_architecture,
     validate_hazop_node_register,
     validate_heat_integration_study,
@@ -202,8 +229,12 @@ from aoc.validators import (
     validate_phase_feasibility,
     validate_property_method_decision,
     validate_property_package_artifact,
+    validate_report_parity,
+    validate_report_acceptance,
+    validate_report_parity_framework,
     validate_process_archetype,
     validate_property_gap_artifact,
+    validate_property_demand_plan,
     validate_property_requirement_set,
     validate_property_requirements_for_stage,
     validate_property_records,
@@ -221,8 +252,12 @@ from aoc.validators import (
     validate_reactor_hazard_basis_critics,
     validate_research_bundle,
     validate_route_balance,
+    validate_route_chemistry_artifact,
+    validate_route_economic_basis_artifact,
     validate_route_family_artifact,
     validate_route_economic_critics,
+    validate_route_site_fit_artifact,
+    validate_route_selection_comparison,
     validate_route_selection_critics,
     validate_separation_design_critics,
     validate_separation_thermo_critics,
@@ -230,6 +265,7 @@ from aoc.validators import (
     validate_technical_economic_critics,
     validate_thermo_assessment,
     validate_unit_family_property_coverage,
+    validate_unit_train_candidate_set,
     validate_utility_architecture,
     validate_utility_network_decision,
     validate_value_records,
@@ -259,16 +295,16 @@ class StageResult:
 
 
 STAGES = [
-    StageSpec("project_intake", "Project intake and basis lock", (), ("project_basis", "research_bundle", "benchmark_manifest", "resolved_sources")),
+    StageSpec("project_intake", "Project intake and basis lock", (), ("project_basis", "research_bundle", "benchmark_manifest", "resolved_sources", "report_parity_framework", "user_document_facts", "document_process_options")),
     StageSpec("product_profile", "Introduction and product profile", ("research_bundle",), ("product_profile",)),
     StageSpec("market_capacity", "Market and capacity selection", ("research_bundle",), ("market_assessment", "capacity_decision")),
-    StageSpec("literature_route_survey", "Literature survey", ("research_bundle",), ("route_survey",)),
-    StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources", "route_survey", "research_bundle"), ("property_gap", "resolved_values", "property_packages", "property_requirements", "agent_decision_fabric"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
+    StageSpec("literature_route_survey", "Literature survey", ("research_bundle",), ("route_survey", "route_chemistry")),
+    StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources", "route_survey", "research_bundle"), ("property_gap", "resolved_values", "property_packages", "property_requirements", "property_demand_plan", "agent_decision_fabric"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
     StageSpec("site_selection", "Site selection", ("research_bundle",), ("site_selection", "site_selection_decision")),
-    StageSpec("process_synthesis", "Process synthesis", ("route_survey", "property_gap"), ("process_synthesis", "operations_planning", "chemistry_family_adapter", "route_family_profiles", "sparse_data_policy", "property_requirements")),
+    StageSpec("process_synthesis", "Process synthesis", ("route_survey", "property_gap"), ("process_synthesis", "operations_planning", "chemistry_family_adapter", "route_family_profiles", "sparse_data_policy", "property_requirements", "unit_train_candidates")),
     StageSpec("rough_alternative_balances", "Rough alternative balances", ("process_synthesis", "market_assessment"), ("rough_alternatives",)),
     StageSpec("heat_integration_optimization", "Heat integration optimization", ("rough_alternatives", "market_assessment"), ("heat_integration_study",), "heat_integration", "Heat Integration Review", "Approve the selected heat-integration studies before route finalization."),
-    StageSpec("route_selection", "Process selection", ("route_survey", "rough_alternatives", "heat_integration_study", "market_assessment"), ("route_selection", "route_decision", "reactor_choice_decision", "separation_choice_decision", "utility_network_decision", "unit_operation_family"), "process_architecture", "Process Architecture", "Approve the selected route, reactor, separation train, and utility-integration basis before downstream design work continues."),
+    StageSpec("route_selection", "Process selection", ("route_survey", "rough_alternatives", "heat_integration_study", "market_assessment"), ("route_selection", "route_selection_comparison", "route_decision", "reactor_choice_decision", "separation_choice_decision", "utility_network_decision", "unit_operation_family", "flowsheet_blueprint"), "process_architecture", "Process Architecture", "Approve the selected route, reactor, separation train, and utility-integration basis before downstream design work continues."),
     StageSpec("thermodynamic_feasibility", "Thermodynamics", ("route_selection", "route_survey", "research_bundle", "property_packages", "property_requirements"), ("thermo_assessment", "thermo_method_decision", "property_method_decision", "separation_thermo")),
     StageSpec("kinetic_feasibility", "Kinetics", ("route_selection", "route_survey", "research_bundle"), ("kinetic_assessment", "kinetics_method_decision")),
     StageSpec("block_diagram", "Block diagram", ("route_selection", "route_survey", "research_bundle"), ("process_narrative",)),
@@ -279,15 +315,15 @@ STAGES = [
     StageSpec("distillation_design", "Distillation/process-unit design", ("stream_table", "energy_balance", "mixture_properties", "property_packages", "property_requirements", "separation_thermo"), ("column_design", "column_hydraulics", "heat_exchanger_design", "heat_exchanger_thermal_design", "exchanger_choice_decision")),
     StageSpec("equipment_sizing", "Equipment sizing", ("reactor_design", "column_design", "heat_exchanger_design", "operations_planning"), ("storage_design", "pump_design", "equipment_list", "equipment_datasheets", "storage_choice_decision", "moc_choice_decision"), "equipment_basis", "Reactor/Column Design Basis", "Approve reactor, column, exchanger, and storage design basis before downstream detailing."),
     StageSpec("mechanical_design_moc", "Mechanical design and materials of construction", ("equipment_list", "route_selection"), ("mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs")),
-    StageSpec("storage_utilities", "Storage and utilities", ("storage_design", "equipment_list", "energy_balance"), ("utility_summary", "utility_basis_decision", "utility_architecture")),
+    StageSpec("storage_utilities", "Storage and utilities", ("storage_design", "equipment_list", "energy_balance", "operations_planning", "pump_design"), ("utility_summary", "utility_basis_decision", "utility_architecture")),
     StageSpec("instrumentation_control", "Instrumentation and process control", ("equipment_list", "utility_summary", "flowsheet_graph"), ("control_plan", "control_architecture")),
-    StageSpec("hazop_she", "HAZOP and SHE", ("equipment_list", "route_selection", "flowsheet_graph", "control_plan"), ("hazop_study", "hazop_node_register", "safety_environment"), "hazop", "HAZOP Gate", "Approve critical HAZOP nodes and SHE safeguards before layout and economics are released."),
-    StageSpec("layout_waste", "Project and plant layout", ("equipment_list", "utility_summary", "site_selection"), ("layout_plan", "layout_decision")),
-    StageSpec("project_cost", "Project cost", ("equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection"), ("cost_model", "plant_cost_summary", "procurement_basis_decision", "logistics_basis_decision")),
-    StageSpec("cost_of_production", "Cost of production", ("cost_model",), ("cost_model",)),
+    StageSpec("hazop_she", "HAZOP and SHE", ("equipment_list", "route_selection", "flowsheet_graph", "control_plan", "utility_summary"), ("hazop_study", "hazop_node_register", "safety_environment"), "hazop", "HAZOP Gate", "Approve critical HAZOP nodes and SHE safeguards before layout and economics are released."),
+    StageSpec("layout_waste", "Project and plant layout", ("equipment_list", "utility_summary", "site_selection", "mechanical_design", "operations_planning"), ("layout_plan", "layout_decision")),
+    StageSpec("project_cost", "Project cost", ("equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection", "route_selection", "operations_planning", "flowsheet_blueprint"), ("route_site_fit", "route_economic_basis", "cost_model", "plant_cost_summary", "procurement_basis_decision", "logistics_basis_decision")),
+    StageSpec("cost_of_production", "Cost of production", ("cost_model", "market_assessment"), ("cost_model",)),
     StageSpec("working_capital", "Working capital", ("cost_model", "market_assessment", "operations_planning"), ("working_capital_model",)),
     StageSpec("financial_analysis", "Financial analysis", ("cost_model", "working_capital_model", "market_assessment"), ("financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios", "debt_schedule", "tax_depreciation_basis", "financial_schedule"), "india_cost_basis", "India Cost Basis", "Approve India site and economics basis before final assembly."),
-    StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report",), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
+    StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report", "report_parity", "report_acceptance"), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
 ]
 
 
@@ -399,6 +435,7 @@ class PipelineRunner:
                     chapter.blockers.extend(blocking_issues)
                     self.store.save_chapter(self.config.project_id, chapter)
                     state.chapter_index[chapter.chapter_id] = chapter.status
+                self._save_report_acceptance(RunStatus.BLOCKED, blocked_stage_id=stage.id, blocking_issues=blocking_issues)
                 self.store.save_run_state(state)
                 return state
             state.blocked_stage_id = None
@@ -479,10 +516,17 @@ class PipelineRunner:
         for chapter_id, status in sorted(state.chapter_index.items()):
             lines.append(f"- {chapter_id}: {status.value}")
         benchmark_manifest = self.store.maybe_load_model(self.config.project_id, "artifacts/benchmark_manifest.json", BenchmarkManifest)
+        report_parity_framework = self.store.maybe_load_model(self.config.project_id, "artifacts/report_parity_framework.json", ReportParityFrameworkArtifact)
+        report_parity = self.store.maybe_load_model(self.config.project_id, "artifacts/report_parity.json", ReportParityArtifact)
+        report_acceptance = self.store.maybe_load_model(self.config.project_id, "artifacts/report_acceptance.json", ReportAcceptanceArtifact)
+        document_facts = self.store.maybe_load_model(self.config.project_id, "artifacts/user_document_facts.json", DocumentFactCollectionArtifact)
+        document_process_options = self.store.maybe_load_model(self.config.project_id, "artifacts/document_process_options.json", DocumentProcessOptionsArtifact)
         resolved_sources = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_sources.json", ResolvedSourceSet)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
         property_packages = self.store.maybe_load_model(self.config.project_id, "artifacts/property_packages.json", PropertyPackageArtifact)
+        route_chemistry = self.store.maybe_load_model(self.config.project_id, "artifacts/route_chemistry.json", RouteChemistryArtifact)
+        property_demand_plan = self.store.maybe_load_model(self.config.project_id, "artifacts/property_demand_plan.json", PropertyDemandPlan)
         property_requirements = self.store.maybe_load_model(self.config.project_id, "artifacts/property_requirements.json", PropertyRequirementSet)
         separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
         agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
@@ -493,9 +537,11 @@ class PipelineRunner:
         unit_operation_family = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_operation_family.json", UnitOperationFamilyArtifact)
         sparse_data_policy = self.store.maybe_load_model(self.config.project_id, "artifacts/sparse_data_policy.json", SparseDataPolicyArtifact)
         process_synthesis = self.store.maybe_load_model(self.config.project_id, "artifacts/process_synthesis.json", ProcessSynthesisArtifact)
+        unit_train_candidates = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_train_candidates.json", UnitTrainCandidateSet)
         operations_planning = self.store.maybe_load_model(self.config.project_id, "artifacts/operations_planning.json", OperationsPlanningArtifact)
         capacity_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/capacity_decision.json", DecisionRecord)
         site_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/site_selection_decision.json", DecisionRecord)
+        route_selection_comparison = self.store.maybe_load_model(self.config.project_id, "artifacts/route_selection_comparison.json", RouteSelectionComparisonArtifact)
         route_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/route_decision.json", DecisionRecord)
         reactor_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/reactor_choice_decision.json", DecisionRecord)
         separation_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_choice_decision.json", DecisionRecord)
@@ -517,10 +563,13 @@ class PipelineRunner:
         reaction_system = self.store.maybe_load_model(self.config.project_id, "artifacts/reaction_system.json", ReactionSystem)
         stream_table = self.store.maybe_load_model(self.config.project_id, "artifacts/stream_table.json", StreamTable)
         mixture_properties = self.store.maybe_load_model(self.config.project_id, "artifacts/mixture_properties.json", MixturePropertyArtifact)
+        flowsheet_blueprint = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_blueprint.json", FlowsheetBlueprintArtifact)
         flowsheet_case = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_case.json", FlowsheetCase)
         solve_result = self.store.maybe_load_model(self.config.project_id, "artifacts/solve_result.json", SolveResult)
         utility_architecture = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_architecture.json", UtilityArchitectureDecision)
         plant_cost_summary = self.store.maybe_load_model(self.config.project_id, "artifacts/plant_cost_summary.json", PlantCostSummary)
+        route_site_fit = self.store.maybe_load_model(self.config.project_id, "artifacts/route_site_fit.json", RouteSiteFitArtifact)
+        route_economic_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/route_economic_basis.json", RouteEconomicBasisArtifact)
         debt_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/debt_schedule.json", DebtSchedule)
         financial_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/financial_schedule.json", FinancialSchedule)
         if benchmark_manifest:
@@ -528,6 +577,47 @@ class PipelineRunner:
             lines.append("benchmark:")
             lines.append(f"- profile: {benchmark_manifest.benchmark_id}")
             lines.append(f"- archetype_family: {benchmark_manifest.archetype_family}")
+        if report_parity_framework or report_parity:
+            lines.append("")
+            lines.append("report_parity:")
+            if report_parity_framework:
+                lines.append(f"- framework_id: {report_parity_framework.framework_id}")
+                lines.append(f"- chapter_contracts: {len(report_parity_framework.chapter_contracts)}")
+                lines.append(f"- support_contracts: {len(report_parity_framework.support_contracts)}")
+            if report_parity:
+                lines.append(f"- overall_status: {report_parity.overall_status.value}")
+                lines.append(
+                    f"- chapters_complete_partial_missing: {report_parity.complete_chapter_count}/{report_parity.partial_chapter_count}/{report_parity.missing_chapter_count}"
+                )
+                lines.append(
+                    f"- support_complete_partial_missing: {report_parity.complete_support_count}/{report_parity.partial_support_count}/{report_parity.missing_support_count}"
+                )
+                lines.append(f"- missing_chapters: {', '.join(report_parity.missing_chapter_ids) or 'none'}")
+                lines.append(f"- missing_support: {', '.join(report_parity.missing_support_ids) or 'none'}")
+        if report_acceptance:
+            lines.append("")
+            lines.append("report_acceptance:")
+            lines.append(f"- overall_status: {report_acceptance.overall_status.value}")
+            lines.append(f"- pipeline_status: {report_acceptance.pipeline_status.value}")
+            lines.append(f"- report_parity_status: {report_acceptance.report_parity_status.value if report_acceptance.report_parity_status else 'not_evaluated'}")
+            lines.append(f"- blocked_stage: {report_acceptance.blocked_stage_id or 'none'}")
+            lines.append(
+                f"- expected_decisions_satisfied_missing: {report_acceptance.satisfied_expected_decision_count}/{report_acceptance.missing_expected_decision_count}"
+            )
+            lines.append(f"- missing_expected_decisions: {', '.join(report_acceptance.missing_expected_decisions) or 'none'}")
+            lines.append(f"- blocking_issue_codes: {', '.join(report_acceptance.blocking_issue_codes) or 'none'}")
+        if document_facts or document_process_options:
+            lines.append("")
+            lines.append("document_facts:")
+            if document_facts:
+                lines.append(f"- documents: {len(document_facts.documents)}")
+                lines.append(f"- process_options: {document_facts.process_option_count}")
+                lines.append(f"- reaction_mentions: {document_facts.reaction_mention_count}")
+                lines.append(f"- equipment_mentions: {document_facts.equipment_mention_count}")
+                lines.append(f"- selected_processes: {', '.join(document_facts.selected_process_labels) or 'none'}")
+                lines.append(f"- selected_sites: {', '.join(document_facts.selected_site_names) or 'none'}")
+            if document_process_options:
+                lines.append(f"- document_option_ids: {', '.join(item.option_id for item in document_process_options.options[:5]) or 'none'}")
         if resolved_sources:
             lines.append("")
             lines.append("source_resolution:")
@@ -557,6 +647,20 @@ class PipelineRunner:
             lines.append(f"- unresolved_henry_pairs: {', '.join(property_packages.unresolved_henry_pairs[:6]) or 'none'}")
             lines.append(f"- resolved_solubility_pairs: {len(property_packages.solubility_curves)}")
             lines.append(f"- unresolved_solubility_pairs: {', '.join(property_packages.unresolved_solubility_pairs[:6]) or 'none'}")
+        if route_chemistry:
+            lines.append("")
+            lines.append("route_chemistry:")
+            lines.append(f"- route_graphs: {len(route_chemistry.route_graphs)}")
+            lines.append(f"- resolved_species_count: {route_chemistry.resolved_species_count}")
+            lines.append(f"- anonymous_species_count: {route_chemistry.anonymous_species_count}")
+            lines.append(f"- blocking_routes: {', '.join(route_chemistry.blocking_route_ids) or 'none'}")
+        if property_demand_plan:
+            lines.append("")
+            lines.append("property_demand:")
+            lines.append(f"- route_ids: {', '.join(property_demand_plan.route_ids) or 'none'}")
+            lines.append(f"- items: {len(property_demand_plan.items)}")
+            lines.append(f"- blocked_stages: {', '.join(property_demand_plan.blocked_stage_ids) or 'none'}")
+            lines.append(f"- blocking_species_ids: {', '.join(property_demand_plan.blocking_species_ids[:8]) or 'none'}")
         if property_requirements:
             lines.append(f"- property_requirement_stage_failures: {', '.join(property_requirements.blocked_stage_ids) or 'none'}")
         if process_archetype:
@@ -656,6 +760,22 @@ class PipelineRunner:
                 lines.append(
                     f"- {alt_set.set_id}: selected={alt_set.selected_candidate_id or 'n/a'}; candidates={len(alt_set.alternatives)}; stability={alt_set.scenario_stability.value}"
                 )
+        if unit_train_candidates or flowsheet_blueprint:
+            lines.append("")
+            lines.append("flowsheet_blueprint:")
+            if unit_train_candidates:
+                lines.append(f"- candidates: {len(unit_train_candidates.blueprints)}")
+            if flowsheet_blueprint:
+                lines.append(f"- selected_blueprint: {flowsheet_blueprint.blueprint_id}")
+                lines.append(f"- steps: {len(flowsheet_blueprint.steps)}")
+                lines.append(f"- tagged_units: {', '.join(flowsheet_blueprint.selected_unit_tags) or 'none'}")
+                lines.append(f"- recycle_intents: {len(flowsheet_blueprint.recycle_intents)}")
+        if route_selection_comparison:
+            lines.append("")
+            lines.append("route_selection_comparison:")
+            lines.append(f"- selected_route: {route_selection_comparison.selected_route_id}")
+            lines.append(f"- rows: {len(route_selection_comparison.rows)}")
+            lines.append(f"- blocked_routes: {', '.join(route_selection_comparison.blocked_route_ids) or 'none'}")
         if agent_fabric:
             lines.append("")
             lines.append("agent_fabric:")
@@ -772,6 +892,13 @@ class PipelineRunner:
             lines.append("economics_v3:")
             if plant_cost_summary:
                 lines.append(f"- total_project_cost_inr: {plant_cost_summary.total_project_cost_inr:,.2f}")
+            if route_site_fit:
+                lines.append(f"- route_site_fit_score: {route_site_fit.overall_fit_score:.2f}")
+                lines.append(f"- route_site_logistics_penalty: {route_site_fit.logistics_penalty_factor:.3f}")
+            if route_economic_basis:
+                lines.append(f"- route_economic_coverage: {route_economic_basis.coverage_status}")
+                lines.append(f"- route_batch_penalty_fraction: {route_economic_basis.batch_occupancy_penalty_fraction:.3f}")
+                lines.append(f"- route_solvent_recovery_service_inr: {route_economic_basis.solvent_recovery_service_cost_inr:,.2f}")
             cost_model = self.store.maybe_load_model(self.config.project_id, "artifacts/cost_model.json", CostModel)
             if cost_model:
                 lines.append(f"- utility_island_costs: {len(cost_model.utility_island_costs)}")
@@ -816,6 +943,55 @@ class PipelineRunner:
 
     def _maybe_load(self, name: str, model_type):
         return self.store.maybe_load_model(self.config.project_id, f"artifacts/{name}.json", model_type)
+
+    def _benchmark_decision_presence(self) -> dict[str, bool]:
+        capacity_decision = self._maybe_load("capacity_decision", DecisionRecord)
+        process_synthesis = self._maybe_load("process_synthesis", ProcessSynthesisArtifact)
+        route_decision = self._maybe_load("route_decision", DecisionRecord)
+        site_decision = self._maybe_load("site_selection_decision", DecisionRecord)
+        reactor_choice = self._maybe_load("reactor_choice_decision", DecisionRecord)
+        separation_choice = self._maybe_load("separation_choice_decision", DecisionRecord)
+        utility_basis = self._maybe_load("utility_basis_decision", DecisionRecord)
+        economic_basis = self._maybe_load("economic_basis_decision", DecisionRecord)
+        financing_basis = self._maybe_load("financing_basis_decision", DecisionRecord)
+        layout_decision = self._maybe_load("layout_decision", LayoutDecisionArtifact)
+        return {
+            "capacity_case": bool(capacity_decision and capacity_decision.selected_candidate_id),
+            "operating_mode": bool(
+                process_synthesis
+                and process_synthesis.operating_mode_decision
+                and process_synthesis.operating_mode_decision.selected_candidate_id
+            ),
+            "route_selection": bool(route_decision and route_decision.selected_candidate_id),
+            "site_selection": bool(site_decision and site_decision.selected_candidate_id),
+            "reactor_choice": bool(reactor_choice and reactor_choice.selected_candidate_id),
+            "separation_choice": bool(separation_choice and separation_choice.selected_candidate_id),
+            "utility_basis": bool(utility_basis and utility_basis.selected_candidate_id),
+            "economic_basis": bool(economic_basis and economic_basis.selected_candidate_id),
+            "financing_basis": bool(financing_basis and financing_basis.selected_candidate_id),
+            "layout": bool(layout_decision and layout_decision.decision and layout_decision.decision.selected_candidate_id),
+        }
+
+    def _save_report_acceptance(
+        self,
+        pipeline_status: RunStatus,
+        report_parity: ReportParityArtifact | None = None,
+        blocked_stage_id: str | None = None,
+        blocking_issues: list[ValidationIssue] | None = None,
+    ) -> ReportAcceptanceArtifact | None:
+        benchmark_manifest = self._maybe_load("benchmark_manifest", BenchmarkManifest)
+        if benchmark_manifest is None:
+            return None
+        artifact = evaluate_report_acceptance(
+            benchmark_manifest,
+            report_parity,
+            self._benchmark_decision_presence(),
+            pipeline_status,
+            blocked_stage_id=blocked_stage_id,
+            blocking_issues=blocking_issues or [],
+        )
+        self._save("report_acceptance", artifact)
+        return artifact
 
     def _refresh_agent_fabric(self) -> None:
         resolved_sources = self._maybe_load("resolved_sources", ResolvedSourceSet)
@@ -933,6 +1109,34 @@ class PipelineRunner:
         bundle = self._load("research_bundle", ResearchBundle)
         return {source.source_id for source in bundle.sources}
 
+    def _repair_india_price_data(self, artifact, bundle: ResearchBundle) -> None:
+        fallback_citations = list(
+            dict.fromkeys(
+                [
+                    *bundle.india_source_ids,
+                    *[source.source_id for source in bundle.sources if source.source_domain.value in {"economics", "utilities", "market"}],
+                    *getattr(artifact, "citations", []),
+                ]
+            )
+        )
+        normalization_updated = False
+        citation_repaired = False
+        for datum in getattr(artifact, "india_price_data", []):
+            if not datum.citations and fallback_citations:
+                datum.citations = list(fallback_citations)
+                citation_repaired = True
+            if datum.normalization_year < self.config.basis.economic_reference_year:
+                datum.normalization_year = self.config.basis.economic_reference_year
+                normalization_updated = True
+        if citation_repaired:
+            artifact.assumptions.append(
+                "Per-datum India price citations were inherited from the cited market and India-basis sources when the model omitted row-level source ids."
+            )
+        if normalization_updated:
+            artifact.assumptions.append(
+                f"India price data was normalized forward to the project economic reference year {self.config.basis.economic_reference_year} for feasibility-level screening."
+            )
+
     def _value_issues(self, artifact, artifact_ref: str) -> list[ValidationIssue]:
         return validate_value_records(getattr(artifact, "value_records", []), self._source_ids(), self.config, artifact_ref)
 
@@ -981,6 +1185,98 @@ class PipelineRunner:
                 ]
         return artifact
 
+    def _augment_route_survey_from_documents(self, artifact: RouteSurveyArtifact, bundle: ResearchBundle) -> RouteSurveyArtifact:
+        if not bundle.document_process_options:
+            return artifact
+        has_generic_fallback = len(artifact.routes) == 1 and artifact.routes[0].route_id == "generic_route_1"
+        existing_ids = {route.route_id for route in artifact.routes}
+        augmented_routes = [] if has_generic_fallback else list(artifact.routes)
+        if has_generic_fallback:
+            existing_ids = set()
+        for option in bundle.document_process_options:
+            route_id = option.option_id
+            if route_id in existing_ids:
+                continue
+            reactants = list(dict.fromkeys(option.raw_materials[:3] or option.extracted_species[:2]))
+            participants = [
+                ReactionParticipant(
+                    name=name,
+                    formula="",
+                    coefficient=1.0,
+                    role="reactant",
+                    molecular_weight_g_mol=0.0,
+                    phase=None,
+                )
+                for name in reactants
+            ]
+            participants.append(
+                ReactionParticipant(
+                    name=self.config.basis.target_product,
+                    formula="",
+                    coefficient=1.0,
+                    role="product",
+                    molecular_weight_g_mol=0.0,
+                    phase=None,
+                )
+            )
+            score = 6.0
+            if option.yield_fraction is not None:
+                score += option.yield_fraction * 2.0
+            if option.selected_in_document:
+                score += 1.0
+            evidence_score = 0.90 if option.selected_in_document else 0.72
+            completeness = 0.80 if option.extracted_species else 0.45
+            augmented_routes.append(
+                RouteOption(
+                    route_id=route_id,
+                    name=option.label,
+                    reaction_equation=f"{' + '.join(reactants) if reactants else 'document reactants'} -> {self.config.basis.target_product}",
+                    participants=participants,
+                    route_origin="document",
+                    source_document_id=option.source_document_id,
+                    evidence_score=evidence_score,
+                    chemistry_completeness_score=completeness,
+                    separation_complexity_score=max(0.4, min(1.0, len(option.extracted_species) / 8.0)),
+                    extracted_species=list(option.extracted_species),
+                    reaction_family_hints=list(option.reaction_family_hints),
+                    core_species_complete=bool(reactants),
+                    catalysts=list(option.catalysts),
+                    operating_temperature_c=80.0,
+                    operating_pressure_bar=3.0,
+                    residence_time_hr=4.0 if self.config.basis.operating_mode == "batch" else 2.0,
+                    yield_fraction=option.yield_fraction or 0.80,
+                    selectivity_fraction=min(option.yield_fraction + 0.05, 0.98) if option.yield_fraction is not None else 0.85,
+                    byproducts=[],
+                    separations=["document-derived purification train"],
+                    scale_up_notes=option.summary[:240] or "Document-derived route option.",
+                    hazards=[],
+                    route_score=score,
+                    rationale=option.summary[:240] or "Route extracted from document process-comparison section.",
+                    citations=option.citations,
+                    assumptions=["Document-derived route option uses heuristic participant extraction and placeholder thermophysical data until the chemistry graph is resolved."],
+                )
+            )
+            existing_ids.add(route_id)
+        if len(augmented_routes) == len(artifact.routes) and not has_generic_fallback:
+            return artifact
+        markdown_parts = [artifact.markdown.strip()] if artifact.markdown.strip() else []
+        markdown_parts.append("### Document-Derived Route Options\n")
+        markdown_parts.append(
+            "\n".join(
+                [
+                    "| Route | Origin | Selected in Document | Yield | Extracted Species |",
+                    "| --- | --- | --- | --- | --- |",
+                    *[
+                        f"| {route.name} | {route.route_origin} | "
+                        f"{'yes' if route.route_origin == 'document' and route.route_id in {item.option_id for item in bundle.document_process_options if item.selected_in_document} else 'no'} | "
+                        f"{route.yield_fraction:.2f} | {', '.join(route.extracted_species[:4]) or '-'} |"
+                        for route in augmented_routes
+                    ],
+                ]
+            )
+        )
+        return artifact.model_copy(update={"routes": augmented_routes, "markdown": "\n\n".join(markdown_parts)}, deep=True)
+
     def _existing_chapters(self, state: ProjectRunState) -> list[ChapterArtifact]:
         return [self.store.load_chapter(self.config.project_id, chapter_id) for chapter_id in state.chapter_index]
 
@@ -993,12 +1289,20 @@ class PipelineRunner:
     def _run_project_intake(self) -> StageResult:
         bundle = self.research_manager.build_bundle(self.config)
         benchmark_manifest = build_benchmark_manifest(self.config)
+        report_parity_framework = build_report_parity_framework(benchmark_manifest)
         resolved_sources = build_resolved_source_set(self.config, bundle)
+        document_facts = build_document_fact_collection(bundle.user_document_facts)
+        document_process_options = build_document_process_options(bundle.user_document_facts)
         self._save("project_basis", self.config.basis)
         self._save("research_bundle", bundle)
         self._save("benchmark_manifest", benchmark_manifest)
+        self._save("report_parity_framework", report_parity_framework)
         self._save("resolved_sources", resolved_sources)
+        self._save("user_document_facts", document_facts)
+        self._save("document_process_options", document_process_options)
         issues, missing_groups, stale_groups = validate_research_bundle(bundle, self.config)
+        issues.extend(validate_document_fact_collection(document_facts))
+        issues.extend(validate_report_parity_framework(report_parity_framework, benchmark_manifest))
         issues.extend(validate_resolved_source_set(resolved_sources, {source.source_id for source in bundle.sources}, self.config))
         return StageResult(issues=issues, missing_india_coverage=missing_groups, stale_source_groups=stale_groups)
 
@@ -1029,6 +1333,7 @@ class PipelineRunner:
             for datum in artifact.india_price_data:
                 if not datum.citations:
                     datum.citations = [default_price_source]
+        self._repair_india_price_data(artifact, bundle)
         capacity_decision = build_capacity_decision(self.config, artifact)
         self._save("market_assessment", artifact)
         self._save("capacity_decision", capacity_decision)
@@ -1053,18 +1358,28 @@ class PipelineRunner:
         bundle = self._load("research_bundle", ResearchBundle)
         artifact = self.reasoning.survey_routes(self.config.basis, bundle.sources, bundle.corpus_excerpt)
         artifact = self._normalize_route_survey(artifact)
+        artifact = self._augment_route_survey_from_documents(artifact, bundle)
+        route_chemistry = build_route_chemistry_artifact(artifact, bundle.user_document_facts)
+        document_process_options = self._load("document_process_options", DocumentProcessOptionsArtifact)
         self._save("route_survey", artifact)
+        self._save("route_chemistry", route_chemistry)
         chapter = self._chapter(
             "literature_survey",
             "Literature Survey",
             "literature_route_survey",
-            artifact.markdown,
+            (
+                f"{artifact.markdown}\n\n"
+                f"### Route Chemistry Coverage\n\n{route_chemistry.markdown}\n\n"
+                f"### Document-Derived Process Options\n\n"
+                f"{document_process_options.markdown if document_process_options.options else 'No document-derived process options.'}"
+            ),
             artifact.citations,
             artifact.assumptions,
-            ["route_survey"],
+            ["route_survey", "route_chemistry"],
             required_inputs=["research_bundle"],
         )
-        issues = self._chapter_issues(chapter)
+        issues = validate_route_chemistry_artifact(route_chemistry)
+        issues.extend(self._chapter_issues(chapter))
         return StageResult(chapters=[chapter], issues=issues)
 
     def _run_property_gap_resolution(self) -> StageResult:
@@ -1072,6 +1387,7 @@ class PipelineRunner:
         market = self._load("market_assessment", MarketAssessmentArtifact)
         bundle = self._load("research_bundle", ResearchBundle)
         route_survey = self._load("route_survey", RouteSurveyArtifact)
+        route_chemistry = self._load("route_chemistry", RouteChemistryArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         artifact = resolve_property_gaps(product_profile, self.config)
         property_packages = build_property_package_artifact(self.config, bundle, product_profile, route_survey)
@@ -1118,11 +1434,15 @@ class PipelineRunner:
         self._save("resolved_values", resolved_values)
         self._save("property_packages", property_packages)
         self._save("property_requirements", property_requirements)
+        property_demand_plan = build_property_demand_plan(route_chemistry, property_packages)
+        self._save("property_demand_plan", property_demand_plan)
         self._refresh_agent_fabric()
         issues = validate_property_gap_artifact(artifact, self.config)
+        issues.extend(validate_route_chemistry_artifact(route_chemistry))
         issues.extend(validate_resolved_value_artifact(resolved_values, self._source_ids(), self.config))
         issues.extend(validate_property_package_artifact(property_packages, self._source_ids(), self.config))
         issues.extend(validate_property_requirement_set(property_requirements))
+        issues.extend(validate_property_demand_plan(property_demand_plan))
         gate = None
         if self.config.evidence_lock_required and not issues:
             gate = self._gate("evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds.")
@@ -1130,6 +1450,8 @@ class PipelineRunner:
 
     def _run_process_synthesis(self) -> StageResult:
         survey = self._load("route_survey", RouteSurveyArtifact)
+        route_chemistry = self._load("route_chemistry", RouteChemistryArtifact)
+        bundle = self._load("research_bundle", ResearchBundle)
         property_gap = self._load("property_gap", PropertyGapArtifact)
         property_packages = self._load("property_packages", PropertyPackageArtifact)
         archetype = classify_process_archetype(self.config, survey, property_gap)
@@ -1149,9 +1471,17 @@ class PipelineRunner:
             operating_mode_decision=operating_mode_decision,
             route_families=route_families,
         )
+        unit_train_candidates = build_unit_train_candidate_set(
+            survey,
+            route_chemistry,
+            route_families,
+            bundle.user_document_facts,
+            operating_mode_decision.selected_candidate_id or self.config.basis.operating_mode,
+        )
         artifact.archetype = archetype
         artifact.family_adapter = family_adapter
         artifact.alternative_sets = alternative_sets
+        artifact.unit_train_candidate_ids = [item.blueprint_id for item in unit_train_candidates.blueprints]
         self._save("process_synthesis", artifact)
         self._save("process_archetype", archetype)
         self._save("chemistry_family_adapter", family_adapter)
@@ -1159,6 +1489,7 @@ class PipelineRunner:
         self._save("sparse_data_policy", sparse_data_policy)
         self._save("property_requirements", property_requirements)
         self._save("operations_planning", operations_planning)
+        self._save("unit_train_candidates", unit_train_candidates)
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), operations_planning.value_records, self._load("resolved_sources", ResolvedSourceSet), self.config, "process_synthesis"),
@@ -1172,6 +1503,7 @@ class PipelineRunner:
         issues.extend(validate_property_requirement_set(property_requirements))
         issues.extend(validate_process_archetype(archetype))
         issues.extend(validate_operations_planning(operations_planning))
+        issues.extend(validate_unit_train_candidate_set(unit_train_candidates))
         return StageResult(issues=issues)
 
     def _run_rough_alternative_balances(self) -> StageResult:
@@ -1179,7 +1511,15 @@ class PipelineRunner:
         synthesis = self._load("process_synthesis", ProcessSynthesisArtifact)
         market = self._load("market_assessment", MarketAssessmentArtifact)
         route_families = self._load("route_family_profiles", RouteFamilyArtifact)
-        artifact = build_rough_alternatives(self.config, survey, synthesis, market, route_families)
+        unit_train_candidates = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_train_candidates.json", UnitTrainCandidateSet)
+        artifact = build_rough_alternatives(
+            self.config,
+            survey,
+            synthesis,
+            market,
+            route_families,
+            unit_train_candidates,
+        )
         self._save("rough_alternatives", artifact)
         return StageResult()
 
@@ -1205,10 +1545,12 @@ class PipelineRunner:
 
     def _run_route_selection(self) -> StageResult:
         survey = self._load("route_survey", RouteSurveyArtifact)
+        route_chemistry = self._load("route_chemistry", RouteChemistryArtifact)
         rough_alternatives = self._load("rough_alternatives", RoughAlternativeSummaryArtifact)
         heat_study = self._load("heat_integration_study", HeatIntegrationStudyArtifact)
         market = self._load("market_assessment", MarketAssessmentArtifact)
         property_packages = self._load("property_packages", PropertyPackageArtifact)
+        unit_train_candidates = self._load("unit_train_candidates", UnitTrainCandidateSet)
         archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
         family_adapter = self.store.maybe_load_model(self.config.project_id, "artifacts/chemistry_family_adapter.json", ChemistryFamilyAdapter)
         route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
@@ -1216,13 +1558,24 @@ class PipelineRunner:
         selection, route_decision, reactor_choice, separation_choice, utility_network = select_route_architecture(
             self.config,
             survey,
+            route_chemistry,
             rough_alternatives,
             heat_study,
             market,
             route_families,
         )
+        route_selection_comparison = build_route_selection_comparison(
+            survey,
+            route_chemistry,
+            selection,
+            route_decision,
+            rough_alternatives,
+            heat_study,
+            route_families,
+        )
         self._save("route_selection", selection)
         selected_route = self._selected_route()
+        flowsheet_blueprint = select_flowsheet_blueprint(unit_train_candidates, selected_route.route_id)
         unit_operation_family = build_unit_operation_family_artifact(selected_route, archetype, family_adapter, route_families)
         reactor_choice = select_reactor_configuration(selected_route, archetype, family_adapter, unit_operation_family)
         separation_choice = select_separation_configuration(selected_route, archetype, family_adapter, unit_operation_family)
@@ -1261,15 +1614,19 @@ class PipelineRunner:
         self._save("separation_choice_decision", separation_choice)
         self._save("utility_network_decision", utility_network)
         self._save("unit_operation_family", unit_operation_family)
+        self._save("route_selection_comparison", route_selection_comparison)
+        self._save("flowsheet_blueprint", flowsheet_blueprint)
         self._refresh_agent_fabric()
         issues = (
             validate_route_balance(selected_route)
             + validate_decision_record(route_decision, "route_decision")
             + validate_decision_record(reactor_choice, "reactor_choice")
             + validate_decision_record(separation_choice, "separation_choice")
+            + validate_route_selection_comparison(route_selection_comparison)
             + route_selection_issues
             + unit_family_property_issues
             + validate_unit_operation_family_artifact(unit_operation_family)
+            + validate_flowsheet_blueprint(flowsheet_blueprint)
             + validate_utility_network_decision(utility_network, self.config)
         )
         selected_heat = selected_heat_case(utility_network)
@@ -1279,7 +1636,9 @@ class PipelineRunner:
             "route_selection",
             (
                 f"### Route Comparison\n\n{selection.comparison_markdown}\n\n"
+                f"### Route Selection Comparison\n\n{route_selection_comparison.markdown}\n\n"
                 f"### Selected Route\n\n{selection.justification}\n\n"
+                f"### Route-Derived Flowsheet Blueprint\n\n{flowsheet_blueprint.markdown}\n\n"
                 f"### Route Family Profiles\n\n{route_families.markdown if route_families else 'No route-family profiles generated.'}\n\n"
                 f"### Unit-Operation Family Expansion\n\n{unit_operation_family.markdown}\n\n"
                 f"### Chemistry Family Adapter\n\n{family_adapter.markdown if family_adapter else 'No chemistry-family adapter generated.'}\n\n"
@@ -1289,9 +1648,20 @@ class PipelineRunner:
                 f"### Selected Heat-Integration Case\n\n"
                 f"{selected_heat.title if selected_heat else 'No selected case'}: {selected_heat.summary if selected_heat else 'n/a'}"
             ),
-            sorted(set(selection.citations + survey.citations + (family_adapter.citations if family_adapter else []) + (sparse_data_policy.citations if sparse_data_policy else []))),
+            sorted(
+                set(
+                    selection.citations
+                    + survey.citations
+                    + route_selection_comparison.citations
+                    + flowsheet_blueprint.citations
+                    + (family_adapter.citations if family_adapter else [])
+                    + (sparse_data_policy.citations if sparse_data_policy else [])
+                )
+            ),
             survey.assumptions
             + selection.assumptions
+            + route_selection_comparison.assumptions
+            + flowsheet_blueprint.assumptions
             + route_decision.assumptions
             + reactor_choice.assumptions
             + separation_choice.assumptions
@@ -1299,6 +1669,7 @@ class PipelineRunner:
             + (sparse_data_policy.assumptions if sparse_data_policy else []),
             [
                 "route_selection",
+                "route_selection_comparison",
                 "route_decision",
                 "reactor_choice_decision",
                 "separation_choice_decision",
@@ -1307,6 +1678,7 @@ class PipelineRunner:
                 "unit_operation_family",
                 "chemistry_family_adapter",
                 "sparse_data_policy",
+                "flowsheet_blueprint",
             ],
             required_inputs=["route_survey", "rough_alternatives", "heat_integration_study", "market_assessment"],
         )
@@ -1635,6 +2007,11 @@ class PipelineRunner:
         artifact = self.store.maybe_load_model(self.config.project_id, "artifacts/process_narrative.json", ProcessNarrativeArtifact)
         if artifact:
             return artifact
+        flowsheet_blueprint = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_blueprint.json", FlowsheetBlueprintArtifact)
+        if flowsheet_blueprint is not None:
+            artifact = build_process_narrative_from_blueprint(flowsheet_blueprint)
+            self._save("process_narrative", artifact)
+            return artifact
         bundle = self._load("research_bundle", ResearchBundle)
         route = self._selected_route()
         artifact = self.reasoning.build_process_narrative(self.config.basis, route, bundle.sources, bundle.corpus_excerpt)
@@ -1647,6 +2024,11 @@ class PipelineRunner:
         flowsheet_case: FlowsheetCase,
         stream_table: StreamTable,
     ) -> str:
+        flowsheet_blueprint = self.store.maybe_load_model(
+            self.config.project_id,
+            "artifacts/flowsheet_blueprint.json",
+            FlowsheetBlueprintArtifact,
+        )
         unit_rows = [
             [
                 unit.unit_id,
@@ -1697,8 +2079,27 @@ class PipelineRunner:
             f"- `{unit.unit_id}`: {unit.service}. Inlet streams `{', '.join(unit.upstream_stream_ids) or '-'}` and outlet streams `{', '.join(unit.downstream_stream_ids) or '-'}` with `{unit.closure_status}` closure and `{unit.coverage_status}` coverage."
             for unit in flowsheet_case.units
         ]
+        route_descriptor_rows = [[str(index), descriptor] for index, descriptor in enumerate(route.separations, start=1)]
+        blueprint_rows = []
+        if flowsheet_blueprint is not None and flowsheet_blueprint.steps:
+            blueprint_rows = [
+                [
+                    step.section_label,
+                    step.service,
+                    "; ".join(step.notes) or "-",
+                ]
+                for step in flowsheet_blueprint.steps
+            ]
         lines = [
             f"Solver-derived process description for route `{route.route_id}` built from `{len(stream_table.unit_operation_packets)}` solved unit packets.",
+            "",
+            "### Route Descriptor Basis",
+            "",
+            markdown_table(["Order", "Route Descriptor"], route_descriptor_rows or [["-", "No explicit route descriptors were retained."]]),
+            "",
+            "### Route-Derived Blueprint Basis",
+            "",
+            markdown_table(["Section", "Service", "Blueprint Notes"], blueprint_rows or [["-", "-", "No explicit blueprint notes were retained."]]),
             "",
             "### Unit Sequence",
             "",
@@ -1724,9 +2125,71 @@ class PipelineRunner:
 
     def _render_solver_material_balance(
         self,
+        route: RouteOption,
+        route_profile,
         reaction_system: ReactionSystem,
         stream_table: StreamTable,
+        flowsheet_case: FlowsheetCase | None = None,
     ) -> str:
+        def _stream_mass(stream_id: str) -> float:
+            stream = next((item for item in stream_table.streams if item.stream_id == stream_id), None)
+            return sum(component.mass_flow_kg_hr for component in stream.components) if stream else 0.0
+
+        def _stream_molar(stream_id: str) -> float:
+            stream = next((item for item in stream_table.streams if item.stream_id == stream_id), None)
+            return sum(component.molar_flow_kmol_hr for component in stream.components) if stream else 0.0
+
+        total_fresh_feed = sum(
+            sum(component.mass_flow_kg_hr for component in stream.components)
+            for stream in stream_table.streams
+            if stream.stream_role == "feed"
+        )
+        total_external_out = sum(
+            sum(component.mass_flow_kg_hr for component in stream.components)
+            for stream in stream_table.streams
+            if stream.stream_role in {"product", "waste", "vent", "purge"}
+        )
+        total_recycle = sum(
+            sum(component.mass_flow_kg_hr for component in stream.components)
+            for stream in stream_table.streams
+            if stream.stream_role == "recycle"
+        )
+        total_side_draw = sum(
+            sum(component.mass_flow_kg_hr for component in stream.components)
+            for stream in stream_table.streams
+            if stream.stream_role == "side_draw"
+        )
+        overall_rows = [
+            ["Fresh feed", f"{total_fresh_feed:.3f}", f"{sum(_stream_molar(item.stream_id) for item in stream_table.streams if item.stream_role == 'feed'):.6f}"],
+            ["External outlet", f"{total_external_out:.3f}", f"{sum(_stream_molar(item.stream_id) for item in stream_table.streams if item.stream_role in {'product', 'waste', 'vent', 'purge'}):.6f}"],
+            ["Recycle circulation", f"{total_recycle:.3f}", f"{sum(_stream_molar(item.stream_id) for item in stream_table.streams if item.stream_role == 'recycle'):.6f}"],
+            ["Side draws", f"{total_side_draw:.3f}", f"{sum(_stream_molar(item.stream_id) for item in stream_table.streams if item.stream_role == 'side_draw'):.6f}"],
+            ["Closure error (%)", f"{stream_table.closure_error_pct:.3f}", "-"],
+        ]
+        section_rows = []
+        for section in stream_table.sections:
+            inlet_mass = sum(_stream_mass(stream_id) for stream_id in section.inlet_stream_ids)
+            outlet_mass = sum(_stream_mass(stream_id) for stream_id in section.outlet_stream_ids)
+            side_draw_mass = sum(_stream_mass(stream_id) for stream_id in section.side_draw_stream_ids)
+            recycle_ids = [
+                stream_id
+                for loop in stream_table.recycle_packets
+                if loop.loop_id in section.recycle_loop_ids
+                for stream_id in loop.recycle_stream_ids
+            ]
+            recycle_mass = sum(_stream_mass(stream_id) for stream_id in recycle_ids)
+            section_rows.append(
+                [
+                    section.section_id,
+                    section.label,
+                    section.section_type,
+                    f"{inlet_mass:.3f}",
+                    f"{outlet_mass:.3f}",
+                    f"{side_draw_mass:.3f}",
+                    f"{recycle_mass:.3f}",
+                    section.status,
+                ]
+            )
         reaction_rows = [
             [
                 extent.extent_id,
@@ -1762,6 +2225,86 @@ class PipelineRunner:
             ]
             for packet in stream_table.unit_operation_packets
         ]
+        recycle_rows = [
+            [
+                summary.loop_id,
+                summary.recycle_source_unit_id or "-",
+                summary.recycle_target_unit_id or "-",
+                ", ".join(summary.recycle_stream_ids) or "-",
+                ", ".join(summary.purge_stream_ids) or "-",
+                f"{summary.max_component_error_pct:.3f}",
+                f"{summary.mean_component_error_pct:.3f}",
+                summary.convergence_status,
+            ]
+            for summary in stream_table.convergence_summaries
+        ]
+        composition_rows = [
+            [
+                closure.unit_id,
+                "yes" if closure.reactive else "no",
+                f"{closure.inlet_fraction_sum:.4f}",
+                f"{closure.outlet_fraction_sum:.4f}",
+                ", ".join(closure.new_outlet_components[:4]) or "-",
+                ", ".join(closure.missing_outlet_components[:4]) or "-",
+                f"{closure.composition_error_pct:.3f}",
+                closure.closure_status,
+            ]
+            for closure in stream_table.composition_closures
+        ]
+        unit_composition_rows = [
+            [
+                state.unit_id,
+                state.unit_type,
+                state.dominant_inlet_phase or "-",
+                state.dominant_outlet_phase or "-",
+                ", ".join(f"{name}={value:.3f}" for name, value in list(state.outlet_component_mass_fraction.items())[:4]) or "-",
+                state.status,
+            ]
+            for state in stream_table.composition_states
+        ]
+        stream_role_rows = [
+            [
+                stream.stream_id,
+                stream.stream_role,
+                stream.section_id or "-",
+                stream.source_unit_id or "-",
+                stream.destination_unit_id or "-",
+                f"{sum(component.mass_flow_kg_hr for component in stream.components):.3f}",
+                f"{sum(component.molar_flow_kmol_hr for component in stream.components):.6f}",
+            ]
+            for stream in stream_table.streams
+        ]
+        focus_unit_tokens: set[str] = set()
+        route_family_id = getattr(route_profile, "route_family_id", "")
+        if any(token in route_family_id for token in {"hydration", "carbonylation", "distillation"}):
+            focus_unit_tokens = {"feed_prep", "reactor", "primary_flash", "concentration", "purification"}
+        elif any(token in route_family_id for token in {"absorption", "gas_absorption", "oxidation"}):
+            focus_unit_tokens = {"feed_prep", "reactor", "primary_separation", "regeneration", "purification"}
+        elif any(token in route_family_id for token in {"solids", "solvay", "carboxylation"}):
+            focus_unit_tokens = {"feed_prep", "reactor", "primary_separation", "concentration", "filtration", "drying"}
+        elif "extraction" in route_family_id:
+            focus_unit_tokens = {"feed_prep", "reactor", "primary_separation", "purification", "regeneration"}
+        focus_streams = [
+            stream
+            for stream in stream_table.streams
+            if stream.stream_role in {"feed", "recycle", "purge", "product", "side_draw", "vent"}
+            or (stream.source_unit_id in focus_unit_tokens or stream.destination_unit_id in focus_unit_tokens)
+        ]
+        route_family_rows = [
+            [
+                stream.stream_id,
+                stream.stream_role,
+                stream.source_unit_id or "-",
+                stream.destination_unit_id or "-",
+                stream.phase_hint or "-",
+                f"{sum(component.mass_flow_kg_hr for component in stream.components):.3f}",
+                ", ".join(
+                    f"{component.name}={component.mass_flow_kg_hr:.1f}"
+                    for component in sorted(stream.components, key=lambda item: item.mass_flow_kg_hr, reverse=True)[:4]
+                ) or "-",
+            ]
+            for stream in focus_streams
+        ]
         stream_rows: list[list[str]] = []
         for stream in stream_table.streams:
             for component in stream.components:
@@ -1780,6 +2323,13 @@ class PipelineRunner:
                 )
         return "\n\n".join(
             [
+                "### Overall Plant Balance Summary\n\n"
+                + markdown_table(["Basis", "Mass Flow (kg/h)", "Molar Flow (kmol/h)"], overall_rows),
+                "### Section Balance Summary\n\n"
+                + markdown_table(
+                    ["Section", "Label", "Type", "Inlet kg/h", "Outlet kg/h", "Side Draw kg/h", "Recycle kg/h", "Status"],
+                    section_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "0.0", "n/a"]],
+                ),
                 "### Reaction Extent Allocation\n\n"
                 + markdown_table(["Extent", "Kind", "Representative Component", "Fraction of Converted Feed", "Status"], reaction_rows or [["n/a", "n/a", "n/a", "0.0", "n/a"]]),
                 "### Byproduct Closure\n\n"
@@ -1789,8 +2339,176 @@ class PipelineRunner:
                     ["Unit", "Type", "Service", "Inlet Streams", "Outlet Streams", "Inlet kg/h", "Outlet kg/h", "Closure Error (%)", "Status", "Coverage"],
                     packet_rows or [["n/a", "n/a", "n/a", "-", "-", "0.0", "0.0", "0.0", "n/a", "n/a"]],
                 ),
-                "### Stream Table\n\n"
+                "### Recycle and Purge Summary\n\n"
+                + markdown_table(
+                    ["Loop", "Source Unit", "Target Unit", "Recycle Streams", "Purge Streams", "Max Error (%)", "Mean Error (%)", "Status"],
+                    recycle_rows or [["n/a", "-", "-", "-", "-", "0.0", "0.0", "n/a"]],
+                ),
+                "### Composition Closure Summary\n\n"
+                + markdown_table(
+                    ["Unit", "Reactive", "Inlet Fraction Sum", "Outlet Fraction Sum", "New Components", "Missing Components", "Error (%)", "Status"],
+                    composition_rows or [["n/a", "n/a", "0.0", "0.0", "-", "-", "0.0", "n/a"]],
+                ),
+                "### Unitwise Outlet Composition Snapshot\n\n"
+                + markdown_table(
+                    ["Unit", "Type", "Inlet Phase", "Outlet Phase", "Outlet Mass Fractions", "Status"],
+                    unit_composition_rows or [["n/a", "n/a", "-", "-", "-", "n/a"]],
+                ),
+                "### Stream Role Summary\n\n"
+                + markdown_table(
+                    ["Stream", "Role", "Section", "From", "To", "kg/h", "kmol/h"],
+                    stream_role_rows or [["n/a", "n/a", "-", "-", "-", "0.0", "0.0"]],
+                ),
+                "### Route-Family Stream Focus\n\n"
+                + markdown_table(
+                    ["Stream", "Role", "From", "To", "Phase", "kg/h", "Dominant Components"],
+                    route_family_rows or [["n/a", "n/a", "-", "-", "-", "0.0", "-"]],
+                ),
+                "### Long Stream Ledger\n\n"
                 + markdown_table(["Stream", "Description", "From", "To", "Component", "kg/h", "kmol/h", "T (C)", "P (bar)"], stream_rows),
+                self._render_trace_section("Stream-Balance Calculation Traces", stream_table.calc_traces),
+            ]
+        )
+
+    def _render_energy_balance_chapter(
+        self,
+        route: RouteOption,
+        route_profile,
+        stream_table: StreamTable,
+        energy: EnergyBalance,
+    ) -> str:
+        section_unit_index = {
+            unit_id: section.section_id
+            for section in stream_table.sections
+            for unit_id in section.unit_ids
+        }
+        overall_rows = [
+            ["Total heating duty", f"{energy.total_heating_kw:.3f}", "kW"],
+            ["Total cooling duty", f"{energy.total_cooling_kw:.3f}", "kW"],
+            ["Net external duty", f"{energy.total_heating_kw - energy.total_cooling_kw:.3f}", "kW"],
+            ["Thermal packets", f"{len(energy.unit_thermal_packets)}", "count"],
+            ["Recovery candidates", f"{len(energy.network_candidates)}", "count"],
+            ["Recoverable packet duty", f"{sum(packet.recoverable_duty_kw for packet in energy.unit_thermal_packets):.3f}", "kW"],
+        ]
+        duty_rows = [
+            [
+                duty.unit_id,
+                section_unit_index.get(duty.unit_id, "-"),
+                duty.duty_type,
+                f"{duty.heating_kw:.3f}",
+                f"{duty.cooling_kw:.3f}",
+                duty.notes,
+            ]
+            for duty in energy.duties
+        ]
+        section_rows = []
+        for section in stream_table.sections:
+            heating = sum(duty.heating_kw for duty in energy.duties if duty.unit_id in section.unit_ids)
+            cooling = sum(duty.cooling_kw for duty in energy.duties if duty.unit_id in section.unit_ids)
+            recoverable = sum(packet.recoverable_duty_kw for packet in energy.unit_thermal_packets if packet.unit_id in section.unit_ids)
+            section_rows.append(
+                [
+                    section.section_id,
+                    section.label,
+                    f"{heating:.3f}",
+                    f"{cooling:.3f}",
+                    f"{recoverable:.3f}",
+                    section.status,
+                ]
+            )
+        thermal_rows = [
+            [
+                packet.packet_id,
+                packet.unit_id,
+                section_unit_index.get(packet.unit_id, "-"),
+                packet.duty_type,
+                f"{packet.heating_kw:.3f}",
+                f"{packet.cooling_kw:.3f}",
+                f"{packet.hot_supply_temp_c:.1f}",
+                f"{packet.hot_target_temp_c:.1f}",
+                f"{packet.cold_supply_temp_c:.1f}",
+                f"{packet.cold_target_temp_c:.1f}",
+                f"{packet.recoverable_duty_kw:.3f}",
+                ", ".join(packet.candidate_media) or "-",
+            ]
+            for packet in energy.unit_thermal_packets
+        ]
+        candidate_rows = [
+            [
+                candidate.candidate_id,
+                candidate.source_unit_id,
+                candidate.sink_unit_id,
+                candidate.topology,
+                f"{candidate.recovered_duty_kw:.3f}",
+                f"{candidate.minimum_approach_temp_c:.1f}",
+                "yes" if candidate.feasible else "no",
+                candidate.notes,
+            ]
+            for candidate in energy.network_candidates[:16]
+        ]
+        utility_rows = [
+            [
+                packet.unit_id,
+                route.route_id,
+                ", ".join(packet.candidate_media) or "-",
+                f"{max(packet.heating_kw, packet.cooling_kw):.3f}",
+                f"{packet.recoverable_duty_kw:.3f}",
+                packet.service,
+            ]
+            for packet in energy.unit_thermal_packets
+        ]
+        route_family_id = getattr(route_profile, "route_family_id", "")
+        if any(token in route_family_id for token in {"hydration", "carbonylation", "distillation"}):
+            focus_units = {"E-101", "R-101", "V-101", "EV-101", "D-101", "E-201"}
+        elif any(token in route_family_id for token in {"absorption", "oxidation"}):
+            focus_units = {"E-101", "R-101", "ABS-201", "STR-201", "CONV-101"}
+        elif any(token in route_family_id for token in {"solids", "solvay", "carboxylation"}):
+            focus_units = {"E-101", "R-101", "CRYS-201", "FILT-201", "DRY-301"}
+        elif "extraction" in route_family_id:
+            focus_units = {"E-101", "R-101", "EXT-201", "DEC-201", "SR-301"}
+        else:
+            focus_units = {duty.unit_id for duty in energy.duties}
+        route_family_rows = [
+            [
+                duty.unit_id,
+                duty.duty_type,
+                f"{duty.heating_kw:.3f}",
+                f"{duty.cooling_kw:.3f}",
+                section_unit_index.get(duty.unit_id, "-"),
+                duty.notes,
+            ]
+            for duty in energy.duties
+            if duty.unit_id in focus_units
+        ]
+        return "\n\n".join(
+            [
+                "### Overall Energy Summary\n\n"
+                + markdown_table(["Basis", "Value", "Units"], overall_rows),
+                "### Unit Duty Summary\n\n"
+                + markdown_table(["Unit", "Section", "Duty Type", "Heating (kW)", "Cooling (kW)", "Notes"], duty_rows or [["n/a", "-", "n/a", "0.0", "0.0", "-"]]),
+                "### Section Duty Summary\n\n"
+                + markdown_table(["Section", "Label", "Heating (kW)", "Cooling (kW)", "Recoverable (kW)", "Status"], section_rows or [["n/a", "n/a", "0.0", "0.0", "0.0", "n/a"]]),
+                "### Unit Thermal Packet Summary\n\n"
+                + markdown_table(
+                    ["Packet", "Unit", "Section", "Type", "Heating (kW)", "Cooling (kW)", "Hot In (C)", "Hot Out (C)", "Cold In (C)", "Cold Out (C)", "Recoverable (kW)", "Candidate Media"],
+                    thermal_rows or [["n/a", "n/a", "-", "n/a", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "-"]],
+                ),
+                "### Recovery Candidate Summary\n\n"
+                + markdown_table(
+                    ["Candidate", "Source Unit", "Sink Unit", "Topology", "Recovered Duty (kW)", "Min Approach (C)", "Feasible", "Notes"],
+                    candidate_rows or [["n/a", "-", "-", "n/a", "0.0", "0.0", "no", "-"]],
+                ),
+                "### Utility Consumption Basis\n\n"
+                + markdown_table(
+                    ["Unit", "Route", "Candidate Media", "Peak Duty (kW)", "Recoverable Duty (kW)", "Service"],
+                    utility_rows or [["n/a", route.route_id, "-", "0.0", "0.0", "-"]],
+                ),
+                "### Route-Family Duty Focus\n\n"
+                + markdown_table(
+                    ["Unit", "Duty Type", "Heating (kW)", "Cooling (kW)", "Section", "Notes"],
+                    route_family_rows or [["n/a", "n/a", "0.0", "0.0", "-", "-"]],
+                ),
+                self._render_trace_section("Energy-Balance Calculation Traces", energy.calc_traces),
             ]
         )
 
@@ -1810,12 +2528,116 @@ class PipelineRunner:
             rows or [["n/a", "n/a", "-", "n/a", "-"]],
         )
 
+    def _stream_mass_component_snapshot(self, stream, limit: int = 4) -> str:
+        components = sorted(stream.components, key=lambda item: item.mass_flow_kg_hr, reverse=True)
+        return ", ".join(f"{component.name}={component.mass_flow_kg_hr:.1f}" for component in components[:limit]) or "-"
+
+    def _local_stream_role(
+        self,
+        stream_id: str,
+        inlet_stream_ids: list[str],
+        outlet_stream_ids: list[str],
+        stream_role: str,
+    ) -> str:
+        if stream_id in inlet_stream_ids:
+            return "recycle feed" if stream_role == "recycle" else "feed"
+        if stream_id in outlet_stream_ids:
+            if stream_role == "recycle":
+                return "recycle product"
+            if stream_role in {"side_draw", "purge", "vent", "waste"}:
+                return stream_role.replace("_", " ")
+            return "product"
+        return "reference"
+
+    def _unit_stream_summary_rows(
+        self,
+        stream_table: StreamTable,
+        unit_id: str,
+        unit_label: str,
+        inlet_stream_ids: list[str],
+        outlet_stream_ids: list[str],
+    ) -> list[list[str]]:
+        related_stream_ids = list(dict.fromkeys([*inlet_stream_ids, *outlet_stream_ids]))
+        rows: list[list[str]] = []
+        for stream_id in related_stream_ids:
+            stream = next((item for item in stream_table.streams if item.stream_id == stream_id), None)
+            if stream is None:
+                continue
+            rows.append(
+                [
+                    unit_id,
+                    unit_label,
+                    stream.stream_id,
+                    self._local_stream_role(stream.stream_id, inlet_stream_ids, outlet_stream_ids, stream.stream_role),
+                    stream.stream_role,
+                    stream.section_id or "-",
+                    stream.phase_hint or "-",
+                    f"{sum(component.mass_flow_kg_hr for component in stream.components):.3f}",
+                    f"{sum(component.molar_flow_kmol_hr for component in stream.components):.6f}",
+                    self._stream_mass_component_snapshot(stream),
+                ]
+            )
+        return rows
+
+    def _local_stream_split_summary_rows(self, unit_stream_rows: list[list[str]]) -> list[list[str]]:
+        split_buckets = {
+            "fresh_feed": {"feed"},
+            "recycle_feed": {"recycle feed"},
+            "total_feed": {"feed", "recycle feed"},
+            "product_effluent": {"product"},
+            "recycle_effluent": {"recycle product"},
+            "side_draw_purge_vent": {"side draw", "purge", "vent", "waste"},
+        }
+        rows: list[list[str]] = []
+        for label, roles in split_buckets.items():
+            selected = [row for row in unit_stream_rows if row[3] in roles]
+            mass = sum(float(row[7]) for row in selected)
+            molar = sum(float(row[8]) for row in selected)
+            rows.append([label, str(len(selected)), f"{mass:.3f}", f"{molar:.6f}"])
+        return rows
+
+    def _unit_key_component_balance_rows(
+        self,
+        stream_table: StreamTable,
+        inlet_stream_ids: list[str],
+        outlet_stream_ids: list[str],
+        limit: int = 6,
+    ) -> list[list[str]]:
+        inlet_components: dict[str, float] = {}
+        outlet_components: dict[str, float] = {}
+        for stream in stream_table.streams:
+            if stream.stream_id in inlet_stream_ids:
+                for component in stream.components:
+                    inlet_components[component.name] = inlet_components.get(component.name, 0.0) + component.mass_flow_kg_hr
+            if stream.stream_id in outlet_stream_ids:
+                for component in stream.components:
+                    outlet_components[component.name] = outlet_components.get(component.name, 0.0) + component.mass_flow_kg_hr
+        component_names = sorted(
+            set(inlet_components) | set(outlet_components),
+            key=lambda name: max(inlet_components.get(name, 0.0), outlet_components.get(name, 0.0)),
+            reverse=True,
+        )[:limit]
+        rows: list[list[str]] = []
+        for name in component_names:
+            inlet = inlet_components.get(name, 0.0)
+            outlet = outlet_components.get(name, 0.0)
+            rows.append([name, f"{inlet:.3f}", f"{outlet:.3f}", f"{outlet - inlet:.3f}"])
+        return rows
+
+    def _field_label(self, key: str) -> str:
+        label = key.replace("_", " ").strip()
+        return label[:1].upper() + label[1:] if label else key
+
+    def _mapping_rows(self, mapping: dict[str, str]) -> list[list[str]]:
+        return [[self._field_label(key), value] for key, value in mapping.items()]
+
     def _render_reactor_design_chapter(
         self,
         reactor: ReactorDesign,
         reactor_basis: ReactorDesignBasis,
         stream_table: StreamTable,
         energy: EnergyBalance,
+        route_profile=None,
     ) -> str:
         reactor_packet = next((packet for packet in stream_table.unit_operation_packets if packet.unit_id == "reactor" or packet.unit_type == "reactor"), None)
         thermal_packet = next(
@@ -1896,19 +2718,184 @@ class PipelineRunner:
             ["Coupled service basis", reactor.coupled_service_basis or "none"],
             ["Selected train steps", ", ".join(reactor.selected_train_step_ids) or "none"],
         ]
+        reactor_design_input_rows = self._mapping_rows(reactor_basis.design_inputs)
+        reactor_operating_envelope_rows = self._mapping_rows(reactor_basis.operating_envelope)
+        reactor_geometry_rows = [
+            ["Liquid holdup (m3)", f"{reactor.liquid_holdup_m3:.3f}"],
+            ["Shell diameter (m)", f"{reactor.shell_diameter_m:.3f}"],
+            ["Shell length (m)", f"{reactor.shell_length_m:.3f}"],
+            ["Tube count", str(reactor.number_of_tubes)],
+            ["Tube length (m)", f"{reactor.tube_length_m:.3f}"],
+            ["Heat-transfer area (m2)", f"{reactor.heat_transfer_area_m2:.3f}"],
+            ["Cooling medium", reactor.cooling_medium or "n/a"],
+            ["Utility topology", reactor.utility_topology or "standalone utilities"],
+        ]
+        reactor_throughput_m3_hr = reactor.design_volume_m3 / max(reactor.residence_time_hr, 1e-6)
+        reactor_da_consistency = reactor.kinetic_rate_constant_1_hr * reactor.residence_time_hr
+        reactor_heat_release_density_basis = reactor.heat_duty_kw / max(reactor.design_volume_m3, 1e-6)
+        reactor_area_basis = (
+            (reactor.heat_duty_kw * 1000.0) / max(reactor.overall_u_w_m2_k * max(reactor.integrated_lmtd_k, 1.0), 1.0)
+            if reactor.overall_u_w_m2_k > 0.0
+            else 0.0
+        )
+        reactor_derivation_rows = [
+            ["Volumetric throughput", "Vdot = V / tau", f"{reactor_throughput_m3_hr:.3f} m3/h"],
+            ["Kinetic consistency", "Da = k * tau", f"{reactor_da_consistency:.4f}"],
+            ["Heat release density", "q''' = Q / V", f"{reactor_heat_release_density_basis:.3f} kW/m3"],
+            [
+                "Heat-transfer area check",
+                "A = Q / (U * LMTD)",
+                f"{reactor_area_basis:.3f} m2" if reactor.integrated_lmtd_k > 0.0 else "n/a",
+            ],
+            ["Design conversion basis", "Target conversion", f"{reactor.design_conversion_fraction:.4f}"],
+            ["Packet closure basis", "Unit packet closure", f"{reactor_packet.closure_error_pct:.3f} %" if reactor_packet else "n/a"],
+        ]
+        reactor_substitution_rows = [
+            [
+                "Residence-time sizing",
+                "Vdot = V / tau",
+                f"V={reactor.design_volume_m3:.3f} m3; tau={reactor.residence_time_hr:.3f} h",
+                f"{reactor_throughput_m3_hr:.3f} m3/h",
+            ],
+            [
+                "Damkohler basis",
+                "Da = k * tau",
+                f"k={reactor.kinetic_rate_constant_1_hr:.6f} 1/h; tau={reactor.residence_time_hr:.3f} h",
+                f"{reactor_da_consistency:.4f}",
+            ],
+            [
+                "Thermal intensity",
+                "q''' = Q / V",
+                f"Q={reactor.heat_duty_kw:.3f} kW; V={reactor.design_volume_m3:.3f} m3",
+                f"{reactor_heat_release_density_basis:.3f} kW/m3",
+            ],
+            [
+                "Heat-transfer area check",
+                "A = Q / (U * LMTD)",
+                (
+                    f"Q={reactor.heat_duty_kw * 1000.0:.1f} W; U={reactor.overall_u_w_m2_k:.1f} W/m2-K; "
+                    f"LMTD={reactor.integrated_lmtd_k:.3f} K"
+                    if reactor.integrated_lmtd_k > 0.0
+                    else "Integrated LMTD not available"
+                ),
+                f"{reactor_area_basis:.3f} m2" if reactor.integrated_lmtd_k > 0.0 else "n/a",
+            ],
+            [
+                "Heat-removal margin",
+                "Margin = Qrem / Qduty - 1",
+                f"Qrem={reactor.heat_removal_capacity_kw:.3f} kW; Qduty={reactor.heat_duty_kw:.3f} kW",
+                f"{reactor.heat_removal_margin_fraction:.4f}",
+            ],
+            [
+                "Residual utility demand",
+                "Qres = Qduty - Qint",
+                f"Qduty={reactor.heat_duty_kw:.3f} kW; Qint={reactor.integrated_thermal_duty_kw:.3f} kW",
+                f"{reactor.residual_utility_duty_kw:.3f} kW",
+            ],
+        ]
+        reactor_hazard_rows = [
+            ["Adiabatic temperature rise (C)", f"{reactor.adiabatic_temperature_rise_c:.3f}"],
+            ["Heat-removal capacity (kW)", f"{reactor.heat_removal_capacity_kw:.3f}"],
+            ["Heat-removal margin", f"{reactor.heat_removal_margin_fraction:.4f}"],
+            ["Thermal stability score", f"{reactor.thermal_stability_score:.2f}"],
+            ["Runaway risk label", reactor.runaway_risk_label or "n/a"],
+            ["Residual utility duty (kW)", f"{reactor.residual_utility_duty_kw:.3f}"],
+            ["Integrated recovered duty (kW)", f"{reactor.integrated_thermal_duty_kw:.3f}"],
+        ]
+        reactor_package_rows = [
+            ["Architecture family", reactor.utility_architecture_family or "base"],
+            ["Coupled service basis", reactor.coupled_service_basis or "none"],
+            ["Integrated LMTD (K)", f"{reactor.integrated_lmtd_k:.3f}"],
+            ["Integrated exchange area (m2)", f"{reactor.integrated_exchange_area_m2:.3f}"],
+            ["Allocated recovered-duty target (kW)", f"{reactor.allocated_recovered_duty_target_kw:.3f}"],
+            ["Selected utility islands", ", ".join(reactor.selected_utility_island_ids) or "none"],
+            ["Selected header levels", ", ".join(str(level) for level in reactor.selected_utility_header_levels) or "none"],
+            ["Selected cluster ids", ", ".join(reactor.selected_utility_cluster_ids) or "none"],
+            ["Selected train steps", ", ".join(reactor.selected_train_step_ids) or "none"],
+        ]
+        reactor_stream_ids = list(dict.fromkeys((reactor_packet.inlet_stream_ids if reactor_packet else []) + (reactor_packet.outlet_stream_ids if reactor_packet else [])))
+        balance_rows = []
+        for stream_id in reactor_stream_ids:
+            stream = next((item for item in stream_table.streams if item.stream_id == stream_id), None)
+            if stream is None:
+                continue
+            balance_rows.append(
+                [
+                    stream.stream_id,
+                    stream.stream_role,
+                    stream.source_unit_id or "-",
+                    stream.destination_unit_id or "-",
+                    f"{sum(component.mass_flow_kg_hr for component in stream.components):.3f}",
+                    ", ".join(
+                        f"{component.name}={component.mass_flow_kg_hr:.1f}"
+                        for component in sorted(stream.components, key=lambda item: item.mass_flow_kg_hr, reverse=True)[:4]
+                    ) or "-",
+                ]
+            )
+        route_family_rows = [
+            ["Route family", getattr(route_profile, "family_label", "n/a")],
+            ["Route family id", getattr(route_profile, "route_family_id", "n/a")],
+            ["Primary reactor class", getattr(route_profile, "primary_reactor_class", "n/a")],
+            ["Primary separation train", getattr(route_profile, "primary_separation_train", "n/a")],
+            ["Heat recovery style", getattr(route_profile, "heat_recovery_style", "n/a")],
+            ["Data anchors", ", ".join(getattr(route_profile, "data_anchor_requirements", [])) or "none"],
+        ]
+        reactor_stream_rows = self._unit_stream_summary_rows(
+            stream_table,
+            reactor_packet.unit_id if reactor_packet else "reactor",
+            reactor_packet.service if reactor_packet else "Main reactor service",
+            reactor_packet.inlet_stream_ids if reactor_packet else [],
+            reactor_packet.outlet_stream_ids if reactor_packet else [],
+        )
+        reactor_split_rows = self._local_stream_split_summary_rows(reactor_stream_rows)
+        reactor_component_rows = self._unit_key_component_balance_rows(
+            stream_table,
+            reactor_packet.inlet_stream_ids if reactor_packet else [],
+            reactor_packet.outlet_stream_ids if reactor_packet else [],
+        )
         return "\n\n".join(
             [
                 reactor_basis.markdown,
                 "### Governing Equations\n\n" + "\n".join(f"- `{equation}`" for equation in reactor_basis.governing_equations),
+                "### Route-Family Basis\n\n" + markdown_table(["Parameter", "Value"], route_family_rows),
                 "### Solver Packet Basis\n\n"
                 + markdown_table(
                     ["Packet", "Primary Value 1", "Primary Value 2", "Closure / Recoverable", "Status / Media"],
                     packet_rows,
                 ),
+                "### Balance Reference Snapshot\n\n"
+                + markdown_table(
+                    ["Stream", "Role", "From", "To", "kg/h", "Dominant Components"],
+                    balance_rows or [["n/a", "n/a", "-", "-", "0.0", "-"]],
+                ),
+                "### Reactor Feed / Product / Recycle Summary\n\n"
+                + markdown_table(
+                    ["Unit", "Service", "Stream", "Local Role", "Stream Role", "Section", "Phase", "kg/h", "kmol/h", "Dominant Components"],
+                    reactor_stream_rows or [["reactor", "Main reactor service", "n/a", "n/a", "n/a", "-", "-", "0.0", "0.0", "-"]],
+                ),
+                "### Reactor Local Stream Split Summary\n\n"
+                + markdown_table(
+                    ["Split", "Stream Count", "Mass Flow (kg/h)", "Molar Flow (kmol/h)"],
+                    reactor_split_rows,
+                ),
+                "### Key Reactor Component Balance\n\n"
+                + markdown_table(
+                    ["Component", "Inlet kg/h", "Outlet kg/h", "Delta kg/h"],
+                    reactor_component_rows or [["n/a", "0.0", "0.0", "0.0"]],
+                ),
+                "### Reactor Design Inputs\n\n" + markdown_table(["Parameter", "Value"], reactor_design_input_rows),
+                "### Reactor Operating Envelope\n\n" + markdown_table(["Parameter", "Value"], reactor_operating_envelope_rows),
                 "### Reactor Sizing Basis\n\n" + markdown_table(["Parameter", "Value"], basis_rows),
+                "### Reaction and Sizing Derivation Basis\n\n"
+                + markdown_table(["Check", "Formula / Basis", "Result"], reactor_derivation_rows),
+                "### Reactor Equation-Substitution Sheet\n\n"
+                + markdown_table(["Check", "Equation", "Substitution", "Result"], reactor_substitution_rows),
                 "### Kinetic Design Basis\n\n" + markdown_table(["Parameter", "Value"], kinetic_rows),
+                "### Reactor Geometry and Internals\n\n" + markdown_table(["Parameter", "Value"], reactor_geometry_rows),
                 "### Heat-Transfer Derivation Basis\n\n" + markdown_table(["Parameter", "Value"], heat_transfer_rows),
+                "### Thermal Stability and Hazard Envelope\n\n" + markdown_table(["Parameter", "Value"], reactor_hazard_rows),
                 "### Catalyst Service Basis\n\n" + markdown_table(["Parameter", "Value"], catalyst_rows),
+                "### Integrated Utility Package Basis\n\n" + markdown_table(["Parameter", "Value"], reactor_package_rows),
                 "### Utility Coupling\n\n" + markdown_table(["Parameter", "Value"], utility_rows),
                 self._render_trace_section("Reactor Calculation Traces", reactor.calc_traces),
             ]
@@ -1921,6 +2908,7 @@ class PipelineRunner:
         exchanger: HeatExchangerDesign,
         exchanger_thermal: HeatExchangerThermalDesign,
         stream_table: StreamTable,
+        route_profile=None,
     ) -> str:
         def _normalize_component(name: str) -> str:
             return name.strip().lower().replace("-", "_").replace(" ", "_")
@@ -1979,6 +2967,58 @@ class PipelineRunner:
             ]
             for packet in process_packets
         ]
+        balance_reference_rows = []
+        referenced_stream_ids = {
+            stream_id
+            for packet in process_packets
+            for stream_id in (*packet.inlet_stream_ids, *packet.outlet_stream_ids)
+        }
+        for stream in stream_table.streams:
+            if stream.stream_id not in referenced_stream_ids:
+                continue
+            balance_reference_rows.append(
+                [
+                    stream.stream_id,
+                    stream.stream_role,
+                    stream.source_unit_id or "-",
+                    stream.destination_unit_id or "-",
+                    f"{sum(component.mass_flow_kg_hr for component in stream.components):.3f}",
+                    ", ".join(
+                        f"{component.name}={component.mass_flow_kg_hr:.1f}"
+                        for component in sorted(stream.components, key=lambda item: item.mass_flow_kg_hr, reverse=True)[:4]
+                    ) or "-",
+                ]
+            )
+        route_family_rows = [
+            ["Route family", getattr(route_profile, "family_label", "n/a")],
+            ["Route family id", getattr(route_profile, "route_family_id", "n/a")],
+            ["Primary separation train", getattr(route_profile, "primary_separation_train", "n/a")],
+            ["Heat recovery style", getattr(route_profile, "heat_recovery_style", "n/a")],
+            ["Dominant phase pattern", getattr(route_profile, "dominant_phase_pattern", "n/a")],
+            ["Data anchors", ", ".join(getattr(route_profile, "data_anchor_requirements", [])) or "none"],
+        ]
+        process_stream_rows: list[list[str]] = []
+        for packet in process_packets:
+            process_stream_rows.extend(
+                self._unit_stream_summary_rows(
+                    stream_table,
+                    packet.unit_id,
+                    packet.service,
+                    packet.inlet_stream_ids,
+                    packet.outlet_stream_ids,
+                )
+            )
+        process_split_rows = self._local_stream_split_summary_rows(process_stream_rows)
+        process_component_rows: list[list[str]] = []
+        for packet in process_packets:
+            component_rows = self._unit_key_component_balance_rows(
+                stream_table,
+                packet.inlet_stream_ids,
+                packet.outlet_stream_ids,
+                limit=4,
+            )
+            for row in component_rows:
+                process_component_rows.append([packet.unit_id, packet.service, *row])
         column_rows = [
             ["Service", column.service],
             ["Light key", column.light_key],
@@ -2068,13 +3108,234 @@ class PipelineRunner:
             ["Boiling-side coefficient (W/m2-K)", f"{exchanger.boiling_side_coefficient_w_m2_k:.3f}"],
             ["Condensing-side coefficient (W/m2-K)", f"{exchanger.condensing_side_coefficient_w_m2_k:.3f}"],
         ]
+        heat_transfer_input_rows = self._mapping_rows(exchanger_thermal.thermal_inputs)
+        heat_transfer_package_rows = self._mapping_rows(exchanger_thermal.package_basis)
         distillation_sections: list[str] = []
         absorption_sections: list[str] = []
         crystallization_sections: list[str] = []
         if "absor" not in column.service.lower() and "crystallizer" not in column.service.lower():
+            separation_input_rows = [
+                ["Service", column.service],
+                ["Equilibrium model", column.equilibrium_model or "screening_vle"],
+                ["Equilibrium parameter ids", ", ".join(column.equilibrium_parameter_ids) or "none"],
+                ["Light key", column.light_key],
+                ["Heavy key", column.heavy_key],
+                ["Relative volatility", f"{column.relative_volatility:.3f}"],
+                ["Minimum stages", f"{column.min_stages:.3f}"],
+                ["Theoretical stages", f"{column.theoretical_stages:.3f}"],
+                ["Design stages", str(column.design_stages)],
+                ["Minimum reflux ratio", f"{column.minimum_reflux_ratio:.3f}"],
+                ["Operating reflux ratio", f"{column.reflux_ratio:.3f}"],
+            ]
+            flow_derivation_rows = [
+                ["Minimum stages", "Fenske screening", f"{column.min_stages:.3f}"],
+                ["Minimum reflux", "Underwood screening", f"{column.minimum_reflux_ratio:.3f}"],
+                ["Operating stages", "Gilliland screening", f"{column.theoretical_stages:.3f}"],
+                ["Feed condition", "q-factor basis", f"{column.feed_quality_q_factor:.3f}"],
+                ["Rectifying section split", "Section stage allocation", f"{column.rectifying_theoretical_stages:.3f} stages"],
+                ["Stripping section split", "Section stage allocation", f"{column.stripping_theoretical_stages:.3f} stages"],
+                ["Rectifying internal vapor load", "Top section vapor load", f"{column.rectifying_vapor_load_kg_hr:.3f} kg/h"],
+                ["Stripping internal vapor load", "Bottom section vapor load", f"{column.stripping_vapor_load_kg_hr:.3f} kg/h"],
+                ["Rectifying liquid load", "Top section liquid load", f"{column.rectifying_liquid_load_m3_hr:.3f} m3/h"],
+                ["Stripping liquid load", "Bottom section liquid load", f"{column.stripping_liquid_load_m3_hr:.3f} m3/h"],
+            ]
+            murphree_stage_count = column.theoretical_stages / max(column.murphree_efficiency, 1e-9)
+            reboiler_effective_u = (
+                (column.integrated_reboiler_duty_kw * 1000.0)
+                / max(column.integrated_reboiler_area_m2 * max(column.integrated_reboiler_lmtd_k, 1e-9), 1e-9)
+                if column.integrated_reboiler_area_m2 > 0.0 and column.integrated_reboiler_lmtd_k > 0.0
+                else 0.0
+            )
+            condenser_effective_u = (
+                (column.condenser_recovery_duty_kw * 1000.0)
+                / max(column.condenser_recovery_area_m2 * max(column.condenser_recovery_lmtd_k, 1e-9), 1e-9)
+                if column.condenser_recovery_area_m2 > 0.0 and column.condenser_recovery_lmtd_k > 0.0
+                else 0.0
+            )
+            reboiler_latent_basis = (
+                (column.reboiler_duty_kw * 3600.0) / max(column.reboiler_phase_change_load_kg_hr, 1e-9)
+                if column.reboiler_phase_change_load_kg_hr > 0.0
+                else 0.0
+            )
+            condenser_latent_basis = (
+                (column.condenser_recovery_duty_kw * 3600.0) / max(column.condenser_phase_change_load_kg_hr, 1e-9)
+                if column.condenser_phase_change_load_kg_hr > 0.0
+                else 0.0
+            )
+            distillation_substitution_rows = [
+                [
+                    "Fenske minimum stages",
+                    "Nmin = Fenske(alpha, LK/HK split)",
+                    (
+                        f"alpha={column.relative_volatility:.3f}; "
+                        f"alpha_top={column.top_relative_volatility:.3f}; "
+                        f"alpha_bottom={column.bottom_relative_volatility:.3f}"
+                    ),
+                    f"{column.min_stages:.3f}",
+                ],
+                [
+                    "Underwood minimum reflux",
+                    "Rmin = Underwood(alpha, q, keys)",
+                    (
+                        f"alpha_top={column.top_relative_volatility:.3f}; "
+                        f"alpha_bottom={column.bottom_relative_volatility:.3f}; "
+                        f"q={column.feed_quality_q_factor:.3f}"
+                    ),
+                    f"{column.minimum_reflux_ratio:.3f}",
+                ],
+                [
+                    "Gilliland operating stages",
+                    "N = Gilliland(Nmin, R/Rmin)",
+                    f"Nmin={column.min_stages:.3f}; R/Rmin={column.reflux_ratio_multiple_of_min:.3f}",
+                    f"{column.theoretical_stages:.3f}",
+                ],
+                [
+                    "Murphree tray conversion",
+                    "Nactual = Ntheoretical / Em",
+                    f"Ntheoretical={column.theoretical_stages:.3f}; Em={column.murphree_efficiency:.3f}",
+                    f"{murphree_stage_count:.3f} equivalent trays",
+                ],
+            ]
+            feed_internal_substitution_rows = [
+                [
+                    "Feed quality basis",
+                    "q = feed thermal condition parameter",
+                    f"selected feed stage={column.feed_stage}; q={column.feed_quality_q_factor:.3f}",
+                    f"{column.feed_quality_q_factor:.3f}",
+                ],
+                [
+                    "Rectifying section split",
+                    "Nrect = f(feed stage, N)",
+                    f"feed stage={column.feed_stage}; N={column.design_stages}",
+                    f"{column.rectifying_theoretical_stages:.3f} stages",
+                ],
+                [
+                    "Stripping section split",
+                    "Nstrip = N - Nrect",
+                    f"N={column.theoretical_stages:.3f}; Nrect={column.rectifying_theoretical_stages:.3f}",
+                    f"{column.stripping_theoretical_stages:.3f} stages",
+                ],
+                [
+                    "Rectifying vapor load",
+                    "Vrect from section screening",
+                    f"R={column.reflux_ratio:.3f}; Rmin={column.minimum_reflux_ratio:.3f}",
+                    f"{column.rectifying_vapor_load_kg_hr:.3f} kg/h",
+                ],
+                [
+                    "Stripping vapor load",
+                    "Vstrip from bottom section screening",
+                    f"Nstrip={column.stripping_theoretical_stages:.3f}; q={column.feed_quality_q_factor:.3f}",
+                    f"{column.stripping_vapor_load_kg_hr:.3f} kg/h",
+                ],
+                [
+                    "Rectifying liquid load",
+                    "Lrect from reflux / internal flow basis",
+                    f"R={column.reflux_ratio:.3f}",
+                    f"{column.rectifying_liquid_load_m3_hr:.3f} m3/h",
+                ],
+                [
+                    "Stripping liquid load",
+                    "Lstrip from boilup / internal flow basis",
+                    f"Reboiler duty={column.reboiler_duty_kw:.3f} kW",
+                    f"{column.stripping_liquid_load_m3_hr:.3f} m3/h",
+                ],
+            ]
+            operating_envelope_rows = [
+                ["Column diameter (m)", f"{column.column_diameter_m:.3f}"],
+                ["Column height (m)", f"{column.column_height_m:.3f}"],
+                ["Top temperature (C)", f"{column.top_temperature_c:.1f}"],
+                ["Bottom temperature (C)", f"{column.bottom_temperature_c:.1f}"],
+                ["Liquid density (kg/m3)", f"{column.liquid_density_kg_m3:.3f}"],
+                ["Vapor density (kg/m3)", f"{column.vapor_density_kg_m3:.3f}"],
+                ["Superficial vapor velocity (m/s)", f"{column.superficial_vapor_velocity_m_s:.3f}"],
+                ["Allowable vapor velocity (m/s)", f"{column.allowable_vapor_velocity_m_s:.3f}"],
+                ["Flooding fraction", f"{column.flooding_fraction:.3f}"],
+                ["Pressure drop per stage (kPa)", f"{column.pressure_drop_per_stage_kpa:.3f}"],
+            ]
+            reboiler_condenser_rows = [
+                ["Reboiler package type", column.reboiler_package_type or "none"],
+                ["Reboiler medium", column.reboiler_medium or "none"],
+                ["Reboiler integrated duty (kW)", f"{column.integrated_reboiler_duty_kw:.3f}"],
+                ["Reboiler LMTD (K)", f"{column.integrated_reboiler_lmtd_k:.3f}"],
+                ["Reboiler integrated area (m2)", f"{column.integrated_reboiler_area_m2:.3f}"],
+                ["Reboiler phase-change load (kg/h)", f"{column.reboiler_phase_change_load_kg_hr:.3f}"],
+                ["Condenser package type", column.condenser_package_type or "none"],
+                ["Condenser recovery medium", column.condenser_recovery_medium or "none"],
+                ["Condenser recovery duty (kW)", f"{column.condenser_recovery_duty_kw:.3f}"],
+                ["Condenser recovery LMTD (K)", f"{column.condenser_recovery_lmtd_k:.3f}"],
+                ["Condenser recovery area (m2)", f"{column.condenser_recovery_area_m2:.3f}"],
+                ["Condenser phase-change load (kg/h)", f"{column.condenser_phase_change_load_kg_hr:.3f}"],
+            ]
+            reboiler_condenser_substitution_rows = [
+                [
+                    "Operating reflux multiple",
+                    "R/Rmin = R / Rmin",
+                    f"R={column.reflux_ratio:.3f}; Rmin={column.minimum_reflux_ratio:.3f}",
+                    f"{column.reflux_ratio_multiple_of_min:.3f}",
+                ],
+                [
+                    "Integrated reboiler area",
+                    "A = Q / (U * LMTD)",
+                    (
+                        f"Q={column.integrated_reboiler_duty_kw * 1000.0:.1f} W; "
+                        f"U={reboiler_effective_u:.1f} W/m2-K; "
+                        f"LMTD={column.integrated_reboiler_lmtd_k:.3f} K"
+                    ),
+                    f"{column.integrated_reboiler_area_m2:.3f} m2",
+                ],
+                [
+                    "Reboiler phase-change basis",
+                    "m = Q / lambda",
+                    f"Q={column.reboiler_duty_kw:.3f} kW; lambda~={reboiler_latent_basis:.1f} kJ/kg",
+                    f"{column.reboiler_phase_change_load_kg_hr:.3f} kg/h",
+                ],
+                [
+                    "Condenser recovery area",
+                    "A = Q / (U * LMTD)",
+                    (
+                        f"Q={column.condenser_recovery_duty_kw * 1000.0:.1f} W; "
+                        f"U={condenser_effective_u:.1f} W/m2-K; "
+                        f"LMTD={column.condenser_recovery_lmtd_k:.3f} K"
+                    ),
+                    f"{column.condenser_recovery_area_m2:.3f} m2",
+                ],
+                [
+                    "Condenser phase-change basis",
+                    "m = Q / lambda",
+                    f"Q={column.condenser_recovery_duty_kw:.3f} kW; lambda~={condenser_latent_basis:.1f} kJ/kg",
+                    f"{column.condenser_phase_change_load_kg_hr:.3f} kg/h",
+                ],
+            ]
+            distillation_sections.append(
+                "### Separation Design Inputs\n\n" + markdown_table(["Parameter", "Value"], separation_input_rows)
+            )
             distillation_sections.append(
                 "### Section and Feed Basis\n\n"
                 + markdown_table(["Parameter", "Value"], section_rows)
+            )
+            distillation_sections.append(
+                "### Distillation Equation-Substitution Basis\n\n"
+                + markdown_table(["Check", "Equation", "Substitution", "Result"], distillation_substitution_rows)
+            )
+            distillation_sections.append(
+                "### Feed and Internal Flow Derivation\n\n"
+                + markdown_table(["Check", "Formula / Basis", "Result"], flow_derivation_rows)
+            )
+            distillation_sections.append(
+                "### Feed Condition and Internal Flow Substitution Sheet\n\n"
+                + markdown_table(["Check", "Equation", "Substitution", "Result"], feed_internal_substitution_rows)
+            )
+            distillation_sections.append(
+                "### Column Operating Envelope\n\n"
+                + markdown_table(["Parameter", "Value"], operating_envelope_rows)
+            )
+            distillation_sections.append(
+                "### Reboiler and Condenser Package Basis\n\n"
+                + markdown_table(["Parameter", "Value"], reboiler_condenser_rows)
+            )
+            distillation_sections.append(
+                "### Reboiler and Condenser Thermal Substitution Sheet\n\n"
+                + markdown_table(["Check", "Equation", "Substitution", "Result"], reboiler_condenser_substitution_rows)
             )
         if "absor" in column.service.lower():
             equilibrium_packets = [
@@ -2154,6 +3415,47 @@ class PipelineRunner:
                             component_rows,
                     )
                     )
+                absorption_factor = column.absorber_solvent_to_gas_ratio / max(column.absorber_equilibrium_slope, 1e-9)
+                absorber_height_check = column.absorber_ntu * column.absorber_htu_m
+                absorber_pressure_drop_check = column.absorber_pressure_drop_per_m_kpa_m * column.absorber_packed_height_m
+                absorber_derivation_rows = [
+                    [
+                        "Henry slope basis",
+                        "m = H / P",
+                        f"H={column.absorber_henry_constant_bar:.6f} bar; screening pressure basis folded into model",
+                        f"{column.absorber_equilibrium_slope:.6f}",
+                    ],
+                    [
+                        "Absorption factor",
+                        "A = L / (m * G)",
+                        f"L/G={column.absorber_solvent_to_gas_ratio:.6f}; m={column.absorber_equilibrium_slope:.6f}",
+                        f"{absorption_factor:.6f}",
+                    ],
+                    [
+                        "Theoretical stage basis",
+                        "Kremser-style screening with capture target",
+                        f"Capture={column.absorber_capture_fraction:.6f}; eta_stage={column.absorber_stage_efficiency:.6f}",
+                        f"{column.absorber_theoretical_stages:.6f} stages",
+                    ],
+                    [
+                        "Packed-height basis",
+                        "Z = NTU * HTU",
+                        f"NTU={column.absorber_ntu:.6f}; HTU={column.absorber_htu_m:.6f} m",
+                        f"{absorber_height_check:.6f} m",
+                    ],
+                    [
+                        "Pressure-drop basis",
+                        "DeltaP = (DeltaP/L) * Z",
+                        f"DeltaP/L={column.absorber_pressure_drop_per_m_kpa_m:.6f} kPa/m; Z={column.absorber_packed_height_m:.6f} m",
+                        f"{absorber_pressure_drop_check:.6f} kPa",
+                    ],
+                    [
+                        "Wetting window basis",
+                        "Wet ratio = L / Lmin",
+                        f"L={column.absorber_liquid_mass_velocity_kg_m2_s:.6f}; Lmin={column.absorber_min_wetting_rate_kg_m2_s:.6f}",
+                        f"{column.absorber_wetting_ratio:.6f}",
+                    ],
+                ]
                 absorber_stage_rows = [
                     ["Key absorbed component", column.absorber_key_component or "n/a"],
                     ["Henry constant (bar)", f"{column.absorber_henry_constant_bar:.6f}"],
@@ -2196,6 +3498,27 @@ class PipelineRunner:
                             ["Lean loading (mol/mol solvent)", f"{column.absorber_lean_loading_mol_mol:.6f}"],
                             ["Rich loading (mol/mol solvent)", f"{column.absorber_rich_loading_mol_mol:.6f}"],
                             ["Candidate cases evaluated", str(column.absorber_solvent_rate_case_count)],
+                        ],
+                    )
+                )
+                absorption_sections.append(
+                    "### Absorber Equation-Substitution Basis\n\n"
+                    + markdown_table(
+                        ["Check", "Equation", "Substitution", "Result"],
+                        absorber_derivation_rows,
+                    )
+                )
+                absorption_sections.append(
+                    "### Absorber Operating Envelope\n\n"
+                    + markdown_table(
+                        ["Parameter", "Value"],
+                        [
+                            ["Operating gas mass velocity (kg/m2-s)", f"{column.absorber_gas_mass_velocity_kg_m2_s:.6f}"],
+                            ["Operating liquid mass velocity (kg/m2-s)", f"{column.absorber_liquid_mass_velocity_kg_m2_s:.6f}"],
+                            ["Overall mass-transfer coefficient (1/s)", f"{column.absorber_overall_mass_transfer_coefficient_1_s:.6f}"],
+                            ["Pressure drop per m (kPa/m)", f"{column.absorber_pressure_drop_per_m_kpa_m:.6f}"],
+                            ["Total pressure drop (kPa)", f"{column.absorber_total_pressure_drop_kpa:.6f}"],
+                            ["Packed height (m)", f"{column.absorber_packed_height_m:.6f}"],
                         ],
                     )
                 )
@@ -2273,6 +3596,74 @@ class PipelineRunner:
                             component_rows,
                         )
                     )
+                supersaturation_check = column.crystallizer_feed_loading_kg_per_kg / max(column.crystallizer_solubility_limit_kg_per_kg, 1e-9)
+                yield_check = column.crystallizer_precipitated_mass_kg_hr / max(
+                    column.crystallizer_precipitated_mass_kg_hr + column.crystallizer_dissolved_mass_kg_hr,
+                    1e-9,
+                )
+                filter_cycle_check = (
+                    column.filter_cake_formation_time_hr + column.filter_wash_time_hr + column.filter_discharge_time_hr
+                )
+                slurry_turnover = column.slurry_circulation_rate_m3_hr / max(column.crystallizer_holdup_m3, 1e-9)
+                humidity_lift_check = column.dryer_exhaust_humidity_ratio_kg_kg - column.dryer_inlet_humidity_ratio_kg_kg
+                specific_evaporation = column.dryer_evaporation_load_kg_hr / max(column.dryer_dry_air_flow_kg_hr, 1e-9)
+                solids_derivation_rows = [
+                    [
+                        "Supersaturation basis",
+                        "S = Cfeed / C*",
+                        f"Cfeed={column.crystallizer_feed_loading_kg_per_kg:.6f}; C*={column.crystallizer_solubility_limit_kg_per_kg:.6f}",
+                        f"{supersaturation_check:.6f}",
+                    ],
+                    [
+                        "Crystal yield basis",
+                        "Y = mprecip / (mprecip + mdiss)",
+                        (
+                            f"mprecip={column.crystallizer_precipitated_mass_kg_hr:.6f} kg/h; "
+                            f"mdiss={column.crystallizer_dissolved_mass_kg_hr:.6f} kg/h"
+                        ),
+                        f"{yield_check:.6f}",
+                    ],
+                    [
+                        "Slurry turnover",
+                        "Turnover = Qslurry / Vhold",
+                        f"Qslurry={column.slurry_circulation_rate_m3_hr:.6f} m3/h; Vhold={column.crystallizer_holdup_m3:.6f} m3",
+                        f"{slurry_turnover:.6f} 1/h",
+                    ],
+                    [
+                        "Filter cycle basis",
+                        "tcycle = tform + twash + tdischarge",
+                        (
+                            f"tform={column.filter_cake_formation_time_hr:.6f} h; "
+                            f"twash={column.filter_wash_time_hr:.6f} h; "
+                            f"tdischarge={column.filter_discharge_time_hr:.6f} h"
+                        ),
+                        f"{filter_cycle_check:.6f} h/cycle",
+                    ],
+                    [
+                        "Cycle frequency",
+                        "f = 1 / tcycle",
+                        f"tcycle={column.filter_cycle_time_hr:.6f} h/cycle",
+                        f"{column.filter_cycles_per_hr:.6f} 1/h",
+                    ],
+                    [
+                        "Dryer humidity lift",
+                        "DeltaY = Yout - Yin",
+                        (
+                            f"Yout={column.dryer_exhaust_humidity_ratio_kg_kg:.6f}; "
+                            f"Yin={column.dryer_inlet_humidity_ratio_kg_kg:.6f}"
+                        ),
+                        f"{humidity_lift_check:.6f} kg/kg",
+                    ],
+                    [
+                        "Specific evaporation",
+                        "mevap / mair",
+                        (
+                            f"mevap={column.dryer_evaporation_load_kg_hr:.6f} kg/h; "
+                            f"mair={column.dryer_dry_air_flow_kg_hr:.6f} kg/h"
+                        ),
+                        f"{specific_evaporation:.6f} kg/kg",
+                    ],
+                ]
                 crystallizer_rows = [
                     ["Key crystal component", column.crystallizer_key_component or "n/a"],
                     ["Solubility limit (kg/kg solvent)", f"{column.crystallizer_solubility_limit_kg_per_kg:.6f}"],
@@ -2330,9 +3721,31 @@ class PipelineRunner:
                         ],
                     )
                 )
+                crystallization_sections.append(
+                    "### Crystallizer / Filter / Dryer Equation-Substitution Basis\n\n"
+                    + markdown_table(
+                        ["Check", "Equation", "Substitution", "Result"],
+                        solids_derivation_rows,
+                    )
+                )
+                crystallization_sections.append(
+                    "### Crystallizer and Dryer Operating Envelope\n\n"
+                    + markdown_table(
+                        ["Parameter", "Value"],
+                        [
+                            ["Crystallizer residence time (h)", f"{column.crystallizer_residence_time_hr:.6f}"],
+                            ["Crystallizer holdup (m3)", f"{column.crystallizer_holdup_m3:.6f}"],
+                            ["Slurry circulation rate (m3/h)", f"{column.slurry_circulation_rate_m3_hr:.6f}"],
+                            ["Filter cycles per hour", f"{column.filter_cycles_per_hr:.6f}"],
+                            ["Dryer dry-air flow (kg/h)", f"{column.dryer_dry_air_flow_kg_hr:.6f}"],
+                            ["Dryer heat-transfer area (m2)", f"{column.dryer_heat_transfer_area_m2:.6f}"],
+                        ],
+                    )
+                )
         return "\n\n".join(
             [
                 column_hydraulics.markdown,
+                "### Route-Family Basis\n\n" + markdown_table(["Parameter", "Value"], route_family_rows),
                 "### Governing Equations\n\n"
                 + "\n".join(
                     f"- `{equation}`"
@@ -2345,11 +3758,33 @@ class PipelineRunner:
                     ["Packet", "Unit", "Type", "Inlet kg/h", "Outlet kg/h", "Closure Error (%)", "Status"],
                     packet_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "n/a"]],
                 ),
+                "### Balance Reference Snapshot\n\n"
+                + markdown_table(
+                    ["Stream", "Role", "From", "To", "kg/h", "Dominant Components"],
+                    balance_reference_rows or [["n/a", "n/a", "-", "-", "0.0", "-"]],
+                ),
+                "### Unit-by-Unit Feed / Product / Recycle Summary\n\n"
+                + markdown_table(
+                    ["Unit", "Service", "Stream", "Local Role", "Stream Role", "Section", "Phase", "kg/h", "kmol/h", "Dominant Components"],
+                    process_stream_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "-", "-", "0.0", "0.0", "-"]],
+                ),
+                "### Process-Unit Local Stream Split Summary\n\n"
+                + markdown_table(
+                    ["Split", "Stream Count", "Mass Flow (kg/h)", "Molar Flow (kmol/h)"],
+                    process_split_rows,
+                ),
+                "### Key Process-Unit Component Balance\n\n"
+                + markdown_table(
+                    ["Unit", "Service", "Component", "Inlet kg/h", "Outlet kg/h", "Delta kg/h"],
+                    process_component_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0"]],
+                ),
                 *distillation_sections,
                 *absorption_sections,
                 *crystallization_sections,
                 "### Process-Unit Sizing Basis\n\n" + markdown_table(["Parameter", "Value"], column_rows),
                 "### Hydraulics Basis\n\n" + markdown_table(["Parameter", "Value"], hydraulics_rows),
+                "### Heat-Transfer Package Inputs\n\n" + markdown_table(["Parameter", "Value"], heat_transfer_input_rows),
+                "### Exchanger Package Selection Basis\n\n" + markdown_table(["Parameter", "Value"], heat_transfer_package_rows),
                 "### Utility Coupling\n\n" + markdown_table(["Parameter", "Value"], utility_rows),
                 "### Heat-Exchanger Thermal Basis\n\n" + markdown_table(["Parameter", "Value"], exchanger_rows),
                 self._render_trace_section("Process-Unit Calculation Traces", column.calc_traces + exchanger.calc_traces),
@@ -2391,7 +3826,10 @@ class PipelineRunner:
         route = self._selected_route()
         kinetics = self._load("kinetic_assessment", KineticAssessmentArtifact)
         process_narrative = self._ensure_process_narrative()
+        flowsheet_blueprint = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_blueprint.json", FlowsheetBlueprintArtifact)
         property_packages = self._load("property_packages", PropertyPackageArtifact)
+        route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
+        route_profile = profile_for_route(route_families, route.route_id)
         reaction_system = build_reaction_system(self.config.basis, route, kinetics, route.citations + kinetics.citations, route.assumptions + kinetics.assumptions)
         stream_table = build_stream_table(
             self.config.basis,
@@ -2400,6 +3838,7 @@ class PipelineRunner:
             reaction_system.citations,
             reaction_system.assumptions,
             property_packages,
+            flowsheet_blueprint,
         )
         flowsheet_graph = build_flowsheet_graph(
             route,
@@ -2407,6 +3846,7 @@ class PipelineRunner:
             reaction_system,
             process_narrative,
             self.config.basis.operating_mode,
+            flowsheet_blueprint,
         )
         flowsheet_case = build_flowsheet_case(route.route_id, self.config.basis.operating_mode, stream_table, flowsheet_graph)
         self._save("reaction_system", reaction_system)
@@ -2418,7 +3858,7 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, reaction_system.value_records, resolved_sources, self.config, "material_balance_reaction_system")
         resolved_values = extend_resolved_value_artifact(resolved_values, stream_table.value_records, resolved_sources, self.config, "material_balance_stream_table")
         self._save("resolved_values", resolved_values)
-        material_markdown = self._render_solver_material_balance(reaction_system, stream_table)
+        material_markdown = self._render_solver_material_balance(route, route_profile, reaction_system, stream_table, flowsheet_case)
         chapter = self._chapter(
             "material_balance",
             "Material Balance",
@@ -2461,6 +3901,8 @@ class PipelineRunner:
         property_packages = self._load("property_packages", PropertyPackageArtifact)
         property_requirements = self._load("property_requirements", PropertyRequirementSet)
         sparse_data_policy = self.store.maybe_load_model(self.config.project_id, "artifacts/sparse_data_policy.json", SparseDataPolicyArtifact)
+        route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
+        route_profile = profile_for_route(route_families, route.route_id)
         mixture_properties = build_mixture_property_artifact(stream_table, property_packages)
         energy = build_energy_balance(route, stream_table, thermo, mixture_properties)
         flowsheet_case = self._load("flowsheet_case", FlowsheetCase)
@@ -2472,8 +3914,7 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), energy.value_records, self._load("resolved_sources", ResolvedSourceSet), self.config, "energy_balance"),
         )
-        duty_rows = [[duty.unit_id, f"{duty.heating_kw:.3f}", f"{duty.cooling_kw:.3f}", duty.notes] for duty in energy.duties]
-        markdown = markdown_table(["Unit", "Heating (kW)", "Cooling (kW)", "Notes"], duty_rows)
+        markdown = self._render_energy_balance_chapter(route, route_profile, stream_table, energy)
         chapter = self._chapter(
             "energy_balance",
             "Energy Balance",
@@ -2520,6 +3961,8 @@ class PipelineRunner:
         reactor_choice = self._load("reactor_choice_decision", DecisionRecord)
         operations_planning = self._load("operations_planning", OperationsPlanningArtifact)
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(self._selected_utility_network(), energy)
+        route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
+        route_profile = profile_for_route(route_families, route.route_id)
         self._save("utility_architecture", utility_architecture)
         reactor = build_reactor_design(
             self.config.basis,
@@ -2569,7 +4012,7 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), reactor.value_records, resolved_sources, self.config, "reactor_design"),
         )
-        markdown = self._render_reactor_design_chapter(reactor, reactor_basis, stream_table, energy)
+        markdown = self._render_reactor_design_chapter(reactor, reactor_basis, stream_table, energy, route_profile)
         chapter = self._chapter(
             "reactor_design",
             "Reactor Design",
@@ -2614,6 +4057,8 @@ class PipelineRunner:
         separation_choice = self._load("separation_choice_decision", DecisionRecord)
         exchanger_choice = select_exchanger_configuration(route, energy)
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(self._selected_utility_network(), energy)
+        route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
+        route_profile = profile_for_route(route_families, route.route_id)
         column = build_column_design(
             self.config.basis,
             route,
@@ -2638,7 +4083,7 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, column.value_records, resolved_sources, self.config, "distillation_design")
         resolved_values = extend_resolved_value_artifact(resolved_values, exchanger.value_records, resolved_sources, self.config, "heat_exchanger_design")
         self._save("resolved_values", resolved_values)
-        markdown = self._render_process_unit_design_chapter(column, column_hydraulics, exchanger, exchanger_thermal, stream_table)
+        markdown = self._render_process_unit_design_chapter(column, column_hydraulics, exchanger, exchanger_thermal, stream_table, route_profile)
         chapter = self._chapter(
             "distillation_design",
             "Distillation / Process-Unit Design",
@@ -2701,7 +4146,7 @@ class PipelineRunner:
             citations=sorted(set(reactor.citations + column.citations + exchanger.citations + storage.citations + utility_architecture.citations)),
             assumptions=reactor.assumptions + column.assumptions + exchanger.assumptions + storage.assumptions + utility_architecture.assumptions,
         )
-        datasheets = build_equipment_datasheets(artifact, reactor, column, exchanger, storage)
+        datasheets = build_equipment_datasheets(artifact, reactor, column, exchanger, storage, pump_design)
         self._save("equipment_list", artifact)
         self._save("utility_architecture", utility_architecture)
         self._save("pump_design", pump_design)
@@ -2723,8 +4168,192 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), storage.value_records, resolved_sources, self.config, "equipment_sizing"),
         )
-        rows = [[item.equipment_id, item.equipment_type, item.service, f"{item.volume_m3:.3f}", item.material_of_construction] for item in equipment_items]
-        markdown = markdown_table(["ID", "Type", "Service", "Volume (m3)", "MoC"], rows)
+        main_equipment_ids = {reactor.reactor_id, column.column_id, exchanger.exchanger_id, storage.storage_id}
+        major_equipment_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                f"{item.volume_m3:.3f}",
+                f"{item.duty_kw:.3f}",
+                f"{item.design_temperature_c:.1f}",
+                f"{item.design_pressure_bar:.2f}",
+                item.material_of_construction,
+            ]
+            for item in equipment_items
+            if item.equipment_id in main_equipment_ids
+        ]
+        package_inventory_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                f"{item.volume_m3:.3f}",
+                f"{item.duty_kw:.3f}",
+                item.material_of_construction,
+                item.design_basis,
+            ]
+            for item in equipment_items
+            if item.equipment_id not in main_equipment_ids
+        ]
+        storage_inventory_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                f"{item.volume_m3:.3f}",
+                f"{item.design_temperature_c:.1f}",
+                f"{item.design_pressure_bar:.2f}",
+                item.material_of_construction,
+                item.design_basis,
+            ]
+            for item in equipment_items
+            if any(token in item.equipment_type.lower() for token in ["storage", "tank", "drum"])
+        ]
+        thermal_service_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                f"{item.duty_kw:.3f}",
+                f"{item.design_temperature_c:.1f}",
+                f"{item.design_pressure_bar:.2f}",
+                item.material_of_construction,
+                item.design_basis,
+            ]
+            for item in equipment_items
+            if any(token in f"{item.equipment_type} {item.service}".lower() for token in ["exchanger", "reboiler", "condenser", "header", "htm", "utility"])
+        ]
+        rotating_aux_rows = [
+            [
+                pump_design.pump_id,
+                "Transfer pump",
+                pump_design.service,
+                f"{pump_design.flow_m3_hr:.3f}",
+                f"{pump_design.differential_head_m:.3f}",
+                f"{pump_design.power_kw:.3f}",
+                f"{pump_design.npsh_margin_m:.3f}",
+                "Dedicated pump design artifact",
+            ]
+        ] + [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                f"{max(item.volume_m3, 0.0):.3f}",
+                f"{item.design_pressure_bar:.2f}",
+                f"{item.duty_kw:.3f}",
+                "n/a",
+                item.design_basis,
+            ]
+            for item in equipment_items
+            if any(token in f"{item.equipment_type} {item.service}".lower() for token in ["classifier", "filter", "dryer", "circulation", "pump", "compressor", "blower", "fan", "skid"])
+        ]
+        family_map: dict[str, list[str]] = {}
+        for item in datasheets:
+            family_map.setdefault(item.equipment_type, []).append(item.equipment_id)
+        datasheet_coverage_rows = [
+            [family, str(len(ids)), ", ".join(ids[:5]) + (" ..." if len(ids) > 5 else "")]
+            for family, ids in sorted(family_map.items())
+        ]
+        equipment_summary_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                f"{item.volume_m3:.3f}",
+                f"{item.duty_kw:.3f}",
+                f"{item.design_temperature_c:.1f}",
+                f"{item.design_pressure_bar:.2f}",
+                item.material_of_construction,
+                item.design_basis,
+            ]
+            for item in equipment_items
+        ]
+        absorber_package_sections: list[str] = []
+        solids_package_sections: list[str] = []
+        if "absor" in column.service.lower() and column.absorber_packing_family:
+            packed_cross_section = math.pi * (column.column_diameter_m / 2.0) ** 2 * max(1.0 - column.downcomer_area_fraction, 0.25)
+            packed_volume = packed_cross_section * max(column.absorber_packed_height_m, 0.0)
+            effective_area_inventory = column.absorber_effective_interfacial_area_m2_m3 * packed_volume
+            flooding_utilization = column.absorber_operating_velocity_m_s / max(column.absorber_flooding_velocity_m_s, 1e-9)
+            absorber_package_rows = [
+                [
+                    "Packed volume",
+                    "Vpack = (pi / 4) * D^2 * Z",
+                    f"D={column.column_diameter_m:.3f} m; Z={column.absorber_packed_height_m:.3f} m",
+                    f"{packed_volume:.3f} m3",
+                ],
+                [
+                    "Effective interfacial inventory",
+                    "Aeff,total = aeff * Vpack",
+                    f"aeff={column.absorber_effective_interfacial_area_m2_m3:.3f} m2/m3; Vpack={packed_volume:.3f} m3",
+                    f"{effective_area_inventory:.3f} m2",
+                ],
+                [
+                    "Hydraulic operating window",
+                    "vop / vflood",
+                    f"vop={column.absorber_operating_velocity_m_s:.3f} m/s; vflood={column.absorber_flooding_velocity_m_s:.3f} m/s",
+                    f"{flooding_utilization:.4f}",
+                ],
+                [
+                    "Pressure-drop package basis",
+                    "DeltaP = (DeltaP/L) * Z",
+                    f"DeltaP/L={column.absorber_pressure_drop_per_m_kpa_m:.3f} kPa/m; Z={column.absorber_packed_height_m:.3f} m",
+                    f"{column.absorber_total_pressure_drop_kpa:.3f} kPa",
+                ],
+                [
+                    "Wetting excess",
+                    "Wet ratio - 1",
+                    f"Wet ratio={column.absorber_wetting_ratio:.4f}",
+                    f"{max(column.absorber_wetting_ratio - 1.0, 0.0):.4f}",
+                ],
+            ]
+            absorber_package_sections.append(
+                "### Absorber Package Sizing Derivation\n\n"
+                + markdown_table(["Check", "Equation", "Substitution", "Result"], absorber_package_rows)
+            )
+        if "crystallizer" in column.service.lower() and column.crystallizer_key_component:
+            filter_solids_capacity = column.filter_area_m2 * column.filter_cake_throughput_kg_m2_hr
+            solids_per_cycle = filter_solids_capacity / max(column.filter_cycles_per_hr, 1e-9)
+            dryer_area_duty_density = column.dryer_refined_duty_kw / max(column.dryer_heat_transfer_area_m2, 1e-9)
+            classifier_turnover = column.slurry_circulation_rate_m3_hr / max(column.crystallizer_holdup_m3, 1e-9)
+            solids_package_rows = [
+                [
+                    "Classifier turnover",
+                    "Qslurry / Vhold",
+                    f"Qslurry={column.slurry_circulation_rate_m3_hr:.3f} m3/h; Vhold={column.crystallizer_holdup_m3:.3f} m3",
+                    f"{classifier_turnover:.4f} 1/h",
+                ],
+                [
+                    "Filter solids capacity",
+                    "mfilter = A * flux",
+                    f"A={column.filter_area_m2:.3f} m2; flux={column.filter_cake_throughput_kg_m2_hr:.3f} kg/m2-h",
+                    f"{filter_solids_capacity:.3f} kg/h",
+                ],
+                [
+                    "Solids per cycle",
+                    "mcycle = mfilter / fcycle",
+                    f"mfilter={filter_solids_capacity:.3f} kg/h; fcycle={column.filter_cycles_per_hr:.3f} 1/h",
+                    f"{solids_per_cycle:.3f} kg/cycle",
+                ],
+                [
+                    "Dryer area duty density",
+                    "qA = Q / A",
+                    f"Q={column.dryer_refined_duty_kw:.3f} kW; A={column.dryer_heat_transfer_area_m2:.3f} m2",
+                    f"{dryer_area_duty_density:.3f} kW/m2",
+                ],
+                [
+                    "Dry-air moisture pickup",
+                    "mevap / mair",
+                    f"mevap={column.dryer_evaporation_load_kg_hr:.3f} kg/h; mair={column.dryer_dry_air_flow_kg_hr:.3f} kg/h",
+                    f"{(column.dryer_evaporation_load_kg_hr / max(column.dryer_dry_air_flow_kg_hr, 1e-9)):.4f} kg/kg",
+                ],
+            ]
+            solids_package_sections.append(
+                "### Solids Package Sizing Derivation\n\n"
+                + markdown_table(["Check", "Equation", "Substitution", "Result"], solids_package_rows)
+            )
         chapter = self._chapter(
             "equipment_design_sizing",
             "Equipment Design and Sizing",
@@ -2763,8 +4392,55 @@ class PipelineRunner:
                     ["Annual restart loss (kg/y)", f"{operations_planning.annual_restart_loss_kg:,.1f}"],
                 ],
             )
-            + "\n\n"
-            f"{markdown}",
+            + "\n\n### Storage Transfer Pump Basis\n\n"
+            + markdown_table(
+                ["Parameter", "Value"],
+                [
+                    ["Pump id", pump_design.pump_id],
+                    ["Service", pump_design.service],
+                    ["Flow (m3/h)", f"{pump_design.flow_m3_hr:.3f}"],
+                    ["Differential head (m)", f"{pump_design.differential_head_m:.1f}"],
+                    ["Power (kW)", f"{pump_design.power_kw:.3f}"],
+                    ["NPSH margin (m)", f"{pump_design.npsh_margin_m:.3f}"],
+                ],
+            )
+            + "\n\n### Storage and Inventory Vessel Basis\n\n"
+            + markdown_table(
+                ["ID", "Type", "Service", "Volume (m3)", "Design T (C)", "Design P (bar)", "MoC", "Design Basis"],
+                storage_inventory_rows or [[storage.storage_id, "Storage tank", storage.service, f"{storage.total_volume_m3:.3f}", "0.0", "0.0", storage.material_of_construction, "storage basis"]],
+            )
+            + "\n\n### Major Process Equipment Basis\n\n"
+            + markdown_table(
+                ["ID", "Type", "Service", "Volume (m3)", "Duty (kW)", "Design T (C)", "Design P (bar)", "MoC"],
+                major_equipment_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "0.0", "n/a"]],
+            )
+            + "\n\n### Heat Exchanger and Thermal-Service Basis\n\n"
+            + markdown_table(
+                ["ID", "Type", "Service", "Duty (kW)", "Design T (C)", "Design P (bar)", "MoC", "Design Basis"],
+                thermal_service_rows or [[exchanger.exchanger_id, "Heat exchanger", exchanger.service, f"{exchanger.heat_load_kw:.3f}", "0.0", "0.0", "n/a", "thermal-service basis"]],
+            )
+            + "\n\n### Rotating and Auxiliary Package Basis\n\n"
+            + markdown_table(
+                ["ID", "Type", "Service", "Flow/Volume Basis", "Head/Pressure Basis", "Power/Duty (kW)", "NPSH Margin", "Design Basis"],
+                rotating_aux_rows or [[pump_design.pump_id, "Transfer pump", pump_design.service, f"{pump_design.flow_m3_hr:.3f}", f"{pump_design.differential_head_m:.3f}", f"{pump_design.power_kw:.3f}", f"{pump_design.npsh_margin_m:.3f}", "pump basis"]],
+            )
+            + "\n\n### Utility-Coupled Package Inventory\n\n"
+            + markdown_table(
+                ["ID", "Type", "Service", "Volume (m3)", "Duty (kW)", "MoC", "Design Basis"],
+                package_inventory_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "n/a", "n/a"]],
+            )
+            + ("\n\n" + "\n\n".join(absorber_package_sections) if absorber_package_sections else "")
+            + ("\n\n" + "\n\n".join(solids_package_sections) if solids_package_sections else "")
+            + "\n\n### Datasheet Coverage Matrix\n\n"
+            + markdown_table(
+                ["Equipment Family", "Datasheet Count", "Representative IDs"],
+                datasheet_coverage_rows or [["n/a", "0", "n/a"]],
+            )
+            + "\n\n### Equipment-by-Equipment Sizing Summary\n\n"
+            + markdown_table(
+                ["ID", "Type", "Service", "Volume (m3)", "Duty (kW)", "Design T (C)", "Design P (bar)", "MoC", "Design Basis"],
+                equipment_summary_rows,
+            ),
             artifact.citations,
             artifact.assumptions,
             ["storage_design", "pump_design", "equipment_list", "equipment_datasheets", "storage_choice_decision", "moc_choice_decision"],
@@ -2782,14 +4458,290 @@ class PipelineRunner:
 
     def _run_mechanical_design_moc(self) -> StageResult:
         equipment = self._load("equipment_list", EquipmentListArtifact)
+        route = self._selected_route()
         reactor = self._load("reactor_design", ReactorDesign)
         column = self._load("column_design", ColumnDesign)
         exchanger = self._load("heat_exchanger_design", HeatExchangerDesign)
         storage = self._load("storage_design", StorageDesign)
+        pump_design = self._load("pump_design", PumpDesign)
+        moc_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/moc_choice_decision.json", DecisionRecord)
         artifact = build_mechanical_design_artifact(equipment)
         basis = build_mechanical_design_basis(artifact)
         vessel_designs = build_vessel_mechanical_designs(artifact)
-        datasheets = build_equipment_datasheets(equipment, reactor, column, exchanger, storage, artifact, vessel_designs, basis)
+        datasheets = build_equipment_datasheets(equipment, reactor, column, exchanger, storage, pump_design, artifact, vessel_designs, basis)
+        moc_alternative_map = {
+            item.candidate_id: item.description
+            for item in (moc_choice.alternatives if moc_choice else [])
+        }
+
+        def _service_basis(equipment_type: str, service: str) -> str:
+            lowered = f"{equipment_type} {service}".lower()
+            if any(token in lowered for token in ["acid", "chlor", "absor", "scrub"]):
+                return "acidic / gas-treatment service"
+            if any(token in lowered for token in ["crystallizer", "filter", "dryer", "classifier", "slurry", "solid"]):
+                return "solids / abrasive service"
+            if any(token in lowered for token in ["reboiler", "condenser", "exchanger", "steam", "htm", "header", "utility"]):
+                return "thermal / utility service"
+            if "storage" in lowered or "tank" in lowered:
+                return "inventory / storage service"
+            return "general process liquid service"
+
+        def _corrosion_driver(selected_moc: str, service_basis: str, design_temperature_c: float) -> str:
+            lowered = f"{selected_moc} {service_basis}".lower()
+            if "acidic" in lowered or "chlor" in lowered:
+                return "aqueous acid / chloride corrosion screening"
+            if "solids" in lowered or "abrasive" in lowered:
+                return "erosion-abrasion and wet-solids hold-up"
+            if "thermal / utility" in lowered:
+                return "thermal cycling, condensate, and fouling-side exposure"
+            if design_temperature_c >= 180.0:
+                return "elevated-temperature metal-loss allowance"
+            return "general aqueous-organic corrosion allowance basis"
+
+        def _alternate_moc(selected_moc: str, service_basis: str) -> str:
+            lowered = selected_moc.lower()
+            if "rubber" in lowered:
+                return moc_alternative_map.get("ss316l", "SS316L construction")
+            if "alloy" in lowered:
+                return moc_alternative_map.get("ss316l", "SS316L construction")
+            if "316" in lowered or "304" in lowered:
+                return (
+                    moc_alternative_map.get("rubber_lined_cs", "Rubber-lined carbon steel")
+                    if "acidic" in service_basis
+                    else moc_alternative_map.get("carbon_steel", "Carbon steel construction")
+                )
+            return (
+                moc_alternative_map.get("rubber_lined_cs", "Rubber-lined carbon steel")
+                if "acidic" in service_basis
+                else moc_alternative_map.get("ss316l", "SS316L construction")
+            )
+
+        def _inspection_basis(service_basis: str, equipment_type: str) -> str:
+            lowered = f"{service_basis} {equipment_type}".lower()
+            if "acidic" in lowered or "absorber" in lowered or "column" in lowered or "reactor" in lowered:
+                return "thickness survey + nozzle / tray / internals inspection"
+            if "solids" in lowered:
+                return "erosion hotspot, cake-contact, and circulation loop inspection"
+            if "thermal / utility" in lowered:
+                return "tube-side fouling, rack shoe, and support expansion inspection"
+            if "storage" in lowered or "tank" in lowered:
+                return "shell-floor, vent, and nozzle pad inspection"
+            return "periodic shell and connection inspection"
+
+        def _piping_class_basis(selected_moc: str, service_basis: str, pressure_class: str) -> str:
+            lowered = f"{selected_moc} {service_basis}".lower()
+            if "acidic" in lowered:
+                return f"{pressure_class} lined / corrosion-resistant process class"
+            if "solids" in lowered:
+                return f"{pressure_class} abrasion-tolerant slurry service class"
+            if "thermal / utility" in lowered:
+                return f"{pressure_class} thermal-oil / utility piping class"
+            if "storage" in lowered:
+                return f"{pressure_class} tank farm and transfer class"
+            if "316" in lowered or "304" in lowered:
+                return f"{pressure_class} stainless process class"
+            return f"{pressure_class} carbon/alloy steel process class"
+
+        def _maintainability_basis(service_basis: str, support_variant: str, equipment_type: str) -> str:
+            lowered = f"{service_basis} {support_variant} {equipment_type}".lower()
+            if "acidic" in lowered:
+                return "corrosion monitoring, nozzle pad inspection, and internals washdown access"
+            if "solids" in lowered:
+                return "cleanout access, erosion hotspot inspection, and cake-contact maintenance"
+            if "utility" in lowered or "header" in lowered:
+                return "rack access, expansion restraint checks, and isolation spool maintenance"
+            if "storage" in lowered or "tank" in lowered:
+                return "shell-floor inspection, vent maintenance, and transfer-line isolation access"
+            return "platform/ladder access with routine shell and nozzle inspection"
+
+        mechanical_input_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                f"{item.design_pressure_bar:.2f}",
+                f"{item.design_temperature_c:.1f}",
+                f"{item.allowable_stress_mpa:.1f}",
+                f"{item.joint_efficiency:.2f}",
+                f"{item.corrosion_allowance_mm:.2f}",
+                item.pressure_class,
+            ]
+            for item in artifact.items
+        ]
+
+        shell_rows = [
+            [
+                item.equipment_id,
+                "t = P*D / (2*S*J - 1.2*P) + CA",
+                (
+                    f"P={item.design_pressure_bar / 10.0:.3f} MPa; "
+                    f"D≈{max((4.0 * max(eq.volume_m3, 0.5) / (math.pi * 6.0)) ** (1.0 / 3.0), 0.9):.3f} m; "
+                    f"CA={item.corrosion_allowance_mm:.1f} mm"
+                ),
+                f"{item.shell_thickness_mm:.3f}",
+                f"{item.head_thickness_mm:.3f}",
+                f"{item.corrosion_allowance_mm:.3f}",
+                item.pressure_class,
+                f"{item.hydrotest_pressure_bar:.3f}",
+            ]
+            for item in artifact.items
+            for eq in equipment.items
+            if eq.equipment_id == item.equipment_id and item.shell_thickness_mm > 0.0
+        ]
+        support_rows = [
+            [
+                vessel.equipment_id,
+                vessel.support_design.support_load_case,
+                "Wsupport = Wvertical + Wpiping + Wwind + Wseismic",
+                (
+                    f"Wv={vessel.support_design.design_vertical_load_kn:.3f}; "
+                    f"Wp={vessel.support_design.piping_load_kn:.3f}; "
+                    f"Ww={vessel.support_design.wind_load_kn:.3f}; "
+                    f"Ws={vessel.support_design.seismic_load_kn:.3f}"
+                ),
+                f"{vessel.support_design.support_load_basis_kn:.3f}",
+                f"{vessel.support_design.overturning_moment_kn_m:.3f}",
+                f"{vessel.support_design.anchor_bolt_diameter_mm:.3f}",
+                f"{vessel.support_design.base_plate_thickness_mm:.3f}",
+                vessel.support_design.foundation_note,
+            ]
+            for vessel in vessel_designs
+            if vessel.support_design is not None
+        ]
+        nozzle_rows = [
+            [
+                vessel.equipment_id,
+                ", ".join(vessel.nozzle_schedule.nozzle_services),
+                vessel.nozzle_schedule.nozzle_reinforcement_family or "n/a",
+                "Areinf = f(dnozzle, Pdesign, equipment family)",
+                (
+                    f"d={vessel.nozzle_schedule.nozzle_diameters_mm[0]:.1f} mm; "
+                    f"P={next((item.design_pressure_bar for item in artifact.items if item.equipment_id == vessel.equipment_id), 0.0):.2f} bar"
+                ),
+                f"{vessel.nozzle_schedule.reinforcement_area_mm2[0]:.3f}",
+                f"{vessel.nozzle_schedule.local_shell_load_factors[0]:.3f}",
+                vessel.nozzle_schedule.nozzle_pressure_class,
+                ", ".join(f"{load:.2f}" for load in vessel.nozzle_schedule.nozzle_load_cases_kn),
+            ]
+            for vessel in vessel_designs
+            if vessel.nozzle_schedule is not None and vessel.nozzle_schedule.reinforcement_area_mm2
+        ]
+        connection_rows = [
+            [
+                vessel.equipment_id,
+                next((item.support_variant or item.support_type for item in artifact.items if item.equipment_id == vessel.equipment_id), "n/a"),
+                ", ".join(vessel.nozzle_schedule.nozzle_connection_classes),
+                _piping_class_basis(
+                    next((eq.material_of_construction for eq in equipment.items if eq.equipment_id == vessel.equipment_id), "n/a"),
+                    _service_basis(
+                        next((eq.equipment_type for eq in equipment.items if eq.equipment_id == vessel.equipment_id), "n/a"),
+                        next((eq.service for eq in equipment.items if eq.equipment_id == vessel.equipment_id), "n/a"),
+                    ),
+                    vessel.nozzle_schedule.nozzle_pressure_class,
+                ),
+                ", ".join(f"{angle:.0f}" for angle in vessel.nozzle_schedule.nozzle_orientations_deg),
+                ", ".join(f"{projection:.1f}" for projection in vessel.nozzle_schedule.nozzle_projection_mm),
+                "yes" if next((item.pipe_rack_tie_in_required for item in artifact.items if item.equipment_id == vessel.equipment_id), False) else "no",
+            ]
+            for vessel in vessel_designs
+            if vessel.nozzle_schedule is not None
+        ]
+        moc_rows = [
+            [
+                item.equipment_id,
+                item.equipment_type,
+                item.service,
+                item.material_of_construction,
+                f"{item.design_temperature_c:.1f}",
+                f"{item.design_pressure_bar:.2f}",
+                (
+                    "corrosive liquid / absorber service"
+                    if "acid" in item.service.lower() or "absor" in item.service.lower()
+                    else "solids handling / abrasive service"
+                    if any(token in item.service.lower() for token in ["crystallizer", "filter", "dryer", "classifier"])
+                    else "general process service"
+                ),
+            ]
+            for item in equipment.items
+        ]
+        inspection_rows = [
+            [
+                item.equipment_id,
+                _service_basis(item.equipment_type, item.service),
+                _inspection_basis(_service_basis(item.equipment_type, item.service), item.equipment_type),
+                _maintainability_basis(
+                    _service_basis(item.equipment_type, item.service),
+                    next((mechanical_item.support_variant for mechanical_item in artifact.items if mechanical_item.equipment_id == item.equipment_id), ""),
+                    item.equipment_type,
+                ),
+                "yes" if next((mechanical_item.maintenance_platform_required for mechanical_item in artifact.items if mechanical_item.equipment_id == item.equipment_id), False) else "no",
+                "yes" if next((mechanical_item.access_ladder_required for mechanical_item in artifact.items if mechanical_item.equipment_id == item.equipment_id), False) else "no",
+            ]
+            for item in equipment.items
+        ]
+        moc_option_rows = [
+            [
+                option.candidate_id,
+                option.description,
+                f"{option.total_score:.2f}",
+                "selected" if moc_choice and option.candidate_id == moc_choice.selected_candidate_id else "alternate",
+                "yes" if option.feasible else "no",
+                "; ".join(option.rejected_reasons) or "screening-feasible",
+            ]
+            for option in (moc_choice.alternatives if moc_choice else [])
+        ]
+        moc_justification_rows = [
+            [
+                item.equipment_id,
+                _service_basis(item.equipment_type, item.service),
+                _corrosion_driver(item.material_of_construction, _service_basis(item.equipment_type, item.service), item.design_temperature_c),
+                item.material_of_construction,
+                _alternate_moc(item.material_of_construction, _service_basis(item.equipment_type, item.service)),
+                _inspection_basis(_service_basis(item.equipment_type, item.service), item.equipment_type),
+                (
+                    f"{item.material_of_construction} retained for {route.route_family_id if hasattr(route, 'route_family_id') else route.route_id} "
+                    f"because { _service_basis(item.equipment_type, item.service) } controls the screening basis."
+                ),
+            ]
+            for item in equipment.items
+        ]
+        utility_moc_rows = [
+            [
+                service_class,
+                ", ".join(sorted(item.equipment_id for item in members)),
+                ", ".join(sorted({item.material_of_construction for item in members})),
+                primary_driver,
+                piping_basis,
+            ]
+            for service_class, members, primary_driver, piping_basis in [
+                (
+                    "Storage and inventory systems",
+                    [item for item in equipment.items if "storage" in item.equipment_type.lower() or "tank" in item.equipment_type.lower()],
+                    "inventory breathing, drainage, and shell-floor exposure",
+                    "tank nozzle and vent classes follow selected vessel pressure class basis",
+                ),
+                (
+                    "Thermal and utility packages",
+                    [item for item in equipment.items if any(token in f"{item.equipment_type} {item.service}".lower() for token in ["reboiler", "condenser", "exchanger", "header", "htm", "utility"])],
+                    "thermal cycling, condensation, and fouling-side service",
+                    "utility headers and exchanger nozzles inherit screening connection classes from mechanical basis",
+                ),
+                (
+                    "Primary process vessels",
+                    [item for item in equipment.items if item.equipment_id in {reactor.reactor_id, column.column_id}],
+                    "core reaction / separation chemistry and cleanability",
+                    "primary process connections follow equipment pressure class and nozzle reinforcement family",
+                ),
+            ]
+            if members
+        ]
+        corrosion_rows = [
+            ["Selected MoC decision", moc_choice.selected_candidate_id if moc_choice else "n/a"],
+            ["Decision summary", moc_choice.selected_summary if moc_choice else "n/a"],
+            ["Route family service", route.route_family_id if hasattr(route, "route_family_id") else route.route_id],
+            ["Storage material", storage.material_of_construction],
+            ["Reactor material", next((item.material_of_construction for item in equipment.items if item.equipment_id == reactor.reactor_id), "n/a")],
+            ["Main separation material", next((item.material_of_construction for item in equipment.items if item.equipment_id == column.column_id), "n/a")],
+        ]
         self._save("mechanical_design", artifact)
         self._save("mechanical_design_basis", basis)
         self._save(
@@ -2835,6 +4787,11 @@ class PipelineRunner:
                     ["Access platform basis", basis.access_platform_basis],
                 ],
             )
+            + "\n\n### Mechanical Design Input Matrix\n\n"
+            + markdown_table(
+                ["Equipment", "Type", "Pdesign (bar)", "Tdesign (C)", "Allowable Stress (MPa)", "Joint Efficiency", "CA (mm)", "Pressure Class"],
+                mechanical_input_rows or [["n/a", "n/a", "0.0", "0.0", "0.0", "0.0", "0.0", "n/a"]],
+            )
             + "\n\n"
             + markdown_table(
                 ["Equipment", "Load Case", "Support Load (kN)", "Wind (kN)", "Seismic (kN)", "Piping (kN)", "Anchor Bolt (mm)", "Base Plate (mm)", "Platform", "Platform Area (m2)"],
@@ -2874,6 +4831,56 @@ class PipelineRunner:
                 ]
                 or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
             )
+            + "\n\n### Shell and Head Thickness Derivation\n\n"
+            + markdown_table(
+                ["Equipment", "Equation", "Substitution", "Shell t (mm)", "Head t (mm)", "CA (mm)", "Pressure Class", "Hydrotest (bar)"],
+                shell_rows or [["n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "n/a", "0.0"]],
+            )
+            + "\n\n### Support and Overturning Derivation\n\n"
+            + markdown_table(
+                ["Equipment", "Load Case", "Equation", "Substitution", "Support Load (kN)", "Overturning (kN.m)", "Anchor Bolt (mm)", "Base Plate (mm)", "Foundation Note"],
+                support_rows or [["n/a", "n/a", "n/a", "n/a", "0.0", "0.0", "0.0", "0.0", "n/a"]],
+            )
+            + "\n\n### Nozzle Reinforcement and Connection Basis\n\n"
+            + markdown_table(
+                ["Equipment", "Services", "Reinforcement Family", "Equation", "Substitution", "Area (mm2)", "Shell Factor", "Class", "Load Cases (kN)"],
+                nozzle_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "0.0", "0.0", "n/a", "0.0"]],
+            )
+            + "\n\n### Connection and Piping Class Basis\n\n"
+            + markdown_table(
+                ["Equipment", "Support Variant", "Connection Classes", "Piping Class Basis", "Orientations (deg)", "Projections (mm)", "Rack Tie-In"],
+                connection_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Material of Construction Matrix\n\n"
+            + markdown_table(
+                ["Equipment", "Type", "Service", "Selected MoC", "Design T (C)", "Design P (bar)", "Service Basis"],
+                moc_rows or [["n/a", "n/a", "n/a", "n/a", "0.0", "0.0", "n/a"]],
+            )
+            + "\n\n### MoC Option Screening\n\n"
+            + markdown_table(
+                ["Candidate", "Description", "Score", "Role", "Feasible", "Screening Notes"],
+                moc_option_rows or [["n/a", "n/a", "0.0", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Equipment-Wise MoC Justification Matrix\n\n"
+            + markdown_table(
+                ["Equipment", "Service Basis", "Corrosion Driver", "Selected MoC", "Alternate MoC", "Inspection / Cleaning Basis", "Rationale"],
+                moc_justification_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Inspection and Maintainability Basis\n\n"
+            + markdown_table(
+                ["Equipment", "Service Basis", "Inspection Basis", "Maintainability Basis", "Platform", "Ladder"],
+                inspection_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Corrosion and Service Basis\n\n"
+            + markdown_table(
+                ["Parameter", "Value"],
+                corrosion_rows,
+            )
+            + "\n\n### Utility and Storage MoC Basis\n\n"
+            + markdown_table(
+                ["Service Class", "Equipment", "Typical MoC", "Primary Driver", "Piping / Connection Basis"],
+                utility_moc_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
             + "\n\n### Nozzle and Connection Schedule\n\n"
             + markdown_table(
                 ["Equipment", "Pressure Class", "Hydrotest (bar)", "Reinforcement Family", "Nozzle Services", "Connection Classes", "Orientations (deg)", "Projections (mm)", "Shell Factors", "Load Cases (kN)"],
@@ -2896,10 +4903,14 @@ class PipelineRunner:
                 or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
             ),
             artifact.citations or equipment.citations,
-            artifact.assumptions + ["Mechanical chapter now uses deterministic screening calculations for shell thickness, nozzles, support load cases, foundation/access basis, and connection classes."],
+            artifact.assumptions
+            + [
+                "Mechanical chapter now uses deterministic screening calculations for shell thickness, nozzles, support load cases, foundation/access basis, connection classes, piping class basis, and equipment-wise material of construction basis with alternates and service rationale.",
+                "Inspection and maintainability basis remains feasibility-level screening, but it now follows service class, support variant, and access provisions equipment by equipment.",
+            ],
             ["mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs", "equipment_datasheets"],
             required_inputs=["equipment_list", "route_selection"],
-            summary="Mechanical design chapter includes screening shell thickness, nozzle schedules, support and foundation load cases, and preliminary access/platform calculations for major equipment.",
+            summary="Mechanical design chapter includes screening shell/head/nozzle/support derivations, piping/connection basis, MoC option screening, inspection/maintainability basis, and equipment-wise material-of-construction justification.",
         )
         issues = validate_mechanical_design_artifact(artifact) + self._value_issues(artifact, "mechanical_design") + self._chapter_issues(chapter)
         return StageResult(chapters=[chapter], issues=issues)
@@ -2909,6 +4920,8 @@ class PipelineRunner:
         equipment = self._load("equipment_list", EquipmentListArtifact)
         energy = self._load("energy_balance", EnergyBalance)
         column = self._load("column_design", ColumnDesign)
+        operations_planning = self._load("operations_planning", OperationsPlanningArtifact)
+        pump_design = self._load("pump_design", PumpDesign)
         site = self._load("site_selection", SiteSelectionArtifact)
         utility_network = self._selected_utility_network()
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision) or build_utility_architecture_decision(utility_network, energy)
@@ -2941,6 +4954,235 @@ class PipelineRunner:
         resolved_values = extend_resolved_value_artifact(resolved_values, artifact.value_records, resolved_sources, self.config, "utility_summary")
         self._save("resolved_values", resolved_values)
         rows = [[item.utility_type, f"{item.load:.3f}", item.units, item.basis] for item in artifact.items]
+        annual_operating_hours = self.config.basis.annual_operating_days * 24.0
+
+        def _annualized_usage(load: float, units: str) -> str:
+            lowered = units.lower()
+            if lowered in {"kw", "kwh/h"}:
+                annual_units = "kWh/y"
+            elif lowered == "kg/h":
+                annual_units = "kg/y"
+            elif lowered == "m3/h":
+                annual_units = "m3/y"
+            elif lowered == "nm3/h":
+                annual_units = "Nm3/y"
+            else:
+                annual_units = f"{units}*h/y"
+            return f"{load * annual_operating_hours:.1f} {annual_units}"
+
+        def _cost_proxy(item) -> str:
+            lowered = item.utility_type.lower()
+            if "steam" in lowered:
+                return f"{item.load * annual_operating_hours * utility_basis.steam_cost_inr_per_kg:.0f} INR/y"
+            if "cooling water" in lowered:
+                return f"{item.load * annual_operating_hours * utility_basis.cooling_water_cost_inr_per_m3:.0f} INR/y"
+            if "electricity" in lowered or "heat-integration auxiliaries" in lowered:
+                return f"{item.load * annual_operating_hours * utility_basis.power_cost_inr_per_kwh:.0f} INR/y"
+            return "screening service allowance"
+
+        def _peak_factor(item) -> float:
+            lowered = item.utility_type.lower()
+            if "steam" in lowered:
+                return 1.08
+            if "cooling water" in lowered:
+                return 1.10
+            if "electricity" in lowered or "heat-integration auxiliaries" in lowered:
+                return 1.15
+            if "nitrogen" in lowered:
+                return 1.20
+            return 1.05
+
+        def _service_system_basis(item) -> tuple[str, str, str]:
+            lowered = item.utility_type.lower()
+            if "steam" in lowered:
+                return (
+                    f"{utility_basis.steam_pressure_bar:.1f} bar saturated steam header",
+                    "reactor heating, reboiler duty, and dryer endpoint polish",
+                    "1 x operating + startup margin on steam letdown / control valve basis",
+                )
+            if "cooling water" in lowered:
+                return (
+                    "recirculating cooling-water network with 10 C rise",
+                    "condenser duty, exchanger cooling, and thermal packet cold-side service",
+                    "peak summer duty covered by screening CW oversizing factor",
+                )
+            if "electricity" in lowered or "heat-integration auxiliaries" in lowered:
+                return (
+                    "plant electrical distribution / MCC basis",
+                    "agitation, pumping, fans, controls, and heat-recovery auxiliaries",
+                    "feasibility standby allowance embedded in peak demand factor",
+                )
+            if "dm water" in lowered:
+                return (
+                    "demineralized water and wash-service header",
+                    "boiler make-up, washdown, and utility support",
+                    "intermittent demand carried as service allowance rather than dedicated redundancy",
+                )
+            if "nitrogen" in lowered:
+                return (
+                    "nitrogen blanketing / inerting manifold",
+                    "storage blanketing, shutdown purge, and inert atmosphere protection",
+                    "peak inerting event handled by conservative surge factor",
+                )
+            return (
+                "screening plant service basis",
+                item.basis,
+                "feasibility-level allowance",
+            )
+
+        heating_contributors = sorted(
+            [duty for duty in energy.duties if duty.heating_kw > 0.0],
+            key=lambda duty: duty.heating_kw,
+            reverse=True,
+        )
+        cooling_contributors = sorted(
+            [duty for duty in energy.duties if duty.cooling_kw > 0.0],
+            key=lambda duty: duty.cooling_kw,
+            reverse=True,
+        )
+
+        def _utility_contributor_rows() -> list[list[str]]:
+            contributor_rows: list[list[str]] = []
+            for duty in heating_contributors[:3]:
+                contributor_rows.append(["Steam", duty.unit_id, f"{duty.heating_kw:.3f} kW", duty.notes or "heating duty from unit energy balance"])
+            for duty in cooling_contributors[:3]:
+                contributor_rows.append(["Cooling water", duty.unit_id, f"{duty.cooling_kw:.3f} kW", duty.notes or "cooling duty from unit energy balance"])
+            contributor_rows.append(
+                [
+                    "Electricity",
+                    pump_design.pump_id,
+                    f"{pump_design.power_kw:.3f} kW",
+                    "storage transfer and dispatch pumping basis",
+                ]
+            )
+            if "absorption" in column.service.lower() and column.absorber_total_pressure_drop_kpa > 0.0:
+                contributor_rows.append(
+                    [
+                        "Electricity",
+                        column.column_id,
+                        f"{max(column.absorber_total_pressure_drop_kpa * max(column.absorber_operating_velocity_m_s, 0.1), 0.0):.3f} screening index",
+                        "absorber hydraulics and packing pressure-drop penalty",
+                    ]
+                )
+            if "crystallizer" in column.service.lower() and column.dryer_refined_duty_kw > 0.0:
+                contributor_rows.append(
+                    [
+                        "Electricity/Steam",
+                        column.column_id,
+                        f"{column.dryer_refined_duty_kw:.3f} kW",
+                        "solids auxiliaries and dryer endpoint service",
+                    ]
+                )
+            if utility_architecture.architecture.selected_train_steps:
+                contributor_rows.append(
+                    [
+                        "Heat-integration auxiliaries",
+                        utility_architecture.architecture.selected_case_id or "selected_train",
+                        f"{artifact.selected_train_recovered_duty_kw:.3f} kW recovered",
+                        "selected heat-recovery train circulation, controls, and HTM support",
+                    ]
+                )
+            contributor_rows.append(
+                [
+                    "Nitrogen",
+                    storage.storage_id,
+                    f"{next((item.load for item in artifact.items if item.utility_type.lower() == 'nitrogen'), 0.0):.3f} Nm3/h",
+                    "storage blanketing and inerting demand",
+                ]
+            )
+            contributor_rows.append(
+                [
+                    "DM water",
+                    "boiler_makeup_and_wash",
+                    f"{next((item.load for item in artifact.items if item.utility_type.lower() == 'dm water'), 0.0):.3f} m3/h",
+                    "boiler make-up and wash-service allowance",
+                ]
+            )
+            return contributor_rows
+
+        storage_rows = [
+            [item.equipment_id, item.service, item.equipment_type, item.material_of_construction, f"{item.volume_m3:.3f}", item.design_basis]
+            for item in equipment.items
+            if "storage" in item.equipment_type.lower() or "tank" in item.equipment_type.lower()
+        ]
+        storage_policy_rows = [
+            ["Recommended operating mode", operations_planning.recommended_operating_mode],
+            ["Availability policy", operations_planning.availability_policy_label],
+            ["Raw-material buffer (d)", f"{operations_planning.raw_material_buffer_days:.1f}"],
+            ["Finished-goods buffer (d)", f"{operations_planning.finished_goods_buffer_days:.1f}"],
+            ["Operating stock (d)", f"{operations_planning.operating_stock_days:.1f}"],
+            ["Dispatch buffer (d)", f"{storage.dispatch_buffer_days:.1f}"],
+            ["Restart buffer (d)", f"{storage.restart_buffer_days:.1f}"],
+            ["Campaign length (d)", f"{operations_planning.campaign_length_days:.1f}"],
+            ["Startup ramp (d)", f"{operations_planning.startup_ramp_days:.1f}"],
+            ["Restart loss fraction", f"{operations_planning.restart_loss_fraction:.4f}"],
+            ["Annual restart loss (kg/y)", f"{operations_planning.annual_restart_loss_kg:,.1f}"],
+            ["Turnaround buffer factor", f"{storage.turnaround_buffer_factor:.3f}"],
+            ["Shared buffer basis", operations_planning.buffer_basis_note or "operations-planning basis"],
+        ]
+        utility_summary_rows = [
+            [
+                item.utility_type,
+                f"{item.load:.3f}",
+                item.units,
+                _annualized_usage(item.load, item.units),
+                item.basis,
+            ]
+            for item in artifact.items
+        ]
+        utility_peak_rows = [
+            [
+                item.utility_type,
+                f"{item.load:.3f}",
+                item.units,
+                f"{_peak_factor(item):.2f}",
+                f"{item.load * _peak_factor(item):.3f}",
+                _annualized_usage(item.load, item.units),
+                _cost_proxy(item),
+            ]
+            for item in artifact.items
+        ]
+        selected_architecture = utility_architecture.architecture
+        utility_system_rows = [
+            [
+                item.utility_type,
+                *_service_system_basis(item),
+            ]
+            for item in artifact.items
+        ]
+        island_rows = [
+            [
+                island.island_id,
+                island.architecture_role,
+                str(island.header_level),
+                island.cluster_id or "-",
+                f"{island.recovered_duty_kw:.3f}",
+                f"{island.target_recovered_duty_kw:.3f}",
+                f"{island.shared_htm_inventory_m3:.3f}",
+                f"{island.header_design_pressure_bar:.3f}",
+                f"{island.control_complexity_factor:.3f}",
+            ]
+            for case in selected_architecture.cases
+            if case.case_id == selected_architecture.selected_case_id
+            for island in case.utility_islands
+        ]
+        header_rows = [
+            [
+                step.step_id,
+                step.island_id or "-",
+                str(step.header_level),
+                step.cluster_id or "-",
+                package.package_role,
+                package.package_family or "-",
+                f"{package.design_pressure_bar:.2f}",
+                f"{package.design_temperature_c:.1f}",
+                package.service,
+            ]
+            for step in selected_architecture.selected_train_steps
+            for package in step.package_items
+            if package.package_role in {"header", "circulation", "controls", "relief"}
+        ]
+        utility_demand_rows = _utility_contributor_rows()
         selected_case = selected_heat_case(utility_network)
         markdown = (
             "### Storage Basis\n\n"
@@ -2952,6 +5194,16 @@ class PipelineRunner:
                     ["Total volume (m3)", f"{storage.total_volume_m3:.3f}"],
                     ["Material of construction", storage.material_of_construction],
                 ],
+            )
+            + "\n\n### Storage Inventory and Buffer Basis\n\n"
+            + markdown_table(
+                ["Parameter", "Value"],
+                storage_policy_rows,
+            )
+            + "\n\n### Storage Service Matrix\n\n"
+            + markdown_table(
+                ["Equipment", "Service", "Type", "MoC", "Volume (m3)", "Design Basis"],
+                storage_rows or [[storage.storage_id, storage.service, "storage", storage.material_of_construction, f"{storage.total_volume_m3:.3f}", "plant storage basis"]],
             )
             + "\n\n### Selected Heat Integration\n\n"
             + markdown_table(
@@ -2973,8 +5225,38 @@ class PipelineRunner:
                     ["Power cost (INR/kWh)", f"{utility_basis.power_cost_inr_per_kwh:.2f}"],
                 ],
             )
+            + "\n\n### Utility Consumption Summary\n\n"
+            + markdown_table(
+                ["Utility", "Load", "Units", "Annualized Proxy", "Basis"],
+                utility_summary_rows or [["n/a", "0.0", "n/a", "0.0", "n/a"]],
+            )
+            + "\n\n### Utility Service System Matrix\n\n"
+            + markdown_table(
+                ["Utility System", "Supply Basis", "Primary Services", "Standby / Design Note"],
+                utility_system_rows or [["n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Utility Peak and Annualized Demand\n\n"
+            + markdown_table(
+                ["Utility", "Normal Load", "Units", "Peak Factor", "Peak Load", "Annualized Usage", "Cost Proxy"],
+                utility_peak_rows or [["n/a", "0.0", "n/a", "1.00", "0.0", "0.0", "n/a"]],
+            )
+            + "\n\n### Utility Demand by Major Unit\n\n"
+            + markdown_table(
+                ["Utility", "Contributor", "Estimated Demand", "Basis"],
+                utility_demand_rows or [["n/a", "n/a", "0.0", "n/a"]],
+            )
             + "\n\n### Utilities\n\n"
             + markdown_table(["Utility", "Load", "Units", "Basis"], rows)
+            + "\n\n### Utility Island Service Basis\n\n"
+            + markdown_table(
+                ["Island", "Role", "Header Level", "Cluster", "Recovered Duty (kW)", "Target Duty (kW)", "HTM Inventory (m3)", "Header Pressure (bar)", "Control Complexity"],
+                island_rows or [["n/a", "n/a", "0", "-", "0.0", "0.0", "0.0", "0.0", "0.0"]],
+            )
+            + "\n\n### Header and Thermal-Loop Basis\n\n"
+            + markdown_table(
+                ["Step", "Island", "Header", "Cluster", "Role", "Family", "Pressure (bar)", "Temperature (C)", "Service"],
+                header_rows or [["n/a", "-", "0", "-", "n/a", "-", "0.0", "0.0", "n/a"]],
+            )
             + "\n\n### Utility Architecture\n\n"
             + utility_architecture.markdown
         )
@@ -2986,7 +5268,7 @@ class PipelineRunner:
             sorted(set(storage.citations + artifact.citations + utility_network.citations + utility_basis_decision.citations)),
             storage.assumptions + artifact.assumptions + utility_network.assumptions + utility_basis_decision.assumptions,
             ["utility_summary", "utility_basis_decision", "utility_architecture"],
-            required_inputs=["storage_design", "equipment_list", "energy_balance", "utility_network_decision"],
+            required_inputs=["storage_design", "equipment_list", "energy_balance", "operations_planning", "pump_design", "utility_network_decision"],
         )
         issues = (
             validate_decision_record(utility_basis_decision, "utility_basis_decision")
@@ -3013,13 +5295,119 @@ class PipelineRunner:
         self._save("control_plan", artifact)
         self._save("control_architecture", control_architecture)
         self._refresh_agent_fabric()
-        rows = [[loop.control_id, loop.controlled_variable, loop.manipulated_variable, loop.sensor, loop.actuator] for loop in artifact.control_loops]
+        rows = [
+            [
+                loop.control_id,
+                loop.unit_id or "-",
+                loop.loop_family or "-",
+                loop.controlled_variable,
+                loop.manipulated_variable,
+                loop.sensor,
+                loop.actuator,
+                loop.criticality or "-",
+            ]
+            for loop in artifact.control_loops
+        ]
+        loop_detail_rows = [
+            [
+                loop.control_id,
+                loop.unit_id or "-",
+                loop.controlled_variable,
+                loop.manipulated_variable,
+                loop.objective or loop.notes,
+                loop.disturbance_basis or "-",
+                loop.criticality or "-",
+            ]
+            for loop in artifact.control_loops
+        ]
+        startup_rows = [
+            [
+                loop.control_id,
+                loop.startup_logic or "standard startup permissive",
+                loop.shutdown_logic or "standard shutdown rundown",
+                loop.override_logic or "basic operator override",
+            ]
+            for loop in artifact.control_loops
+        ]
+        safeguard_rows = [
+            [
+                loop.control_id,
+                f"High/low {loop.controlled_variable}",
+                "alarm + operator response" if (loop.criticality or "").lower() != "high" else "alarm + override / interlock response",
+                loop.safeguard_linkage or f"Protects {loop.manipulated_variable.lower()} basis",
+            ]
+            for loop in artifact.control_loops
+        ]
+        loopsheet_rows = [
+            [
+                loop.control_id,
+                loop.unit_id or "-",
+                loop.loop_family or "-",
+                loop.sensor,
+                loop.actuator,
+                loop.objective or loop.notes,
+                loop.startup_logic or "-",
+                loop.override_logic or "-",
+            ]
+            for loop in artifact.control_loops
+        ]
+        utility_link_rows = [
+            [
+                item.utility_type,
+                f"{item.load:.3f} {item.units}",
+                (
+                    "temperature / pressure loops depend on steam or cooling-service availability"
+                    if item.utility_type.lower() in {"steam", "cooling water"}
+                    else "inventory, purge, or protective logic references this plant utility service"
+                ),
+            ]
+            for item in utilities.items
+        ]
         markdown = (
             artifact.markdown
+            + "\n\n### Control Philosophy\n\n"
+            + markdown_table(
+                ["Parameter", "Value"],
+                [
+                    ["Selected architecture", control_architecture.decision.selected_candidate_id or "n/a"],
+                    ["Critical units", ", ".join(control_architecture.critical_units) or "none"],
+                    ["Loop count", str(len(artifact.control_loops))],
+                    ["Utility services linked", str(len(utilities.items))],
+                    ["High-criticality loops", str(sum(1 for loop in artifact.control_loops if (loop.criticality or '').lower() == 'high'))],
+                ],
+            )
             + "\n\n### Control Architecture Decision\n\n"
             + control_architecture.markdown
-            + "\n\n### Control Loops\n\n"
-            + markdown_table(["Loop", "Controlled variable", "Manipulated variable", "Sensor", "Actuator"], rows)
+            + "\n\n### Loop Objective Matrix\n\n"
+            + markdown_table(
+                ["Loop", "Unit", "Controlled Variable", "Manipulated Variable", "Objective", "Disturbance Basis", "Criticality"],
+                loop_detail_rows or [["n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Controlled and Manipulated Variable Register\n\n"
+            + markdown_table(
+                ["Loop", "Unit", "Family", "Controlled Variable", "Manipulated Variable", "Sensor", "Actuator", "Criticality"],
+                rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Startup, Shutdown, and Override Basis\n\n"
+            + markdown_table(
+                ["Loop", "Startup Logic", "Shutdown Logic", "Override / Permissive Basis"],
+                startup_rows or [["n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Alarm and Interlock Basis\n\n"
+            + markdown_table(
+                ["Loop", "Deviation", "Protective Layer", "Purpose"],
+                safeguard_rows or [["n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Utility-Integrated Control Basis\n\n"
+            + markdown_table(
+                ["Utility", "Load", "Control Linkage"],
+                utility_link_rows or [["n/a", "0.0", "n/a"]],
+            )
+            + "\n\n### Control Loop Sheets\n\n"
+            + markdown_table(
+                ["Loop", "Unit", "Family", "Sensor", "Actuator", "Objective", "Startup Basis", "Override Basis"],
+                loopsheet_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
         )
         chapter = self._chapter(
             "instrumentation_control",
@@ -3031,7 +5419,7 @@ class PipelineRunner:
             ["control_plan", "control_architecture"],
             required_inputs=["equipment_list", "utility_summary", "flowsheet_graph"],
         )
-        issues = validate_control_architecture(control_architecture) + self._chapter_issues(chapter)
+        issues = validate_control_plan(artifact) + validate_control_architecture(control_architecture) + self._chapter_issues(chapter)
         return StageResult(chapters=[chapter], issues=issues)
 
     def _run_hazop_she(self) -> StageResult:
@@ -3039,14 +5427,221 @@ class PipelineRunner:
         equipment = self._load("equipment_list", EquipmentListArtifact)
         flowsheet_graph = self._load("flowsheet_graph", FlowsheetGraph)
         control_plan = self._load("control_plan", ControlPlanArtifact)
+        utilities = self._load("utility_summary", UtilitySummaryArtifact)
         register = build_hazop_node_register(route, equipment, flowsheet_graph, control_plan)
         hazop = HazopStudyArtifact(nodes=register.nodes, markdown=register.markdown, citations=register.citations, assumptions=register.assumptions)
         self._save("hazop_study", hazop)
         self._save("hazop_node_register", register)
         she = self.reasoning.build_safety_environment(self.config.basis, route.model_dump_json(indent=2), hazop.model_dump_json(indent=2))
         self._save("safety_environment", she)
-        hazop_chapter = self._chapter("hazop", "HAZOP", "hazop_she", hazop.markdown, hazop.citations, hazop.assumptions, ["hazop_study", "hazop_node_register"], required_inputs=["equipment_list", "route_selection", "flowsheet_graph", "control_plan"])
-        she_chapter = self._chapter("safety_health_environment_waste", "Safety, Health, Environment, and Waste Management", "hazop_she", she.markdown, she.citations or route.citations or equipment.citations, she.assumptions + register.assumptions, ["safety_environment"], required_inputs=["equipment_list", "route_selection", "flowsheet_graph", "control_plan"], summary=she.summary)
+        hazop_summary_rows = [
+            ["Node count", str(len(register.nodes))],
+            ["High-severity route hazards", str(sum(1 for hazard in route.hazards if hazard.severity == "high"))],
+            ["Control loops linked", str(len(control_plan.control_loops))],
+            ["Coverage summary", register.coverage_summary],
+            ["Node families", ", ".join(sorted({node.node_family for node in register.nodes})) or "none"],
+        ]
+        critical_node_rows = [
+            [
+                node.node_id,
+                node.node_family or "-",
+                node.deviation or f"{node.guide_word} {node.parameter}",
+                node.parameter,
+                node.guide_word,
+                node.consequence_severity or "-",
+                "; ".join(node.consequences),
+                "; ".join(node.safeguards),
+            ]
+            for node in register.nodes
+        ]
+        node_basis_rows = [
+            [
+                node.node_id,
+                node.node_family or "-",
+                node.design_intent or "-",
+                node.parameter,
+                node.guide_word,
+                node.deviation or "-",
+                "; ".join(node.linked_control_loops) or "-",
+            ]
+            for node in register.nodes
+        ]
+        deviation_rows = [
+            [
+                node.node_id,
+                node.deviation or f"{node.guide_word} {node.parameter}",
+                "; ".join(node.causes),
+                "; ".join(node.consequences),
+                "; ".join(node.safeguards),
+            ]
+            for node in register.nodes
+        ]
+        recommendation_rows = [
+            [
+                node.node_id,
+                node.recommendation_priority or "-",
+                node.recommendation_status or "-",
+                node.recommendation,
+                "; ".join(node.causes),
+            ]
+            for node in register.nodes
+        ]
+        safety_rows = [
+            [hazard.severity.title(), hazard.description, hazard.safeguard]
+            for hazard in route.hazards
+        ] or [["Moderate", "Generic process upset and containment risk", "Use route-selected safeguards and HAZOP recommendations."]]
+        emergency_rows = [
+            [
+                node.node_id,
+                node.deviation or f"{node.guide_word} {node.parameter}",
+                (
+                    "isolate feeds, stabilize utilities, and hold inventory in safe containment"
+                    if node.node_family in {"reactor", "column_or_main_separation", "absorber"}
+                    else "stop transfer / circulation and move to contained safe state"
+                ),
+                "; ".join(node.safeguards) or "alarm and manual response",
+                node.recommendation,
+            ]
+            for node in register.nodes
+        ]
+        health_rows = [
+            [
+                "Operator exposure",
+                "feed / product / intermediate contact and vapor release during sampling, transfer, and upset response",
+                "exposure monitoring at sampling, transfer, and vent-handling points",
+                "service-specific PPE, chemical-resistant gloves, eye protection, and respiratory precautions where indicated",
+                "linked to selected route family and HAZOP node families",
+            ],
+            [
+                "Maintenance exposure",
+                "equipment opening, filter / cake handling, exchanger cleaning, and confined-space entry risk",
+                "permit-to-work, isolation verification, and post-cleaning gas test basis",
+                "maintenance PPE upgraded for corrosive, hot, or solids-bearing service",
+                "applies during shutdown, cleanup, and turnaround activity",
+            ],
+            [
+                "Training and competency",
+                "routine operating, emergency isolation, inerting, and chemical handling scenarios",
+                "startup, shutdown, and emergency drill coverage tied to critical loops and HAZOP nodes",
+                "role-specific operating and emergency response training",
+                "control philosophy and HAZOP outputs are used as the training basis",
+            ],
+        ]
+        environment_rows = [
+            [
+                "Air emissions",
+                "vent, offgas, absorber discharge, dryer exhaust, and utility-release points remain tied to selected separation and utility architecture",
+                "route-family vent routing, control-loop-linked upset response, and utility-integrated safeguards",
+                "periodic vent / stack monitoring plus upset-event logging",
+            ],
+            [
+                "Wastewater",
+                "aqueous purge, wash, and cleanup streams require segregation by corrosive / solids / organics burden",
+                "segregated collection, neutralization / equalization, and load-based downstream treatment",
+                "screening effluent characterization and routed discharge control",
+            ],
+            [
+                "Solid and hazardous waste",
+                "filter cake, spent media, catalyst, contaminated solids, and maintenance residues require route-family-specific handling",
+                "contained storage, labeled handling, recovery / disposal routing, and turnaround waste segregation",
+                "batch / campaign waste tracking and controlled offsite disposition basis",
+            ],
+        ]
+        waste_rows = [
+            [
+                "Vent / offgas condensate and purge",
+                "reactor, separation, and utility upset / normal purge points",
+                "segregate by corrosive / organic / inerted service and route to recovery or controlled treatment",
+                "selected route-family vent handling basis",
+            ],
+            [
+                "Aqueous wash and cleanup streams",
+                "sampling, washdown, maintenance, and aqueous separation service",
+                "collect separately and treat as route-specific wastewater load",
+                "neutralization / equalization before discharge screening",
+            ],
+            [
+                "Solid waste and contaminated media",
+                "filters, dryers, catalyst/media replacement, and solids cleanup",
+                "closed handling, labeled storage, and recovery / disposal by waste class",
+                "solid-waste and hazardous-waste routing basis",
+            ],
+        ]
+        environmental_control_rows = [
+            [
+                item.utility_type,
+                f"{item.load:.3f} {item.units}",
+                (
+                    "utility reliability is tied to SHE performance for temperature / pressure / inerting control"
+                    if item.utility_type.lower() in {"steam", "cooling water", "nitrogen"}
+                    else "utility demand contributes to environmental load and emergency operability basis"
+                ),
+            ]
+            for item in utilities.items
+        ]
+        hazop_markdown = (
+            "### HAZOP Coverage Summary\n\n"
+            + markdown_table(["Parameter", "Value"], hazop_summary_rows)
+            + "\n\n### HAZOP Node Basis\n\n"
+            + markdown_table(
+                ["Node", "Family", "Design Intent", "Parameter", "Guide Word", "Deviation", "Linked Control Loops"],
+                node_basis_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Critical Node Summary\n\n"
+            + markdown_table(
+                ["Node", "Family", "Deviation", "Parameter", "Guide Word", "Severity", "Consequences", "Safeguards"],
+                critical_node_rows or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Deviation Cause-Consequence Matrix\n\n"
+            + markdown_table(
+                ["Node", "Deviation", "Causes", "Consequences", "Safeguards"],
+                deviation_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### HAZOP Node Register\n\n"
+            + hazop.markdown.replace("### HAZOP Node Register\n\n", "")
+            + "\n\n### Recommendation Register\n\n"
+            + markdown_table(
+                ["Node", "Priority", "Status", "Recommendation", "Primary Causes"],
+                recommendation_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+        )
+        she_markdown = (
+            she.markdown
+            + "\n\n### Safety Basis\n\n"
+            + markdown_table(["Severity", "Hazard", "Safeguard"], safety_rows)
+            + "\n\n### Hazard and Emergency Response Basis\n\n"
+            + markdown_table(
+                ["Node", "Emergency Trigger", "Immediate Response", "Protective Systems", "Follow-Up Recommendation"],
+                emergency_rows or [["n/a", "n/a", "n/a", "n/a", "n/a"]],
+            )
+            + "\n\n### Health and Exposure Basis\n\n"
+            + markdown_table(
+                ["Topic", "Exposure Basis", "Monitoring / Verification", "PPE / Controls", "Operational Linkage"],
+                health_rows,
+            )
+            + "\n\n### Environmental and Waste Basis\n\n"
+            + markdown_table(
+                ["Area", "Release / Load Basis", "Control Basis", "Monitoring Basis"],
+                environment_rows,
+            )
+            + "\n\n### Environmental Control and Monitoring Basis\n\n"
+            + markdown_table(
+                ["Utility / Service", "Load", "SHE Linkage"],
+                environmental_control_rows or [["n/a", "0.0", "n/a"]],
+            )
+            + "\n\n### Waste Handling and Disposal Basis\n\n"
+            + markdown_table(
+                ["Waste Class", "Typical Source", "Handling Basis", "Disposition Basis"],
+                waste_rows,
+            )
+            + "\n\n### Safeguard Linkage\n\n"
+            + markdown_table(
+                ["Node", "Safeguards", "Linked Loops", "Recommendation"],
+                [[node.node_id, "; ".join(node.safeguards), "; ".join(node.linked_control_loops) or "-", node.recommendation] for node in register.nodes] or [["n/a", "n/a", "n/a", "n/a"]],
+            )
+        )
+        hazop_chapter = self._chapter("hazop", "HAZOP", "hazop_she", hazop_markdown, hazop.citations, hazop.assumptions, ["hazop_study", "hazop_node_register"], required_inputs=["equipment_list", "route_selection", "flowsheet_graph", "control_plan"])
+        she_chapter = self._chapter("safety_health_environment_waste", "Safety, Health, Environment, and Waste Management", "hazop_she", she_markdown, she.citations or route.citations or equipment.citations, she.assumptions + register.assumptions + utilities.assumptions, ["safety_environment"], required_inputs=["equipment_list", "route_selection", "flowsheet_graph", "control_plan", "utility_summary"], summary=she.summary)
         issues = validate_hazop_node_register(register) + self._chapter_issues(hazop_chapter) + self._chapter_issues(she_chapter)
         gate = self._gate("hazop", "HAZOP Gate", "Approve critical HAZOP nodes and SHE safeguards.")
         return StageResult(chapters=[hazop_chapter, she_chapter], issues=issues, gate=gate)
@@ -3056,31 +5651,182 @@ class PipelineRunner:
         utilities = self._load("utility_summary", UtilitySummaryArtifact)
         site = self._load("site_selection", SiteSelectionArtifact)
         flowsheet_graph = self._load("flowsheet_graph", FlowsheetGraph)
-        mechanical_design = self._maybe_load("mechanical_design", MechanicalDesignArtifact)
+        mechanical_design = self._load("mechanical_design", MechanicalDesignArtifact)
+        operations_planning = self._load("operations_planning", OperationsPlanningArtifact)
         archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
         family_adapter = self.store.maybe_load_model(self.config.project_id, "artifacts/chemistry_family_adapter.json", ChemistryFamilyAdapter)
         layout_choice = select_layout_configuration(site, equipment, utilities, flowsheet_graph, archetype, family_adapter)
         layout_decision = build_layout_decision(site.selected_site, equipment, utilities, flowsheet_graph, layout_choice)
-        mechanical_layout_markdown = ""
-        if mechanical_design and mechanical_design.items:
-            mechanical_layout_markdown = "\n\n### Maintenance and Foundation Basis\n\n" + markdown_table(
-                ["Equipment", "Support Variant", "Footprint (m2)", "Clearance (m)", "Platform", "Rack Tie-In"],
+        mechanical_layout_markdown = "\n\n### Maintenance and Foundation Basis\n\n" + markdown_table(
+            ["Equipment", "Support Variant", "Footprint (m2)", "Clearance (m)", "Platform", "Rack Tie-In"],
+            [
                 [
-                    [
-                        item.equipment_id,
-                        item.support_variant or item.support_type,
-                        f"{item.foundation_footprint_m2:.3f}",
-                        f"{item.maintenance_clearance_m:.3f}",
-                        "yes" if item.maintenance_platform_required else "no",
-                        "yes" if item.pipe_rack_tie_in_required else "no",
-                    ]
-                    for item in mechanical_design.items
-                ],
-            )
+                    item.equipment_id,
+                    item.support_variant or item.support_type,
+                    f"{item.foundation_footprint_m2:.3f}",
+                    f"{item.maintenance_clearance_m:.3f}",
+                    "yes" if item.maintenance_platform_required else "no",
+                    "yes" if item.pipe_rack_tie_in_required else "no",
+                ]
+                for item in mechanical_design.items
+            ]
+            or [["n/a", "n/a", "0.0", "0.0", "no", "no"]],
+        )
+        layout_rows = [
+            [node.node_id, node.label, node.section_id or "-", ", ".join(node.upstream_nodes) or "-", ", ".join(node.downstream_nodes) or "-"]
+            for node in flowsheet_graph.nodes
+        ]
+        node_zone_map: dict[str, str] = {}
+        for node in flowsheet_graph.nodes:
+            node_text = f"{node.node_id} {node.label} {node.section_id or ''}".lower()
+            if any(token in node_text for token in ["storage", "tank", "feed", "receipt"]):
+                node_zone_map[node.node_id] = "Tank farm / receipt zone"
+            elif any(token in node_text for token in ["reactor", "reaction", "oxid", "hydrat"]):
+                node_zone_map[node.node_id] = "Process reaction zone"
+            elif any(token in node_text for token in ["column", "distillation", "purification", "separation", "absorber", "crystallizer", "dryer", "filter"]):
+                node_zone_map[node.node_id] = "Separation and finishing zone"
+            elif any(token in node_text for token in ["waste", "effluent", "vent", "recovery"]):
+                node_zone_map[node.node_id] = "Waste / recovery zone"
+            else:
+                node_zone_map[node.node_id] = "General process block"
+
+        zone_groups: dict[str, list[str]] = {}
+        for node_id, zone in node_zone_map.items():
+            zone_groups.setdefault(zone, []).append(node_id)
+        zone_rows = [
+            [
+                zone,
+                ", ".join(sorted(node_ids)),
+                (
+                    "hazard segregation and controlled access"
+                    if "reaction" in zone.lower() or "tank farm" in zone.lower()
+                    else "short process transfer and operability grouping"
+                ),
+                (
+                    "buffered from dispatch / occupied areas"
+                    if "reaction" in zone.lower()
+                    else "truck / service access maintained"
+                    if "tank farm" in zone.lower()
+                    else "kept accessible for maintenance and utility routing"
+                ),
+            ]
+            for zone, node_ids in zone_groups.items()
+        ]
+        utility_route_rows = [
+            [
+                item.utility_type,
+                item.basis,
+                (
+                    "process-side corridor to reaction and separation core"
+                    if item.utility_type.lower() in {"steam", "cooling water", "heat-integration auxiliaries"}
+                    else "tank farm / blanketing header and service access edge"
+                    if item.utility_type.lower() == "nitrogen"
+                    else "service corridor routed away from primary hazard cluster"
+                ),
+                layout_decision.winning_layout_basis,
+            ]
+            for item in utilities.items
+        ]
+        access_rows = [
+            [
+                "Operating mode",
+                operations_planning.recommended_operating_mode,
+                "layout keeps routine operator circulation outside the primary hazard core while preserving direct access to critical units",
+            ],
+            [
+                "Dispatch and truck movement",
+                f"{operations_planning.finished_goods_buffer_days:.1f} d FG buffer",
+                "storage and loading area placed toward the dispatch edge with maintained truck and emergency vehicle access",
+            ],
+            [
+                "Emergency response",
+                f"{sum(1 for node in flowsheet_graph.nodes if node_zone_map.get(node.node_id) == 'Process reaction zone')} reaction-zone nodes",
+                "reaction and high-hazard zones remain segregated from occupied / dispatch zones with clear firefighting approach",
+            ],
+            [
+                "Maintenance turnaround",
+                f"{operations_planning.campaign_length_days:.1f} d campaign",
+                "equipment clearance, platform access, and rack tie-ins inform maintenance-side spacing and isolation access",
+            ],
+        ]
+        utility_corridor_rows = [
+            [
+                item.utility_type,
+                (
+                    "header / rack corridor"
+                    if item.utility_type.lower() in {"steam", "cooling water", "nitrogen", "dm water"}
+                    else "electrical and local service corridor"
+                ),
+                (
+                    "parallel to process train with branch take-offs at major units"
+                    if item.utility_type.lower() in {"steam", "cooling water"}
+                    else "distributed to storage, purge, and utility consumers with isolation access"
+                ),
+                (
+                    "kept off main truck path and outside maintenance lift envelope"
+                    if item.utility_type.lower() != "electricity"
+                    else "routed with safe separation from wet and hot service zones"
+                ),
+            ]
+            for item in utilities.items
+        ]
+        plot_rows = [
+            ["Selected site", site.selected_site],
+            ["Winning basis", layout_decision.winning_layout_basis],
+            ["Major equipment count", str(len(equipment.items))],
+            ["Flowsheet node count", str(len(flowsheet_graph.nodes))],
+            ["Operating mode", operations_planning.recommended_operating_mode],
+            ["Campaign length (d)", f"{operations_planning.campaign_length_days:.1f}"],
+            ["Dispatch buffer (d)", f"{operations_planning.finished_goods_buffer_days:.1f}"],
+        ]
+        mermaid_nodes = []
+        mermaid_links = []
+        zone_alias = {
+            "Tank farm / receipt zone": "tank_farm",
+            "Process reaction zone": "reaction_zone",
+            "Separation and finishing zone": "separation_zone",
+            "Waste / recovery zone": "waste_zone",
+            "General process block": "general_zone",
+        }
+        for zone, alias in zone_alias.items():
+            members = ", ".join(sorted(zone_groups.get(zone, []))) or "none"
+            mermaid_nodes.append(f'    {alias}["{zone}\\n{members}"]')
+        ordered_aliases = [alias for zone, alias in zone_alias.items() if zone in zone_groups]
+        for left, right in zip(ordered_aliases, ordered_aliases[1:]):
+            mermaid_links.append(f"    {left} --> {right}")
+        if not mermaid_links and ordered_aliases:
+            mermaid_links.append(f"    {ordered_aliases[0]}")
+        plot_schematic = "```mermaid\nflowchart LR\n" + "\n".join(mermaid_nodes + mermaid_links) + "\n```"
         artifact = NarrativeArtifact(
             artifact_id="layout_plan",
             title="Layout",
-            markdown=layout_decision.markdown + mechanical_layout_markdown,
+            markdown=(
+                layout_decision.markdown
+                + "\n\n### Plot Plan Basis\n\n"
+                + markdown_table(["Parameter", "Value"], plot_rows)
+                + "\n\n### Plot Layout Schematic\n\n"
+                + plot_schematic
+                + "\n\n### Area Zoning and Separation Basis\n\n"
+                + markdown_table(
+                    ["Zone", "Representative Nodes", "Primary Layout Driver", "Access / Separation Note"],
+                    zone_rows or [["n/a", "n/a", "n/a", "n/a"]],
+                )
+                + "\n\n### Equipment Placement Matrix\n\n"
+                + markdown_table(["Node", "Label", "Section", "Upstream", "Downstream"], layout_rows or [["n/a", "n/a", "-", "-", "-"]])
+                + "\n\n### Utility Corridor Matrix\n\n"
+                + markdown_table(
+                    ["Utility", "Corridor Type", "Routing Basis", "Spacing / Access Note"],
+                    utility_corridor_rows or [["n/a", "n/a", "n/a", "n/a"]],
+                )
+                + "\n\n### Utility Routing and Access Basis\n\n"
+                + markdown_table(["Utility", "Basis", "Routing Strategy", "Layout Linkage"], utility_route_rows or [["n/a", "n/a", "n/a", "n/a"]])
+                + "\n\n### Dispatch and Emergency Access Basis\n\n"
+                + markdown_table(
+                    ["Topic", "Basis", "Layout Consequence"],
+                    access_rows or [["n/a", "n/a", "n/a"]],
+                )
+                + mechanical_layout_markdown
+            ),
             summary=layout_choice.selected_summary,
             citations=layout_decision.citations,
             assumptions=layout_decision.assumptions,
@@ -3096,7 +5842,7 @@ class PipelineRunner:
             artifact.citations or site.citations or equipment.citations or utilities.citations,
             artifact.assumptions,
             ["layout_plan", "layout_decision"],
-            required_inputs=["equipment_list", "utility_summary", "site_selection"],
+            required_inputs=["equipment_list", "utility_summary", "site_selection", "mechanical_design", "operations_planning"],
             summary=artifact.summary,
         )
         issues = validate_decision_record(layout_choice, "layout_choice") + self._chapter_issues(chapter)
@@ -3108,13 +5854,67 @@ class PipelineRunner:
         stream_table = self._load("stream_table", StreamTable)
         market = self._load("market_assessment", MarketAssessmentArtifact)
         site = self._load("site_selection", SiteSelectionArtifact)
+        route_selection = self._load("route_selection", RouteSelectionArtifact)
+        operations_planning = self._load("operations_planning", OperationsPlanningArtifact)
+        flowsheet_blueprint = self._load("flowsheet_blueprint", FlowsheetBlueprintArtifact)
         column_design = self._load("column_design", ColumnDesign)
         utility_network = self._selected_utility_network()
         utility_architecture = self._maybe_load("utility_architecture", UtilityArchitectureDecision)
-        citations = sorted(set(equipment.citations + utilities.citations + market.citations + site.citations + utility_network.citations))
-        assumptions = equipment.assumptions + utilities.assumptions + market.assumptions + site.assumptions + utility_network.assumptions
-        procurement_basis = build_procurement_basis_decision(site, equipment.items)
-        logistics_basis = build_logistics_basis_decision(site, market)
+        citations = sorted(
+            set(
+                equipment.citations
+                + utilities.citations
+                + market.citations
+                + site.citations
+                + route_selection.citations
+                + operations_planning.citations
+                + flowsheet_blueprint.citations
+                + utility_network.citations
+            )
+        )
+        assumptions = (
+            equipment.assumptions
+            + utilities.assumptions
+            + market.assumptions
+            + site.assumptions
+            + route_selection.assumptions
+            + operations_planning.assumptions
+            + flowsheet_blueprint.assumptions
+            + utility_network.assumptions
+        )
+        route_site_fit = build_route_site_fit_artifact(
+            self.config.basis,
+            site,
+            route_selection,
+            flowsheet_blueprint,
+            operations_planning,
+            citations,
+            assumptions,
+        )
+        route_economic_basis = build_route_economic_basis_artifact(
+            self.config.basis,
+            site,
+            route_selection,
+            stream_table,
+            market,
+            flowsheet_blueprint,
+            operations_planning,
+            route_site_fit,
+            citations,
+            assumptions,
+        )
+        procurement_basis = build_procurement_basis_decision(
+            site,
+            equipment.items,
+            route_site_fit=route_site_fit,
+            route_economic_basis=route_economic_basis,
+        )
+        logistics_basis = build_logistics_basis_decision(
+            site,
+            market,
+            route_site_fit=route_site_fit,
+            route_economic_basis=route_economic_basis,
+        )
         cost_model = build_cost_model(
             self.config.basis,
             equipment.items,
@@ -3129,9 +5929,13 @@ class PipelineRunner:
             scenario_policy=self.config.scenario_policy,
             procurement_basis=procurement_basis,
             logistics_basis=logistics_basis,
+            route_site_fit=route_site_fit,
+            route_economic_basis=route_economic_basis,
             column_design=column_design,
         )
         plant_cost_summary = build_plant_cost_summary(cost_model)
+        self._save("route_site_fit", route_site_fit)
+        self._save("route_economic_basis", route_economic_basis)
         self._save("cost_model", cost_model)
         self._save("plant_cost_summary", plant_cost_summary)
         self._save("procurement_basis_decision", procurement_basis)
@@ -3140,6 +5944,93 @@ class PipelineRunner:
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         self._save("resolved_values", extend_resolved_value_artifact(resolved_values, cost_model.value_records, resolved_sources, self.config, "project_cost"))
+        direct_head_totals = {
+            "bare": sum(item.bare_cost_inr for item in plant_cost_summary.equipment_breakdowns),
+            "installation": sum(item.installation_inr for item in plant_cost_summary.equipment_breakdowns),
+            "piping": sum(item.piping_inr for item in plant_cost_summary.equipment_breakdowns),
+            "instrumentation": sum(item.instrumentation_inr for item in plant_cost_summary.equipment_breakdowns),
+            "electrical": sum(item.electrical_inr for item in plant_cost_summary.equipment_breakdowns),
+            "civil": sum(item.civil_structural_inr for item in plant_cost_summary.equipment_breakdowns),
+            "insulation": sum(item.insulation_painting_inr for item in plant_cost_summary.equipment_breakdowns),
+            "equipment_contingency": sum(item.contingency_inr for item in plant_cost_summary.equipment_breakdowns),
+        }
+        direct_head_totals["spares"] = sum(item.spares_cost_inr for item in cost_model.equipment_cost_items)
+        utility_island_project_capex = sum(item.project_capex_burden_inr for item in cost_model.utility_island_costs)
+        direct_cost_uplift = max(cost_model.direct_cost - cost_model.installed_cost, 0.0)
+        family_rollups: dict[str, dict[str, float]] = {}
+        for item in cost_model.equipment_cost_items:
+            family_bucket = family_rollups.setdefault(
+                item.equipment_type,
+                {
+                    "count": 0.0,
+                    "bare": 0.0,
+                    "installed": 0.0,
+                    "spares": 0.0,
+                    "import_duty": 0.0,
+                },
+            )
+            family_bucket["count"] += 1.0
+            family_bucket["bare"] += item.bare_cost_inr
+            family_bucket["installed"] += item.installed_cost_inr
+            family_bucket["spares"] += item.spares_cost_inr
+            family_bucket["import_duty"] += item.import_duty_inr
+        project_cost_summary_markdown = "\n\n### Project Cost Build-Up Summary\n\n" + markdown_table(
+            ["Project-cost head", f"Value ({cost_model.currency})"],
+            [
+                ["Purchased equipment", f"{cost_model.equipment_purchase_cost:,.2f}"],
+                ["Installed equipment and packages", f"{cost_model.installed_cost:,.2f}"],
+                ["Direct plant cost", f"{cost_model.direct_cost:,.2f}"],
+                ["Indirect cost", f"{cost_model.indirect_cost:,.2f}"],
+                ["Contingency", f"{cost_model.contingency:,.2f}"],
+                ["Total CAPEX", f"{cost_model.total_capex:,.2f}"],
+            ],
+        )
+        direct_cost_markdown = "\n\n### Direct Plant Cost Head Allocation\n\n" + markdown_table(
+            ["Direct-cost head", f"Allocated value ({cost_model.currency})"],
+            [
+                ["Purchased equipment", f"{direct_head_totals['bare']:,.2f}"],
+                ["Installation", f"{direct_head_totals['installation']:,.2f}"],
+                ["Piping", f"{direct_head_totals['piping']:,.2f}"],
+                ["Instrumentation and control", f"{direct_head_totals['instrumentation']:,.2f}"],
+                ["Electrical", f"{direct_head_totals['electrical']:,.2f}"],
+                ["Civil and structural", f"{direct_head_totals['civil']:,.2f}"],
+                ["Insulation and painting", f"{direct_head_totals['insulation']:,.2f}"],
+                ["Equipment-level contingency allowance", f"{direct_head_totals['equipment_contingency']:,.2f}"],
+                ["Total spares allowance", f"{direct_head_totals['spares']:,.2f}"],
+                ["Allocated direct plant cost", f"{plant_cost_summary.direct_plant_cost_inr:,.2f}"],
+            ],
+        )
+        indirect_cost_markdown = "\n\n### Indirect and Contingency Basis\n\n" + markdown_table(
+            ["Allowance", f"Value ({cost_model.currency})"],
+            [
+                ["Installed-cost base", f"{cost_model.installed_cost:,.2f}"],
+                ["Direct-cost uplift above installed basis", f"{direct_cost_uplift:,.2f}"],
+                ["Indirect engineering / procurement / construction", f"{cost_model.indirect_cost:,.2f}"],
+                ["Contingency", f"{cost_model.contingency:,.2f}"],
+                ["Heat-integration CAPEX", f"{cost_model.integration_capex_inr:,.2f}"],
+                ["Utility-island project CAPEX burden", f"{utility_island_project_capex:,.2f}"],
+                ["Total import-duty burden", f"{cost_model.total_import_duty_inr:,.2f}"],
+                ["Total CAPEX", f"{cost_model.total_capex:,.2f}"],
+            ],
+        )
+        equipment_family_markdown = "\n\n### Equipment Family Cost Allocation\n\n" + markdown_table(
+            ["Equipment family", "Count", "Bare Cost (INR)", "Installed Cost (INR)", "Spares (INR)", "Import Duty (INR)"],
+            [
+                [
+                    equipment_type,
+                    str(int(values["count"])),
+                    f"{values['bare']:,.2f}",
+                    f"{values['installed']:,.2f}",
+                    f"{values['spares']:,.2f}",
+                    f"{values['import_duty']:,.2f}",
+                ]
+                for equipment_type, values in sorted(
+                    family_rollups.items(),
+                    key=lambda item: (-item[1]["installed"], item[0].lower()),
+                )
+            ]
+            or [["n/a", "0", "0.00", "0.00", "0.00", "0.00"]],
+        )
         scenario_markdown = ""
         if cost_model.scenario_results:
             scenario_markdown = "\n\n### Scenario Cost Snapshot\n\n" + markdown_table(
@@ -3251,7 +6142,7 @@ class PipelineRunner:
                     for item in cost_model.procurement_package_impacts
                 ],
             )
-        equipment_cost_markdown = "\n\n### Equipment-wise Costing\n\n" + markdown_table(
+        equipment_cost_markdown = "\n\n### Installed Equipment Cost Matrix\n\n" + markdown_table(
             ["Equipment", "Type", "Bare Cost (INR)", "Installed Cost (INR)", "Spares (INR)", "Package Family", "Lead (mo)", "Import Duty (INR)", "Basis"],
             [
                 [
@@ -3268,19 +6159,36 @@ class PipelineRunner:
                 for item in cost_model.equipment_cost_items
             ] or [["n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a", "n/a"]],
         )
-        markdown = markdown_table(
-            ["Cost bucket", f"Value ({cost_model.currency})"],
-            [
-                ["Equipment purchase", f"{cost_model.equipment_purchase_cost:,.2f}"],
-                ["Installed cost", f"{cost_model.installed_cost:,.2f}"],
-                ["Direct cost", f"{cost_model.direct_cost:,.2f}"],
-                ["Indirect cost", f"{cost_model.indirect_cost:,.2f}"],
-                ["Contingency", f"{cost_model.contingency:,.2f}"],
-                ["Heat integration CAPEX", f"{cost_model.integration_capex_inr:,.2f}"],
-                ["Total CAPEX", f"{cost_model.total_capex:,.2f}"],
-            ],
+        markdown = (
+            "\n\n### Route Site Fit\n\n"
+            + route_site_fit.markdown
+            + "\n\n### Route-Derived Economic Basis\n\n"
+            + route_economic_basis.markdown
+            + "\n\n### Route-Derived Recurring Burden Register\n\n"
+            + markdown_table(
+                ["Component", "Role", "Annualized Burden (INR/y)", "Recovery Fraction", "Notes"],
+                [
+                    [
+                        item.component_name,
+                        item.role,
+                        f"{item.annualized_burden_inr:,.2f}",
+                        f"{item.recovery_fraction:.3f}",
+                        item.notes or "-",
+                    ]
+                    for item in route_economic_basis.items
+                ]
+                or [["n/a", "n/a", "0.00", "0.000", "-"]],
+            )
+            + project_cost_summary_markdown
+            + direct_cost_markdown
+            + indirect_cost_markdown
+            + equipment_family_markdown
+            + procurement_timing_markdown
+            + equipment_cost_markdown
+            + utility_island_markdown
+            + recurring_service_markdown
+            + scenario_markdown
         )
-        markdown += procurement_timing_markdown + equipment_cost_markdown + utility_island_markdown + recurring_service_markdown + scenario_markdown
         chapter = self._chapter(
             "project_cost",
             "Project Cost",
@@ -3292,11 +6200,13 @@ class PipelineRunner:
             f"{markdown}",
             cost_model.citations,
             cost_model.assumptions,
-            ["cost_model", "plant_cost_summary", "procurement_basis_decision", "logistics_basis_decision"],
-            required_inputs=["equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection"],
+            ["route_site_fit", "route_economic_basis", "cost_model", "plant_cost_summary", "procurement_basis_decision", "logistics_basis_decision"],
+            required_inputs=["equipment_list", "utility_summary", "stream_table", "market_assessment", "site_selection", "route_selection", "operations_planning", "flowsheet_blueprint"],
         )
         issues = (
-            validate_decision_record(procurement_basis, "procurement_basis_decision")
+            validate_route_site_fit_artifact(route_site_fit, site, route_selection)
+            + validate_route_economic_basis_artifact(route_economic_basis, route_site_fit)
+            + validate_decision_record(procurement_basis, "procurement_basis_decision")
             + validate_decision_record(logistics_basis, "logistics_basis_decision")
             + validate_cost_model(cost_model, self._source_ids(), self.config)
             + self._value_issues(cost_model, "cost_model")
@@ -3306,7 +6216,21 @@ class PipelineRunner:
 
     def _run_cost_of_production(self) -> StageResult:
         cost_model = self._load("cost_model", CostModel)
+        market = self._load("market_assessment", MarketAssessmentArtifact)
+        annual_output = max(annual_output_kg(self.config.basis), 1.0)
         unit_cost = cost_model.annual_opex / max(annual_output_kg(self.config.basis), 1.0)
+        selling_price = market.estimated_price_per_kg
+        gross_margin_per_kg = selling_price - unit_cost
+        summary_markdown = "\n\n### Cost of Production Summary\n\n" + markdown_table(
+            ["Metric", "Value"],
+            [
+                ["Annual production", f"{annual_output:,.2f} kg/y"],
+                ["Annual operating cost", f"{cost_model.currency} {cost_model.annual_opex:,.2f}/y"],
+                ["Unit cost of production", f"{unit_cost:,.2f} {cost_model.currency}/kg"],
+                ["Selling price basis", f"{selling_price:,.2f} {cost_model.currency}/kg"],
+                ["Gross margin basis", f"{gross_margin_per_kg:,.2f} {cost_model.currency}/kg"],
+            ],
+        )
         opex_rows = [
             ["Raw materials", f"{cost_model.annual_raw_material_cost:,.2f}"],
             ["Utilities", f"{cost_model.annual_utility_cost:,.2f}"],
@@ -3336,7 +6260,59 @@ class PipelineRunner:
                 ["Unit cost", f"{unit_cost:,.2f} {cost_model.currency}/kg"],
             ]
         )
-        markdown = markdown_table(["Opex bucket", f"Value ({cost_model.currency}/y)"], opex_rows)
+        manufacturing_build_up_markdown = "\n\n### Manufacturing Cost Build-Up\n\n" + markdown_table(
+            ["Opex bucket", f"Value ({cost_model.currency}/y)", "Share of OPEX (%)"],
+            [
+                [
+                    row[0],
+                    row[1],
+                    f"{(float(row[1].replace(',', '').split()[0]) / cost_model.annual_opex * 100.0):.2f}" if cost_model.annual_opex > 0.0 and row[0] not in {"Unit cost"} else ("-" if row[0] == "Unit cost" else "0.00"),
+                ]
+                for row in opex_rows
+            ],
+        )
+        raw_utility_markdown = "\n\n### Utility and Raw-Material Cost Basis\n\n" + markdown_table(
+            ["Basis item", "Value"],
+            [
+                ["Annual raw-material cost", f"{cost_model.currency} {cost_model.annual_raw_material_cost:,.2f}/y"],
+                ["Annual utility cost", f"{cost_model.currency} {cost_model.annual_utility_cost:,.2f}/y"],
+                ["Annual labor cost", f"{cost_model.currency} {cost_model.annual_labor_cost:,.2f}/y"],
+                ["Annual output", f"{annual_output:,.2f} kg/y"],
+                ["Selling price basis", f"{selling_price:,.2f} {cost_model.currency}/kg"],
+            ],
+        )
+        recurring_service_markdown = ""
+        if cost_model.annual_transport_service_cost > 0.0:
+            recurring_service_markdown = "\n\n### Recurring Service and Maintenance Basis\n\n" + markdown_table(
+                ["Service component", f"Value ({cost_model.currency}/y)"],
+                [
+                    ["Base maintenance", f"{max(cost_model.annual_maintenance_cost - cost_model.annual_transport_service_cost, 0.0):,.2f}"],
+                    ["Utility-island service", f"{cost_model.annual_utility_island_service_cost:,.2f}"],
+                    ["Utility-island replacement", f"{cost_model.annual_utility_island_replacement_cost:,.2f}"],
+                    ["Packing replacement", f"{cost_model.annual_packing_replacement_cost:,.2f}"],
+                    ["Classifier service", f"{cost_model.annual_classifier_service_cost:,.2f}"],
+                    ["Filter media replacement", f"{cost_model.annual_filter_media_replacement_cost:,.2f}"],
+                    ["Dryer exhaust treatment", f"{cost_model.annual_dryer_exhaust_treatment_cost:,.2f}"],
+                    ["Total transport/service penalties", f"{cost_model.annual_transport_service_cost:,.2f}"],
+                    ["Total maintenance", f"{cost_model.annual_maintenance_cost:,.2f}"],
+                ],
+            )
+        unit_cost_basis_markdown = "\n\n### Unit Cost and Selling Basis\n\n" + markdown_table(
+            ["Metric", "Value"],
+            [
+                ["Unit cost of production", f"{unit_cost:,.2f} {cost_model.currency}/kg"],
+                ["Selling price basis", f"{selling_price:,.2f} {cost_model.currency}/kg"],
+                ["Gross margin basis", f"{gross_margin_per_kg:,.2f} {cost_model.currency}/kg"],
+                ["Operating margin on selling basis", f"{(gross_margin_per_kg / selling_price * 100.0):.2f}%" if selling_price > 0.0 else "n/a"],
+            ],
+        )
+        markdown = (
+            summary_markdown
+            + manufacturing_build_up_markdown
+            + raw_utility_markdown
+            + recurring_service_markdown
+            + unit_cost_basis_markdown
+        )
         chapter = self._chapter(
             "cost_of_production",
             "Cost of Production",
@@ -3345,7 +6321,7 @@ class PipelineRunner:
             cost_model.citations,
             cost_model.assumptions,
             ["cost_model"],
-            required_inputs=["cost_model"],
+            required_inputs=["cost_model", "market_assessment"],
         )
         issues = self._chapter_issues(chapter)
         return StageResult(chapters=[chapter], issues=issues)
@@ -3362,7 +6338,7 @@ class PipelineRunner:
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), model.value_records, self._load("resolved_sources", ResolvedSourceSet), self.config, "working_capital"),
         )
-        markdown = markdown_table(
+        markdown = "\n\n### Working-Capital Parameter Basis\n\n" + markdown_table(
             ["Parameter", "Value"],
             [
                 ["Raw-material inventory days", f"{model.raw_material_days:.1f}"],
@@ -3391,6 +6367,17 @@ class PipelineRunner:
                 ["Restart loss inventory", f"INR {model.restart_loss_inventory_inr:,.2f}"],
                 ["Outage buffer inventory", f"INR {model.outage_buffer_inventory_inr:,.2f}"],
                 ["Payables", f"INR {model.payables_inr:,.2f}"],
+            ],
+        )
+        markdown += "\n\n### Inventory, Receivable, and Payable Basis\n\n" + markdown_table(
+            ["Cash-cycle component", "Days", "Value"],
+            [
+                ["Raw-material inventory", f"{model.raw_material_days:.1f}", f"INR {model.raw_material_inventory_inr:,.2f}"],
+                ["Product inventory", f"{model.product_inventory_days:.1f}", f"INR {model.product_inventory_inr:,.2f}"],
+                ["Receivables", f"{model.receivable_days:.1f}", f"INR {model.receivables_inr:,.2f}"],
+                ["Payables", f"{model.payable_days:.1f}", f"INR {model.payables_inr:,.2f}"],
+                ["Cash buffer", f"{model.cash_buffer_days:.1f}", f"INR {model.cash_buffer_inr:,.2f}"],
+                ["Operating stock", f"{model.operating_stock_days:.1f}", f"INR {model.outage_buffer_inventory_inr:,.2f}"],
             ],
         )
         markdown += "\n\n### Procurement-Linked Working-Capital Timing\n\n" + markdown_table(
@@ -3440,6 +6427,7 @@ class PipelineRunner:
         column = self._load("column_design", ColumnDesign)
         unit_operation_family = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_operation_family.json", UnitOperationFamilyArtifact)
         utility_architecture = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_architecture.json", UtilityArchitectureDecision)
+        flowsheet_blueprint = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_blueprint.json", FlowsheetBlueprintArtifact)
         site_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/site_selection_decision.json", DecisionRecord)
         utility_basis_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/utility_basis_decision.json", DecisionRecord)
         financing_seed = build_financing_basis_decision(self.config.basis, site)
@@ -3454,7 +6442,15 @@ class PipelineRunner:
             assumptions,
             financing_seed,
         )
-        economic_basis_decision = build_economic_basis_decision(self.config, site, utility_network, cost_model, financial_model, utility_basis_decision)
+        economic_basis_decision = build_economic_basis_decision(
+            self.config,
+            site,
+            utility_network,
+            cost_model,
+            financial_model,
+            utility_basis_decision,
+            flowsheet_blueprint,
+        )
         route_economic_issues = validate_route_economic_critics(
             route_selection,
             utility_network,
@@ -3523,7 +6519,7 @@ class PipelineRunner:
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         self._save("resolved_values", extend_resolved_value_artifact(resolved_values, financial_model.value_records, resolved_sources, self.config, "financial_analysis"))
-        markdown = markdown_table(
+        financial_summary_markdown = "\n\n### Financial Performance Summary\n\n" + markdown_table(
             ["Metric", "Value"],
             [
                 ["Annual revenue", f"{financial_model.currency} {financial_model.annual_revenue:,.2f}"],
@@ -3550,6 +6546,32 @@ class PipelineRunner:
                 ["Covenant breaches", ", ".join(financial_model.covenant_breach_codes) or "none"],
             ],
         )
+        profitability_markdown = "\n\n### Profitability and Return Summary\n\n" + markdown_table(
+            ["Metric", "Value"],
+            [
+                ["Payback", f"{financial_model.payback_years:.3f} y"],
+                ["NPV", f"{financial_model.currency} {financial_model.npv:,.2f}"],
+                ["IRR", f"{financial_model.irr:.2f}%"],
+                ["Profitability index", f"{financial_model.profitability_index:.3f}"],
+                ["Break-even fraction", f"{financial_model.break_even_fraction:.3f}"],
+                ["Minimum DSCR", f"{financial_model.minimum_dscr:.3f}"],
+                ["Average DSCR", f"{financial_model.average_dscr:.3f}"],
+                ["LLCR", f"{financial_model.llcr:.3f}"],
+                ["PLCR", f"{financial_model.plcr:.3f}"],
+            ],
+        )
+        funding_markdown = "\n\n### Funding and Capital Structure Basis\n\n" + markdown_table(
+            ["Funding item", "Value"],
+            [
+                ["Total project funding", f"{financial_model.currency} {financial_model.total_project_funding_inr:,.2f}"],
+                ["Interest during construction", f"{financial_model.currency} {financial_model.construction_interest_during_construction_inr:,.2f}"],
+                ["Working capital", f"{financial_model.currency} {financial_model.working_capital:,.2f}"],
+                ["Peak working capital", f"{financial_model.currency} {financial_model.peak_working_capital_inr:,.2f}"],
+                ["Selected financing option", financial_model.selected_financing_candidate_id or "n/a"],
+                ["Downside-preferred financing option", financial_model.downside_financing_candidate_id or "n/a"],
+            ],
+        )
+        markdown = financial_summary_markdown + profitability_markdown + funding_markdown
         if cost_model.procurement_schedule:
             markdown += "\n\n### Procurement and Construction Funding Basis\n\n" + markdown_table(
                 ["Package Family", "Milestone", "Month", "Draw Fraction", "CAPEX Draw (INR)"],
@@ -3721,6 +6743,38 @@ class PipelineRunner:
                     for item in financial_model.annual_schedule
                 ],
             )
+            markdown += "\n\n### Profit and Loss Schedule\n\n" + markdown_table(
+                ["Year", "Revenue (INR)", "Operating Cost (INR)", "Depreciation (INR)", "Interest (INR)", "PBT (INR)", "Tax (INR)", "PAT (INR)"],
+                [
+                    [
+                        str(item["year"]),
+                        f'{item["revenue_inr"]:,.2f}',
+                        f'{item["operating_cost_inr"]:,.2f}',
+                        f'{item["depreciation_inr"]:,.2f}',
+                        f'{item["interest_inr"]:,.2f}',
+                        f'{item["profit_before_tax_inr"]:,.2f}',
+                        f'{item["tax_inr"]:,.2f}',
+                        f'{item["profit_after_tax_inr"]:,.2f}',
+                    ]
+                    for item in financial_model.annual_schedule
+                ],
+            )
+            markdown += "\n\n### Cash Accrual and Funding Schedule\n\n" + markdown_table(
+                ["Year", "CAPEX Draw (INR)", "Debt Draw (INR)", "Equity Draw (INR)", "IDC (INR)", "CFADS (INR)", "Debt Service (INR)", "Cash Accrual (INR)"],
+                [
+                    [
+                        str(item["year"]),
+                        f'{item.get("capex_draw_inr", 0.0):,.2f}',
+                        f'{item.get("debt_draw_inr", 0.0):,.2f}',
+                        f'{item.get("equity_draw_inr", 0.0):,.2f}',
+                        f'{item.get("idc_inr", 0.0):,.2f}',
+                        f'{item.get("cfads_inr", 0.0):,.2f}',
+                        f'{item.get("debt_service_inr", 0.0):,.2f}',
+                        f'{item["cash_accrual_inr"]:,.2f}',
+                    ]
+                    for item in financial_model.annual_schedule
+                ],
+            )
         chapter = self._chapter(
             "financial_analysis",
             "Financial Analysis",
@@ -3768,8 +6822,10 @@ class PipelineRunner:
     def _run_final_report(self) -> StageResult:
         state = self._require_state()
         benchmark_manifest = self.store.maybe_load_model(self.config.project_id, "artifacts/benchmark_manifest.json", BenchmarkManifest)
+        report_parity_framework = self.store.maybe_load_model(self.config.project_id, "artifacts/report_parity_framework.json", ReportParityFrameworkArtifact)
         resolved_sources = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_sources.json", ResolvedSourceSet)
         product_profile = self._load("product_profile", ProductProfileArtifact)
+        route_survey = self.store.maybe_load_model(self.config.project_id, "artifacts/route_survey.json", RouteSurveyArtifact)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
         property_packages = self.store.maybe_load_model(self.config.project_id, "artifacts/property_packages.json", PropertyPackageArtifact)
@@ -3881,6 +6937,7 @@ class PipelineRunner:
             benchmark_manifest,
             resolved_sources,
             product_profile,
+            route_survey,
             reaction_system,
             property_gap,
             resolved_values,
@@ -3969,8 +7026,17 @@ class PipelineRunner:
         full_chapters = [chapter for chapter in existing_chapters if chapter.chapter_id not in {"executive_summary", "conclusion"}] + [executive_chapter, conclusion_chapter]
         report_markdown = assemble_report(self.config.basis, full_chapters, references_md, annexures_md)
         markdown_path = self.store.save_text(self.config.project_id, "final_report.md", report_markdown)
+        if report_parity_framework is None:
+            report_parity_framework = build_report_parity_framework(benchmark_manifest)
+            self._save("report_parity_framework", report_parity_framework)
+        report_parity = evaluate_report_parity(report_parity_framework, full_chapters, references_md, annexures_md)
+        self._save("report_parity", report_parity)
+        report_acceptance = self._save_report_acceptance(RunStatus.AWAITING_APPROVAL, report_parity=report_parity)
         final_report = FinalReport(project_id=self.config.project_id, markdown_path=str(markdown_path), references=list(source_index.keys()), annexure_paths=[str(self.store.project_dir(self.config.project_id) / "annexures")])
         self._save("final_report", final_report)
         issues = self._chapter_issues(executive_chapter) + self._chapter_issues(conclusion_chapter)
+        issues.extend(validate_report_parity(report_parity))
+        if report_acceptance:
+            issues.extend(validate_report_acceptance(report_acceptance))
         gate = self._gate("final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released.")
         return StageResult(chapters=[executive_chapter, conclusion_chapter], issues=issues, missing_india_coverage=[], stale_source_groups=[], gate=gate)

@@ -1,0 +1,221 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening."
+  ],
+  "decision_id": "separation_choice",
+  "context": "Separation-family selection for route omega_catalytic.",
+  "criteria": [
+    {
+      "name": "Technical feasibility",
+      "weight": 0.4,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Separation train must fit the product-phase archetype."
+    },
+    {
+      "name": "Operability",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Simple, stable trains are preferred."
+    },
+    {
+      "name": "Energy burden",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Separation duty can dominate plant economics."
+    },
+    {
+      "name": "Economics",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Separation should minimize avoidable CAPEX/OPEX."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "distillation_train",
+      "candidate_type": "separation_selector",
+      "description": "Distillation and flash purification train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 100.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "absorption_train",
+      "candidate_type": "separation_selector",
+      "description": "Absorption and drying train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 52.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "crystallization_filtration_drying",
+      "candidate_type": "separation_selector",
+      "description": "Crystallization, filtration, and drying train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 45.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "extraction_recovery_train",
+      "candidate_type": "separation_selector",
+      "description": "Extraction with solvent recovery",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 67.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "packed_absorption_train",
+      "candidate_type": "separation_selector",
+      "description": "Packed absorber / stripper train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [
+        "dehydration_duty",
+        "glycol_split_vle_basis"
+      ],
+      "score_breakdown": {},
+      "total_score": 50.0,
+      "feasible": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "gas_drying_absorption_train",
+      "candidate_type": "separation_selector",
+      "description": "Gas drying with absorber polishing train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 48.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "extractive_distillation_train",
+      "candidate_type": "separation_selector",
+      "description": "Extractive or specialty distillation train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 82.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "solvent_extraction_recovery_train",
+      "candidate_type": "separation_selector",
+      "description": "Solvent extraction and recovery train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 58.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "crystallizer_classifier_dryer_train",
+      "candidate_type": "separation_selector",
+      "description": "Crystallizer, classifier, filter, and dryer train",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 46.0,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "distillation_train",
+  "selected_summary": "Distillation and flash purification train selected as the highest-ranked alternative.",
+  "hard_constraint_results": [
+    "Alternative must remain technically feasible for the inferred process archetype.",
+    "Separation property-coverage escalation: distillation_family_property_coverage_weak",
+    "Separation architecture escalation: architecture_package_fallback_thermo; architecture_package_sparse_data_compounded"
+  ],
+  "confidence": 0.64,
+  "scenario_stability": "borderline",
+  "approval_required": true,
+  "blocked_value_ids": []
+}

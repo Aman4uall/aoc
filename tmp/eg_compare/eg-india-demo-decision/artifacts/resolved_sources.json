@@ -1,0 +1,303 @@
+{
+  "citations": [
+    "eg_handbook",
+    "eg_kinetics",
+    "eg_market_india",
+    "eg_safety",
+    "eg_sites_india",
+    "eg_utilities_gujarat",
+    "india_sheet_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Resolved-source selection is deterministic and public-data-only oriented."
+  ],
+  "groups": [
+    {
+      "citations": [
+        "eg_handbook",
+        "eg_kinetics"
+      ],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "technical_sources",
+      "source_domain": "technical",
+      "geographic_requirement": "India",
+      "candidates": [
+        {
+          "source_id": "eg_handbook",
+          "authority_score": 95.0,
+          "recency_score": 100.0,
+          "geography_score": 10.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 78.6,
+          "rationale": "handbook/technical scored for authority, year fit, and India relevance."
+        },
+        {
+          "source_id": "eg_kinetics",
+          "authority_score": 88.0,
+          "recency_score": 85.0,
+          "geography_score": 10.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 73.66,
+          "rationale": "literature/technical scored for authority, year fit, and India relevance."
+        },
+        {
+          "source_id": "user_doc_1",
+          "authority_score": 68.0,
+          "recency_score": 45.0,
+          "geography_score": 10.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 60.06,
+          "rationale": "user_document/technical scored for authority, year fit, and India relevance."
+        }
+      ],
+      "selected_source_ids": [
+        "eg_handbook",
+        "eg_kinetics"
+      ],
+      "unresolved_conflict": false,
+      "markdown": "| Source | Total | Authority | Recency | Geography |\n| --- | --- | --- | --- | --- |\n| eg_handbook | 78.6 | 95.0 | 100.0 | 10.0 |\n| eg_kinetics | 73.7 | 88.0 | 85.0 | 10.0 |\n| user_doc_1 | 60.1 | 68.0 | 45.0 | 10.0 |"
+    },
+    {
+      "citations": [
+        "eg_safety"
+      ],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "safety_sources",
+      "source_domain": "safety",
+      "geographic_requirement": "India",
+      "candidates": [
+        {
+          "source_id": "eg_safety",
+          "authority_score": 82.0,
+          "recency_score": 100.0,
+          "geography_score": 10.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 74.44,
+          "rationale": "sds/safety scored for authority, year fit, and India relevance."
+        }
+      ],
+      "selected_source_ids": [
+        "eg_safety"
+      ],
+      "unresolved_conflict": false,
+      "markdown": "| Source | Total | Authority | Recency | Geography |\n| --- | --- | --- | --- | --- |\n| eg_safety | 74.4 | 82.0 | 100.0 | 10.0 |"
+    },
+    {
+      "citations": [
+        "eg_market_india",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "market_sources",
+      "source_domain": "market",
+      "geographic_requirement": "India",
+      "candidates": [
+        {
+          "source_id": "eg_market_india",
+          "authority_score": 75.0,
+          "recency_score": 100.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 92.0,
+          "rationale": "market/economics scored for authority, year fit, and India relevance."
+        },
+        {
+          "source_id": "india_sheet_1",
+          "authority_score": 75.0,
+          "recency_score": 45.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 82.10000000000001,
+          "rationale": "market/economics scored for authority, year fit, and India relevance."
+        }
+      ],
+      "selected_source_ids": [
+        "eg_market_india",
+        "india_sheet_1"
+      ],
+      "unresolved_conflict": false,
+      "markdown": "| Source | Total | Authority | Recency | Geography |\n| --- | --- | --- | --- | --- |\n| eg_market_india | 92.0 | 75.0 | 100.0 | 100.0 |\n| india_sheet_1 | 82.1 | 75.0 | 45.0 | 100.0 |"
+    },
+    {
+      "citations": [
+        "eg_sites_india",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "site_sources",
+      "source_domain": "site",
+      "geographic_requirement": "India",
+      "candidates": [
+        {
+          "source_id": "eg_sites_india",
+          "authority_score": 90.0,
+          "recency_score": 100.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 96.80000000000001,
+          "rationale": "company_report/site scored for authority, year fit, and India relevance."
+        },
+        {
+          "source_id": "user_doc_2",
+          "authority_score": 68.0,
+          "recency_score": 45.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 79.86000000000001,
+          "rationale": "user_document/site scored for authority, year fit, and India relevance."
+        }
+      ],
+      "selected_source_ids": [
+        "eg_sites_india",
+        "user_doc_2"
+      ],
+      "unresolved_conflict": false,
+      "markdown": "| Source | Total | Authority | Recency | Geography |\n| --- | --- | --- | --- | --- |\n| eg_sites_india | 96.8 | 90.0 | 100.0 | 100.0 |\n| user_doc_2 | 79.9 | 68.0 | 45.0 | 100.0 |"
+    },
+    {
+      "citations": [
+        "eg_utilities_gujarat"
+      ],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "utilities_sources",
+      "source_domain": "utilities",
+      "geographic_requirement": "India",
+      "candidates": [
+        {
+          "source_id": "eg_utilities_gujarat",
+          "authority_score": 82.0,
+          "recency_score": 100.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 94.24,
+          "rationale": "utility/utilities scored for authority, year fit, and India relevance."
+        }
+      ],
+      "selected_source_ids": [
+        "eg_utilities_gujarat"
+      ],
+      "unresolved_conflict": false,
+      "markdown": "| Source | Total | Authority | Recency | Geography |\n| --- | --- | --- | --- | --- |\n| eg_utilities_gujarat | 94.2 | 82.0 | 100.0 | 100.0 |"
+    },
+    {
+      "citations": [],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "logistics_sources",
+      "source_domain": "logistics",
+      "geographic_requirement": "India",
+      "candidates": [],
+      "selected_source_ids": [],
+      "unresolved_conflict": false,
+      "markdown": "No candidates available."
+    },
+    {
+      "citations": [],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "regulatory_sources",
+      "source_domain": "regulatory",
+      "geographic_requirement": "India",
+      "candidates": [],
+      "selected_source_ids": [],
+      "unresolved_conflict": false,
+      "markdown": "No candidates available."
+    },
+    {
+      "citations": [
+        "eg_market_india",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Source ranking uses deterministic authority, recency, geography, domain-fit, and consistency heuristics."
+      ],
+      "group_id": "economics_sources",
+      "source_domain": "economics",
+      "geographic_requirement": "India",
+      "candidates": [
+        {
+          "source_id": "eg_market_india",
+          "authority_score": 75.0,
+          "recency_score": 100.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 92.0,
+          "rationale": "market/economics scored for authority, year fit, and India relevance."
+        },
+        {
+          "source_id": "india_sheet_1",
+          "authority_score": 75.0,
+          "recency_score": 45.0,
+          "geography_score": 100.0,
+          "domain_fit_score": 100.0,
+          "consistency_score": 99.99999999999999,
+          "total_score": 82.10000000000001,
+          "rationale": "market/economics scored for authority, year fit, and India relevance."
+        }
+      ],
+      "selected_source_ids": [
+        "eg_market_india",
+        "india_sheet_1"
+      ],
+      "unresolved_conflict": false,
+      "markdown": "| Source | Total | Authority | Recency | Geography |\n| --- | --- | --- | --- | --- |\n| eg_market_india | 92.0 | 75.0 | 100.0 | 100.0 |\n| india_sheet_1 | 82.1 | 75.0 | 45.0 | 100.0 |"
+    }
+  ],
+  "selected_source_ids": [
+    "eg_handbook",
+    "eg_kinetics",
+    "eg_market_india",
+    "eg_safety",
+    "eg_sites_india",
+    "eg_utilities_gujarat",
+    "india_sheet_1",
+    "user_doc_2"
+  ],
+  "unresolved_conflicts": [],
+  "conflicts": [
+    {
+      "citations": [
+        "eg_handbook",
+        "eg_kinetics"
+      ],
+      "assumptions": [
+        "Source conflict recorded when top-ranked evidence remains close or non-India-grounded."
+      ],
+      "conflict_id": "technical_conflict",
+      "source_domain": "technical",
+      "selected_source_id": "eg_handbook",
+      "competing_source_ids": [
+        "eg_kinetics",
+        "user_doc_1"
+      ],
+      "score_gap": 4.94,
+      "blocking": false,
+      "rationale": "Top-ranked sources remain close in score or fail the India-only requirement.",
+      "recommended_resolution": "Prefer the highest-ranked India-grounded source or request analyst confirmation if the score gap remains narrow."
+    }
+  ],
+  "markdown": "| Domain | Selected Sources | Conflict |\n| --- | --- | --- |\n| technical | eg_handbook, eg_kinetics | no |\n| safety | eg_safety | no |\n| market | eg_market_india, india_sheet_1 | no |\n| site | eg_sites_india, user_doc_2 | no |\n| utilities | eg_utilities_gujarat | no |\n| logistics | none | no |\n| regulatory | none | no |\n| economics | eg_market_india, india_sheet_1 | no |"
+}

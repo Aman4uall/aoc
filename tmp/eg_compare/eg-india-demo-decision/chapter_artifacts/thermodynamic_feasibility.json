@@ -1,0 +1,26 @@
+{
+  "chapter_id": "thermodynamic_feasibility",
+  "title": "Thermodynamic Feasibility",
+  "stage_id": "thermodynamic_feasibility",
+  "status": "complete",
+  "required_inputs": [
+    "route_selection",
+    "route_survey",
+    "research_bundle"
+  ],
+  "produced_outputs": [
+    "thermo_assessment",
+    "thermo_method_decision"
+  ],
+  "blockers": [],
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use."
+  ],
+  "summary": "The selected route is thermodynamically favorable under the proposed liquid-phase operating conditions.",
+  "rendered_markdown": "## Thermodynamic Feasibility\n\n### Selected Property Basis\n\nUse cited public anchors with library-backed calculation and benchmark seeds for missing constants. selected for the active component set of route omega_catalytic.\n\n| Property Basis | Feasible | Score |\n| --- | --- | --- |\n| direct_public_package | no | 16.00 |\n| hybrid_cited_plus_library | yes | 62.00 |\n| estimation_dominant | yes | 40.00 |\n| analogy_basis | yes | 10.00 |\n\n### Separation Thermodynamics Basis\n\n| Component | Ttop (C) | Gamma top | Ktop | Method | Tbottom (C) | Gamma bottom | Kbottom | Method |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| Ethylene Glycol | 108.0 | 1.0000 | 0.0160 | ideal_raoult_missing_bip_clausius_clapeyron | 203.3 | 1.0000 | 0.3669 | ideal_raoult_missing_bip_clausius_clapeyron |\n| Ethylene oxide | 108.0 | 1.0000 | 4.5086 | ideal_raoult_clausius_clapeyron | 203.3 | 1.0000 | 21.3927 | ideal_raoult_clausius_clapeyron |\n| Water | 108.0 | 1.0000 | 0.4138 | ideal_raoult_missing_bip_antoine_extrapolated | 203.3 | 1.0000 | 5.2836 | ideal_raoult_missing_bip_antoine_extrapolated |\n\nLight key: `Water`\nHeavy key: `Ethylene Glycol`\nActivity model: `ideal_raoult_missing_bip_fallback`\nAverage relative volatility: `19.3148`\nSystem pressure: `3.240` bar\n\nFallback notes:\n- Binary interaction parameters for Water / Ethylene Glycol were not resolved from cited/public sources.\n- Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair.\n\n### Selected Thermodynamic Method\n\nUse direct public property and reaction data where available. selected as the primary thermodynamic basis.\n\n| Method | Feasible | Score | Rejected Reasons |\n| --- | --- | --- | --- |\n| direct_public_data | yes | 91.10 | - |\n| correlation_interpolation | yes | 88.10 | - |\n| estimation_method | yes | 65.90 | - |\n| analogy_basis | yes | 53.50 | - |\n\n### Thermodynamic Interpretation\n\nThe selected reaction is treated as thermodynamically favorable, with a negative Gibbs free energy and exothermic heat release that supports conversion but requires controlled heat removal."
+}

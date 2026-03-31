@@ -1,0 +1,28 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties."
+  ],
+  "selected_route_id": "omega_catalytic",
+  "justification": "OMEGA catalytic route via ethylene carbonate is selected because the `Liquid Hydration Train` route family stays economically competitive after the chosen heat-integration case `omega_catalytic_pinch_htm`, while retaining credible industrial maturity and India fit.",
+  "comparison_markdown": "| Route | Family | Total score | Residual hot utility (kW) | Heat case | Scenario stability |\n| --- | --- | --- | --- | --- | --- |\n| eo_hydration | liquid_hydration_train | 39.95 | 49263.839 | eo_hydration_pinch_htm | reviewed |\n| omega_catalytic | liquid_hydration_train | 60.60 | 43800.060 | omega_catalytic_pinch_htm | stable |\n| chlorohydrin | chlorinated_hydrolysis_train | -1.00 | 13044.246 | chlorohydrin_no_recovery | reviewed |"
+}

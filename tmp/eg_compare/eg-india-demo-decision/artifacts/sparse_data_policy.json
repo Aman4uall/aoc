@@ -1,0 +1,410 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+    "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors.",
+    "Sparse-data policy is generated from the chemistry-family adapter and current property-engine coverage.",
+    "Detailed design stages may block even when screening solvers still allow explicit heuristic fallback."
+  ],
+  "policy_id": "continuous_liquid_organic_train_sparse_data_policy",
+  "adapter_id": "continuous_liquid_organic_train",
+  "family_label": "Continuous Liquid Organic Train",
+  "rules": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_thermodynamic_feasibility_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "subject": "molecular_weight",
+      "artifact_family": "pure_component_identity",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.55,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Thermodynamic screening may proceed on a cited or defensible estimated molecular-weight basis, but not on analogy."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_thermodynamic_feasibility_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "subject": "normal_boiling_point",
+      "artifact_family": "pure_component_thermo",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.6,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Boiling-point basis may be estimated when public anchors exist, but low-confidence or analogy-only values should not pass silently."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_energy_balance_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "subject": "liquid_heat_capacity",
+      "artifact_family": "bulk_thermal_properties",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.55,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Energy balance may use estimated heat capacity only above a minimum confidence threshold."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_energy_balance_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "subject": "heat_of_vaporization",
+      "artifact_family": "bulk_thermal_properties",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.55,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Latent-duty handling may use estimated vaporization enthalpy only when the estimate remains confidence-anchored."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_reactor_design_liquid_density",
+      "stage_id": "reactor_design",
+      "subject": "liquid_density",
+      "artifact_family": "transport_properties",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.6,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Reactor sizing may accept estimated density, but not low-confidence or analogy-only transport data."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_reactor_design_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "subject": "liquid_viscosity",
+      "artifact_family": "transport_properties",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.6,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Reactor heat-transfer and hydraulics require viscosity with enough confidence for Reynolds/Nusselt screening."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_distillation_design_liquid_density",
+      "stage_id": "distillation_design",
+      "subject": "liquid_density",
+      "artifact_family": "separation_transport",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.6,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Process-unit hydraulics may use estimated density only above the family policy threshold."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_distillation_design_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "subject": "liquid_viscosity",
+      "artifact_family": "separation_transport",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": true,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": false,
+      "minimum_confidence": 0.6,
+      "block_when_missing": true,
+      "current_status": "covered",
+      "triggered_items": [],
+      "rationale": "Process-unit hydraulics may use estimated viscosity only above the family policy threshold."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock EG route survey uses seeded industrial route families.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Mock EG product profile uses seeded but realistic property values.",
+        "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions.",
+        "Chemistry-family adapter 'continuous_liquid_organic_train' selected from archetype 'organic_liquid_distillation_flash' and top-ranked route descriptors."
+      ],
+      "rule_id": "continuous_liquid_organic_train_distillation_design_binary_interaction_parameters",
+      "stage_id": "distillation_design",
+      "subject": "binary_interaction_parameters",
+      "artifact_family": "vle_nonideal_basis",
+      "preferred_resolution_order": [
+        "sourced",
+        "calculated",
+        "estimated",
+        "analogy"
+      ],
+      "allow_calculated": true,
+      "allow_estimated": false,
+      "allow_analogy": false,
+      "allow_heuristic_fallback": true,
+      "minimum_confidence": 0.0,
+      "block_when_missing": false,
+      "current_status": "warning",
+      "triggered_items": [
+        "ethylene_glycol__ethylene_oxide",
+        "ethylene_glycol__water",
+        "ethylene_oxide__water"
+      ],
+      "rationale": "VLE-heavy families may continue on ideal fallback when BIPs are missing, but the fallback must stay explicit and reviewable."
+    }
+  ],
+  "blocked_stage_ids": [],
+  "warning_stage_ids": [
+    "distillation_design"
+  ],
+  "markdown": "| Stage | Subject | Artifact Family | Est. | Analogy | Heuristic Fallback | Min Confidence | Status | Triggered Items |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| thermodynamic_feasibility | molecular_weight | pure_component_identity | yes | no | no | 0.55 | covered | - |\n| thermodynamic_feasibility | normal_boiling_point | pure_component_thermo | yes | no | no | 0.60 | covered | - |\n| energy_balance | liquid_heat_capacity | bulk_thermal_properties | yes | no | no | 0.55 | covered | - |\n| energy_balance | heat_of_vaporization | bulk_thermal_properties | yes | no | no | 0.55 | covered | - |\n| reactor_design | liquid_density | transport_properties | yes | no | no | 0.60 | covered | - |\n| reactor_design | liquid_viscosity | transport_properties | yes | no | no | 0.60 | covered | - |\n| distillation_design | liquid_density | separation_transport | yes | no | no | 0.60 | covered | - |\n| distillation_design | liquid_viscosity | separation_transport | yes | no | no | 0.60 | covered | - |\n| distillation_design | binary_interaction_parameters | vle_nonideal_basis | no | no | yes | 0.00 | warning | ethylene_glycol__ethylene_oxide, ethylene_glycol__water, ethylene_oxide__water |"
+}

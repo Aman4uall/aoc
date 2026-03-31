@@ -1,0 +1,114 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+  ],
+  "decision_id": "procurement_basis",
+  "context": "Procurement basis for Dahej and 13 equipment items.",
+  "criteria": [
+    {
+      "name": "India fit",
+      "weight": 0.3,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Economic basis must fit India public data constraints."
+    },
+    {
+      "name": "Cost competitiveness",
+      "weight": 0.35,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Basis must remain competitive under public-data assumptions."
+    },
+    {
+      "name": "Execution realism",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Procurement and finance assumptions should be buildable."
+    },
+    {
+      "name": "Scenario stability",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Weak options should be surfaced for approval."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+      ],
+      "candidate_id": "domestic_cluster_procurement",
+      "candidate_type": "procurement_basis",
+      "description": "Domestic cluster-led procurement",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 92.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+      ],
+      "candidate_id": "mixed_import_domestic",
+      "candidate_type": "procurement_basis",
+      "description": "Mixed import and domestic procurement",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 84.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Mock India site selection uses seeded cluster scoring rather than full geospatial analysis."
+      ],
+      "candidate_id": "import_heavy",
+      "candidate_type": "procurement_basis",
+      "description": "Import-heavy procurement",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 68.0,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "domestic_cluster_procurement",
+  "selected_summary": "Domestic cluster-led procurement selected as the current economic basis.",
+  "hard_constraint_results": [
+    "India-only site, tariff, labor, logistics, and regulatory basis enforced."
+  ],
+  "confidence": 0.83,
+  "scenario_stability": "stable",
+  "approval_required": false,
+  "blocked_value_ids": []
+}

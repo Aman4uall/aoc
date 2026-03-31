@@ -1,0 +1,26 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Mock EG route survey uses seeded industrial route families.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Property-gap resolution applies a single hierarchy from sourced values to conservative assumptions."
+  ],
+  "archetype_id": "organic_liquid_distillation_flash",
+  "compound_family": "organic",
+  "dominant_product_phase": "liquid",
+  "dominant_feed_phase": "mixed",
+  "operating_mode_candidates": [
+    "continuous"
+  ],
+  "dominant_separation_family": "distillation_flash",
+  "heat_management_profile": "moderate_temperature_integrated",
+  "hazard_intensity": "high",
+  "rationale": "Classified from public route patterns, product/participant phase cues, and sensitivity-checked property gaps. High-sensitivity unresolved properties: none.",
+  "benchmark_profile": "ethylene_glycol",
+  "chemistry_family_adapter_id": "continuous_liquid_organic_train"
+}

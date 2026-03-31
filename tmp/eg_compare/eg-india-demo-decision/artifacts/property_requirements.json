@@ -1,0 +1,2344 @@
+{
+  "citations": [
+    "eg_handbook",
+    "user_doc_1"
+  ],
+  "assumptions": [
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+    "Property requirement coverage is evaluated against the primary route/product identifier set."
+  ],
+  "requirements": [
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "thermodynamic_feasibility_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "unit_family": "thermodynamic_feasibility",
+      "property_name": "molecular_weight",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Pure-component identity and thermodynamic screening require molecular weight or a defensible estimated anchor. Sparse-data policy minimum confidence is 0.55; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "thermodynamic_feasibility_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "unit_family": "thermodynamic_feasibility",
+      "property_name": "normal_boiling_point",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Boiling point anchors thermodynamic feasibility and later separation screening. Sparse-data policy minimum confidence is 0.60; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "thermodynamic_feasibility_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "unit_family": "thermodynamic_feasibility",
+      "property_name": "melting_point",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Melting point anchors solids/liquid feasibility and handling risk."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "energy_balance_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "unit_family": "energy_balance",
+      "property_name": "liquid_heat_capacity",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Energy balance requires heat-capacity data or a defensible estimate. Sparse-data policy minimum confidence is 0.55; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "energy_balance_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "unit_family": "energy_balance",
+      "property_name": "heat_of_vaporization",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Latent-duty handling requires vaporization enthalpy or a defensible estimate. Sparse-data policy minimum confidence is 0.55; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "energy_balance_liquid_density",
+      "stage_id": "energy_balance",
+      "unit_family": "energy_balance",
+      "property_name": "liquid_density",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Density is required for flow-to-duty conversion and later equipment sizing."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "reactor_design_liquid_density",
+      "stage_id": "reactor_design",
+      "unit_family": "reactor_design",
+      "property_name": "liquid_density",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Reactor hydraulic sizing requires density. Sparse-data policy minimum confidence is 0.60; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "reactor_design_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "unit_family": "reactor_design",
+      "property_name": "liquid_viscosity",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Reactor Reynolds/Nusselt basis requires viscosity. Sparse-data policy minimum confidence is 0.60; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "reactor_design_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "unit_family": "reactor_design",
+      "property_name": "liquid_heat_capacity",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Reactor thermal design requires heat capacity."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "reactor_design_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "unit_family": "reactor_design",
+      "property_name": "thermal_conductivity",
+      "allow_estimated": true,
+      "optional": true,
+      "sensitivity": "medium",
+      "blocking": false,
+      "notes": "Thermal conductivity improves heat-transfer estimates when available."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "distillation_design_liquid_density",
+      "stage_id": "distillation_design",
+      "unit_family": "distillation_design",
+      "property_name": "liquid_density",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Process-unit hydraulics require density. Sparse-data policy minimum confidence is 0.60; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "distillation_design_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "unit_family": "distillation_design",
+      "property_name": "liquid_viscosity",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Process-unit hydraulics require viscosity. Sparse-data policy minimum confidence is 0.60; analogy not allowed."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "distillation_design_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "unit_family": "distillation_design",
+      "property_name": "liquid_heat_capacity",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Thermal design requires heat capacity."
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "requirement_id": "mechanical_design_moc_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "unit_family": "mechanical_design_moc",
+      "property_name": "liquid_density",
+      "allow_estimated": true,
+      "optional": false,
+      "sensitivity": "high",
+      "blocking": true,
+      "notes": "Mechanical screening requires density and reference phase awareness."
+    }
+  ],
+  "coverage": [
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_chlorohydrin_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "molecular_weight",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_glycol_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "molecular_weight",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_oxide_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "molecular_weight",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_sodium_chloride_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "sodium_chloride",
+      "property_name": "molecular_weight",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_sodium_hydroxide_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "molecular_weight",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_water_molecular_weight",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "water",
+      "property_name": "molecular_weight",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_chlorohydrin_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "normal_boiling_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_glycol_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "normal_boiling_point",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_oxide_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "normal_boiling_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_sodium_chloride_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "sodium_chloride",
+      "property_name": "normal_boiling_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_sodium_hydroxide_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "normal_boiling_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_water_normal_boiling_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "water",
+      "property_name": "normal_boiling_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_chlorohydrin_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "melting_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_glycol_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "melting_point",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_ethylene_oxide_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "melting_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_sodium_chloride_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "sodium_chloride",
+      "property_name": "melting_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_sodium_hydroxide_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "melting_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "thermodynamic_feasibility_water_melting_point",
+      "stage_id": "thermodynamic_feasibility",
+      "identifier_id": "water",
+      "property_name": "melting_point",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_chlorohydrin_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_glycol_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_oxide_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_sodium_chloride_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_sodium_hydroxide_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_water_liquid_heat_capacity",
+      "stage_id": "energy_balance",
+      "identifier_id": "water",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_chlorohydrin_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "heat_of_vaporization",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_glycol_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "heat_of_vaporization",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_oxide_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "heat_of_vaporization",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_sodium_chloride_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "identifier_id": "sodium_chloride",
+      "property_name": "heat_of_vaporization",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_sodium_hydroxide_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "heat_of_vaporization",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_water_heat_of_vaporization",
+      "stage_id": "energy_balance",
+      "identifier_id": "water",
+      "property_name": "heat_of_vaporization",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_chlorohydrin_liquid_density",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_glycol_liquid_density",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_density",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_ethylene_oxide_liquid_density",
+      "stage_id": "energy_balance",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_sodium_chloride_liquid_density",
+      "stage_id": "energy_balance",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_sodium_hydroxide_liquid_density",
+      "stage_id": "energy_balance",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "energy_balance_water_liquid_density",
+      "stage_id": "energy_balance",
+      "identifier_id": "water",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_chlorohydrin_liquid_density",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_glycol_liquid_density",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_density",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_oxide_liquid_density",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_chloride_liquid_density",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_hydroxide_liquid_density",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_water_liquid_density",
+      "stage_id": "reactor_design",
+      "identifier_id": "water",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_chlorohydrin_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_glycol_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_oxide_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_chloride_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_hydroxide_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_water_liquid_viscosity",
+      "stage_id": "reactor_design",
+      "identifier_id": "water",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_chlorohydrin_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_glycol_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_oxide_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_chloride_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_hydroxide_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_water_liquid_heat_capacity",
+      "stage_id": "reactor_design",
+      "identifier_id": "water",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_chlorohydrin_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "thermal_conductivity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": false,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_glycol_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "thermal_conductivity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": false,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_ethylene_oxide_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "thermal_conductivity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": false,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_chloride_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "thermal_conductivity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": false,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_sodium_hydroxide_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "thermal_conductivity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": false,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "reactor_design_water_thermal_conductivity",
+      "stage_id": "reactor_design",
+      "identifier_id": "water",
+      "property_name": "thermal_conductivity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": false,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_chlorohydrin_liquid_density",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_glycol_liquid_density",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_density",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_oxide_liquid_density",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_sodium_chloride_liquid_density",
+      "stage_id": "distillation_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_sodium_hydroxide_liquid_density",
+      "stage_id": "distillation_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_water_liquid_density",
+      "stage_id": "distillation_design",
+      "identifier_id": "water",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_chlorohydrin_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_glycol_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_oxide_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_sodium_chloride_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_sodium_hydroxide_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_water_liquid_viscosity",
+      "stage_id": "distillation_design",
+      "identifier_id": "water",
+      "property_name": "liquid_viscosity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_chlorohydrin_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_glycol_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_ethylene_oxide_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_sodium_chloride_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_sodium_hydroxide_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "distillation_design_water_liquid_heat_capacity",
+      "stage_id": "distillation_design",
+      "identifier_id": "water",
+      "property_name": "liquid_heat_capacity",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "mechanical_design_moc_ethylene_chlorohydrin_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "identifier_id": "ethylene_chlorohydrin",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "mechanical_design_moc_ethylene_glycol_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "identifier_id": "ethylene_glycol",
+      "property_name": "liquid_density",
+      "status": "covered",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "notes": "Property is covered by a resolved package entry."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "mechanical_design_moc_ethylene_oxide_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "identifier_id": "ethylene_oxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "mechanical_design_moc_sodium_chloride_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "identifier_id": "sodium_chloride",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "mechanical_design_moc_sodium_hydroxide_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "identifier_id": "sodium_hydroxide",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "assumptions": [
+        "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+        "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+        "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+        "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+      ],
+      "coverage_id": "mechanical_design_moc_water_liquid_density",
+      "stage_id": "mechanical_design_moc",
+      "identifier_id": "water",
+      "property_name": "liquid_density",
+      "status": "estimated",
+      "allow_estimated": true,
+      "blocking": true,
+      "source_ids": [
+        "user_doc_1",
+        "eg_handbook"
+      ],
+      "notes": "Property is available only as an estimated/library-backed value."
+    }
+  ],
+  "blocked_requirement_ids": [],
+  "blocked_stage_ids": [],
+  "markdown": "| Stage | Identifier | Property | Status | Allow Estimated | Blocking |\n| --- | --- | --- | --- | --- | --- |\n| thermodynamic_feasibility | ethylene_chlorohydrin | molecular_weight | estimated | yes | yes |\n| thermodynamic_feasibility | ethylene_glycol | molecular_weight | covered | yes | yes |\n| thermodynamic_feasibility | ethylene_oxide | molecular_weight | estimated | yes | yes |\n| thermodynamic_feasibility | sodium_chloride | molecular_weight | estimated | yes | yes |\n| thermodynamic_feasibility | sodium_hydroxide | molecular_weight | estimated | yes | yes |\n| thermodynamic_feasibility | water | molecular_weight | estimated | yes | yes |\n| thermodynamic_feasibility | ethylene_chlorohydrin | normal_boiling_point | estimated | yes | yes |\n| thermodynamic_feasibility | ethylene_glycol | normal_boiling_point | covered | yes | yes |\n| thermodynamic_feasibility | ethylene_oxide | normal_boiling_point | estimated | yes | yes |\n| thermodynamic_feasibility | sodium_chloride | normal_boiling_point | estimated | yes | yes |\n| thermodynamic_feasibility | sodium_hydroxide | normal_boiling_point | estimated | yes | yes |\n| thermodynamic_feasibility | water | normal_boiling_point | estimated | yes | yes |\n| thermodynamic_feasibility | ethylene_chlorohydrin | melting_point | estimated | yes | yes |\n| thermodynamic_feasibility | ethylene_glycol | melting_point | covered | yes | yes |\n| thermodynamic_feasibility | ethylene_oxide | melting_point | estimated | yes | yes |\n| thermodynamic_feasibility | sodium_chloride | melting_point | estimated | yes | yes |\n| thermodynamic_feasibility | sodium_hydroxide | melting_point | estimated | yes | yes |\n| thermodynamic_feasibility | water | melting_point | estimated | yes | yes |\n| energy_balance | ethylene_chlorohydrin | liquid_heat_capacity | estimated | yes | yes |\n| energy_balance | ethylene_glycol | liquid_heat_capacity | estimated | yes | yes |\n| energy_balance | ethylene_oxide | liquid_heat_capacity | estimated | yes | yes |\n| energy_balance | sodium_chloride | liquid_heat_capacity | estimated | yes | yes |\n| energy_balance | sodium_hydroxide | liquid_heat_capacity | estimated | yes | yes |\n| energy_balance | water | liquid_heat_capacity | estimated | yes | yes |\n| energy_balance | ethylene_chlorohydrin | heat_of_vaporization | estimated | yes | yes |\n| energy_balance | ethylene_glycol | heat_of_vaporization | estimated | yes | yes |\n| energy_balance | ethylene_oxide | heat_of_vaporization | estimated | yes | yes |\n| energy_balance | sodium_chloride | heat_of_vaporization | estimated | yes | yes |\n| energy_balance | sodium_hydroxide | heat_of_vaporization | estimated | yes | yes |\n| energy_balance | water | heat_of_vaporization | estimated | yes | yes |\n| energy_balance | ethylene_chlorohydrin | liquid_density | estimated | yes | yes |\n| energy_balance | ethylene_glycol | liquid_density | covered | yes | yes |\n| energy_balance | ethylene_oxide | liquid_density | estimated | yes | yes |\n| energy_balance | sodium_chloride | liquid_density | estimated | yes | yes |\n| energy_balance | sodium_hydroxide | liquid_density | estimated | yes | yes |\n| energy_balance | water | liquid_density | estimated | yes | yes |\n| reactor_design | ethylene_chlorohydrin | liquid_density | estimated | yes | yes |\n| reactor_design | ethylene_glycol | liquid_density | covered | yes | yes |\n| reactor_design | ethylene_oxide | liquid_density | estimated | yes | yes |\n| reactor_design | sodium_chloride | liquid_density | estimated | yes | yes |\n| reactor_design | sodium_hydroxide | liquid_density | estimated | yes | yes |\n| reactor_design | water | liquid_density | estimated | yes | yes |\n| reactor_design | ethylene_chlorohydrin | liquid_viscosity | estimated | yes | yes |\n| reactor_design | ethylene_glycol | liquid_viscosity | estimated | yes | yes |\n| reactor_design | ethylene_oxide | liquid_viscosity | estimated | yes | yes |\n| reactor_design | sodium_chloride | liquid_viscosity | estimated | yes | yes |\n| reactor_design | sodium_hydroxide | liquid_viscosity | estimated | yes | yes |\n| reactor_design | water | liquid_viscosity | estimated | yes | yes |\n| reactor_design | ethylene_chlorohydrin | liquid_heat_capacity | estimated | yes | yes |\n| reactor_design | ethylene_glycol | liquid_heat_capacity | estimated | yes | yes |\n| reactor_design | ethylene_oxide | liquid_heat_capacity | estimated | yes | yes |\n| reactor_design | sodium_chloride | liquid_heat_capacity | estimated | yes | yes |\n| reactor_design | sodium_hydroxide | liquid_heat_capacity | estimated | yes | yes |\n| reactor_design | water | liquid_heat_capacity | estimated | yes | yes |\n| reactor_design | ethylene_chlorohydrin | thermal_conductivity | estimated | yes | no |\n| reactor_design | ethylene_glycol | thermal_conductivity | estimated | yes | no |\n| reactor_design | ethylene_oxide | thermal_conductivity | estimated | yes | no |\n| reactor_design | sodium_chloride | thermal_conductivity | estimated | yes | no |\n| reactor_design | sodium_hydroxide | thermal_conductivity | estimated | yes | no |\n| reactor_design | water | thermal_conductivity | estimated | yes | no |\n| distillation_design | ethylene_chlorohydrin | liquid_density | estimated | yes | yes |\n| distillation_design | ethylene_glycol | liquid_density | covered | yes | yes |\n| distillation_design | ethylene_oxide | liquid_density | estimated | yes | yes |\n| distillation_design | sodium_chloride | liquid_density | estimated | yes | yes |\n| distillation_design | sodium_hydroxide | liquid_density | estimated | yes | yes |\n| distillation_design | water | liquid_density | estimated | yes | yes |\n| distillation_design | ethylene_chlorohydrin | liquid_viscosity | estimated | yes | yes |\n| distillation_design | ethylene_glycol | liquid_viscosity | estimated | yes | yes |\n| distillation_design | ethylene_oxide | liquid_viscosity | estimated | yes | yes |\n| distillation_design | sodium_chloride | liquid_viscosity | estimated | yes | yes |\n| distillation_design | sodium_hydroxide | liquid_viscosity | estimated | yes | yes |\n| distillation_design | water | liquid_viscosity | estimated | yes | yes |\n| distillation_design | ethylene_chlorohydrin | liquid_heat_capacity | estimated | yes | yes |\n| distillation_design | ethylene_glycol | liquid_heat_capacity | estimated | yes | yes |\n| distillation_design | ethylene_oxide | liquid_heat_capacity | estimated | yes | yes |\n| distillation_design | sodium_chloride | liquid_heat_capacity | estimated | yes | yes |\n| distillation_design | sodium_hydroxide | liquid_heat_capacity | estimated | yes | yes |\n| distillation_design | water | liquid_heat_capacity | estimated | yes | yes |\n| mechanical_design_moc | ethylene_chlorohydrin | liquid_density | estimated | yes | yes |\n| mechanical_design_moc | ethylene_glycol | liquid_density | covered | yes | yes |\n| mechanical_design_moc | ethylene_oxide | liquid_density | estimated | yes | yes |\n| mechanical_design_moc | sodium_chloride | liquid_density | estimated | yes | yes |\n| mechanical_design_moc | sodium_hydroxide | liquid_density | estimated | yes | yes |\n| mechanical_design_moc | water | liquid_density | estimated | yes | yes |"
+}

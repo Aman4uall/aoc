@@ -1,0 +1,12 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Seeded BFD used for deterministic stage execution."
+  ],
+  "bfd_mermaid": "flowchart LR\n  A[Feed Storage] --> B[Feed Preparation]\n  B --> C[Reactor]\n  C --> D[Separation]\n  D --> E[Purification]\n  E --> F[Product Storage]",
+  "markdown": "Raw materials are metered, reacted, and purified through a simple seeded sequence."
+}

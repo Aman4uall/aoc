@@ -414,6 +414,11 @@ def build_separation_thermo_artifact(
         ).k_value,
         1e-9,
     )
+    if family in {"distillation", "absorption"} and top_alpha < 1.0 and bottom_alpha < 1.0:
+        light, heavy = heavy, light
+        top_alpha = 1.0 / max(top_alpha, 1e-9)
+        bottom_alpha = 1.0 / max(bottom_alpha, 1e-9)
+        method_notes.append("Key orientation auto-corrected so the more volatile component is treated as the light key for separation screening.")
     feasible = (
         light.identifier.identifier_id not in blocked_ids
         and heavy.identifier.identifier_id not in blocked_ids

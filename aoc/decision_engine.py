@@ -11,6 +11,7 @@ from aoc.models import (
     DecisionCriterion,
     DecisionRecord,
     FinancialModel,
+    FlowsheetBlueprintArtifact,
     HeatIntegrationCase,
     HeatIntegrationStudyArtifact,
     HeatMatch,
@@ -24,12 +25,14 @@ from aoc.models import (
     RoughAlternativeSummaryArtifact,
     RouteFamilyArtifact,
     RouteFamilyProfile,
+    RouteChemistryArtifact,
     RouteSelectionArtifact,
     RouteSurveyArtifact,
     ScenarioResult,
     ScenarioStability,
     SensitivityLevel,
     SiteSelectionArtifact,
+    UnitTrainCandidateSet,
     UtilityBasis,
     UtilityNetworkDecision,
     UtilityTarget,
@@ -102,6 +105,31 @@ def _candidate_id(label: str) -> str:
     for char in label.lower():
         sanitized.append(char if char.isalnum() else "_")
     return "_".join(part for part in "".join(sanitized).split("_") if part)
+
+
+def _blueprint_for_route(
+    unit_train_candidates: UnitTrainCandidateSet | None,
+    route_id: str,
+) -> FlowsheetBlueprintArtifact | None:
+    if unit_train_candidates is None:
+        return None
+    for blueprint in unit_train_candidates.blueprints:
+        if blueprint.route_id == route_id:
+            return blueprint
+    return None
+
+
+def _blueprint_complexity_metrics(
+    blueprint: FlowsheetBlueprintArtifact | None,
+) -> tuple[int, int, int, bool]:
+    if blueprint is None:
+        return 0, 0, 0, False
+    return (
+        len(blueprint.steps),
+        len(blueprint.separation_duties),
+        len(blueprint.recycle_intents),
+        blueprint.batch_capable,
+    )
 
 
 def _family_heat_signature(case: RoughAlternativeCase) -> dict[str, float]:
@@ -555,10 +583,18 @@ def build_site_selection_decision(config: ProjectConfig, site_selection: SiteSel
     )
 
 
-def _rough_case_for_route(config: ProjectConfig, route, market, route_families: RouteFamilyArtifact | None = None) -> RoughAlternativeCase:
+def _rough_case_for_route(
+    config: ProjectConfig,
+    route,
+    market,
+    route_families: RouteFamilyArtifact | None = None,
+    unit_train_candidates: UnitTrainCandidateSet | None = None,
+) -> RoughAlternativeCase:
     basis = config.basis
     product = _route_product(route)
     profile = _route_profile(route, route_families)
+    blueprint = _blueprint_for_route(unit_train_candidates, route.route_id)
+    blueprint_step_count, separation_duty_count, recycle_intent_count, batch_capable = _blueprint_complexity_metrics(blueprint)
     annual_hours = operating_hours_per_year(basis)
     product_mass_kg_hr = hourly_output_kg(basis)
     product_kmol_hr = product_mass_kg_hr / max(product.molecular_weight_g_mol, 1.0)
@@ -604,6 +640,12 @@ def _rough_case_for_route(config: ProjectConfig, route, market, route_families: 
     polishing_heating_kw = product_mass_kg_hr * polishing_factor
     estimated_heating_kw = dehydration_burden_kw + polishing_heating_kw
     estimated_cooling_kw = reaction_cooling_kw + estimated_heating_kw * cooling_multiplier
+    if blueprint is not None:
+        estimated_heating_kw *= 1.0 + 0.010 * recycle_intent_count
+        estimated_cooling_kw *= 1.0 + 0.010 * recycle_intent_count
+        if batch_capable and basis.operating_mode == "batch":
+            estimated_heating_kw *= 1.03
+            estimated_cooling_kw *= 1.02
     steam_price = _price_lookup(market.india_price_data, "Steam", 1.8)
     cooling_water_price = _price_lookup(market.india_price_data, "Cooling water", 8.0)
     power_price = _price_lookup(market.india_price_data, "Electricity", 8.5)
@@ -613,12 +655,36 @@ def _rough_case_for_route(config: ProjectConfig, route, market, route_families: 
     estimated_annual_utility_cost_inr = steam_cost + cooling_cost + power_cost
     base_capex = 7.4e9 * profile.capex_intensity_factor
     estimated_capex_inr = base_capex + estimated_heating_kw * 8500.0 + estimated_cooling_kw * 6200.0
+    if blueprint is not None:
+        complexity_index = max(blueprint_step_count - 4, 0)
+        estimated_capex_inr *= (
+            1.0
+            + 0.050 * complexity_index
+            + 0.060 * separation_duty_count
+            + 0.050 * recycle_intent_count
+            + (0.080 if batch_capable else 0.0)
+        )
     feedstock_factor = 5.0e9 * (0.90 + profile.capex_intensity_factor * 0.12)
+    if blueprint is not None:
+        feedstock_factor *= (
+            1.0
+            + 0.015 * max(blueprint_step_count - 4, 0)
+            + 0.020 * separation_duty_count
+            + 0.025 * recycle_intent_count
+            + (0.040 if batch_capable else 0.0)
+        )
     estimated_annual_total_opex_inr = feedstock_factor + estimated_annual_utility_cost_inr
     note = (
-        f"{profile.family_label} rough balance uses route-family factors for utility and CAPEX intensity. "
-        + (" ".join(profile.critic_flags[:2]) if profile.critic_flags else "No special critic penalties were triggered.")
+        f"{profile.family_label} rough balance uses route-family factors for utility and CAPEX intensity."
     )
+    if blueprint is not None:
+        note += (
+            f" Blueprint complexity adds {blueprint_step_count} mapped steps, "
+            f"{separation_duty_count} separation duties, and {recycle_intent_count} recycle intents."
+        )
+        if batch_capable:
+            note += " Batch-capable blueprint handling is included in the rough screening."
+    note += " " + (" ".join(profile.critic_flags[:2]) if profile.critic_flags else "No special critic penalties were triggered.")
     return RoughAlternativeCase(
         candidate_id=f"alt_{route.route_id}",
         route_id=route.route_id,
@@ -629,6 +695,10 @@ def _rough_case_for_route(config: ProjectConfig, route, market, route_families: 
         reactor_class=profile.primary_reactor_class,
         separation_train=profile.primary_separation_train,
         heat_recovery_style=profile.heat_recovery_style,
+        blueprint_step_count=blueprint_step_count,
+        separation_duty_count=separation_duty_count,
+        recycle_intent_count=recycle_intent_count,
+        batch_capable=batch_capable,
         estimated_heating_kw=round(estimated_heating_kw, 3),
         estimated_cooling_kw=round(estimated_cooling_kw, 3),
         estimated_capex_inr=round(estimated_capex_inr, 2),
@@ -647,20 +717,36 @@ def build_rough_alternatives(
     synthesis: ProcessSynthesisArtifact,
     market,
     route_families: RouteFamilyArtifact | None = None,
+    unit_train_candidates: UnitTrainCandidateSet | None = None,
 ) -> RoughAlternativeSummaryArtifact:
     route_families = route_families or build_route_family_artifact(route_survey)
-    cases = [_rough_case_for_route(config, route, market, route_families) for route in route_survey.routes]
+    cases = [
+        _rough_case_for_route(
+            config,
+            route,
+            market,
+            route_families,
+            unit_train_candidates,
+        )
+        for route in route_survey.routes
+    ]
     rows = [
-        "| Route | Family | Heating (kW) | Cooling (kW) | CAPEX (INR bn) | Utility OPEX (INR bn/y) |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Route | Family | Blueprint steps | Separation duties | Recycle intents | Heating (kW) | Cooling (kW) | CAPEX (INR bn) | Utility OPEX (INR bn/y) |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for case in cases:
         rows.append(
-            f"| {case.route_id} | {case.route_family_label} | {case.estimated_heating_kw:.1f} | {case.estimated_cooling_kw:.1f} | {case.estimated_capex_inr / 1e9:.2f} | {case.estimated_annual_utility_cost_inr / 1e9:.2f} |"
+            f"| {case.route_id} | {case.route_family_label} | {case.blueprint_step_count} | {case.separation_duty_count} | "
+            f"{case.recycle_intent_count} | {case.estimated_heating_kw:.1f} | {case.estimated_cooling_kw:.1f} | "
+            f"{case.estimated_capex_inr / 1e9:.2f} | {case.estimated_annual_utility_cost_inr / 1e9:.2f} |"
         )
     return RoughAlternativeSummaryArtifact(
         cases=cases,
-        markdown="Rough alternative balances and duties convert each route architecture into first-pass utility and cost intensity.\n\n" + "\n".join(rows),
+        markdown=(
+            "Rough alternative balances and duties convert each route architecture into first-pass utility and cost intensity. "
+            "When a route-derived blueprint exists, the screening now uses mapped step count, separation duty count, and recycle intent count instead of only family defaults.\n\n"
+            + "\n".join(rows)
+        ),
         citations=sorted(set(route_survey.citations + synthesis.citations + market.citations)),
         assumptions=synthesis.assumptions + ["Rough alternative duties are used for early process architecture and heat-integration ranking, not final equipment design."],
     )
@@ -1153,8 +1239,10 @@ def build_economic_basis_decision(
     cost_model: CostModel,
     financial_model: FinancialModel,
     utility_basis_decision: DecisionRecord | None = None,
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None = None,
 ) -> DecisionRecord:
     selected_case = selected_heat_case(utility_network_decision)
+    blueprint_step_count, separation_duty_count, recycle_intent_count, batch_capable = _blueprint_complexity_metrics(flowsheet_blueprint)
     base_revenue = financial_model.annual_revenue
     base_margin = financial_model.gross_profit
     base_payback = financial_model.payback_years
@@ -1199,10 +1287,29 @@ def build_economic_basis_decision(
         "no_recovery_counterfactual": 88.0,
         "conservative_case": 92.0,
     }
+    if flowsheet_blueprint is not None:
+        complexity_penalty = min(
+            max(blueprint_step_count - 5, 0) * 1.2 + separation_duty_count * 1.0 + recycle_intent_count * 0.8,
+            10.0,
+        )
+        if batch_capable:
+            complexity_penalty += 2.0
+        india_grounding["selected_integrated_base"] = max(india_grounding["selected_integrated_base"] - complexity_penalty * 0.35, 70.0)
+        india_grounding["conservative_case"] = max(india_grounding["conservative_case"] - complexity_penalty * 0.25, 68.0)
+        resilience_scores["selected_integrated_base"] = max(resilience_scores["selected_integrated_base"] - complexity_penalty * 0.60, 40.0)
+        resilience_scores["conservative_case"] = max(resilience_scores["conservative_case"] - complexity_penalty * 0.45, 32.0)
+        resilience_scores["no_recovery_counterfactual"] = max(resilience_scores["no_recovery_counterfactual"] - complexity_penalty * 0.25, 20.0)
     alt_specs = [
         {
             "candidate_id": "selected_integrated_base",
-            "description": f"Selected India base case at {site_selection.selected_site} with {selected_case.title if selected_case else 'selected recovery'}",
+            "description": (
+                f"Selected India base case at {site_selection.selected_site} with {selected_case.title if selected_case else 'selected recovery'}"
+                + (
+                    f"; blueprint basis = {blueprint_step_count} steps, {separation_duty_count} separations, {recycle_intent_count} recycle loops"
+                    if flowsheet_blueprint is not None
+                    else ""
+                )
+            ),
             "gross_margin": base_margin,
             "payback": base_payback,
             "feasible": True,
@@ -1243,6 +1350,9 @@ def build_economic_basis_decision(
                     "site": site_selection.selected_site,
                     "heat_case": selected_case.case_id if selected_case else "n/a",
                     "utility_basis": utility_basis_decision.selected_candidate_id if utility_basis_decision else "n/a",
+                    "blueprint_steps": str(blueprint_step_count),
+                    "recycle_intents": str(recycle_intent_count),
+                    "batch_capable": "yes" if batch_capable else "no",
                 },
                 rejected_reasons=[] if spec["gross_margin"] > 0 else ["Gross margin is non-positive under this basis and needs analyst review."],
                 score_breakdown={
@@ -1277,29 +1387,55 @@ def build_economic_basis_decision(
         selected_candidate_id=selected_id,
         selected_summary=(
             f"The selected India economic basis keeps {site_selection.selected_site} and the chosen recovery case `{selected_case.case_id if selected_case else 'n/a'}` because it provides the strongest defendable margin and payback."
+            + (
+                f" The selected blueprint carries {blueprint_step_count} mapped steps, {separation_duty_count} separation duties, and {recycle_intent_count} recycle intents."
+                if flowsheet_blueprint is not None
+                else ""
+            )
         ),
         hard_constraint_results=[
             f"Selected route: {cost_model.selected_route_id or utility_network_decision.route_id}",
             f"Selected heat case: {selected_case.case_id if selected_case else 'n/a'}",
             f"India currency basis: {cost_model.currency}",
+            *(
+                [
+                    f"Blueprint steps: {blueprint_step_count}",
+                    f"Blueprint separation duties: {separation_duty_count}",
+                    f"Blueprint recycle intents: {recycle_intent_count}",
+                    f"Batch-capable blueprint: {'yes' if batch_capable else 'no'}",
+                ]
+                if flowsheet_blueprint is not None
+                else []
+            ),
         ],
         confidence=confidence,
         scenario_stability=stability,
         approval_required=stability != ScenarioStability.STABLE or gap < 0.05,
         citations=cost_model.citations + financial_model.citations + site_selection.citations,
-        assumptions=cost_model.assumptions + financial_model.assumptions + ["Economic basis compares the integrated base case against no-recovery and conservative counterfactuals."],
+        assumptions=cost_model.assumptions + financial_model.assumptions + [
+            "Economic basis compares the integrated base case against no-recovery and conservative counterfactuals.",
+            *(
+                [
+                    "Route-derived blueprint complexity is folded into economic-basis grounding and scenario-resilience screening."
+                ]
+                if flowsheet_blueprint is not None
+                else []
+            ),
+        ],
     )
 
 
 def select_route_architecture(
     config: ProjectConfig,
     route_survey: RouteSurveyArtifact,
+    route_chemistry: RouteChemistryArtifact | None,
     rough_summary: RoughAlternativeSummaryArtifact,
     heat_study: HeatIntegrationStudyArtifact,
     market,
     route_families: RouteFamilyArtifact | None = None,
 ) -> tuple[RouteSelectionArtifact, DecisionRecord, DecisionRecord, DecisionRecord, UtilityNetworkDecision]:
     routes_by_id = {route.route_id: route for route in route_survey.routes}
+    route_graphs = {graph.route_id: graph for graph in route_chemistry.route_graphs} if route_chemistry is not None else {}
     rough_by_route = {case.route_id: case for case in rough_summary.cases}
     utility_by_route = {decision.route_id: decision for decision in heat_study.route_decisions}
     route_families = route_families or build_route_family_artifact(route_survey)
@@ -1327,18 +1463,21 @@ def select_route_architecture(
         margin_scores[route_id] = revenue_base - effective_opex
     economic_scores = _normalize_scores(margin_scores)
     criteria = [
-        DecisionCriterion(name="Economic margin", weight=0.22, justification="Selected route must preserve gross margin after heat-integration choice."),
-        DecisionCriterion(name="Utility intensity", weight=0.20, justification="Residual purchased utility is critical in India-mode economics."),
-        DecisionCriterion(name="CAPEX intensity", weight=0.18, direction="minimize", justification="Route and recovery case should avoid excessive capital burden."),
-        DecisionCriterion(name="Industrial maturity", weight=0.15, justification="Proven industrial precedent reduces decision risk."),
-        DecisionCriterion(name="Selectivity", weight=0.15, justification="Higher MEG selectivity reduces downstream purification burden."),
-        DecisionCriterion(name="India fit", weight=0.10, justification="Feedstock, cluster fit, and byproduct handling must align with India deployment."),
+        DecisionCriterion(name="Economic margin", weight=0.20, justification="Selected route must preserve gross margin after heat-integration choice."),
+        DecisionCriterion(name="Utility intensity", weight=0.18, justification="Residual purchased utility is critical in India-mode economics."),
+        DecisionCriterion(name="CAPEX intensity", weight=0.15, direction="minimize", justification="Route and recovery case should avoid excessive capital burden."),
+        DecisionCriterion(name="Industrial maturity", weight=0.12, justification="Proven industrial precedent reduces decision risk."),
+        DecisionCriterion(name="Selectivity", weight=0.13, justification="Higher selectivity reduces downstream purification burden."),
+        DecisionCriterion(name="India fit", weight=0.07, justification="Feedstock, cluster fit, and byproduct handling must align with India deployment."),
+        DecisionCriterion(name="Evidence quality", weight=0.08, justification="Documented or literature-backed routes should outrank generic fallbacks."),
+        DecisionCriterion(name="Chemistry completeness", weight=0.07, justification="Routes with named, non-anonymous core species are required for adaptive synthesis."),
     ]
     alternatives: list[AlternativeOption] = []
     base_ranking: list[tuple[float, str]] = []
     conservative_ranking: list[tuple[float, str]] = []
     for route_id, route in routes_by_id.items():
         profile = _route_profile(route, route_families)
+        graph = route_graphs.get(route_id)
         block_reason = _route_regulatory_block(profile)
         selected_case = selected_heat_case(utility_by_route[route_id])
         if selected_case is None:
@@ -1347,6 +1486,25 @@ def select_route_architecture(
         maturity = profile.maturity_score
         selectivity = route.selectivity_fraction * 100.0
         india_fit = profile.india_fit_score + _route_byproduct_credit(route)
+        evidence_quality = max(route.evidence_score, 0.25) * 100.0
+        chemistry_completeness = (
+            graph.chemistry_completeness_score if graph is not None else route.chemistry_completeness_score
+        ) * 100.0
+        core_species_blocked = route_chemistry is not None and route_id in route_chemistry.blocking_route_ids
+        major_separation_defined = bool(rough_case.separation_train or profile.primary_separation_train or route.separations)
+        hazard_support_gap = any(hazard.severity == "high" for hazard in route.hazards) and evidence_quality < 55.0
+        rejection_reasons = list(route.route_rejection_reasons)
+        if block_reason:
+            rejection_reasons.append(block_reason)
+        rejection_reasons.extend(profile.critic_flags[:2])
+        if core_species_blocked:
+            rejection_reasons.append("Core route species remain anonymous or unresolved.")
+        if not route.core_species_complete:
+            rejection_reasons.append("Core route chemistry is incomplete.")
+        if not major_separation_defined:
+            rejection_reasons.append("Major separations are not defined for this route.")
+        if hazard_support_gap:
+            rejection_reasons.append("High-hazard route lacks enough evidence support.")
         score_breakdown = {
             "Economic margin": economic_scores[route_id],
             "Utility intensity": utility_scores[route_id],
@@ -1354,18 +1512,28 @@ def select_route_architecture(
             "Industrial maturity": maturity,
             "Selectivity": selectivity,
             "India fit": india_fit,
+            "Evidence quality": evidence_quality,
+            "Chemistry completeness": chemistry_completeness,
         }
         total_score = (
-            0.22 * score_breakdown["Economic margin"]
-            + 0.20 * score_breakdown["Utility intensity"]
-            + 0.18 * score_breakdown["CAPEX intensity"]
-            + 0.15 * maturity
-            + 0.15 * selectivity
-            + 0.10 * india_fit
+            0.20 * score_breakdown["Economic margin"]
+            + 0.18 * score_breakdown["Utility intensity"]
+            + 0.15 * score_breakdown["CAPEX intensity"]
+            + 0.12 * maturity
+            + 0.13 * selectivity
+            + 0.07 * india_fit
+            + 0.08 * evidence_quality
+            + 0.07 * chemistry_completeness
         )
         if config.preferred_route_id and config.preferred_route_id == route_id:
             total_score += 2.0
-        feasible = block_reason is None and reaction_is_balanced(route)
+        feasible = (
+            block_reason is None
+            and reaction_is_balanced(route)
+            and not core_species_blocked
+            and major_separation_defined
+            and not hazard_support_gap
+        )
         if not feasible:
             total_score = -1.0
         conservative_result = next((item for item in utility_by_route[route_id].scenario_results if item.scenario_name == "conservative"), None)
@@ -1383,8 +1551,11 @@ def select_route_architecture(
                     "residual_hot_utility_kw": f"{selected_case.residual_hot_utility_kw:.3f}",
                     "reactor_basis": rough_case.reactor_class,
                     "separation_train": rough_case.separation_train,
+                    "evidence_score": f"{route.evidence_score:.2f}",
+                    "chemistry_completeness_score": f"{(chemistry_completeness / 100.0):.2f}",
+                    "route_origin": route.route_origin,
                 },
-                rejected_reasons=[*([block_reason] if block_reason else []), *profile.critic_flags[:2]],
+                rejected_reasons=rejection_reasons,
                 score_breakdown=score_breakdown,
                 total_score=round(total_score, 3),
                 feasible=feasible,
@@ -1416,7 +1587,7 @@ def select_route_architecture(
         selected_candidate_id=selected_route_id,
         selected_summary=(
             f"{selected_route.name} is selected within the `{selected_profile.family_label}` family because it combines the strongest "
-            "margin, residual utility burden, maturity, and India deployment fit under the selected recovery architecture."
+            "margin, residual utility burden, maturity, evidence quality, chemistry completeness, and India deployment fit under the selected recovery architecture."
         ),
         hard_constraint_results=(
             [f"{profile.route_id}: {profile.india_deployment_blocker}" for profile in route_families.profiles if profile.india_deployment_blocker]

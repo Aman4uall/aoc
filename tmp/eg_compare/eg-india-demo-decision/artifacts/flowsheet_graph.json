@@ -1,0 +1,454 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Seeded BFD used for deterministic stage execution."
+  ],
+  "graph_id": "omega_catalytic_flowsheet",
+  "route_id": "omega_catalytic",
+  "operating_mode": "continuous",
+  "nodes": [
+    {
+      "node_id": "feed_prep",
+      "unit_type": "feed_preparation",
+      "label": "Feed preparation",
+      "section_id": "feed_handling",
+      "section_type": "feed_preparation",
+      "upstream_nodes": [
+        "purification"
+      ],
+      "downstream_nodes": [
+        "reactor"
+      ],
+      "representative_stream_ids": [
+        "S-150",
+        "S-401"
+      ],
+      "stream_roles": [
+        "intermediate",
+        "recycle"
+      ],
+      "recycle_loop_ids": [],
+      "side_draw_stream_ids": [],
+      "notes": "Section `feed_handling` / `feed_preparation`."
+    },
+    {
+      "node_id": "reactor",
+      "unit_type": "reactor",
+      "label": "Reaction zone",
+      "section_id": "reaction",
+      "section_type": "reaction",
+      "upstream_nodes": [
+        "feed_prep"
+      ],
+      "downstream_nodes": [
+        "primary_flash"
+      ],
+      "representative_stream_ids": [
+        "S-150",
+        "S-201"
+      ],
+      "stream_roles": [
+        "intermediate"
+      ],
+      "recycle_loop_ids": [],
+      "side_draw_stream_ids": [],
+      "notes": "Section `reaction` / `reaction`."
+    },
+    {
+      "node_id": "primary_flash",
+      "unit_type": "flash",
+      "label": "Primary flash and purge recovery",
+      "section_id": "primary_recovery",
+      "section_type": "primary_recovery",
+      "upstream_nodes": [
+        "reactor"
+      ],
+      "downstream_nodes": [
+        "waste_treatment",
+        "recycle_recovery"
+      ],
+      "representative_stream_ids": [
+        "S-201",
+        "S-202",
+        "S-203"
+      ],
+      "stream_roles": [
+        "intermediate",
+        "vent"
+      ],
+      "recycle_loop_ids": [],
+      "side_draw_stream_ids": [],
+      "notes": "Section `primary_recovery` / `primary_recovery`."
+    },
+    {
+      "node_id": "waste_treatment",
+      "unit_type": "waste_handling",
+      "label": "Waste treatment",
+      "section_id": "",
+      "section_type": "",
+      "upstream_nodes": [
+        "primary_flash",
+        "purification"
+      ],
+      "downstream_nodes": [],
+      "representative_stream_ids": [
+        "S-202",
+        "S-403"
+      ],
+      "stream_roles": [
+        "vent",
+        "waste"
+      ],
+      "recycle_loop_ids": [],
+      "side_draw_stream_ids": [],
+      "notes": ""
+    },
+    {
+      "node_id": "recycle_recovery",
+      "unit_type": "recycle",
+      "label": "Recycle recovery",
+      "section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "section_type": "recycle_recovery",
+      "upstream_nodes": [
+        "primary_flash"
+      ],
+      "downstream_nodes": [
+        "purification"
+      ],
+      "representative_stream_ids": [
+        "S-203",
+        "S-301"
+      ],
+      "stream_roles": [
+        "intermediate",
+        "recycle"
+      ],
+      "recycle_loop_ids": [
+        "recycle_recovery_recycle_loop"
+      ],
+      "side_draw_stream_ids": [],
+      "notes": "Section `recycle_recovery_carbonate_loop_cleanup` / `recycle_recovery`. Recycle loops: recycle_recovery_recycle_loop."
+    },
+    {
+      "node_id": "purification",
+      "unit_type": "distillation",
+      "label": "Purification train",
+      "section_id": "purification",
+      "section_type": "purification",
+      "upstream_nodes": [
+        "recycle_recovery"
+      ],
+      "downstream_nodes": [
+        "feed_prep",
+        "storage",
+        "waste_treatment"
+      ],
+      "representative_stream_ids": [
+        "S-301",
+        "S-401",
+        "S-402",
+        "S-403"
+      ],
+      "stream_roles": [
+        "recycle",
+        "product",
+        "waste"
+      ],
+      "recycle_loop_ids": [
+        "purification_recycle_loop"
+      ],
+      "side_draw_stream_ids": [],
+      "notes": "Section `purification` / `purification`. Recycle loops: purification_recycle_loop."
+    },
+    {
+      "node_id": "storage",
+      "unit_type": "storage",
+      "label": "Product storage",
+      "section_id": "",
+      "section_type": "",
+      "upstream_nodes": [
+        "purification"
+      ],
+      "downstream_nodes": [],
+      "representative_stream_ids": [
+        "S-402"
+      ],
+      "stream_roles": [
+        "product"
+      ],
+      "recycle_loop_ids": [],
+      "side_draw_stream_ids": [],
+      "notes": ""
+    }
+  ],
+  "unit_models": [
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "feed_prep",
+      "unit_type": "feed_preparation",
+      "service": "Feed preparation",
+      "formula_traces": [
+        {
+          "trace_id": "feed_prep_basis",
+          "title": "Feed preparation basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "feed_handling",
+            "stream_roles": "intermediate, recycle"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "reactor",
+      "unit_type": "reactor",
+      "service": "Reaction zone",
+      "formula_traces": [
+        {
+          "trace_id": "reactor_basis",
+          "title": "Reaction zone basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "reaction",
+            "stream_roles": "intermediate"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "primary_flash",
+      "unit_type": "flash",
+      "service": "Primary flash and purge recovery",
+      "formula_traces": [
+        {
+          "trace_id": "primary_flash_basis",
+          "title": "Primary flash and purge recovery basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "primary_recovery",
+            "stream_roles": "intermediate, vent"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "waste_treatment",
+      "unit_type": "waste_handling",
+      "service": "Waste treatment",
+      "formula_traces": [
+        {
+          "trace_id": "waste_treatment_basis",
+          "title": "Waste treatment basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "unsectioned",
+            "stream_roles": "vent, waste"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "recycle_recovery",
+      "unit_type": "recycle",
+      "service": "Recycle recovery",
+      "formula_traces": [
+        {
+          "trace_id": "recycle_recovery_basis",
+          "title": "Recycle recovery basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "recycle_recovery_carbonate_loop_cleanup",
+            "stream_roles": "intermediate, recycle"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "purification",
+      "unit_type": "distillation",
+      "service": "Purification train",
+      "formula_traces": [
+        {
+          "trace_id": "purification_basis",
+          "title": "Purification train basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "purification",
+            "stream_roles": "recycle, product, waste"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    },
+    {
+      "citations": [
+        "eg_handbook",
+        "india_sheet_1",
+        "user_doc_1",
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "unit_id": "storage",
+      "unit_type": "storage",
+      "service": "Product storage",
+      "formula_traces": [
+        {
+          "trace_id": "storage_basis",
+          "title": "Product storage basis",
+          "formula": "seeded unit-op basis",
+          "substitutions": {
+            "operating_mode": "continuous",
+            "route_id": "omega_catalytic",
+            "section_id": "unsectioned",
+            "stream_roles": "product"
+          },
+          "result": "configured",
+          "units": "",
+          "notes": "Generic flowsheet graph is now seeded from the selected route, stream table, and sectioned topology."
+        }
+      ],
+      "convergence_status": "converged",
+      "unresolved_sensitivities": []
+    }
+  ],
+  "section_ids": [
+    "feed_handling",
+    "reaction",
+    "primary_recovery",
+    "recycle_recovery_carbonate_loop_cleanup",
+    "purification"
+  ],
+  "stream_ids": [
+    "S-101",
+    "S-102",
+    "S-150",
+    "S-201",
+    "S-202",
+    "S-203",
+    "S-301",
+    "S-401",
+    "S-402",
+    "S-403"
+  ],
+  "convergence_status": "converged",
+  "unresolved_sensitivities": [],
+  "markdown": "| Node | Section | Unit Type | Upstream | Downstream | Representative Streams | Roles |\n| --- | --- | --- | --- | --- | --- | --- |\n| feed_prep | feed_handling | feed_preparation | purification | reactor | S-150, S-401 | intermediate, recycle |\n| reactor | reaction | reactor | feed_prep | primary_flash | S-150, S-201 | intermediate |\n| primary_flash | primary_recovery | flash | reactor | waste_treatment, recycle_recovery | S-201, S-202, S-203 | intermediate, vent |\n| waste_treatment | - | waste_handling | primary_flash, purification | - | S-202, S-403 | vent, waste |\n| recycle_recovery | recycle_recovery_carbonate_loop_cleanup | recycle | primary_flash | purification | S-203, S-301 | intermediate, recycle |\n| purification | purification | distillation | recycle_recovery | feed_prep, storage, waste_treatment | S-301, S-401, S-402, S-403 | recycle, product, waste |\n| storage | - | storage | purification | - | S-402 | product |"
+}

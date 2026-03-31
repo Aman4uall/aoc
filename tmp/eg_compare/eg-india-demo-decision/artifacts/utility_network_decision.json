@@ -1,0 +1,527 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties."
+  ],
+  "route_id": "omega_catalytic",
+  "utility_target": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook",
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1"
+    ],
+    "assumptions": [
+      "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+      "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+    ],
+    "base_hot_utility_kw": 91056.718,
+    "base_cold_utility_kw": 75731.824,
+    "minimum_hot_utility_kw": 31985.895,
+    "minimum_cold_utility_kw": 19614.542,
+    "recoverable_duty_kw": 59070.823,
+    "pinch_temp_c": 153.0,
+    "calc_traces": [
+      {
+        "trace_id": "omega_catalytic_pinch_recoverable",
+        "title": "Recoverable duty target",
+        "formula": "Qrec = min(Qhot, Qcold) * recoverability",
+        "substitutions": {
+          "Qhot": "75731.824 kW",
+          "Qcold": "91056.718 kW"
+        },
+        "result": "59070.823",
+        "units": "kW",
+        "notes": "Pinch-style first-pass targeting for conceptual utility minimization."
+      }
+    ]
+  },
+  "heat_streams": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "stream_id": "omega_catalytic_hot_reactor",
+      "name": "Reactor exotherm",
+      "kind": "hot",
+      "source_unit_id": "R-rough",
+      "supply_temp_c": 195.0,
+      "target_temp_c": 135.0,
+      "duty_kw": 46953.731,
+      "phase_change": false,
+      "notes": "Dominant recoverable hot stream from reactor or hydrolyzer section."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "stream_id": "omega_catalytic_hot_condensing",
+      "name": "Condensing overhead / hot product stream",
+      "kind": "hot",
+      "source_unit_id": "D-rough",
+      "supply_temp_c": 150.0,
+      "target_temp_c": 60.0,
+      "duty_kw": 28778.093,
+      "phase_change": false,
+      "notes": "Secondary hot stream available for feed and water preheat."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "stream_id": "omega_catalytic_cold_reboiler",
+      "name": "Primary dehydration / reboiler duty",
+      "kind": "cold",
+      "source_unit_id": "D-rough",
+      "supply_temp_c": 110.0,
+      "target_temp_c": 175.0,
+      "duty_kw": 71024.24,
+      "phase_change": false,
+      "notes": "Largest cold sink and first target for heat recovery."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "stream_id": "omega_catalytic_cold_feed",
+      "name": "Feed and recycle preheat",
+      "kind": "cold",
+      "source_unit_id": "E-rough",
+      "supply_temp_c": 30.0,
+      "target_temp_c": 120.0,
+      "duty_kw": 20032.478,
+      "phase_change": false,
+      "notes": "Secondary cold sink for direct or indirect recovery."
+    }
+  ],
+  "cases": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "case_id": "omega_catalytic_no_recovery",
+      "title": "No recovery",
+      "recovered_duty_kw": 0.0,
+      "residual_hot_utility_kw": 91056.718,
+      "residual_cold_utility_kw": 75731.824,
+      "added_capex_inr": 0.0,
+      "annual_savings_inr": 0.0,
+      "payback_years": 0.0,
+      "operability_penalty": 0.0,
+      "safety_penalty": 0.0,
+      "feasible": true,
+      "heat_matches": [],
+      "calc_traces": [],
+      "summary": "All heating duty is met with purchased utility."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "case_id": "omega_catalytic_multi_effect",
+      "title": "Multi-effect only",
+      "recovered_duty_kw": 25991.162,
+      "residual_hot_utility_kw": 65065.556,
+      "residual_cold_utility_kw": 52339.778,
+      "added_capex_inr": 220000000.0,
+      "annual_savings_inr": 726877044.14,
+      "payback_years": 0.303,
+      "operability_penalty": 6.0,
+      "safety_penalty": 2.0,
+      "feasible": true,
+      "heat_matches": [
+        {
+          "citations": [
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1",
+            "eg_handbook",
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1"
+          ],
+          "assumptions": [
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+          ],
+          "match_id": "omega_catalytic_me_feed",
+          "hot_stream_id": "omega_catalytic_hot_condensing",
+          "cold_stream_id": "omega_catalytic_cold_feed",
+          "recovered_duty_kw": 9096.907,
+          "direct": true,
+          "medium": "direct",
+          "min_approach_temp_c": 20.0,
+          "notes": "Condensing and recycle heat used for feed and evaporator preheat."
+        }
+      ],
+      "calc_traces": [],
+      "summary": "Uses staged evaporation and simple feed preheat to reduce fresh steam."
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+        "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+      ],
+      "case_id": "omega_catalytic_pinch_htm",
+      "title": "Pinch + HTM loop",
+      "recovered_duty_kw": 47256.658,
+      "residual_hot_utility_kw": 43800.06,
+      "residual_cold_utility_kw": 32255.698,
+      "added_capex_inr": 580000000.0,
+      "annual_savings_inr": 1321594625.71,
+      "payback_years": 0.439,
+      "operability_penalty": 14.0,
+      "safety_penalty": 8.0,
+      "feasible": true,
+      "heat_matches": [
+        {
+          "citations": [
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1",
+            "eg_handbook",
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1"
+          ],
+          "assumptions": [
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+          ],
+          "match_id": "omega_catalytic_htm_reboiler",
+          "hot_stream_id": "omega_catalytic_hot_reactor",
+          "cold_stream_id": "omega_catalytic_cold_reboiler",
+          "recovered_duty_kw": 34024.794,
+          "direct": false,
+          "medium": "Dowtherm A",
+          "min_approach_temp_c": 20.0,
+          "notes": "Indirect hot-oil loop buffers reactor exotherm into the principal reboiler."
+        },
+        {
+          "citations": [
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1",
+            "eg_handbook",
+            "user_doc_1",
+            "user_doc_2",
+            "india_sheet_1"
+          ],
+          "assumptions": [
+            "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+            "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+          ],
+          "match_id": "omega_catalytic_htm_feed",
+          "hot_stream_id": "omega_catalytic_hot_condensing",
+          "cold_stream_id": "omega_catalytic_cold_feed",
+          "recovered_duty_kw": 8506.198,
+          "direct": true,
+          "medium": "direct",
+          "min_approach_temp_c": 20.0,
+          "notes": "Secondary recovery used for feed and recycle preheat."
+        }
+      ],
+      "calc_traces": [],
+      "summary": "Pinch-based heat recovery with an indirect hot-oil loop materially reduces purchased steam."
+    }
+  ],
+  "decision": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook",
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1"
+    ],
+    "assumptions": [
+      "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+      "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+      "Heat-integration ranking uses annual savings minus annualized CAPEX and fixed operability/safety penalties."
+    ],
+    "decision_id": "heat_integration_omega_catalytic",
+    "context": "Heat-integration choice for OMEGA catalytic route via ethylene carbonate",
+    "criteria": [
+      {
+        "name": "Annual utility savings",
+        "weight": 0.45,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Heat recovery must materially reduce India utility burden."
+      },
+      {
+        "name": "Added CAPEX",
+        "weight": 0.2,
+        "hard_constraint": false,
+        "direction": "minimize",
+        "justification": "Recovery hardware should not erase OPEX gains."
+      },
+      {
+        "name": "Operability",
+        "weight": 0.2,
+        "hard_constraint": false,
+        "direction": "minimize",
+        "justification": "Complex loop architectures carry control and maintenance burden."
+      },
+      {
+        "name": "Safety",
+        "weight": 0.15,
+        "hard_constraint": false,
+        "direction": "minimize",
+        "justification": "Indirect high-temperature loops add hazard and containment requirements."
+      }
+    ],
+    "alternatives": [
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook",
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+          "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+        ],
+        "candidate_id": "omega_catalytic_no_recovery",
+        "candidate_type": "heat_integration",
+        "description": "No recovery",
+        "inputs": {},
+        "outputs": {
+          "recovered_duty_kw": "0.000",
+          "annual_savings_inr": "0.00",
+          "added_capex_inr": "0.00"
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "net_savings_proxy": 0.0
+        },
+        "total_score": 0.0,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook",
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+          "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+        ],
+        "candidate_id": "omega_catalytic_multi_effect",
+        "candidate_type": "heat_integration",
+        "description": "Multi-effect only",
+        "inputs": {},
+        "outputs": {
+          "recovered_duty_kw": "25991.162",
+          "annual_savings_inr": "726877044.14",
+          "added_capex_inr": "220000000.00"
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "net_savings_proxy": 682210377.47
+        },
+        "total_score": 682210377.47,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook",
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1"
+        ],
+        "assumptions": [
+          "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+          "Route family `liquid_hydration_train` drives rough utility/CAPEX screening."
+        ],
+        "candidate_id": "omega_catalytic_pinch_htm",
+        "candidate_type": "heat_integration",
+        "description": "Pinch + HTM loop",
+        "inputs": {},
+        "outputs": {
+          "recovered_duty_kw": "47256.658",
+          "annual_savings_inr": "1321594625.71",
+          "added_capex_inr": "580000000.00"
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "net_savings_proxy": 1202927959.04
+        },
+        "total_score": 1202927959.04,
+        "feasible": true
+      }
+    ],
+    "selected_candidate_id": "omega_catalytic_pinch_htm",
+    "selected_summary": "Pinch-based heat recovery with an indirect hot-oil loop materially reduces purchased steam.",
+    "hard_constraint_results": [
+      "Base hot utility: 91056.718 kW",
+      "Recoverable-duty trigger: 5000.0 kW",
+      "Utility architecture escalation: architecture_package_fallback_thermo; architecture_package_sparse_data_compounded",
+      "Utility architecture kinetics escalation: architecture_package_sparse_data_compounded"
+    ],
+    "confidence": 0.66,
+    "scenario_stability": "borderline",
+    "approval_required": true,
+    "blocked_value_ids": []
+  },
+  "selected_case_id": "omega_catalytic_pinch_htm",
+  "base_annual_utility_cost_inr": 2560037724.0,
+  "selected_annual_utility_cost_inr": 1171379913.01,
+  "scenario_results": [
+    {
+      "scenario_name": "base",
+      "annual_utility_cost_inr": 1171379913.01,
+      "annual_transport_service_cost_inr": 0.0,
+      "annual_utility_island_service_cost_inr": 0.0,
+      "annual_utility_island_replacement_cost_inr": 0.0,
+      "annual_utility_island_operating_burden_inr": 0.0,
+      "annual_packing_replacement_cost_inr": 0.0,
+      "annual_classifier_service_cost_inr": 0.0,
+      "annual_filter_media_replacement_cost_inr": 0.0,
+      "annual_dryer_exhaust_treatment_cost_inr": 0.0,
+      "annual_operating_cost_inr": 7509823011.3,
+      "annual_revenue_inr": 12600000000.0,
+      "gross_margin_inr": 5090176988.7,
+      "utility_island_impacts": [],
+      "selected": true
+    },
+    {
+      "scenario_name": "conservative",
+      "annual_utility_cost_inr": 1449263679.93,
+      "annual_transport_service_cost_inr": 0.0,
+      "annual_utility_island_service_cost_inr": 0.0,
+      "annual_utility_island_replacement_cost_inr": 0.0,
+      "annual_utility_island_operating_burden_inr": 0.0,
+      "annual_packing_replacement_cost_inr": 0.0,
+      "annual_classifier_service_cost_inr": 0.0,
+      "annual_filter_media_replacement_cost_inr": 0.0,
+      "annual_dryer_exhaust_treatment_cost_inr": 0.0,
+      "annual_operating_cost_inr": 7787706778.22,
+      "annual_revenue_inr": 11970000000.0,
+      "gross_margin_inr": 4182293221.78,
+      "utility_island_impacts": [],
+      "selected": false
+    },
+    {
+      "scenario_name": "upside",
+      "annual_utility_cost_inr": 1061722527.38,
+      "annual_transport_service_cost_inr": 0.0,
+      "annual_utility_island_service_cost_inr": 0.0,
+      "annual_utility_island_replacement_cost_inr": 0.0,
+      "annual_utility_island_operating_burden_inr": 0.0,
+      "annual_packing_replacement_cost_inr": 0.0,
+      "annual_classifier_service_cost_inr": 0.0,
+      "annual_filter_media_replacement_cost_inr": 0.0,
+      "annual_dryer_exhaust_treatment_cost_inr": 0.0,
+      "annual_operating_cost_inr": 7400165625.67,
+      "annual_revenue_inr": 13104000000.0,
+      "gross_margin_inr": 5703834374.33,
+      "utility_island_impacts": [],
+      "selected": false
+    }
+  ],
+  "markdown": "Selected case for OMEGA catalytic route via ethylene carbonate: Pinch + HTM loop. Pinch-based heat recovery with an indirect hot-oil loop materially reduces purchased steam."
+}

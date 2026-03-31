@@ -1,0 +1,28 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+  ],
+  "column_id": "PU-201",
+  "flooding_fraction": 0.538,
+  "tray_spacing_m": 0.45,
+  "downcomer_area_fraction": 0.14,
+  "vapor_velocity_m_s": 0.188,
+  "liquid_load_m3_hr": 6090.003,
+  "capacity_factor_m_s": 350000.0,
+  "allowable_vapor_velocity_m_s": 0.35,
+  "active_area_m2": 1.52,
+  "pressure_drop_per_stage_kpa": 0.282,
+  "markdown": "Column PU-201 hydraulic basis uses tray spacing 0.450 m and flooding fraction 0.538, with superficial vapor velocity 0.188 m/s against allowable 0.350 m/s. Integrated reboiler duty basis is 0.000 kW via shared HTM island network (shared_htm) with 1 utility islands, family shared_htm, with reboiler area 0.000 m2 at 0.000 K."
+}

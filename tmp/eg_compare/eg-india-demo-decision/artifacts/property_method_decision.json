@@ -1,0 +1,154 @@
+{
+  "citations": [
+    "eg_handbook",
+    "user_doc_1"
+  ],
+  "assumptions": [
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+    "Property-method decision is scored from direct coverage, completeness, and auditability."
+  ],
+  "decision": {
+    "citations": [
+      "eg_handbook",
+      "user_doc_1"
+    ],
+    "assumptions": [
+      "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+      "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+      "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+      "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+    ],
+    "decision_id": "property_method_decision",
+    "context": "Property-basis selection for route omega_catalytic.",
+    "criteria": [
+      {
+        "name": "Direct coverage",
+        "weight": 0.45,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Prefer directly cited constants where available."
+      },
+      {
+        "name": "Completeness",
+        "weight": 0.35,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Required property coverage must be complete before detailed design."
+      },
+      {
+        "name": "Auditability",
+        "weight": 0.2,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Library-backed calculations must remain secondary to cited public data."
+      }
+    ],
+    "alternatives": [
+      {
+        "citations": [
+          "eg_handbook",
+          "user_doc_1"
+        ],
+        "assumptions": [
+          "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+          "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+          "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+          "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+        ],
+        "candidate_id": "direct_public_package",
+        "candidate_type": "property_basis",
+        "description": "Use directly cited public component properties as the primary basis.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [
+          "Property coverage still depends materially on estimated values."
+        ],
+        "score_breakdown": {},
+        "total_score": 16.0,
+        "feasible": false
+      },
+      {
+        "citations": [
+          "eg_handbook",
+          "user_doc_1"
+        ],
+        "assumptions": [
+          "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+          "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+          "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+          "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+        ],
+        "candidate_id": "hybrid_cited_plus_library",
+        "candidate_type": "property_basis",
+        "description": "Use cited public anchors with library-backed calculation and benchmark seeds for missing constants.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {},
+        "total_score": 62.0,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "eg_handbook",
+          "user_doc_1"
+        ],
+        "assumptions": [
+          "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+          "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+          "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+          "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+        ],
+        "candidate_id": "estimation_dominant",
+        "candidate_type": "property_basis",
+        "description": "Use estimation-heavy property basis with conservative assumptions.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {},
+        "total_score": 40.0,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "eg_handbook",
+          "user_doc_1"
+        ],
+        "assumptions": [
+          "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+          "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+          "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+          "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+        ],
+        "candidate_id": "analogy_basis",
+        "candidate_type": "property_basis",
+        "description": "Use close-compound analogy as a provisional property basis.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {},
+        "total_score": 10.0,
+        "feasible": true
+      }
+    ],
+    "selected_candidate_id": "hybrid_cited_plus_library",
+    "selected_summary": "Use cited public anchors with library-backed calculation and benchmark seeds for missing constants. selected for the active component set of route omega_catalytic.",
+    "hard_constraint_results": [
+      "High-sensitivity blocked properties are not allowed to pass into detailed design."
+    ],
+    "confidence": 0.8,
+    "scenario_stability": "stable",
+    "approval_required": false,
+    "blocked_value_ids": []
+  },
+  "selected_property_package_ids": [
+    "ethylene_glycol_package",
+    "ethylene_oxide_package",
+    "water_package"
+  ],
+  "blocked_requirement_ids": [],
+  "markdown": "| Property Basis | Feasible | Score |\n| --- | --- | --- |\n| direct_public_package | no | 16.00 |\n| hybrid_cited_plus_library | yes | 62.00 |\n| estimation_dominant | yes | 40.00 |\n| analogy_basis | yes | 10.00 |"
+}

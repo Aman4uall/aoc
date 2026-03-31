@@ -1,0 +1,148 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Kinetics method is chosen deterministically before chapter drafting."
+  ],
+  "method_family": "kinetics",
+  "decision": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook"
+    ],
+    "assumptions": [
+      "Kinetics method is chosen deterministically before chapter drafting."
+    ],
+    "decision_id": "kinetics_method",
+    "context": "Kinetics-model selection for route omega_catalytic.",
+    "criteria": [
+      {
+        "name": "Data strength",
+        "weight": 0.5,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Method should maximize the amount of public kinetic evidence used."
+      },
+      {
+        "name": "Fit quality",
+        "weight": 0.25,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Residence-time and conversion basis must remain design-useful."
+      },
+      {
+        "name": "Auditability",
+        "weight": 0.25,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Chosen kinetics basis must be explainable and reviewable."
+      }
+    ],
+    "alternatives": [
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "cited_rate_law",
+        "candidate_type": "kinetics_method",
+        "description": "Use cited industrial or literature rate law directly.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 92.0,
+          "fit_quality": 90.0,
+          "auditability": 94.0
+        },
+        "total_score": 92.0,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "arrhenius_fit",
+        "candidate_type": "kinetics_method",
+        "description": "Use Arrhenius-style fitting around cited rate data.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 94.0,
+          "fit_quality": 84.0,
+          "auditability": 82.0
+        },
+        "total_score": 88.5,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "apparent_order_fit",
+        "candidate_type": "kinetics_method",
+        "description": "Use apparent-order fitting from conversion and residence-time basis.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 70.0,
+          "fit_quality": 76.0,
+          "auditability": 74.0
+        },
+        "total_score": 72.5,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "conservative_analogy",
+        "candidate_type": "kinetics_method",
+        "description": "Use close-route analogy with conservative residence-time allowance.",
+        "inputs": {},
+        "outputs": {},
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 54.0,
+          "fit_quality": 60.0,
+          "auditability": 58.0
+        },
+        "total_score": 56.5,
+        "feasible": true
+      }
+    ],
+    "selected_candidate_id": "cited_rate_law",
+    "selected_summary": "Use cited industrial or literature rate law directly. selected as the primary kinetic basis.",
+    "hard_constraint_results": [
+      "Kinetics basis must remain conservative if direct fit quality is weak."
+    ],
+    "confidence": 0.86,
+    "scenario_stability": "stable",
+    "approval_required": false,
+    "blocked_value_ids": []
+  },
+  "markdown": "| Method | Feasible | Score | Rejected Reasons |\n| --- | --- | --- | --- |\n| cited_rate_law | yes | 92.00 | - |\n| arrhenius_fit | yes | 88.50 | - |\n| apparent_order_fit | yes | 72.50 | - |\n| conservative_analogy | yes | 56.50 | - |"
+}

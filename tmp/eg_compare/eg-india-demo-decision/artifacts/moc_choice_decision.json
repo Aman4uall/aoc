@@ -1,0 +1,126 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "MoC selector scored alternatives from chemistry family, corrosive cues, and chemistry-family adapter preferences."
+  ],
+  "decision_id": "moc_choice",
+  "context": "Material-of-construction selection for route omega_catalytic.",
+  "criteria": [
+    {
+      "name": "Corrosion compatibility",
+      "weight": 0.45,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "MoC must withstand route chemistry and impurities."
+    },
+    {
+      "name": "Temperature/pressure fit",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Design envelope must be mechanically credible."
+    },
+    {
+      "name": "Cleanability",
+      "weight": 0.15,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "Selected material should support realistic plant maintenance."
+    },
+    {
+      "name": "Economics",
+      "weight": 0.2,
+      "hard_constraint": false,
+      "direction": "maximize",
+      "justification": "MoC should not overdesign where cheaper safe options exist."
+    }
+  ],
+  "alternatives": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "carbon_steel",
+      "candidate_type": "moc_selector",
+      "description": "Carbon steel construction",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 100.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "ss316l",
+      "candidate_type": "moc_selector",
+      "description": "SS316L construction",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 98.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "alloy_steel_converter_service",
+      "candidate_type": "moc_selector",
+      "description": "Alloy steel converter service",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 52.0,
+      "feasible": true
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "candidate_id": "rubber_lined_cs",
+      "candidate_type": "moc_selector",
+      "description": "Rubber-lined carbon steel",
+      "inputs": {},
+      "outputs": {},
+      "rejected_reasons": [],
+      "score_breakdown": {},
+      "total_score": 58.0,
+      "feasible": true
+    }
+  ],
+  "selected_candidate_id": "carbon_steel",
+  "selected_summary": "Carbon steel construction selected as the highest-ranked alternative.",
+  "hard_constraint_results": [
+    "Alternative must remain technically feasible for the inferred process archetype."
+  ],
+  "confidence": 0.72,
+  "scenario_stability": "borderline",
+  "approval_required": true,
+  "blocked_value_ids": []
+}

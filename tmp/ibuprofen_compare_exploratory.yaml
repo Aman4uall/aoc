@@ -1,0 +1,34 @@
+project_id: ibuprofen-compare-exploratory-20260331-v2
+basis:
+  target_product: Ibuprofen
+  capacity_tpa: 500
+  target_purity_wt_pct: 99.0
+  operating_mode: batch
+  annual_operating_days: 300
+  process_template: generic_small_molecule
+  region: India
+  currency: INR
+  target_state: Punjab
+  tariff_reference_year: 2025
+  utility_basis_year: 2025
+  labor_basis_year: 2025
+  economic_reference_year: 2025
+strict_citation_policy: true
+public_data_only: false
+evidence_lock_required: true
+require_india_only_data: false
+preferred_state_candidates:
+  - Punjab
+  - Haryana
+  - Gujarat
+user_documents:
+  - label: Ibuprofen benchmark report
+    path: /Users/ayzaman/Downloads/19CHE102HPsub.pdf
+    source_kind: user_document
+    source_domain: technical
+    geographic_scope: global
+output_root: outputs
+model:
+  backend: mock
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.2

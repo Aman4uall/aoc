@@ -1,0 +1,81 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1"
+  ],
+  "assumptions": [
+    "Mock India market assessment uses seeded price points normalized to 2025 INR."
+  ],
+  "estimated_price_per_kg": 63.0,
+  "price_range": "INR 58-70 per kg in an India commodity-petrochemical window.",
+  "competitor_notes": [
+    "Domestic demand is linked to polyester and PET chains.",
+    "Feedstock integration and logistics materially influence margin resilience."
+  ],
+  "demand_drivers": [
+    "Polyester fiber",
+    "PET resin",
+    "Coolants and industrial formulations"
+  ],
+  "capacity_rationale": "200000 TPA is large enough to justify continuous purification, utility integration, and capital recovery for an EO-based route.",
+  "india_price_data": [
+    {
+      "citations": [
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "datum_id": "meg_product_price",
+      "category": "product",
+      "item_name": "Monoethylene glycol",
+      "region": "India",
+      "units": "INR/kg",
+      "value_inr": 63.0,
+      "reference_year": 2025,
+      "normalization_year": 2025
+    },
+    {
+      "citations": [
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "datum_id": "eo_feed_price",
+      "category": "raw_material",
+      "item_name": "Ethylene oxide",
+      "region": "India",
+      "units": "INR/kg",
+      "value_inr": 62.0,
+      "reference_year": 2025,
+      "normalization_year": 2025
+    },
+    {
+      "citations": [
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "datum_id": "power_tariff",
+      "category": "utility",
+      "item_name": "Electricity",
+      "region": "Gujarat",
+      "units": "INR/kWh",
+      "value_inr": 8.5,
+      "reference_year": 2025,
+      "normalization_year": 2025
+    },
+    {
+      "citations": [
+        "india_sheet_1"
+      ],
+      "assumptions": [],
+      "datum_id": "labor_burden",
+      "category": "labor",
+      "item_name": "Operating labour",
+      "region": "India",
+      "units": "INR/person-year",
+      "value_inr": 650000.0,
+      "reference_year": 2025,
+      "normalization_year": 2025
+    }
+  ],
+  "markdown": "The 200000 TPA basis is framed as a large continuous petrochemical train aligned with India polyester and resin demand rather than a niche batch-chemical facility. The market case depends on large throughput, stable EO integration, and India-based logistics and tariff assumptions, all normalized in INR."
+}

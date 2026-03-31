@@ -1,0 +1,229 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+    "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+    "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+    "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+    "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Seeded BFD used for deterministic stage execution.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Residence time basis retained at 1.00 h.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Generic material-balance engine uses a sequence-based flowsheet solver with explicit feed preparation, reaction, staged separations, recycle, and purge handling.",
+    "Sequence family inferred as `generic` from route separations and expanded into the stage path: feed_handling, reaction, primary_recovery, recycle_recovery_carbonate_loop_cleanup, purification.",
+    "Sectioned flowsheet topology is now emitted explicitly with 5 solved sections and stream roles for feed, recycle, side-draw, product, vent, and waste paths.",
+    "Unitwise composition propagation now aggregates solved inlet and outlet component state for each major unit before energy and equipment sizing.",
+    "Ethylene glycol cases retain strong water recycle inside the generic sequence solver to reflect dilution-intensive hydration practice.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+  ],
+  "case_id": "omega_catalytic_flowsheet_case",
+  "convergence_status": "estimated",
+  "overall_closure_error_pct": 0.0,
+  "unitwise_closure": {
+    "feed_prep": 0.0,
+    "reactor": 4e-6,
+    "primary_flash": 0.0,
+    "waste_treatment": 0.0,
+    "recycle_recovery": 3.767314,
+    "purification": 0.0,
+    "storage": 0.0
+  },
+  "unitwise_status": {
+    "feed_prep": "converged",
+    "reactor": "converged",
+    "primary_flash": "converged",
+    "waste_treatment": "converged",
+    "recycle_recovery": "estimated",
+    "purification": "converged",
+    "storage": "converged"
+  },
+  "unitwise_coverage_status": {
+    "feed_prep": "complete",
+    "reactor": "complete",
+    "primary_flash": "complete",
+    "waste_treatment": "partial",
+    "recycle_recovery": "partial",
+    "purification": "partial",
+    "storage": "partial"
+  },
+  "unitwise_blockers": {},
+  "unitwise_unresolved_sensitivities": {
+    "recycle_recovery": [
+      "material closure above converged range"
+    ],
+    "purification": [
+      "mixed or unresolved phase basis remains in solved streams"
+    ]
+  },
+  "section_status": {
+    "feed_handling": "converged",
+    "reaction": "converged",
+    "primary_recovery": "converged",
+    "recycle_recovery_carbonate_loop_cleanup": "estimated",
+    "purification": "estimated"
+  },
+  "composition_status": {
+    "feed_prep": "converged",
+    "reactor": "converged",
+    "primary_flash": "converged",
+    "waste_treatment": "converged",
+    "recycle_recovery": "converged",
+    "purification": "estimated",
+    "storage": "converged"
+  },
+  "separation_status": {
+    "primary_flash_separation_packet": "converged",
+    "purification_separation_packet": "converged"
+  },
+  "recycle_status": {
+    "recycle_recovery_recycle_loop": "converged",
+    "purification_recycle_loop": "estimated"
+  },
+  "convergence_summaries": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "summary_id": "recycle_recovery_recycle_loop_summary",
+      "loop_id": "recycle_recovery_recycle_loop",
+      "recycle_source_unit_id": "recycle_recovery",
+      "recycle_target_unit_id": "purification",
+      "source_section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "target_section_id": "recycle_recovery_carbonate_loop_cleanup",
+      "recycle_stream_ids": [
+        "S-301"
+      ],
+      "purge_stream_ids": [],
+      "component_count": 4,
+      "converged_components": [
+        "Ethylene glycol",
+        "Ethylene oxide",
+        "Trace heavy glycols",
+        "Water"
+      ],
+      "estimated_components": [],
+      "blocked_components": [],
+      "max_component_error_pct": 0.100007,
+      "mean_component_error_pct": 0.100001,
+      "max_iterations": 2,
+      "purge_policy_by_family": {
+        "aqueous_diluent": 0.001,
+        "heavy_byproducts": 0.001,
+        "recoverable_reactants": 0.001
+      },
+      "impurity_family_components": {
+        "heavy_byproducts": [
+          "Ethylene glycol",
+          "Trace heavy glycols"
+        ],
+        "recoverable_reactants": [
+          "Ethylene oxide"
+        ],
+        "aqueous_diluent": [
+          "Water"
+        ]
+      },
+      "convergence_status": "converged",
+      "notes": [
+        "No explicit purge stream is present for this recycle loop; purge policy is structural and should be reviewed.",
+        "Loop purge policy is biased by section topology: source section `recycle_recovery_carbonate_loop_cleanup` returning to `purification`."
+      ]
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook",
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock kinetic parameters are seeded values for workflow verification.",
+        "Residence time basis retained at 1.00 h.",
+        "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available."
+      ],
+      "summary_id": "purification_recycle_loop_summary",
+      "loop_id": "purification_recycle_loop",
+      "recycle_source_unit_id": "purification",
+      "recycle_target_unit_id": "feed_prep",
+      "source_section_id": "purification",
+      "target_section_id": "feed_handling",
+      "recycle_stream_ids": [
+        "S-401"
+      ],
+      "purge_stream_ids": [
+        "S-403"
+      ],
+      "component_count": 4,
+      "converged_components": [
+        "Ethylene glycol",
+        "Trace heavy glycols"
+      ],
+      "estimated_components": [
+        "Ethylene oxide",
+        "Water"
+      ],
+      "blocked_components": [],
+      "max_component_error_pct": 8.650479,
+      "mean_component_error_pct": 4.004473,
+      "max_iterations": 2,
+      "purge_policy_by_family": {
+        "aqueous_diluent": 0.14192,
+        "heavy_byproducts": 1.0,
+        "recoverable_reactants": 0.165527
+      },
+      "impurity_family_components": {
+        "heavy_byproducts": [
+          "Ethylene glycol",
+          "Trace heavy glycols"
+        ],
+        "recoverable_reactants": [
+          "Ethylene oxide"
+        ],
+        "aqueous_diluent": [
+          "Water"
+        ]
+      },
+      "convergence_status": "estimated",
+      "notes": [
+        "Loop purge policy is biased by section topology: source section `purification` returning to `feed_prep`."
+      ]
+    }
+  ],
+  "unresolved_sensitivities": [
+    "material closure above converged range",
+    "mixed or unresolved phase basis remains in solved streams"
+  ],
+  "critic_messages": [
+    "Unit 'recycle_recovery' closure is 3.767%, which is outside the converged range.",
+    "Unit 'purification' retains estimated composition closure.",
+    "Recycle loop 'purification_recycle_loop' remains estimated and needs review before freezing detailed design."
+  ],
+  "markdown": "| Unit | Closure Error (%) | Status | Heating Duty (kW) | Cooling Duty (kW) |\n| --- | --- | --- | --- | --- |\n| feed_prep | 0.000000 | converged | 0.000 | 0.000 |\n| reactor | 0.000004 | converged | 0.000 | 0.000 |\n| primary_flash | 0.000000 | converged | 0.000 | 0.000 |\n| waste_treatment | 0.000000 | converged | 0.000 | 0.000 |\n| recycle_recovery | 3.767314 | estimated | 0.000 | 0.000 |\n| purification | 0.000000 | converged | 0.000 | 0.000 |\n| storage | 0.000000 | converged | 0.000 | 0.000 |"
+}

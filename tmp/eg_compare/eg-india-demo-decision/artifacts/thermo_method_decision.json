@@ -1,0 +1,156 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_handbook"
+  ],
+  "assumptions": [
+    "Thermo method is chosen deterministically before chapter drafting."
+  ],
+  "method_family": "thermo",
+  "decision": {
+    "citations": [
+      "user_doc_1",
+      "user_doc_2",
+      "india_sheet_1",
+      "eg_handbook"
+    ],
+    "assumptions": [
+      "Thermo method is chosen deterministically before chapter drafting."
+    ],
+    "decision_id": "thermo_method",
+    "context": "Thermodynamic-method selection for route omega_catalytic.",
+    "criteria": [
+      {
+        "name": "Data strength",
+        "weight": 0.55,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Method should maximize public-data support for critical thermodynamic values."
+      },
+      {
+        "name": "Auditability",
+        "weight": 0.3,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Home-paper quality requires a defendable, traceable method basis."
+      },
+      {
+        "name": "Execution speed",
+        "weight": 0.15,
+        "hard_constraint": false,
+        "direction": "maximize",
+        "justification": "Faster methods are preferred only when they do not weaken engineering credibility."
+      }
+    ],
+    "alternatives": [
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "direct_public_data",
+        "candidate_type": "thermo_method",
+        "description": "Use direct public property and reaction data where available.",
+        "inputs": {},
+        "outputs": {
+          "data_strength": "92.0"
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 92.0,
+          "auditability": 96.0,
+          "speed": 78.0
+        },
+        "total_score": 91.10000000000001,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "correlation_interpolation",
+        "candidate_type": "thermo_method",
+        "description": "Use public correlations and interpolation around cited anchors.",
+        "inputs": {},
+        "outputs": {
+          "fit": "Best when direct thermodynamic data is incomplete but physical-property anchors exist."
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 92.0,
+          "auditability": 84.0,
+          "speed": 82.0
+        },
+        "total_score": 88.1,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "estimation_method",
+        "candidate_type": "thermo_method",
+        "description": "Use accepted estimation methods with conservative bounds.",
+        "inputs": {},
+        "outputs": {
+          "fit": "Fallback when public data is sparse."
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 62.0,
+          "auditability": 68.0,
+          "speed": 72.0
+        },
+        "total_score": 65.9,
+        "feasible": true
+      },
+      {
+        "citations": [
+          "user_doc_1",
+          "user_doc_2",
+          "india_sheet_1",
+          "eg_handbook"
+        ],
+        "assumptions": [],
+        "candidate_id": "analogy_basis",
+        "candidate_type": "thermo_method",
+        "description": "Use close-compound analogy as a provisional design basis.",
+        "inputs": {},
+        "outputs": {
+          "fit": "Last acceptable step before blocking."
+        },
+        "rejected_reasons": [],
+        "score_breakdown": {
+          "data_strength": 48.0,
+          "auditability": 52.0,
+          "speed": 70.0
+        },
+        "total_score": 53.5,
+        "feasible": true
+      }
+    ],
+    "selected_candidate_id": "direct_public_data",
+    "selected_summary": "Use direct public property and reaction data where available. selected as the primary thermodynamic basis.",
+    "hard_constraint_results": [
+      "High-sensitivity property gaps must be resolved or explicitly surfaced."
+    ],
+    "confidence": 0.88,
+    "scenario_stability": "stable",
+    "approval_required": false,
+    "blocked_value_ids": []
+  },
+  "markdown": "| Method | Feasible | Score | Rejected Reasons |\n| --- | --- | --- | --- |\n| direct_public_data | yes | 91.10 | - |\n| correlation_interpolation | yes | 88.10 | - |\n| estimation_method | yes | 65.90 | - |\n| analogy_basis | yes | 53.50 | - |"
+}

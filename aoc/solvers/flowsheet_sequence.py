@@ -9,6 +9,7 @@ from aoc.models import (
     ByproductEstimate,
     CalcTrace,
     ConvergenceSummary,
+    FlowsheetBlueprintArtifact,
     FlowsheetSection,
     PhaseSplitSpec,
     ReactionParticipant,
@@ -344,9 +345,199 @@ def _stream_family(route: RouteOption) -> str:
     return "generic"
 
 
+def _stream_family_from_blueprint(flowsheet_blueprint: FlowsheetBlueprintArtifact) -> str:
+    text_parts: list[str] = []
+    for step in flowsheet_blueprint.steps:
+        text_parts.extend(
+            [
+                step.step_role,
+                step.unit_type,
+                step.service,
+                step.separation_basis_ref,
+                step.phase_basis,
+                " ".join(step.notes),
+            ]
+        )
+    text = " ".join(part.lower() for part in text_parts if part).strip()
+    if "absor" in text or "strip" in text:
+        return "absorption"
+    if any(token in text for token in ("crystal", "filter", "dry", "solid")):
+        return "solids"
+    if "extract" in text:
+        return "extraction"
+    if any(token in text for token in ("flash", "distill", "vacuum", "column", "evapor", "purif")):
+        return "distillation"
+    return "generic"
+
+
 def _slugify(value: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
     return slug or "section"
+
+
+def _canonical_blueprint_unit_id(
+    anchor_unit_id: str,
+    step_role: str,
+    unit_type: str,
+    family: str,
+) -> str:
+    lowered_role = step_role.lower()
+    lowered_type = unit_type.lower()
+    if lowered_role == "feed_preparation":
+        return "feed_prep"
+    if lowered_role == "reaction":
+        return "reactor"
+    if lowered_role == "phase_split" or "separator" in lowered_type or anchor_unit_id == "primary_flash":
+        return "primary_separation" if family == "absorption" else "primary_flash"
+    if lowered_role == "primary_separation" or anchor_unit_id == "primary_separation":
+        if family == "absorption":
+            return "primary_separation"
+        if family == "solids":
+            return "concentration"
+        if family in {"distillation", "extraction"}:
+            return "concentration"
+        return "primary_flash"
+    if lowered_role == "purification" or anchor_unit_id == "purification":
+        if family == "absorption":
+            return "regeneration"
+        return "purification"
+    if lowered_role == "recycle_recovery" or anchor_unit_id == "recycle_recovery":
+        if family in {"distillation", "extraction", "generic"}:
+            return "purification"
+        if family == "solids":
+            return "concentration"
+        if family == "absorption":
+            return "regeneration"
+        return "recycle_recovery"
+    if lowered_role == "filtration" or anchor_unit_id == "filtration":
+        return "filtration"
+    if lowered_role == "drying" or anchor_unit_id == "drying":
+        return "drying"
+    if anchor_unit_id == "concentration":
+        return "concentration"
+    return anchor_unit_id
+
+
+def _section_blueprints_from_flowsheet_blueprint(
+    flowsheet_blueprint: FlowsheetBlueprintArtifact,
+    family: str,
+) -> list[SectionBlueprint]:
+    section_map: dict[str, SectionBlueprint] = {}
+    ordered_unit_ids: list[str] = []
+    for step in flowsheet_blueprint.steps:
+        anchor_unit_id = _canonical_blueprint_unit_id(
+            step.solver_anchor_unit_id or step.unit_id,
+            step.step_role,
+            step.unit_type,
+            family,
+        )
+        if anchor_unit_id not in section_map:
+            ordered_unit_ids.append(anchor_unit_id)
+            section_map[anchor_unit_id] = SectionBlueprint(
+                section_id=step.section_id or _slugify(step.section_label or step.step_role or anchor_unit_id),
+                section_type=step.step_role or step.unit_type or anchor_unit_id,
+                label=step.section_label or step.service or step.step_role or anchor_unit_id,
+                unit_ids=[anchor_unit_id],
+                notes=[],
+                allows_side_draw=False,
+            )
+        blueprint = section_map[anchor_unit_id]
+        if step.service and step.service not in blueprint.notes:
+            blueprint.notes.append(step.service)
+        for note in step.notes:
+            if note and note not in blueprint.notes:
+                blueprint.notes.append(note)
+        side_draw_text = " ".join(
+            [
+                step.step_role,
+                step.unit_type,
+                step.service,
+                step.separation_basis_ref,
+                step.phase_basis,
+                " ".join(step.notes),
+            ]
+        ).lower()
+        if any(token in side_draw_text for token in ("distill", "column", "evapor", "purif")):
+            blueprint.allows_side_draw = True
+
+    def _insert_before(unit_id: str, before_unit_id: str) -> None:
+        if unit_id not in section_map or unit_id in ordered_unit_ids:
+            return
+        if before_unit_id in ordered_unit_ids:
+            ordered_unit_ids.insert(ordered_unit_ids.index(before_unit_id), unit_id)
+        else:
+            ordered_unit_ids.append(unit_id)
+
+    if family == "absorption":
+        section_map.setdefault(
+            "primary_separation",
+            SectionBlueprint("primary_absorption", "gas_liquid_recovery", "Primary absorption", ["primary_separation"], ["Fallback primary absorption section added to preserve canonical solver coverage."]),
+        )
+        section_map.setdefault(
+            "regeneration",
+            SectionBlueprint("regeneration", "regeneration", "Regeneration", ["regeneration"], ["Fallback regeneration section added to preserve canonical solver coverage."]),
+        )
+    elif family == "solids":
+        section_map.setdefault(
+            "primary_flash",
+            SectionBlueprint("primary_recovery", "primary_recovery", "Primary recovery", ["primary_flash"], ["Fallback primary-recovery section added to preserve canonical solver coverage."]),
+        )
+        section_map.setdefault(
+            "concentration",
+            SectionBlueprint("concentration", "crystallization", "Crystallization", ["concentration"], ["Fallback crystallization section added to preserve canonical solver coverage."]),
+        )
+        section_map.setdefault(
+            "filtration",
+            SectionBlueprint("filtration", "solids_finishing", "Filtration", ["filtration"], ["Fallback filtration section added to preserve canonical solver coverage."]),
+        )
+        section_map.setdefault(
+            "drying",
+            SectionBlueprint("drying", "solids_finishing", "Drying", ["drying"], ["Fallback drying section added to preserve canonical solver coverage."]),
+        )
+    else:
+        section_map.setdefault(
+            "primary_flash",
+            SectionBlueprint("primary_recovery", "primary_recovery", "Primary recovery", ["primary_flash"], ["Fallback primary-recovery section added to preserve canonical solver coverage."]),
+        )
+        if family in {"distillation", "extraction"}:
+            section_map.setdefault(
+                "concentration",
+                SectionBlueprint("concentration", "concentration", "Concentration", ["concentration"], ["Fallback concentration section added to preserve canonical solver coverage."]),
+            )
+        section_map.setdefault(
+            "purification",
+            SectionBlueprint("purification", "purification", "Purification", ["purification"], ["Fallback purification section added to preserve canonical solver coverage."]),
+        )
+
+    if family != "absorption" and "primary_flash" in section_map and "primary_flash" not in ordered_unit_ids:
+        reactor_index = ordered_unit_ids.index("reactor") if "reactor" in ordered_unit_ids else 0
+        ordered_unit_ids.insert(reactor_index + 1, "primary_flash")
+    if "concentration" in section_map and "concentration" not in ordered_unit_ids:
+        if "purification" in ordered_unit_ids:
+            _insert_before("concentration", "purification")
+        elif "filtration" in ordered_unit_ids:
+            _insert_before("concentration", "filtration")
+        else:
+            ordered_unit_ids.append("concentration")
+    if "purification" in section_map and "purification" not in ordered_unit_ids and family != "solids":
+        ordered_unit_ids.append("purification")
+    if "recycle_recovery" in section_map and "recycle_recovery" not in ordered_unit_ids and "purification" in ordered_unit_ids:
+        ordered_unit_ids.append("recycle_recovery")
+    if "filtration" in section_map and "filtration" not in ordered_unit_ids:
+        if "drying" in ordered_unit_ids:
+            _insert_before("filtration", "drying")
+        else:
+            ordered_unit_ids.append("filtration")
+    if "drying" in section_map and "drying" not in ordered_unit_ids:
+        ordered_unit_ids.append("drying")
+
+    for unit_id in _section_order_for_family(family):
+        if unit_id in section_map and unit_id not in ordered_unit_ids:
+            ordered_unit_ids.append(unit_id)
+    for unit_id in section_map:
+        if unit_id not in ordered_unit_ids:
+            ordered_unit_ids.append(unit_id)
+    return [section_map[unit_id] for unit_id in ordered_unit_ids]
 
 
 def _descriptor_to_unit(route: RouteOption, family: str, descriptor: str, occurrence_index: int) -> tuple[str | None, str | None, bool]:
@@ -1143,9 +1334,14 @@ def build_generic_sequence_streams(
     citations: list[str],
     assumptions: list[str],
     property_packages: PropertyPackageArtifact | None = None,
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None = None,
 ) -> SequenceSolveResult:
-    family = _stream_family(route)
-    section_blueprints = _build_route_section_blueprints(route, family)
+    if flowsheet_blueprint is not None and flowsheet_blueprint.steps:
+        family = _stream_family_from_blueprint(flowsheet_blueprint)
+        section_blueprints = _section_blueprints_from_flowsheet_blueprint(flowsheet_blueprint, family)
+    else:
+        family = _stream_family(route)
+        section_blueprints = _build_route_section_blueprints(route, family)
     section_lookup = _blueprint_by_unit(section_blueprints)
     participants = route.participants
     reactants = [item for item in participants if item.role == "reactant"]

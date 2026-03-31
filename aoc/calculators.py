@@ -20,6 +20,7 @@ from aoc.models import (
     EnergyBalance,
     EquipmentSpec,
     FinancialModel,
+    FlowsheetBlueprintArtifact,
     HeatExchangerDesign,
     IndianPriceDatum,
     KineticAssessmentArtifact,
@@ -265,8 +266,17 @@ def build_stream_table(
     citations: list[str],
     assumptions: list[str],
     property_packages: PropertyPackageArtifact | None = None,
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None = None,
 ) -> StreamTable:
-    return build_stream_table_generic(basis, route, reaction_system, citations, assumptions, property_packages)
+    return build_stream_table_generic(
+        basis,
+        route,
+        reaction_system,
+        citations,
+        assumptions,
+        property_packages,
+        flowsheet_blueprint,
+    )
 
     if basis.process_template == ProcessTemplate.ETHYLENE_GLYCOL_INDIA and route.route_id == "eo_hydration":
         product = _participant(route, "product", "ethylene glycol")
@@ -1135,11 +1145,23 @@ def build_cost_model(
     scenario_policy: ScenarioPolicy | None = None,
     procurement_basis: DecisionRecord | None = None,
     logistics_basis: DecisionRecord | None = None,
+    route_site_fit=None,
+    route_economic_basis=None,
     column_design: ColumnDesign | None = None,
 ) -> CostModel:
     scenario_policy = scenario_policy or ScenarioPolicy()
-    procurement_basis = procurement_basis or build_procurement_basis_decision(site, equipment)
-    logistics_basis = logistics_basis or build_logistics_basis_decision(site, market)
+    procurement_basis = procurement_basis or build_procurement_basis_decision(
+        site,
+        equipment,
+        route_site_fit=route_site_fit,
+        route_economic_basis=route_economic_basis,
+    )
+    logistics_basis = logistics_basis or build_logistics_basis_decision(
+        site,
+        market,
+        route_site_fit=route_site_fit,
+        route_economic_basis=route_economic_basis,
+    )
     model = build_cost_model_v2(
         basis,
         equipment,
@@ -1152,6 +1174,8 @@ def build_cost_model(
         assumptions,
         procurement_basis,
         logistics_basis,
+        route_site_fit=route_site_fit,
+        route_economic_basis=route_economic_basis,
         utility_architecture=utility_architecture,
         column_design=column_design,
     )

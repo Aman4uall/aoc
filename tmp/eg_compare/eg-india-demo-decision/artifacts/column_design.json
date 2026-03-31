@@ -1,0 +1,471 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings."
+  ],
+  "column_id": "PU-201",
+  "service": "Distillation and purification train",
+  "light_key": "Water",
+  "heavy_key": "Ethylene Glycol",
+  "relative_volatility": 19.315,
+  "min_stages": 3.278,
+  "theoretical_stages": 4.278,
+  "design_stages": 7,
+  "tray_efficiency": 0.66,
+  "minimum_reflux_ratio": 0.15,
+  "reflux_ratio": 0.2,
+  "reflux_ratio_multiple_of_min": 1.333,
+  "column_diameter_m": 1.5,
+  "column_height_m": 12.0,
+  "condenser_duty_kw": 4112.291,
+  "reboiler_duty_kw": 3179.805,
+  "vapor_load_kg_hr": 6187.729,
+  "liquid_load_m3_hr": 6090.003,
+  "vapor_density_kg_m3": 6.005,
+  "liquid_density_kg_m3": 1.158,
+  "feed_stage": 4,
+  "tray_spacing_m": 0.45,
+  "flooding_fraction": 0.538,
+  "downcomer_area_fraction": 0.14,
+  "allowable_vapor_velocity_m_s": 0.35,
+  "superficial_vapor_velocity_m_s": 0.188,
+  "pressure_drop_per_stage_kpa": 0.282,
+  "top_temperature_c": 108.0,
+  "bottom_temperature_c": 203.3,
+  "feed_quality_q_factor": 1.106,
+  "murphree_efficiency": 0.634,
+  "top_relative_volatility": 25.909,
+  "bottom_relative_volatility": 14.399,
+  "rectifying_theoretical_stages": 2.444,
+  "stripping_theoretical_stages": 1.833,
+  "rectifying_vapor_load_kg_hr": 6352.735,
+  "stripping_vapor_load_kg_hr": 5683.01,
+  "rectifying_liquid_load_m3_hr": 6090.003,
+  "stripping_liquid_load_m3_hr": 16500.036,
+  "utility_topology": "shared HTM island network (shared_htm) with 1 utility islands",
+  "utility_architecture_family": "shared_htm",
+  "integrated_reboiler_duty_kw": 0.0,
+  "residual_reboiler_utility_kw": 3179.805,
+  "integrated_reboiler_lmtd_k": 0.0,
+  "integrated_reboiler_area_m2": 0.0,
+  "allocated_reboiler_recovery_target_kw": 0.0,
+  "reboiler_medium": "",
+  "reboiler_package_type": "",
+  "reboiler_circulation_ratio": 3.0,
+  "reboiler_phase_change_load_kg_hr": 6187.729,
+  "reboiler_package_item_ids": [],
+  "condenser_recovery_duty_kw": 0.0,
+  "condenser_recovery_lmtd_k": 0.0,
+  "condenser_recovery_area_m2": 0.0,
+  "allocated_condenser_recovery_target_kw": 0.0,
+  "condenser_recovery_medium": "",
+  "condenser_package_type": "",
+  "condenser_phase_change_load_kg_hr": 7049.642,
+  "condenser_circulation_flow_m3_hr": 6090.003,
+  "condenser_package_item_ids": [],
+  "selected_utility_island_ids": [],
+  "selected_utility_header_levels": [],
+  "selected_utility_cluster_ids": [],
+  "equilibrium_model": "",
+  "equilibrium_parameter_ids": [],
+  "equilibrium_fallback": false,
+  "absorber_key_component": "",
+  "absorber_henry_constant_bar": 0.0,
+  "absorber_equilibrium_slope": 0.0,
+  "absorber_solvent_to_gas_ratio": 0.0,
+  "absorber_minimum_solvent_to_gas_ratio": 0.0,
+  "absorber_optimized_solvent_to_gas_ratio": 0.0,
+  "absorber_lean_loading_mol_mol": 0.0,
+  "absorber_rich_loading_mol_mol": 0.0,
+  "absorber_solvent_rate_case_count": 0,
+  "absorber_capture_fraction": 0.0,
+  "absorber_stage_efficiency": 0.0,
+  "absorber_theoretical_stages": 0.0,
+  "absorber_packed_height_m": 0.0,
+  "absorber_gas_mass_velocity_kg_m2_s": 0.0,
+  "absorber_liquid_mass_velocity_kg_m2_s": 0.0,
+  "absorber_ntu": 0.0,
+  "absorber_htu_m": 0.0,
+  "absorber_overall_mass_transfer_coefficient_1_s": 0.0,
+  "absorber_packing_family": "",
+  "absorber_packing_specific_area_m2_m3": 0.0,
+  "absorber_effective_interfacial_area_m2_m3": 0.0,
+  "absorber_gas_phase_transfer_coeff_1_s": 0.0,
+  "absorber_liquid_phase_transfer_coeff_1_s": 0.0,
+  "absorber_min_wetting_rate_kg_m2_s": 0.0,
+  "absorber_wetting_ratio": 0.0,
+  "absorber_operating_velocity_m_s": 0.0,
+  "absorber_flooding_velocity_m_s": 0.0,
+  "absorber_flooding_margin_fraction": 0.0,
+  "absorber_pressure_drop_per_m_kpa_m": 0.0,
+  "absorber_total_pressure_drop_kpa": 0.0,
+  "crystallizer_key_component": "",
+  "crystallizer_solubility_limit_kg_per_kg": 0.0,
+  "crystallizer_feed_loading_kg_per_kg": 0.0,
+  "crystallizer_supersaturation_ratio": 0.0,
+  "crystallizer_precipitated_mass_kg_hr": 0.0,
+  "crystallizer_dissolved_mass_kg_hr": 0.0,
+  "crystallizer_yield_fraction": 0.0,
+  "crystallizer_residence_time_hr": 0.0,
+  "crystallizer_holdup_m3": 0.0,
+  "crystal_slurry_density_kg_m3": 0.0,
+  "crystal_growth_rate_mm_hr": 0.0,
+  "crystal_size_d10_mm": 0.0,
+  "crystal_size_d50_mm": 0.0,
+  "crystal_size_d90_mm": 0.0,
+  "crystal_classifier_cut_size_mm": 0.0,
+  "crystal_classified_product_fraction": 0.0,
+  "slurry_circulation_rate_m3_hr": 0.0,
+  "filter_cake_moisture_fraction": 0.0,
+  "filter_area_m2": 0.0,
+  "filter_cake_throughput_kg_m2_hr": 0.0,
+  "filter_specific_cake_resistance_m_kg": 0.0,
+  "filter_medium_resistance_1_m": 0.0,
+  "filter_cycle_time_hr": 0.0,
+  "filter_cake_formation_time_hr": 0.0,
+  "filter_wash_time_hr": 0.0,
+  "filter_discharge_time_hr": 0.0,
+  "filter_cycles_per_hr": 0.0,
+  "dryer_evaporation_load_kg_hr": 0.0,
+  "dryer_residence_time_hr": 0.0,
+  "dryer_target_moisture_fraction": 0.0,
+  "dryer_product_moisture_fraction": 0.0,
+  "dryer_equilibrium_moisture_fraction": 0.0,
+  "dryer_endpoint_margin_fraction": 0.0,
+  "dryer_inlet_humidity_ratio_kg_kg": 0.0,
+  "dryer_exhaust_humidity_ratio_kg_kg": 0.0,
+  "dryer_humidity_lift_kg_kg": 0.0,
+  "dryer_exhaust_dewpoint_c": 0.0,
+  "dryer_dry_air_flow_kg_hr": 0.0,
+  "dryer_exhaust_saturation_fraction": 0.0,
+  "dryer_mass_transfer_coefficient_kg_m2_s": 0.0,
+  "dryer_heat_transfer_coefficient_w_m2_k": 0.0,
+  "dryer_heat_transfer_area_m2": 0.0,
+  "dryer_refined_duty_kw": 0.0,
+  "selected_train_step_ids": [],
+  "calc_traces": [
+    {
+      "trace_id": "process_unit_service",
+      "title": "Process-unit family",
+      "formula": "service = selected separation family",
+      "substitutions": {},
+      "result": "Distillation and purification train",
+      "units": "",
+      "notes": ""
+    },
+    {
+      "trace_id": "column_vle_basis",
+      "title": "Separation thermodynamics basis",
+      "formula": "alpha = sqrt(alpha_top * alpha_bottom) from component K-values when a VLE basis exists",
+      "substitutions": {
+        "light_key": "Water",
+        "heavy_key": "Ethylene Glycol",
+        "alpha_top": "25.9091",
+        "alpha_bottom": "14.3988",
+        "method": "ideal_raoult_missing_bip_fallback"
+      },
+      "result": "19.3148",
+      "units": "-",
+      "notes": "Column volatility basis now prefers the separation-thermodynamics artifact built from Antoine / Clausius-Clapeyron K-values when available."
+    },
+    {
+      "trace_id": "column_fenske_min_stages",
+      "title": "Minimum theoretical stages",
+      "formula": "Nmin = log[(xD,LK/xB,LK)*(xB,HK/xD,HK)] / log(alpha)",
+      "substitutions": {
+        "xD,LK": "0.9850",
+        "xB,LK": "0.0040",
+        "xD,HK": "0.0150",
+        "xB,HK": "0.9990",
+        "alpha": "19.315"
+      },
+      "result": "3.278",
+      "units": "stages",
+      "notes": ""
+    },
+    {
+      "trace_id": "column_underwood_min_reflux",
+      "title": "Minimum reflux proxy",
+      "formula": "Rmin = f(alpha, q, xD,LK)",
+      "substitutions": {
+        "alpha": "19.315",
+        "q": "1.106",
+        "xD,LK": "0.9850"
+      },
+      "result": "0.150",
+      "units": "-",
+      "notes": "This is a screening Underwood-style reflux estimate built from the solved property basis and separation severity."
+    },
+    {
+      "trace_id": "column_feed_quality_basis",
+      "title": "Feed and volatility section basis",
+      "formula": "q from Cp and DeltaT; section volatility anchored to top/bottom alpha estimates",
+      "substitutions": {
+        "q": "1.106",
+        "alpha_top": "25.909",
+        "alpha_bottom": "14.399",
+        "murphree_efficiency": "0.634"
+      },
+      "result": "1.106",
+      "units": "-",
+      "notes": "Stage 2 separation design keeps the feed-quality and section-volatility basis explicit instead of burying it inside the reflux proxy."
+    },
+    {
+      "trace_id": "column_gilliland_actual_stages",
+      "title": "Actual stage proxy",
+      "formula": "Nactual = g(Nmin, R/Rmin, tray efficiency)",
+      "substitutions": {
+        "Nmin": "3.278",
+        "R": "0.200",
+        "Rmin": "0.150",
+        "tray_eff": "0.660"
+      },
+      "result": "7.000",
+      "units": "actual stages",
+      "notes": ""
+    },
+    {
+      "trace_id": "column_section_split_basis",
+      "title": "Rectifying and stripping section basis",
+      "formula": "Nrect + Nstrip = Ntheoretical ; section loads derived from reflux and bottoms circulation",
+      "substitutions": {
+        "feed_stage": "4",
+        "Ntheoretical": "4.278",
+        "Nrect": "2.444",
+        "Nstrip": "1.833",
+        "Vrect": "6352.735",
+        "Vstrip": "5683.010"
+      },
+      "result": "4.278",
+      "units": "stages",
+      "notes": "This makes the section-level column basis explicit before deeper M9-style tray-by-tray work."
+    },
+    {
+      "trace_id": "process_unit_size",
+      "title": "Equivalent diameter",
+      "formula": "D = sqrt(4*Aactive/[pi*(1-Adc)])",
+      "substitutions": {
+        "Aactive": "1.105",
+        "Adc": "0.140"
+      },
+      "result": "1.500",
+      "units": "m",
+      "notes": ""
+    },
+    {
+      "trace_id": "process_unit_hydraulics_capacity",
+      "title": "Column hydraulic capacity basis",
+      "formula": "uallow = C * sqrt[(rhoL-rhoV)/rhoV]; uflood = usuperficial/uallow",
+      "substitutions": {
+        "C": "0.300",
+        "rhoL": "1.158",
+        "rhoV": "6.005",
+        "usuperficial": "0.188"
+      },
+      "result": "0.538",
+      "units": "-",
+      "notes": ""
+    },
+    {
+      "trace_id": "process_unit_property_basis",
+      "title": "Process-unit property-package basis",
+      "formula": "Hydraulics proxy uses density, viscosity, and Cp from the mixture-property package",
+      "substitutions": {
+        "density": "1.158",
+        "viscosity": "0.014479",
+        "Cp": "2.452",
+        "mixture_package": "purification_mixture_properties"
+      },
+      "result": "1.158",
+      "units": "kg/m3",
+      "notes": ""
+    },
+    {
+      "trace_id": "column_packet_basis",
+      "title": "Solved process-unit packet basis",
+      "formula": "packet basis -> outlet throughput and matched thermal packets",
+      "substitutions": {
+        "process_packet": "purification_unit_packet",
+        "heating_packet": "fallback",
+        "cooling_packet": "fallback",
+        "composition_state": "purification_composition_state"
+      },
+      "result": "3179.805",
+      "units": "kW",
+      "notes": "Process-unit sizing now prefers solved separation packet, composition state, and thermal packet before route-level utility heuristics."
+    },
+    {
+      "trace_id": "column_utility_integration_basis",
+      "title": "Process-unit utility-train coupling",
+      "formula": "Integrated reboiler duty = sum(selected train steps tied to process-unit cold sinks",
+      "substitutions": {
+        "heating_steps": "none",
+        "condenser_steps": "none",
+        "topology": "shared HTM island network (shared_htm) with 1 utility islands",
+        "architecture_family": "shared_htm",
+        "selected_islands": "none",
+        "header_levels": "none"
+      },
+      "result": "0.000",
+      "units": "kW",
+      "notes": "This captures recovered duty delivered into the reboiler/process unit and heat recovered from condenser-side streams."
+    },
+    {
+      "trace_id": "column_reboiler_package_basis",
+      "title": "Reboiler package basis",
+      "formula": "Vboil = Qreb / lambda; circulation from selected train package when available",
+      "substitutions": {
+        "package": "fallback",
+        "package_type": "generic",
+        "phase_change_load_kg_hr": "6187.729",
+        "circulation_ratio": "3.000",
+        "selected_islands": "none",
+        "target_recovered_kw": "0.000",
+        "cluster_ids": "none"
+      },
+      "result": "3179.805",
+      "units": "kW",
+      "notes": ""
+    },
+    {
+      "trace_id": "column_condenser_package_basis",
+      "title": "Condenser package basis",
+      "formula": "mcond = Qcond / lambda; circulation from selected train package when available",
+      "substitutions": {
+        "package": "fallback",
+        "package_type": "generic",
+        "phase_change_load_kg_hr": "7049.642",
+        "circulation_flow_m3_hr": "6090.003",
+        "selected_islands": "none",
+        "target_recovered_kw": "0.000",
+        "cluster_ids": "none"
+      },
+      "result": "4112.291",
+      "units": "kW",
+      "notes": ""
+    },
+    {
+      "trace_id": "column_reboiler_integrated_heat_transfer",
+      "title": "Integrated reboiler heat-transfer basis",
+      "formula": "A_reb,int = Q_reb,int / (U_reb * LMTD_reb,int)",
+      "substitutions": {
+        "Q_reb,int": "0.0",
+        "U_reb": "780.0",
+        "LMTD_reb,int": "0.00"
+      },
+      "result": "0.000",
+      "units": "m2",
+      "notes": "Integrated reboiler area is derived from selected train steps that feed the process-unit heating sink."
+    },
+    {
+      "trace_id": "column_condenser_recovery_heat_transfer",
+      "title": "Condenser-side recovery basis",
+      "formula": "A_cond,rec = Q_cond,rec / (U_cond * LMTD_cond,rec)",
+      "substitutions": {
+        "Q_cond,rec": "0.0",
+        "U_cond": "700.0",
+        "LMTD_cond,rec": "0.00"
+      },
+      "result": "0.000",
+      "units": "m2",
+      "notes": "Recovered condenser duty is tied to selected train steps sourced from the process-unit hot side."
+    },
+    {
+      "trace_id": "process_unit_equilibrium_packet_basis",
+      "title": "Solved equilibrium packet basis",
+      "formula": "selected separation packets provide the active phase-equilibrium model and split basis for this process-unit family",
+      "substitutions": {
+        "packet_ids": "purification_separation_packet",
+        "models": "heuristic",
+        "parameter_ids": "none",
+        "fallback": "no"
+      },
+      "result": "heuristic_split",
+      "units": "",
+      "notes": "This basis is consumed directly from the solved separator packets rather than being inferred from chapter prose."
+    }
+  ],
+  "value_records": [
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "value_id": "process_unit_relative_volatility",
+      "name": "Process-unit relative volatility",
+      "value": "19.314777",
+      "units": "-",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "assumptions": [],
+      "value_id": "process_unit_stages",
+      "name": "Process-unit design stages",
+      "value": "7",
+      "units": "stages",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1",
+        "eg_handbook"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "medium",
+      "blocking": false
+    },
+    {
+      "citations": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "assumptions": [
+        "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+        "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state."
+      ],
+      "value_id": "process_unit_reboiler_duty",
+      "name": "Process-unit heating duty",
+      "value": "3179.8052",
+      "units": "kW",
+      "provenance_method": "calculated",
+      "source_ids": [
+        "user_doc_1",
+        "user_doc_2",
+        "india_sheet_1"
+      ],
+      "uncertainty_band": "derived",
+      "sensitivity": "high",
+      "blocking": false
+    }
+  ]
+}

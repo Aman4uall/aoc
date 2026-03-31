@@ -1,0 +1,43 @@
+{
+  "citations": [
+    "eg_handbook",
+    "india_sheet_1",
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Binary interaction parameters are only used when a cited/public source adapter resolves the specific pair; otherwise the solver falls back to ideal gamma=1.0.",
+    "Byproduct closure uses declared trace allocation because no explicit byproduct stoichiometry is available.",
+    "Cluster id: none.",
+    "Exchanger selector scored alternatives from gross unit duties.",
+    "Generic energy solver inferred `generic` duty structure from route metadata and composition-propagated unit state.",
+    "Header level: 1.",
+    "Henry-law constants and solubility curves are only used when the property engine resolves a cited/public basis for the active pair; otherwise separators fall back to heuristic splits with explicit warnings.",
+    "Library-backed values are treated as estimated unless a cited source also anchors the property basis.",
+    "Mechanical calculations remain feasibility-study level and are not a substitute for code-stamped detailed design.",
+    "Mock EG product profile uses seeded but realistic property values.",
+    "Mock India market assessment uses seeded price points normalized to 2025 INR.",
+    "Mock kinetic parameters are seeded values for workflow verification.",
+    "Mock thermodynamic values are seeded for deterministic test runs and must be replaced by cited values in production use.",
+    "Operations planning basis combines route-family campaign behavior, startup loss, and dispatch buffering so storage, working capital, and financial timing use the same assumptions.",
+    "Property Engine v1 uses cited product-profile values first, then benchmark public seeds, then optional library-backed calculations, then analogy, then block.",
+    "Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Residence time basis retained at 1.00 h.",
+    "Rotating and control-package items use support-frame screening rather than vessel shell-thickness equations.",
+    "Route family `liquid_hydration_train` drives rough utility/CAPEX screening.",
+    "Separation selector scored alternatives from route metadata, process archetype, chemistry-family adapter preferences, and unit-operation family screening.",
+    "Shell thickness uses allowable-stress and joint-efficiency screening logic with corrosion allowance.",
+    "Storage selector scored alternatives from product phase `liquid` and chemistry-family adapter preferences.",
+    "Utility island: omega_catalytic_pinch_htm__shared_htm_shared_htm_01.",
+    "Utility train package role: circulation.",
+    "Utility train package role: controls.",
+    "Utility train package role: exchanger.",
+    "Utility train package role: expansion.",
+    "Utility train package role: header.",
+    "Utility train package role: relief."
+  ],
+  "artifact_id": "vessel_mechanical_designs",
+  "title": "Vessel Mechanical Designs",
+  "markdown": "Preliminary vessel mechanical design generated for R-101 with class ASME 600 and hydrotest 26.00 bar.\n\nPreliminary vessel mechanical design generated for PU-201 with class PN16 and hydrotest 3.00 bar.\n\nPreliminary vessel mechanical design generated for V-101 with class PN16 and hydrotest 4.00 bar.\n\nPreliminary vessel mechanical design generated for E-101 with class ASME 150 and hydrotest 10.40 bar.\n\nPreliminary vessel mechanical design generated for TK-301 with class PN16 and hydrotest 2.20 bar.\n\nPreliminary vessel mechanical design generated for HX-01 with class ASME 300 and hydrotest 14.30 bar.\n\nPreliminary vessel mechanical design generated for HX-01-CTRL with class ASME 150 and hydrotest 11.70 bar.\n\nPreliminary vessel mechanical design generated for HX-01-HDR with class ASME 300 and hydrotest 18.85 bar.\n\nPreliminary vessel mechanical design generated for HX-01-PMP with class ASME 300 and hydrotest 18.85 bar.\n\nPreliminary vessel mechanical design generated for HX-01-EXP with class ASME 150 and hydrotest 7.80 bar.\n\nPreliminary vessel mechanical design generated for HX-01-RV with class ASME 300 and hydrotest 17.55 bar.\n\nPreliminary vessel mechanical design generated for HX-02 with class ASME 150 and hydrotest 8.45 bar.\n\nPreliminary vessel mechanical design generated for HX-02-CTRL with class ASME 150 and hydrotest 6.50 bar.",
+  "summary": "13 vessel mechanical design records generated."
+}

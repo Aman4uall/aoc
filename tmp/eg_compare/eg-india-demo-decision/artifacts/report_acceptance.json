@@ -1,0 +1,60 @@
+{
+  "citations": [],
+  "assumptions": [],
+  "benchmark_id": "ethylene_glycol",
+  "overall_status": "conditional",
+  "pipeline_status": "awaiting_approval",
+  "report_parity_status": "partial",
+  "blocked_stage_id": null,
+  "satisfied_expected_decision_count": 8,
+  "missing_expected_decision_count": 0,
+  "missing_expected_decisions": [],
+  "blocking_issue_codes": [],
+  "decision_results": [
+    {
+      "decision_id": "capacity_case",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "operating_mode",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "route_selection",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "site_selection",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "reactor_choice",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "separation_choice",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "utility_basis",
+      "present": true,
+      "notes": []
+    },
+    {
+      "decision_id": "economic_basis",
+      "present": true,
+      "notes": []
+    }
+  ],
+  "conditional_notes": [
+    "Report parity remains incomplete: 3 partial chapters, 0 partial support sections, 0 missing support sections."
+  ],
+  "summary": "Benchmark 'ethylene_glycol' completed without a hard block, but the acceptance gate remains conditional.",
+  "markdown": "## Final Acceptance Gate\n\n- Benchmark profile: `ethylene_glycol`\n- Pipeline status at evaluation: `awaiting_approval`\n- Acceptance status: `conditional`\n- Report parity status: `partial`\n- Blocked stage: `none`\n- Expected decisions satisfied / missing: `8/0`\n- Blocking issue codes: `none`\n\n### Acceptance Summary\n\nBenchmark 'ethylene_glycol' completed without a hard block, but the acceptance gate remains conditional.\n\n### Conditional Notes\n\n- Report parity remains incomplete: 3 partial chapters, 0 partial support sections, 0 missing support sections.\n\n### Expected Decision Coverage\n\n| Decision | Present | Notes |\n| --- | --- | --- |\n| capacity_case | yes | - |\n| operating_mode | yes | - |\n| route_selection | yes | - |\n| site_selection | yes | - |\n| reactor_choice | yes | - |\n| separation_choice | yes | - |\n| utility_basis | yes | - |\n| economic_basis | yes | - |"
+}
