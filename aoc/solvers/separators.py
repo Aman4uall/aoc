@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from aoc.models import PhaseSplitSpec, SeparationPacket, SeparatorPerformance, StreamRecord, UnitOperationPacket
+from aoc.models import PhaseSplitSpec, RouteOption, SeparationPacket, SeparatorPerformance, StreamRecord, UnitOperationPacket
 from aoc.properties.models import PropertyPackageArtifact
+from aoc.properties.vle import build_section_separation_thermo_artifact
 from aoc.properties.sources import normalize_chemical_name
 
 
@@ -233,6 +234,7 @@ def build_separator_models(
     assumptions: list[str],
     property_packages: PropertyPackageArtifact | None = None,
     component_package_ids: dict[str, str] | None = None,
+    route: RouteOption | None = None,
 ) -> tuple[list[PhaseSplitSpec], list[SeparatorPerformance], list[SeparationPacket]]:
     packet_index = {packet.unit_id: packet for packet in unit_packets if packet.unit_type in SEPARATION_UNIT_TYPES}
     phase_split_specs: list[PhaseSplitSpec] = []
@@ -259,6 +261,13 @@ def build_separator_models(
         equilibrium_model = ""
         equilibrium_parameter_ids: list[str] = []
         equilibrium_fallback = False
+        section_thermo_artifact_id = ""
+        activity_model = ""
+        light_key = ""
+        heavy_key = ""
+        top_relative_volatility = 0.0
+        bottom_relative_volatility = 0.0
+        average_relative_volatility = 0.0
         if not inlet_stream_ids:
             phase_notes.append("No inlet streams resolved for this separator.")
         if not (product_stream_ids or waste_stream_ids or recycle_stream_ids or side_draw_stream_ids):
@@ -306,6 +315,44 @@ def build_separator_models(
                 equilibrium_model = "heuristic_sle_fallback"
                 equilibrium_fallback = True
                 phase_notes.append("No cited solubility curve was resolved for the active crystal/slurry system; heuristic split retained.")
+        if (
+            packet.unit_type in {"flash", "distillation", "evaporation", "extraction"}
+            and family in {"distillation", "extraction", "generic"}
+            and property_packages is not None
+            and route is not None
+            and len(inlet_component_names) >= 2
+        ):
+            target_product = next((item.name for item in route.participants if item.role == "product"), route.name)
+            section_candidate_id = (
+                "extraction_train"
+                if packet.unit_type == "extraction"
+                else "distillation_train"
+                if packet.unit_type in {"distillation", "evaporation"}
+                else f"{packet.unit_type}_train"
+            )
+            section_thermo = build_section_separation_thermo_artifact(
+                route,
+                property_packages,
+                target_product,
+                inlet_component_names,
+                selected_candidate_id=section_candidate_id,
+                section_id=unit_id,
+            )
+            equilibrium_model = section_thermo.relative_volatility.method if section_thermo.relative_volatility is not None else section_thermo.activity_model
+            equilibrium_parameter_ids = [item.bip_id for item in section_thermo.binary_interaction_parameters]
+            equilibrium_fallback = bool(section_thermo.missing_binary_pairs)
+            section_thermo_artifact_id = section_thermo.artifact_id
+            activity_model = section_thermo.activity_model
+            light_key = section_thermo.light_key
+            heavy_key = section_thermo.heavy_key
+            if section_thermo.relative_volatility is not None:
+                top_relative_volatility = section_thermo.relative_volatility.top_alpha
+                bottom_relative_volatility = section_thermo.relative_volatility.bottom_alpha
+                average_relative_volatility = section_thermo.relative_volatility.average_alpha
+            phase_notes.append(
+                f"Section-specific cleanup pair uses {light_key or 'light key'} / {heavy_key or 'heavy key'} with `{activity_model or equilibrium_model}`."
+            )
+            phase_notes.extend(section_thermo.fallback_notes)
         phase_status = (
             "blocked"
             if not inlet_stream_ids or not (product_stream_ids or waste_stream_ids or recycle_stream_ids or side_draw_stream_ids)
@@ -327,6 +374,13 @@ def build_separator_models(
             equilibrium_model=equilibrium_model,
             equilibrium_parameter_ids=equilibrium_parameter_ids,
             equilibrium_fallback=equilibrium_fallback,
+            section_thermo_artifact_id=section_thermo_artifact_id,
+            activity_model=activity_model,
+            light_key=light_key,
+            heavy_key=heavy_key,
+            top_relative_volatility=round(top_relative_volatility, 6),
+            bottom_relative_volatility=round(bottom_relative_volatility, 6),
+            average_relative_volatility=round(average_relative_volatility, 6),
             phase_split_status=phase_status,
             notes=phase_notes,
             citations=citations,
@@ -388,6 +442,13 @@ def build_separator_models(
             equilibrium_model=equilibrium_model,
             equilibrium_parameter_ids=equilibrium_parameter_ids,
             equilibrium_fallback=equilibrium_fallback,
+            section_thermo_artifact_id=section_thermo_artifact_id,
+            activity_model=activity_model,
+            light_key=light_key,
+            heavy_key=heavy_key,
+            top_relative_volatility=round(top_relative_volatility, 6),
+            bottom_relative_volatility=round(bottom_relative_volatility, 6),
+            average_relative_volatility=round(average_relative_volatility, 6),
             performance_status=_performance_status(split_closure_pct, phase_status, bool(product_stream_ids or waste_stream_ids or recycle_stream_ids or side_draw_stream_ids)),
             notes=performance_notes,
             citations=citations,
@@ -424,6 +485,13 @@ def build_separator_models(
                 equilibrium_model=equilibrium_model,
                 equilibrium_parameter_ids=equilibrium_parameter_ids,
                 equilibrium_fallback=equilibrium_fallback,
+                section_thermo_artifact_id=section_thermo_artifact_id,
+                activity_model=activity_model,
+                light_key=light_key,
+                heavy_key=heavy_key,
+                top_relative_volatility=round(top_relative_volatility, 6),
+                bottom_relative_volatility=round(bottom_relative_volatility, 6),
+                average_relative_volatility=round(average_relative_volatility, 6),
                 split_status=performance.performance_status,
                 closure_error_pct=packet.closure_error_pct,
                 notes=performance.notes,

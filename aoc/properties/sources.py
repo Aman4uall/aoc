@@ -7,10 +7,82 @@ from aoc.models import ProductProfileArtifact, ResearchBundle, RouteSurveyArtifa
 
 
 _WHITESPACE_RE = re.compile(r"[^a-z0-9]+")
+_NUMERIC_IDENTIFIER_RE = re.compile(r"^\s*(?:\d+(?:\.\d+)?%?|\d+(?:\.\d+)?\.)\s*$")
+_PAGE_IDENTIFIER_RE = re.compile(r"^\s*\d+\s*(?:\|\s*)?p(?:\s*a){0,2}\s*g\s*e\b", re.IGNORECASE)
+_PRESSURE_IDENTIFIER_RE = re.compile(r"^\s*\d+(?:\.\d+)?\s*(?:psig|psi|bar|kpa|mpa)\s*$", re.IGNORECASE)
+_LEADING_NOISE_PHRASE_RE = re.compile(
+    r"^\s*(?:and|of|as|use of|such as|make|forms?|power and|process|also involves|it involves|this process|that process)\b",
+    re.IGNORECASE,
+)
+_IDENTIFIER_NOISE_TOKENS = {
+    "page",
+    "pages",
+    "table",
+    "figure",
+    "fig",
+    "process",
+    "selected",
+    "yield",
+    "pressure",
+    "temperature",
+    "site",
+    "raw",
+    "material",
+    "materials",
+    "used",
+    "use",
+    "involves",
+    "gets",
+    "which",
+    "this",
+    "that",
+    "the",
+    "a",
+    "an",
+    "and",
+    "of",
+    "as",
+    "such",
+    "as",
+    "is",
+    "make",
+    "form",
+    "forms",
+    "power",
+    "boots",
+    "hoechst",
+    "celanese",
+}
 
 
 def normalize_chemical_name(name: str) -> str:
     return _WHITESPACE_RE.sub("_", name.strip().lower()).strip("_")
+
+
+def is_valid_property_identifier_name(name: str) -> bool:
+    stripped = name.strip()
+    if not stripped:
+        return False
+    if _NUMERIC_IDENTIFIER_RE.match(stripped):
+        return False
+    if _PAGE_IDENTIFIER_RE.match(stripped):
+        return False
+    if _PRESSURE_IDENTIFIER_RE.match(stripped):
+        return False
+    if _LEADING_NOISE_PHRASE_RE.match(stripped):
+        return False
+    if sum(char.isalpha() for char in stripped) < 2:
+        return False
+    tokens = [token for token in re.split(r"[^a-z0-9]+", stripped.lower()) if token]
+    if tokens and all(token in _IDENTIFIER_NOISE_TOKENS or token.isdigit() for token in tokens):
+        return False
+    if len(tokens) > 3 and any(token in _IDENTIFIER_NOISE_TOKENS for token in tokens):
+        return False
+    if any(token in {"page", "pages"} for token in tokens):
+        return False
+    if "%" in stripped and len(tokens) <= 2:
+        return False
+    return True
 
 
 BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
@@ -198,6 +270,51 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
         },
         "antoine": {"A": 6.90565, "B": 1211.033, "C": 220.79, "temperature_min_c": 7.0, "temperature_max_c": 104.0},
     },
+    "benzyl_chloride": {
+        "aliases": ["chloromethylbenzene", "c7h7cl"],
+        "formula": "C7H7Cl",
+        "cas_number": "100-44-7",
+        "properties": {
+            "molecular_weight": (126.58, "g/mol"),
+            "normal_boiling_point": (179.0, "C"),
+            "melting_point": (-39.0, "C"),
+            "liquid_density": (1100.0, "kg/m3"),
+            "liquid_viscosity": (0.0013, "Pa.s"),
+            "liquid_heat_capacity": (1.55, "kJ/kg-K"),
+            "heat_of_vaporization": (330.0, "kJ/kg"),
+            "thermal_conductivity": (0.14, "W/m-K"),
+        },
+    },
+    "benzyl_alcohol": {
+        "aliases": ["phenylmethanol", "c7h8o"],
+        "formula": "C7H8O",
+        "cas_number": "100-51-6",
+        "properties": {
+            "molecular_weight": (108.14, "g/mol"),
+            "normal_boiling_point": (205.3, "C"),
+            "melting_point": (-15.3, "C"),
+            "liquid_density": (1045.0, "kg/m3"),
+            "liquid_viscosity": (0.0055, "Pa.s"),
+            "liquid_heat_capacity": (1.76, "kJ/kg-K"),
+            "heat_of_vaporization": (430.0, "kJ/kg"),
+            "thermal_conductivity": (0.17, "W/m-K"),
+        },
+    },
+    "hydrogen_chloride": {
+        "aliases": ["hcl", "anhydrous_hcl", "hydrochloric_acid_gas"],
+        "formula": "HCl",
+        "cas_number": "7647-01-0",
+        "properties": {
+            "molecular_weight": (36.46, "g/mol"),
+            "normal_boiling_point": (-85.1, "C"),
+            "melting_point": (-114.2, "C"),
+            "liquid_density": (1190.0, "kg/m3"),
+            "liquid_viscosity": (0.00013, "Pa.s"),
+            "liquid_heat_capacity": (1.10, "kJ/kg-K"),
+            "heat_of_vaporization": (410.0, "kJ/kg"),
+            "thermal_conductivity": (0.10, "W/m-K"),
+        },
+    },
     "cumene": {
         "aliases": ["isopropylbenzene", "c9h12"],
         "formula": "C9H12",
@@ -243,6 +360,36 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
             "thermal_conductivity": (0.160, "W/m-K"),
         },
         "antoine": {"A": 7.02447, "B": 1161.0, "C": 224.0, "temperature_min_c": -10.0, "temperature_max_c": 95.0},
+    },
+    "alkyldimethylamine": {
+        "aliases": ["c16h35n", "lauryldimethylamine", "c12_c14_alkyldimethylamine"],
+        "formula": "C16H35N",
+        "cas_number": "112-69-6",
+        "properties": {
+            "molecular_weight": (241.46, "g/mol"),
+            "normal_boiling_point": (285.0, "C"),
+            "melting_point": (18.0, "C"),
+            "liquid_density": (830.0, "kg/m3"),
+            "liquid_viscosity": (0.0040, "Pa.s"),
+            "liquid_heat_capacity": (2.10, "kJ/kg-K"),
+            "heat_of_vaporization": (340.0, "kJ/kg"),
+            "thermal_conductivity": (0.14, "W/m-K"),
+        },
+    },
+    "benzalkonium_chloride": {
+        "aliases": ["bkc", "alkyldimethylbenzylammonium_chloride", "c23h42cln"],
+        "formula": "C23H42ClN",
+        "cas_number": "8001-54-5",
+        "properties": {
+            "molecular_weight": (368.04, "g/mol"),
+            "normal_boiling_point": (999.0, "C"),
+            "melting_point": (-5.0, "C"),
+            "liquid_density": (995.0, "kg/m3"),
+            "liquid_viscosity": (0.0025, "Pa.s"),
+            "liquid_heat_capacity": (3.00, "kJ/kg-K"),
+            "heat_of_vaporization": (0.0, "kJ/kg"),
+            "thermal_conductivity": (0.20, "W/m-K"),
+        },
     },
     "ethyl_acetate": {
         "aliases": ["c4h8o2"],
@@ -503,7 +650,64 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
     },
 }
 
-BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] = {}
+BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] = {
+    ("alkyldimethylamine", "benzyl_chloride"): {
+        "component_a": "Alkyldimethylamine",
+        "component_b": "Benzyl chloride",
+        "model_name": "NRTL",
+        "tau12": 0.55,
+        "tau21": 1.45,
+        "alpha12": 0.32,
+    },
+    ("alkyldimethylamine", "ethanol"): {
+        "component_a": "Alkyldimethylamine",
+        "component_b": "Ethanol",
+        "model_name": "NRTL",
+        "tau12": 0.70,
+        "tau21": 0.95,
+        "alpha12": 0.30,
+    },
+    ("alkyldimethylamine", "water"): {
+        "component_a": "Alkyldimethylamine",
+        "component_b": "Water",
+        "model_name": "NRTL",
+        "tau12": 1.10,
+        "tau21": 0.85,
+        "alpha12": 0.30,
+    },
+    ("benzyl_alcohol", "ethanol"): {
+        "component_a": "Benzyl alcohol",
+        "component_b": "Ethanol",
+        "model_name": "NRTL",
+        "tau12": 0.38,
+        "tau21": 0.28,
+        "alpha12": 0.30,
+    },
+    ("benzyl_alcohol", "water"): {
+        "component_a": "Benzyl alcohol",
+        "component_b": "Water",
+        "model_name": "NRTL",
+        "tau12": 1.35,
+        "tau21": 0.75,
+        "alpha12": 0.30,
+    },
+    ("benzyl_chloride", "ethanol"): {
+        "component_a": "Benzyl chloride",
+        "component_b": "Ethanol",
+        "model_name": "NRTL",
+        "tau12": 0.95,
+        "tau21": 0.45,
+        "alpha12": 0.30,
+    },
+    ("benzyl_chloride", "water"): {
+        "component_a": "Benzyl chloride",
+        "component_b": "Water",
+        "model_name": "NRTL",
+        "tau12": 1.60,
+        "tau21": 0.95,
+        "alpha12": 0.30,
+    },
+}
 BENCHMARK_HENRY_LIBRARY: dict[tuple[str, str], dict[str, object]] = {
     ("carbon_dioxide", "water"): {
         "value": 29.4,
@@ -760,25 +964,74 @@ def technical_anchor_source_ids(bundle: ResearchBundle, limit: int = 2) -> list[
     return list(dict.fromkeys(anchors[:limit]))
 
 
+def _merge_identifier_spec(
+    route_map: dict[str, dict[str, object]],
+    *,
+    canonical_name: str,
+    route_id: str = "",
+    formula: str | None = None,
+) -> None:
+    if not is_valid_property_identifier_name(canonical_name):
+        return
+    normalized = normalize_chemical_name(canonical_name)
+    benchmark_key, benchmark_record = match_benchmark_entry(canonical_name, formula)
+    resolved_formula = formula or (str(benchmark_record.get("formula")) if benchmark_record else None)
+    resolved_name = canonical_name
+    if benchmark_key and benchmark_record:
+        resolved_name = str(benchmark_record.get("aliases", [canonical_name])[0]) if benchmark_record.get("aliases") else canonical_name
+        resolved_name = canonical_name if normalize_chemical_name(canonical_name) == benchmark_key else resolved_name
+    entry = route_map.setdefault(
+        normalized,
+        {
+            "canonical_name": canonical_name,
+            "aliases": set(),
+            "formula": resolved_formula,
+            "route_ids": set(),
+        },
+    )
+    entry["aliases"].add(canonical_name)
+    if route_id:
+        entry["route_ids"].add(route_id)
+    if not entry.get("formula") and resolved_formula:
+        entry["formula"] = resolved_formula
+    if entry.get("canonical_name") == canonical_name and benchmark_record and benchmark_key:
+        entry["aliases"].add(benchmark_key.replace("_", " "))
+
+
+def _add_known_byproduct_mentions(
+    route_map: dict[str, dict[str, object]],
+    *,
+    text: str,
+    route_id: str,
+) -> None:
+    lowered = text.lower()
+    for key, record in BENCHMARK_PROPERTY_LIBRARY.items():
+        phrases = {key.replace("_", " ")}
+        phrases.update(str(alias).lower() for alias in record.get("aliases", []))
+        if any(re.search(rf"(?<![a-z0-9]){re.escape(phrase)}(?![a-z0-9])", lowered) for phrase in phrases if len(phrase) >= 4):
+            _merge_identifier_spec(
+                route_map,
+                canonical_name=key.replace("_", " "),
+                route_id=route_id,
+                formula=str(record.get("formula") or ""),
+            )
+
+
 def collect_identifier_specs(product_profile: ProductProfileArtifact, route_survey: RouteSurveyArtifact | None) -> list[dict[str, object]]:
     route_map: dict[str, dict[str, object]] = {}
     if route_survey is not None:
         for route in route_survey.routes:
             for participant in route.participants:
-                normalized = normalize_chemical_name(participant.name)
-                entry = route_map.setdefault(
-                    normalized,
-                    {
-                        "canonical_name": participant.name,
-                        "aliases": set(),
-                        "formula": participant.formula,
-                        "route_ids": set(),
-                    },
+                _merge_identifier_spec(
+                    route_map,
+                    canonical_name=participant.name,
+                    route_id=route.route_id,
+                    formula=participant.formula,
                 )
-                entry["aliases"].add(participant.name)
-                entry["route_ids"].add(route.route_id)
-                if not entry.get("formula") and participant.formula:
-                    entry["formula"] = participant.formula
+            for solvent in getattr(route, "solvents", []):
+                _merge_identifier_spec(route_map, canonical_name=solvent, route_id=route.route_id)
+            for byproduct in route.byproducts:
+                _add_known_byproduct_mentions(route_map, text=byproduct, route_id=route.route_id)
     specs: list[dict[str, object]] = [
         {
             "canonical_name": product_profile.product_name,
@@ -787,6 +1040,8 @@ def collect_identifier_specs(product_profile: ProductProfileArtifact, route_surv
             "route_ids": set(),
         }
     ]
+    for carrier in getattr(product_profile, "carrier_components", []):
+        _merge_identifier_spec(route_map, canonical_name=carrier)
     seen = {normalize_chemical_name(product_profile.product_name)}
     for normalized, entry in route_map.items():
         if normalized in seen:

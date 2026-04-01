@@ -115,6 +115,15 @@ def _benchmark_definitions() -> dict[str, BenchmarkManifest]:
             required_public_source_domains=common_domains,
             notes="Benchmark for oxidation-led liquid-organic service with offgas handling, recovery distillation, and route-family coverage beyond the current core benchmark set.",
         ),
+        "benzalkonium_chloride": BenchmarkManifest(
+            benchmark_id="benzalkonium_chloride",
+            target_product="Benzalkonium chloride",
+            archetype_family="continuous_quaternary_ammonium_solution_cleanup",
+            required_chapters=DEFAULT_REQUIRED_CHAPTERS,
+            expected_decisions=DEFAULT_EXPECTED_DECISIONS,
+            required_public_source_domains=common_domains,
+            notes="Benchmark for continuous benzalkonium chloride manufacture on a 50 wt% sold-solution basis, emphasizing cited route selection, purification realism, unit-train consistency, and commercial-grade economics.",
+        ),
     }
 
 

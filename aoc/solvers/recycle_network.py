@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from aoc.models import ConvergenceSummary, RecyclePacket, StreamRecord
+from aoc.models import ConvergenceSummary, RecyclePacket, SeparationPacket, StreamRecord
 from aoc.solvers.convergence import solve_multi_loop_recycle_network
 
 
@@ -93,12 +93,18 @@ def _recommended_min_purge_fraction(section_id: str, family: str) -> float:
     return 0.0
 
 
+def _section_uses_direct_split_closure(section_id: str) -> bool:
+    lowered = section_id.lower()
+    return lowered in {"purification", "concentration", "primary_recovery", "regeneration", "primary_absorption"}
+
+
 def build_recycle_network_packets(
     streams: list[StreamRecord],
     recycle_solution: dict[str, dict[str, float | int | bool]],
     overall_closure_error_pct: float,
     citations: list[str],
     assumptions: list[str],
+    separation_packets: list[SeparationPacket] | None = None,
 ) -> tuple[list[RecyclePacket], list[ConvergenceSummary]]:
     recycle_groups = _group_streams_by_source(streams, recycle=True)
     purge_groups = _group_streams_by_source(streams, recycle=False)
@@ -114,6 +120,10 @@ def build_recycle_network_packets(
     loop_purge: dict[str, dict[str, float]] = {}
     loop_metadata: dict[str, dict[str, object]] = {}
     loop_count = len(recycle_groups)
+    separation_packet_index = {
+        packet.unit_id: packet
+        for packet in (separation_packets or [])
+    }
 
     for source_unit_id, recycle_streams in recycle_groups.items():
         purge_streams = purge_groups.get(source_unit_id, [])
@@ -164,11 +174,41 @@ def build_recycle_network_packets(
                 purge_fraction = loop_target_purge / target_sum if target_sum > 1e-9 else 0.0
             impurity_family = _classify_impurity_family(component_name)
             min_purge = _recommended_min_purge_fraction(source_section_id, impurity_family)
+            packet = separation_packet_index.get(source_unit_id)
+            direct_section_closure = False
+            if packet is not None:
+                packet_recycle = packet.component_split_to_recycle.get(component_name, 0.0)
+                packet_waste = packet.component_split_to_waste.get(component_name, 0.0) + packet.component_split_to_side_draw.get(component_name, 0.0)
+                packet_nonproduct = max(packet_recycle + packet_waste, 0.0)
+                if packet_nonproduct > 1e-9:
+                    section_recovery = packet_recycle / packet_nonproduct
+                    section_purge = packet_waste / packet_nonproduct
+                    direct_section_closure = _section_uses_direct_split_closure(source_section_id or source_unit_id) and packet.equilibrium_model != ""
+                    if direct_section_closure:
+                        loop_target_total = actual_sum if actual_sum > 1e-9 else max(loop_target_recycle + loop_target_purge, 0.0)
+                        loop_target_recycle = loop_target_total * section_recovery
+                        loop_target_purge = loop_target_total * section_purge
+                        if section_recovery <= 1e-9:
+                            recovery_fraction = 0.0
+                            purge_fraction = 1.0
+                        elif section_purge <= 1e-9:
+                            recovery_fraction = 0.999999
+                            purge_fraction = 0.0
+                        else:
+                            recovery_fraction = 1.0
+                            purge_fraction = section_purge
+                    else:
+                        if packet.equilibrium_model:
+                            recovery_fraction = max(recovery_fraction, section_recovery)
+                            purge_fraction = max(purge_fraction, section_purge)
+                        if packet.activity_model and "nrtl" in packet.activity_model:
+                            purge_fraction = max(purge_fraction, min(section_purge + 0.02, 0.25))
             purge_fraction = max(purge_fraction, min_purge)
-            recovery_fraction = min(recovery_fraction, max(1.0 - purge_fraction, 0.0))
+            if not direct_section_closure:
+                recovery_fraction = min(recovery_fraction, max(1.0 - purge_fraction, 0.0))
             loop_targets[loop_id][component_name] = round(loop_target_total, 6)
             loop_consumed[loop_id][component_name] = round(max(loop_target_total - actual_sum, 0.0), 6)
-            loop_recovery[loop_id][component_name] = round(max(0.0, min(recovery_fraction, 0.999)), 6)
+            loop_recovery[loop_id][component_name] = round(max(0.0, min(recovery_fraction, 0.999999)), 6)
             loop_purge[loop_id][component_name] = round(max(0.0, min(purge_fraction, 0.999)), 6)
 
     loop_results = solve_multi_loop_recycle_network(loop_targets, loop_consumed, loop_recovery, loop_purge)

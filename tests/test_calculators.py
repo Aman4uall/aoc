@@ -21,6 +21,7 @@ from aoc.calculators import (
     sensible_duty_kw,
 )
 from aoc.economics_v2 import (
+    _fresh_makeup_mass_kg_hr,
     build_financing_basis_decision,
     build_route_economic_basis_artifact,
     build_route_site_fit_artifact,
@@ -245,6 +246,40 @@ class CalculatorTests(unittest.TestCase):
         self.assertTrue(financial.selected_financing_candidate_id)
         self.assertIsInstance(financial.covenant_breach_codes, list)
         self.assertIsInstance(financial.covenant_warnings, list)
+
+    def test_fresh_makeup_mass_uses_recycle_packet_makeup_when_available(self):
+        basis = self._basis()
+        route = self._route()
+        kinetics = KineticAssessmentArtifact(
+            feasible=True,
+            activation_energy_kj_per_mol=73.0,
+            pre_exponential_factor=4.8e8,
+            apparent_order=1.0,
+            design_residence_time_hr=0.75,
+            markdown="seed",
+            citations=["s1"],
+        )
+        reaction_system = build_reaction_system(basis, route, kinetics, ["s1"], [])
+        stream_table = build_stream_table(basis, route, reaction_system, ["s1"], [])
+        stream_table.recycle_packets = [
+            stream_table.recycle_packets[0].model_copy(
+                update={
+                    "component_fresh_kmol_hr": {"Ethylene oxide": 0.25, "Water": 2.5},
+                    "component_recycle_kmol_hr": {"Ethylene oxide": 0.75, "Water": 45.0},
+                }
+            )
+        ]
+
+        fresh_makeup_mass = _fresh_makeup_mass_kg_hr(stream_table)
+        feed_mass = sum(
+            component.mass_flow_kg_hr
+            for stream in stream_table.streams
+            if stream.stream_role == "feed"
+            for component in stream.components
+        )
+
+        self.assertGreater(fresh_makeup_mass, 0.0)
+        self.assertAlmostEqual(fresh_makeup_mass, feed_mass)
 
     def test_route_site_fit_and_route_economic_basis_flow_into_cost_model(self):
         basis = self._basis()

@@ -13,6 +13,7 @@ from aoc.models import (
     RouteSurveyArtifact,
     ScenarioStability,
 )
+from aoc.route_families import RouteFamilyArtifact, profile_for_route
 
 
 ORGANIC_HINTS = {"glycol", "acid", "alcohol", "ester", "ketone", "aldehyde", "amine", "phenol"}
@@ -21,6 +22,7 @@ SOLIDS_HINTS = {"crystall", "filtration", "filter", "dry", "solid", "salt", "cak
 ABSORPTION_HINTS = {"absorption", "scrubbing", "stripper", "converter"}
 DISTILLATION_HINTS = {"distillation", "flash", "vacuum", "purification", "dehydration"}
 EXTRACTION_HINTS = {"extraction", "solvent", "wash"}
+SOLUTION_FORM_HINTS = {"solution", "aqueous", "alcohol", "solvent", "formulation", "active"}
 
 
 def _product_name(config: ProjectConfig) -> str:
@@ -47,6 +49,14 @@ def _representative_routes(route_survey: RouteSurveyArtifact) -> list[RouteOptio
     return shortlisted[:2] or ranked[:1]
 
 
+def _dominant_route_family(route_survey: RouteSurveyArtifact, route_families: RouteFamilyArtifact | None) -> str:
+    if route_families is None or not route_survey.routes:
+        return ""
+    top_route = max(route_survey.routes, key=lambda item: item.route_score)
+    profile = profile_for_route(route_families, top_route.route_id)
+    return profile.route_family_id if profile is not None else ""
+
+
 def _compound_family(config: ProjectConfig, route_survey: RouteSurveyArtifact) -> str:
     if config.compound_family_hint:
         hint = config.compound_family_hint.strip().lower()
@@ -70,6 +80,11 @@ def _dominant_product_phase(config: ProjectConfig, route_survey: RouteSurveyArti
         hint = config.phase_system_hint.strip().lower()
         if hint in {"gas", "liquid", "solid", "mixed"}:
             return hint
+    product_form = (config.basis.product_form or "").strip().lower()
+    if product_form and any(token in product_form for token in SOLUTION_FORM_HINTS):
+        return "liquid"
+    if config.basis.nominal_active_wt_pct is not None and config.basis.carrier_components:
+        return "liquid"
     melting_point = next((item for item in property_gap.values if item.name.strip().lower() == "melting point"), None)
     boiling_point = next((item for item in property_gap.values if item.name.strip().lower() == "boiling point"), None)
     try:
@@ -116,6 +131,8 @@ def _dominant_feed_phase(route_survey: RouteSurveyArtifact) -> str:
 
 def _dominant_separation(route_survey: RouteSurveyArtifact) -> str:
     text = " ".join(_route_text(route) for route in _representative_routes(route_survey))
+    if any(token in text for token in {"quaternization", "quaternary ammonium", "benzalkonium", "benzyl chloride", "alcohol recovery", "light-ends stripping"}):
+        return "mixed_purification"
     if any(token in text for token in SOLIDS_HINTS):
         return "crystallization_filtration_drying"
     if any(token in text for token in ABSORPTION_HINTS):
@@ -183,6 +200,7 @@ def build_alternative_sets(
     config: ProjectConfig,
     archetype: ProcessArchetype,
     route_survey: RouteSurveyArtifact,
+    route_families: RouteFamilyArtifact | None = None,
 ) -> list[AlternativeSet]:
     capacity_candidates = config.capacity_case_candidates or [
         max(1000.0, config.basis.capacity_tpa * 0.5),
@@ -234,14 +252,30 @@ def build_alternative_sets(
         )
         for route in route_survey.routes
     ]
+    dominant_route_family = _dominant_route_family(route_survey, route_families)
     reactor_family_rows = []
     if archetype.dominant_product_phase == "solid":
         reactor_family_rows.append(AlternativeOption(candidate_id="stirred_slurry", candidate_type="reactor_family", description="Agitated slurry reactor", total_score=84.0, score_breakdown={"solids_handling": 84.0}))
+    cstr_score = 72.0
+    pfr_score = 88.0 if "continuous" in archetype.operating_mode_candidates else 60.0
+    batch_score = 58.0 if config.basis.capacity_tpa >= 20000 else 81.0
+    cstr_desc = "CSTR train"
+    if dominant_route_family == "quaternization_liquid_train":
+        cstr_score = 95.0
+        pfr_score = 38.0
+        batch_score = 52.0 if config.basis.capacity_tpa >= 20000 else 68.0
+        cstr_desc = "Jacketed liquid reactor train"
+    elif dominant_route_family == "liquid_hydration_train":
+        cstr_score = 72.0
+        pfr_score = 92.0 if "continuous" in archetype.operating_mode_candidates else 64.0
+    elif dominant_route_family in {"extraction_recovery_train", "generic_mixed_train"}:
+        cstr_score = 84.0
+        pfr_score = 62.0
     reactor_family_rows.extend(
         [
-            AlternativeOption(candidate_id="cstr_train", candidate_type="reactor_family", description="CSTR train", total_score=72.0, score_breakdown={"controllability": 72.0}),
-            AlternativeOption(candidate_id="pfr_tubular", candidate_type="reactor_family", description="Tubular PFR", total_score=88.0 if "continuous" in archetype.operating_mode_candidates else 60.0, score_breakdown={"throughput": 88.0 if "continuous" in archetype.operating_mode_candidates else 60.0}),
-            AlternativeOption(candidate_id="batch_agitated", candidate_type="reactor_family", description="Batch agitated vessel", total_score=58.0 if config.basis.capacity_tpa >= 20000 else 81.0, score_breakdown={"flexibility": 81.0 if config.basis.capacity_tpa < 20000 else 58.0}),
+            AlternativeOption(candidate_id="cstr_train", candidate_type="reactor_family", description=cstr_desc, total_score=cstr_score, score_breakdown={"controllability": cstr_score}),
+            AlternativeOption(candidate_id="pfr_tubular", candidate_type="reactor_family", description="Tubular PFR", total_score=pfr_score, score_breakdown={"throughput": pfr_score}),
+            AlternativeOption(candidate_id="batch_agitated", candidate_type="reactor_family", description="Batch agitated vessel", total_score=batch_score, score_breakdown={"flexibility": batch_score}),
         ]
     )
     separation_rows = [
@@ -295,11 +329,11 @@ def build_alternative_sets(
         ),
         AlternativeSet(
             set_id="reactor_family",
-            context="Generic reactor-family screening from archetype and throughput.",
+            context="Generic reactor-family screening from archetype, throughput, and dominant route family.",
             criteria=[DecisionCriterion(name="Family fit", weight=1.0, justification="Scores reactor families against throughput, controllability, and phase handling.")],
             alternatives=reactor_family_rows,
             selected_candidate_id=max(reactor_family_rows, key=lambda item: item.total_score).candidate_id if reactor_family_rows else None,
-            markdown="Reactor-family candidates ranked for the inferred archetype.",
+            markdown="Reactor-family candidates ranked for the inferred archetype and dominant route-family cues.",
             scenario_stability=ScenarioStability.BORDERLINE if archetype.dominant_product_phase == "solid" else ScenarioStability.STABLE,
         ),
         AlternativeSet(

@@ -50,6 +50,10 @@ def _hvap_kj_kg(package: PropertyPackage) -> float | None:
     return _float_value(package.heat_of_vaporization)
 
 
+def _identifier_id(package: PropertyPackage) -> str:
+    return normalize_chemical_name(package.identifier.identifier_id or package.identifier.canonical_name)
+
+
 def _pair_id(component_a_id: str, component_b_id: str) -> str:
     pair = sorted((component_a_id, component_b_id))
     return f"{pair[0]}__{pair[1]}"
@@ -150,9 +154,12 @@ def _vapor_pressure_from_bp_proxy(package: PropertyPackage, temperature_c: float
 
 def _vapor_pressure_nonvolatile(package: PropertyPackage, temperature_c: float) -> tuple[float | None, str]:
     del temperature_c
+    identifier_id = _identifier_id(package)
     bp_text = _text_value(package.normal_boiling_point)
     mp_c = _float_value(package.melting_point)
     hvap_kj_kg = _hvap_kj_kg(package)
+    if identifier_id == "benzalkonium_chloride":
+        return 1e-9, "nonvolatile_ionic_active"
     if "decompos" in bp_text or (_bp_c(package) >= 900.0 and ((mp_c is not None and mp_c > 40.0) or hvap_kj_kg == 0.0)):
         return 1e-9, "nonvolatile_solid"
     return None, ""
@@ -165,11 +172,27 @@ def component_k_value(
     activity_coefficient: float = 1.0,
     activity_model: str = "ideal_raoult",
 ) -> tuple[float, float, float, str, str]:
+    vapor_pressure_bar, vapor_method = _vapor_pressure_nonvolatile(package, temperature_c)
+    if vapor_pressure_bar is not None:
+        gamma = max(activity_coefficient, 1e-6)
+        k_value = max(gamma * vapor_pressure_bar / max(pressure_bar, 1e-6), 1e-9)
+        if activity_model == "nrtl_modified_raoult":
+            method = f"modified_raoult_nrtl_{vapor_method}"
+            resolution_status = "resolved"
+        elif activity_model == "nrtl_family_estimated_modified_raoult":
+            method = f"modified_raoult_nrtl_family_estimated_{vapor_method}"
+            resolution_status = "estimated" if activity_model != "nrtl_modified_raoult" else "resolved"
+        elif activity_model == "ideal_raoult_missing_bip_fallback":
+            method = f"ideal_raoult_missing_bip_{vapor_method}"
+            resolution_status = "estimated"
+        else:
+            method = f"ideal_raoult_{vapor_method}"
+            resolution_status = "estimated"
+        return k_value, vapor_pressure_bar, gamma, method, resolution_status
     for evaluator in (
         _vapor_pressure_from_antoine,
         _vapor_pressure_from_clapeyron,
         _vapor_pressure_from_bp_proxy,
-        _vapor_pressure_nonvolatile,
     ):
         vapor_pressure_bar, vapor_method = evaluator(package, temperature_c)
         if vapor_pressure_bar is None:
@@ -179,6 +202,9 @@ def component_k_value(
         if activity_model == "nrtl_modified_raoult":
             method = f"modified_raoult_nrtl_{vapor_method}"
             resolution_status = "resolved" if vapor_method == "antoine" else "estimated"
+        elif activity_model == "nrtl_family_estimated_modified_raoult":
+            method = f"modified_raoult_nrtl_family_estimated_{vapor_method}"
+            resolution_status = "estimated"
         elif activity_model == "ideal_raoult_missing_bip_fallback":
             method = f"ideal_raoult_missing_bip_{vapor_method}"
             resolution_status = "estimated"
@@ -196,12 +222,42 @@ def _active_route_packages(
 ) -> list[PropertyPackage]:
     active_names = {normalize_chemical_name(participant.name) for participant in route.participants}
     active_names.add(normalize_chemical_name(target_product))
+    active_names.update(normalize_chemical_name(item) for item in route.solvents)
     packages = [
         package
         for package in property_packages.packages
         if package.identifier.identifier_id in active_names
     ]
     return packages or property_packages.packages
+
+
+def _is_bac_quaternization_route(route: RouteOption, target_product: str) -> bool:
+    target_id = normalize_chemical_name(target_product)
+    text = " ".join(
+        [
+            route.route_id,
+            route.name,
+            route.reaction_equation,
+            target_product,
+            *route.solvents,
+            *route.separations,
+        ]
+    ).lower()
+    return target_id == "benzalkonium_chloride" or "benzalkonium" in text or "quaternization" in text
+
+
+def _preferred_bac_light_key(packages: list[PropertyPackage]) -> PropertyPackage | None:
+    preferred_ids = [
+        "benzyl_chloride",
+        "ethanol",
+        "benzyl_alcohol",
+        "water",
+    ]
+    package_lookup = {package.identifier.identifier_id: package for package in packages}
+    for identifier_id in preferred_ids:
+        if identifier_id in package_lookup:
+            return package_lookup[identifier_id]
+    return None
 
 
 def _separation_family(selected_candidate_id: str | None) -> str:
@@ -222,6 +278,15 @@ def _select_key_packages(
     selected_candidate_id: str | None = None,
 ) -> tuple[PropertyPackage, PropertyPackage, list[PropertyPackage], str]:
     packages = _active_route_packages(property_packages, route, target_product)
+    return _select_key_packages_from_list(route, packages, target_product, selected_candidate_id)
+
+
+def _select_key_packages_from_list(
+    route: RouteOption,
+    packages: list[PropertyPackage],
+    target_product: str,
+    selected_candidate_id: str | None = None,
+) -> tuple[PropertyPackage, PropertyPackage, list[PropertyPackage], str]:
     family = _separation_family(selected_candidate_id)
     target_id = normalize_chemical_name(target_product)
     product_package = next((package for package in packages if package.identifier.identifier_id == target_id), None)
@@ -233,6 +298,17 @@ def _select_key_packages(
     package_ids = {package.identifier.identifier_id for package in packages}
     if {"sulfur_dioxide", "sulfuric_acid"} <= package_ids:
         family = "absorption"
+    if _is_bac_quaternization_route(route, target_product) and family in {"distillation", "extraction"}:
+        cleanup_packages = [
+            package
+            for package in packages
+            if package.identifier.identifier_id != target_id
+        ]
+        if cleanup_packages:
+            light = _preferred_bac_light_key(cleanup_packages) or min(cleanup_packages, key=_bp_c)
+            remaining = [package for package in cleanup_packages if package.package_id != light.package_id]
+            heavy = max(remaining or cleanup_packages, key=_bp_c)
+            return light, heavy, packages, family
     sorted_by_bp = sorted(packages, key=_bp_c)
     if product_package is not None:
         heavy = product_package
@@ -259,6 +335,34 @@ def _select_key_packages(
     return light, heavy, packages, family
 
 
+def _section_packages(
+    route: RouteOption,
+    property_packages: PropertyPackageArtifact,
+    target_product: str,
+    component_names: list[str],
+) -> list[PropertyPackage]:
+    active_component_ids = {normalize_chemical_name(item) for item in component_names if item}
+    if not active_component_ids:
+        return _active_route_packages(property_packages, route, target_product)
+    packages = [
+        package
+        for package in _active_route_packages(property_packages, route, target_product)
+        if package.identifier.identifier_id in active_component_ids
+        or normalize_chemical_name(package.identifier.canonical_name) in active_component_ids
+    ]
+    target_id = normalize_chemical_name(target_product)
+    if target_id in {package.identifier.identifier_id for package in property_packages.packages} and target_id not in {
+        package.identifier.identifier_id for package in packages
+    }:
+        product_package = next(
+            (package for package in property_packages.packages if package.identifier.identifier_id == target_id),
+            None,
+        )
+        if product_package is not None:
+            packages.append(product_package)
+    return packages or _active_route_packages(property_packages, route, target_product)
+
+
 def _temperature_window(route: RouteOption, light_bp_c: float, heavy_bp_c: float, family: str) -> tuple[float, float, float]:
     if family == "distillation":
         pressure_bar = min(max(route.operating_pressure_bar * 0.18, 1.2), 4.0)
@@ -280,25 +384,46 @@ def _temperature_window(route: RouteOption, light_bp_c: float, heavy_bp_c: float
 
 
 def _key_pair_activity_basis(
+    route: RouteOption,
     light: PropertyPackage,
     heavy: PropertyPackage,
     property_packages: PropertyPackageArtifact,
 ) -> tuple[BinaryInteractionParameter | None, str, list[str]]:
     bip = _find_pair_bip(property_packages, light.identifier.identifier_id, heavy.identifier.identifier_id)
-    if bip is None or bip.resolution_status != "resolved":
+    if bip is not None and bip.resolution_status == "resolved":
+        return bip, "nrtl_modified_raoult", []
+    if (
+        bip is not None
+        and bip.resolution_status == "estimated"
+        and _is_bac_quaternization_route(route, "")
+        and {
+            light.identifier.identifier_id,
+            heavy.identifier.identifier_id,
+        }
+        <= {"benzyl_chloride", "alkyldimethylamine", "ethanol", "water", "benzyl_alcohol"}
+    ):
+        return bip, "nrtl_family_estimated_modified_raoult", [
+            f"Cited binary interaction parameters for {light.identifier.canonical_name} / {heavy.identifier.canonical_name} were not resolved.",
+            "A route-family NRTL cleanup envelope was applied for BAC solvent/light-end purification so the duty basis does not collapse to ideal gamma=1.0.",
+        ]
+    if bip is None:
         return None, "ideal_raoult_missing_bip_fallback", [
             f"Binary interaction parameters for {light.identifier.canonical_name} / {heavy.identifier.canonical_name} were not resolved from cited/public sources.",
             "Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair.",
         ]
-    return bip, "nrtl_modified_raoult", []
+    return None, "ideal_raoult_missing_bip_fallback", [
+        f"Only non-cited binary interaction data were available for {light.identifier.canonical_name} / {heavy.identifier.canonical_name}, but the route family does not admit an estimated non-ideal cleanup envelope.",
+        "Activity coefficients defaulted to gamma=1.0 and the separation basis fell back to ideal Raoult's law for the key pair.",
+    ]
 
 
 def _key_pair_activity_coefficients(
+    route: RouteOption,
     light: PropertyPackage,
     heavy: PropertyPackage,
     property_packages: PropertyPackageArtifact,
 ) -> tuple[dict[str, float], BinaryInteractionParameter | None, str, list[str]]:
-    bip, activity_model, fallback_notes = _key_pair_activity_basis(light, heavy, property_packages)
+    bip, activity_model, fallback_notes = _key_pair_activity_basis(route, light, heavy, property_packages)
     if bip is None:
         return {
             light.identifier.identifier_id: 1.0,
@@ -311,20 +436,22 @@ def _key_pair_activity_coefficients(
     }, bip, activity_model, []
 
 
-def build_separation_thermo_artifact(
+def _build_separation_thermo_core(
     route: RouteOption,
     property_packages: PropertyPackageArtifact,
     target_product: str,
+    packages: list[PropertyPackage],
     selected_candidate_id: str | None = None,
+    artifact_id: str | None = None,
 ) -> SeparationThermoArtifact:
-    light, heavy, packages, family = _select_key_packages(route, property_packages, target_product, selected_candidate_id)
+    light, heavy, packages, family = _select_key_packages_from_list(route, packages, target_product, selected_candidate_id)
     pressure_bar, top_temp_c, bottom_temp_c = _temperature_window(route, _bp_c(light), _bp_c(heavy), family)
     top_k_values: list[ComponentKValue] = []
     bottom_k_values: list[ComponentKValue] = []
     blocked_ids: list[str] = []
     method_notes: list[str] = []
     fallback_notes: list[str] = []
-    key_pair_gamma, pair_bip, activity_model, pair_fallback_notes = _key_pair_activity_coefficients(light, heavy, property_packages)
+    key_pair_gamma, pair_bip, activity_model, pair_fallback_notes = _key_pair_activity_coefficients(route, light, heavy, property_packages)
     fallback_notes.extend(pair_fallback_notes)
     used_bips = [pair_bip] if pair_bip is not None else []
     missing_binary_pairs = [] if pair_bip is not None else [_pair_id(light.identifier.identifier_id, heavy.identifier.identifier_id)]
@@ -428,9 +555,14 @@ def build_separation_thermo_artifact(
     method_notes.append(f"Top alpha from K-values at {top_temp_c:.1f} C and {pressure_bar:.2f} bar.")
     method_notes.append(f"Bottom alpha from K-values at {bottom_temp_c:.1f} C and {pressure_bar:.2f} bar.")
     if pair_bip is not None:
-        method_notes.append(
-            f"Key-pair activity coefficients use {pair_bip.model_name} with cited binary interaction parameters for {light.identifier.canonical_name} / {heavy.identifier.canonical_name}."
-        )
+        if pair_bip.resolution_status == "resolved":
+            method_notes.append(
+                f"Key-pair activity coefficients use {pair_bip.model_name} with cited binary interaction parameters for {light.identifier.canonical_name} / {heavy.identifier.canonical_name}."
+            )
+        else:
+            method_notes.append(
+                f"Key-pair activity coefficients use a route-family {pair_bip.model_name} cleanup envelope for {light.identifier.canonical_name} / {heavy.identifier.canonical_name}."
+            )
     else:
         method_notes.extend(fallback_notes)
     relative_volatility = RelativeVolatilityEstimate(
@@ -442,7 +574,13 @@ def build_separation_thermo_artifact(
         top_alpha=round(top_alpha, 6),
         bottom_alpha=round(bottom_alpha, 6),
         average_alpha=round(math.sqrt(max(top_alpha, 1e-9) * max(bottom_alpha, 1e-9)), 6),
-        method="modified_raoult_nrtl" if pair_bip is not None else "ideal_raoult_missing_bip_fallback",
+        method=(
+            "modified_raoult_nrtl"
+            if pair_bip is not None and pair_bip.resolution_status == "resolved"
+            else "modified_raoult_nrtl_family_estimated"
+            if pair_bip is not None
+            else "ideal_raoult_missing_bip_fallback"
+        ),
         feasible=feasible,
         notes=method_notes,
         citations=sorted(
@@ -454,6 +592,7 @@ def build_separation_thermo_artifact(
         ),
         assumptions=[
             "Non-ideal separation thermodynamics uses modified Raoult's law when cited binary interaction parameters are available.",
+            "BAC cleanup sections may use a route-family NRTL activity envelope when explicit binary-interaction data are unavailable but the cleanup duty is dominated by volatile residual-reactant removal.",
             "Key-pair activity coefficients are evaluated with an equimolar liquid-phase screening basis in v1 of the non-ideal engine.",
             "When cited binary interaction parameters are unavailable, gamma defaults to 1.0 and the basis falls back to ideal Raoult's law.",
         ],
@@ -481,7 +620,7 @@ def build_separation_thermo_artifact(
     if fallback_notes:
         rows.extend(["", "Fallback notes:"] + [f"- {note}" for note in fallback_notes])
     return SeparationThermoArtifact(
-        artifact_id=f"{route.route_id}_separation_thermo",
+        artifact_id=artifact_id or f"{route.route_id}_separation_thermo",
         route_id=route.route_id,
         separation_family=family,
         system_pressure_bar=round(pressure_bar, 3),
@@ -506,4 +645,34 @@ def build_separation_thermo_artifact(
             }
         ),
         assumptions=relative_volatility.assumptions,
+    )
+
+
+def build_separation_thermo_artifact(
+    route: RouteOption,
+    property_packages: PropertyPackageArtifact,
+    target_product: str,
+    selected_candidate_id: str | None = None,
+) -> SeparationThermoArtifact:
+    packages = _active_route_packages(property_packages, route, target_product)
+    return _build_separation_thermo_core(route, property_packages, target_product, packages, selected_candidate_id)
+
+
+def build_section_separation_thermo_artifact(
+    route: RouteOption,
+    property_packages: PropertyPackageArtifact,
+    target_product: str,
+    component_names: list[str],
+    selected_candidate_id: str | None = None,
+    section_id: str = "",
+) -> SeparationThermoArtifact:
+    packages = _section_packages(route, property_packages, target_product, component_names)
+    artifact_suffix = section_id or "section"
+    return _build_separation_thermo_core(
+        route,
+        property_packages,
+        target_product,
+        packages,
+        selected_candidate_id,
+        artifact_id=f"{route.route_id}_{artifact_suffix}_separation_thermo",
     )

@@ -944,8 +944,6 @@ def compute_utilities(
     selected_package_items = utility_architecture.architecture.selected_package_items if utility_architecture is not None else []
     effective_heating_kw = selected_case.residual_hot_utility_kw if selected_case else energy_balance.total_heating_kw
     effective_cooling_kw = selected_case.residual_cold_utility_kw if selected_case else energy_balance.total_cooling_kw
-    steam_kg_hr = effective_heating_kw * 3600.0 / 2200.0
-    cooling_water_m3_hr = effective_cooling_kw * 3600.0 / (4.18 * 10.0 * 1000.0)
     major_volume = sum(item.volume_m3 for item in equipment if item.equipment_type in {"Reactor", "Distillation column", "Flash drum"})
     electrical_kw = max(major_volume * 0.9, 35.0) + pump_power_kw(flow_m3_hr=hourly_output_kg(basis) / 1100.0, head_m=45.0)
     if selected_case and selected_case.case_id.endswith("pinch_htm"):
@@ -962,6 +960,25 @@ def compute_utilities(
     if train_aux_power_kw > 0.0:
         electrical_kw += train_aux_power_kw
     transport_loads: list[UtilityLoad] = []
+    if column_design is not None and "distillation" in column_design.service.lower():
+        effective_heating_kw = max(effective_heating_kw, column_design.reboiler_duty_kw)
+        effective_cooling_kw = max(effective_cooling_kw, column_design.condenser_duty_kw)
+        reflux_pump_kw = max(column_design.reflux_ratio * max(column_design.rectifying_liquid_load_m3_hr, column_design.liquid_load_m3_hr * 0.45) / 18.0, 0.0)
+        if reflux_pump_kw > 0.0:
+            electrical_kw += reflux_pump_kw
+            transport_loads.append(
+                UtilityLoad(
+                    utility_id="UT-DIST-REFLUX",
+                    utility_type="Electricity - distillation reflux circulation",
+                    load=round(reflux_pump_kw, 3),
+                    units="kW",
+                    basis="Column reflux circulation power tied to the duty-adjusted liquid load and selected reflux ratio.",
+                    citations=citations,
+                    assumptions=assumptions,
+                )
+            )
+    steam_kg_hr = effective_heating_kw * 3600.0 / 2200.0
+    cooling_water_m3_hr = effective_cooling_kw * 3600.0 / (4.18 * 10.0 * 1000.0)
     if column_design is not None and "absorption" in column_design.service.lower():
         absorber_area_m2 = math.pi * (column_design.column_diameter_m / 2.0) ** 2 * max(1.0 - column_design.downcomer_area_fraction, 0.25)
         absorber_gas_q_m3_s = absorber_area_m2 * max(column_design.absorber_operating_velocity_m_s, 0.1)

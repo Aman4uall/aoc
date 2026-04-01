@@ -24,7 +24,23 @@ def _latent_duty_kw(mass_flow_kg_hr: float, latent_heat_kj_kg: float) -> float:
     return (mass_flow_kg_hr * latent_heat_kj_kg) / 3600.0
 
 
-def _separation_family(route: RouteOption) -> str:
+def _separation_family(route: RouteOption, stream_table: StreamTable | None = None) -> str:
+    if stream_table is not None and stream_table.unit_operation_packets:
+        packet_tokens = " ".join(
+            [
+                *(packet.unit_id for packet in stream_table.unit_operation_packets),
+                *(packet.unit_type for packet in stream_table.unit_operation_packets),
+                *(packet.service for packet in stream_table.unit_operation_packets),
+            ]
+        ).lower()
+        if any(token in packet_tokens for token in ("crystal", "filter", "dry")):
+            return "solids"
+        if any(token in packet_tokens for token in ("absor", "strip", "regeneration")):
+            return "absorption"
+        if any(token in packet_tokens for token in ("extract", "decant")):
+            return "extraction"
+        if any(token in packet_tokens for token in ("distill", "evap", "flash", "purification", "concentration")):
+            return "distillation"
     text = " ".join(route.separations).lower()
     if "absor" in text or "strip" in text:
         return "absorption"
@@ -211,7 +227,7 @@ def build_energy_balance_generic(
     product_stream = _product_stream(stream_table)
     product_mass = sum(component.mass_flow_kg_hr for component in product_stream.components)
     product_kmol_hr = sum(component.molar_flow_kmol_hr for component in product_stream.components)
-    family = _separation_family(route)
+    family = _separation_family(route, stream_table)
     feed_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("feed_prep",))
     reactor_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("reactor",))
     primary_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("primary_flash", "primary_separation"))

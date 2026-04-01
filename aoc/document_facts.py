@@ -13,7 +13,7 @@ from aoc.models import (
     ReactionMentionArtifact,
     SiteComparisonArtifact,
 )
-from aoc.properties.sources import normalize_chemical_name
+from aoc.properties.sources import is_valid_property_identifier_name, normalize_chemical_name
 
 
 _PROCESS_HEADING_RE = re.compile(r"(?im)^\s*(?:\d+(?:\.\d+)*)?\s*process\s+(\d+)\s*$")
@@ -27,6 +27,7 @@ _ECONOMIC_FACT_RE = re.compile(r"(?i)\b(?:rs\.?|inr)\s*[\d,]+(?:\.\d+)?|\b[\d,]+
 
 _CHEMICAL_KEYWORDS = (
     "acid",
+    "anhydride",
     "benzene",
     "oxide",
     "chloride",
@@ -58,6 +59,12 @@ _CHEMICAL_KEYWORDS = (
     "tbab",
     "hf",
 )
+_CHEMICAL_PHRASE_RE = re.compile(
+    r"\b((?:[A-Z][A-Za-z0-9-]*\s+){0,2}(?:"
+    + "|".join(sorted((re.escape(item) for item in _CHEMICAL_KEYWORDS), key=len, reverse=True))
+    + r"))\b",
+    re.IGNORECASE,
+)
 _UTILITY_KEYWORDS = ("steam", "cooling water", "chilled water", "therminol", "hot water", "power", "electricity", "nitrogen")
 _NARRATIVE_SKIP_TOKENS = {
     "figure",
@@ -71,6 +78,40 @@ _NARRATIVE_SKIP_TOKENS = {
     "plant",
     "ibuprofen",
 }
+_EQUIPMENT_LINE_SKIP_TOKENS = {
+    "reactor",
+    "column",
+    "distillation",
+    "plug flow",
+    "stirred tank",
+    "separator",
+    "mixer",
+    "evaporator",
+}
+_NUMERIC_FRAGMENT_RE = re.compile(r"^\s*(?:\d+(?:\.\d+)?%?|\d+(?:\.\d+)?\.)\s*$")
+_CHEMICAL_STOPWORDS = {
+    "yield",
+    "process",
+    "selected",
+    "page",
+    "pages",
+    "table",
+    "figure",
+    "chapter",
+    "plant",
+    "design",
+    "batch",
+    "site",
+}
+_NARRATIVE_LEAD_RE = re.compile(
+    r"^\s*(?:process|use of|also involves|it involves|of|as|such as|make|to generate|availability of|power and)\b",
+    re.IGNORECASE,
+)
+_NONSPECIES_PHRASES = {
+    "profitability factors",
+    "availability of water",
+}
+_INCOMPLETE_MOIETY_RE = re.compile(r"\b[a-z0-9-]+\s+phenyl\s*$", re.IGNORECASE)
 
 
 def _route_family_hints(text: str) -> list[str]:
@@ -105,26 +146,65 @@ def _chemical_like_lines(text: str, product_name: str) -> list[str]:
     candidates: list[str] = []
     for raw_line in text.splitlines():
         line = raw_line.strip(" \t-•")
-        if not line or len(line) > 90:
+        if not line:
             continue
-        lowered = line.lower()
-        if any(token in lowered for token in _NARRATIVE_SKIP_TOKENS):
-            continue
-        word_count = len(line.split())
-        has_keyword = any(keyword in lowered for keyword in _CHEMICAL_KEYWORDS)
-        has_formula_shape = bool(re.search(r"[A-Z]{2,}\d*|[A-Za-z]+\([^)]+\)|\d", line))
-        if word_count <= 8 and (has_keyword or has_formula_shape):
-            candidates.append(line.rstrip("."))
+        segments = [segment.strip(" \t-•") for segment in re.split(r"[.;]", line) if segment.strip(" \t-•")]
+        for segment in segments:
+            if not segment:
+                continue
+            lowered = segment.lower()
+            if any(token in lowered for token in _EQUIPMENT_LINE_SKIP_TOKENS):
+                continue
+            phrase_matches = [match.group(1).strip() for match in _CHEMICAL_PHRASE_RE.finditer(segment)]
+            if phrase_matches:
+                candidates.extend(phrase_matches)
+                continue
+            if len(segment) > 90:
+                continue
+            if any(token in lowered for token in _NARRATIVE_SKIP_TOKENS):
+                continue
+            word_count = len(segment.split())
+            has_keyword = any(keyword in lowered for keyword in _CHEMICAL_KEYWORDS)
+            has_formula_shape = bool(re.search(r"[A-Z]{2,}\d*|[A-Za-z]+\([^)]+\)|\d", segment))
+            if word_count <= 8 and (has_keyword or has_formula_shape):
+                candidates.append(segment.rstrip("."))
     normalized_product = normalize_chemical_name(product_name)
     seen: set[str] = set()
     result: list[str] = []
     for item in candidates:
         normalized = normalize_chemical_name(item)
-        if not normalized or normalized == normalized_product or normalized in seen:
+        if not normalized or normalized == normalized_product or normalized in seen or not _is_valid_chemical_candidate(item, product_name):
             continue
         seen.add(normalized)
         result.append(item)
     return result
+
+
+def _is_valid_chemical_candidate(text: str, product_name: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if not is_valid_property_identifier_name(stripped):
+        return False
+    if _NUMERIC_FRAGMENT_RE.match(stripped):
+        return False
+    lowered = stripped.lower()
+    if _NARRATIVE_LEAD_RE.match(stripped):
+        return False
+    if any(phrase in lowered for phrase in _NONSPECIES_PHRASES):
+        return False
+    if "%" in lowered and not any(keyword in lowered for keyword in _CHEMICAL_KEYWORDS):
+        return False
+    if len(re.findall(r"[A-Za-z]", stripped)) < 2:
+        return False
+    tokens = [token for token in re.split(r"[^a-z0-9]+", lowered) if token]
+    if tokens and all(token in _CHEMICAL_STOPWORDS or token.isdigit() for token in tokens):
+        return False
+    if _INCOMPLETE_MOIETY_RE.search(lowered) and "benzene" not in lowered and "acid" not in lowered and "oxide" not in lowered:
+        return False
+    if normalize_chemical_name(stripped) == normalize_chemical_name(product_name):
+        return False
+    return True
 
 
 def _extract_process_sections(text: str) -> list[tuple[str, str]]:

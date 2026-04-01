@@ -12,6 +12,7 @@ from aoc.models import (
     FlowsheetBlueprintArtifact,
     FlowsheetSection,
     PhaseSplitSpec,
+    ProjectBasis,
     ReactionParticipant,
     ReactionSystem,
     RecyclePacket,
@@ -30,6 +31,7 @@ from aoc.solvers.separators import (
     solubility_limit_kg_per_kg_solvent,
 )
 from aoc.properties.models import PropertyPackageArtifact
+from aoc.properties.vle import build_section_separation_thermo_artifact
 from aoc.properties.sources import normalize_chemical_name
 
 
@@ -48,6 +50,12 @@ LIGHT_FORMULAS = {
     "C2H4",
     "C2H4O",
     "H2O",
+}
+
+_COMMERCIAL_CARRIER_META: dict[str, tuple[str | None, float, str]] = {
+    "water": ("H2O", 18.015, "liquid"),
+    "ethanol": ("C2H6O", 46.07, "liquid"),
+    "isopropanol": ("C3H8O", 60.10, "liquid"),
 }
 
 
@@ -89,6 +97,45 @@ class SectionBlueprint:
 
 def _component_key(name: str, formula: Optional[str]) -> ComponentKey:
     return (name, formula)
+
+
+def _active_fraction_for_basis(basis: ProjectBasis | None) -> float:
+    if basis is None:
+        return 1.0
+    if basis.throughput_basis == "active_component":
+        return 1.0
+    return max(min((basis.nominal_active_wt_pct or 100.0) / 100.0, 1.0), 0.01)
+
+
+def _carrier_distribution(basis: ProjectBasis | None) -> list[tuple[str, float]]:
+    if basis is None:
+        return []
+    carriers = list(basis.carrier_components or [])
+    if not carriers:
+        return []
+    if len(carriers) == 1:
+        return [(carriers[0], 1.0)]
+    if len(carriers) == 2 and {item.lower() for item in carriers} == {"water", "ethanol"}:
+        return [(carriers[0], 0.80), (carriers[1], 0.20)]
+    share = 1.0 / max(len(carriers), 1)
+    return [(item, share) for item in carriers]
+
+
+def _ensure_carrier_meta(
+    component_meta: dict[ComponentKey, ComponentMeta],
+    carrier_name: str,
+) -> ComponentKey:
+    identifier = normalize_chemical_name(carrier_name)
+    formula, molecular_weight, phase = _COMMERCIAL_CARRIER_META.get(identifier, (None, 50.0, "liquid"))
+    key = _component_key(carrier_name, formula)
+    if key not in component_meta:
+        component_meta[key] = ComponentMeta(
+            name=carrier_name,
+            formula=formula,
+            molecular_weight_g_mol=molecular_weight,
+            phase=phase,
+        )
+    return key
 
 
 def _participant_key(participant: ReactionParticipant) -> ComponentKey:
@@ -720,7 +767,7 @@ def _downstream_unit_after(blueprints: list[SectionBlueprint], unit_id: str) -> 
         return None
     index = ordered_units.index(unit_id)
     for candidate in ordered_units[index + 1 :]:
-        if candidate not in {"feed_prep", "reactor"}:
+        if candidate not in {"feed_prep", "reactor", "storage", "waste_treatment"}:
             return candidate
     return None
 
@@ -1301,21 +1348,80 @@ def _distribute_purification_outputs(
     reactant_keys: set[ComponentKey],
     family: str,
     recycle_targets: dict[ComponentKey, float] | None = None,
+    route: RouteOption | None = None,
+    property_packages: PropertyPackageArtifact | None = None,
 ) -> tuple[dict[ComponentKey, float], dict[ComponentKey, float], dict[ComponentKey, float]]:
     recycle_state: dict[ComponentKey, float] = {}
     product_state: dict[ComponentKey, float] = {}
     waste_state: dict[ComponentKey, float] = {}
+    section_thermo = None
+    top_k_lookup: dict[str, float] = {}
+    bottom_k_lookup: dict[str, float] = {}
+    light_key_id = ""
+    heavy_key_id = ""
+    is_bac_cleanup_route = False
+    if route is not None:
+        target_product_id = normalize_chemical_name(component_meta[product_key].name)
+        is_bac_cleanup_route = target_product_id == "benzalkonium_chloride" or "quaternization" in " ".join([route.route_id, route.name]).lower()
+    if route is not None and property_packages is not None and state and family in {"distillation", "extraction", "generic"} and is_bac_cleanup_route:
+        target_product = component_meta[product_key].name
+        component_names = [component_meta[key].name for key, molar in state.items() if molar > 1e-10]
+        if len(component_names) >= 2:
+            section_candidate_id = "extraction_train" if family == "extraction" else "distillation_train"
+            section_thermo = build_section_separation_thermo_artifact(
+                route,
+                property_packages,
+                target_product,
+                component_names,
+                selected_candidate_id=section_candidate_id,
+                section_id="purification",
+            )
+            top_k_lookup = {
+                normalize_chemical_name(item.component_name): item.k_value
+                for item in section_thermo.top_k_values
+            }
+            bottom_k_lookup = {
+                normalize_chemical_name(item.component_name): item.k_value
+                for item in section_thermo.bottom_k_values
+            }
+            light_key_id = normalize_chemical_name(section_thermo.light_key)
+            heavy_key_id = normalize_chemical_name(section_thermo.heavy_key)
+    activity_model = section_thermo.activity_model if section_thermo is not None else ""
+
+    def _thermo_recycle_fraction(key: ComponentKey, molar: float) -> float:
+        if molar <= 1e-12 or section_thermo is None:
+            return 0.0
+        identifier_id = normalize_chemical_name(component_meta[key].name)
+        top_k = top_k_lookup.get(identifier_id, 0.0)
+        bottom_k = bottom_k_lookup.get(identifier_id, 0.0)
+        volatility_index = max(top_k * bottom_k, 0.0) ** 0.5
+        fallback_bonus = 0.08 if "nrtl" in activity_model else 0.0
+        if identifier_id == light_key_id:
+            return min(0.88, 0.60 + fallback_bonus + 0.08 * min(volatility_index, 2.0))
+        if identifier_id == heavy_key_id:
+            return min(0.72, 0.38 + fallback_bonus * 0.5 + 0.05 * min(volatility_index, 2.0))
+        if volatility_index >= 1.5:
+            return min(0.58, 0.24 + fallback_bonus + 0.12 * min(volatility_index - 1.5, 1.5))
+        if volatility_index >= 0.4 and key in reactant_keys:
+            return min(0.42, 0.18 + fallback_bonus * 0.5)
+        return 0.0
+
     for key, molar in state.items():
         meta = component_meta[key]
         formula = (meta.formula or "").upper()
         if key == product_key:
             recovery = 0.997 if family == "distillation" else 0.994 if family in {"extraction", "absorption"} else 0.989
+            if section_thermo is not None and "nrtl" in activity_model:
+                recovery = min(recovery + 0.001, 0.9985)
             _add_component(product_state, key, molar * recovery)
             _add_component(waste_state, key, molar * (1.0 - recovery))
             continue
         if key in reactant_keys or formula in {"H2O", "NH3"}:
             requested = (recycle_targets or {}).get(key, 0.0)
-            recycle_flow = min(requested, molar)
+            thermo_recycle = molar * _thermo_recycle_fraction(key, molar)
+            requested_fraction = min(requested / molar, 1.0) if requested > 0.0 else 0.0
+            recycle_fraction = max(requested_fraction * 0.65, min(thermo_recycle / max(molar, 1e-9), 0.92))
+            recycle_flow = min(molar * recycle_fraction, molar)
             _add_component(recycle_state, key, recycle_flow)
             _add_component(waste_state, key, molar - recycle_flow)
             continue
@@ -1323,18 +1429,25 @@ def _distribute_purification_outputs(
             _add_component(recycle_state, key, molar * 0.35)
             _add_component(waste_state, key, molar * 0.65)
             continue
+        thermo_recycle = molar * _thermo_recycle_fraction(key, molar)
+        if thermo_recycle > 1e-10:
+            _add_component(recycle_state, key, thermo_recycle)
+            _add_component(waste_state, key, molar - thermo_recycle)
+            continue
         _add_component(waste_state, key, molar)
     return recycle_state, product_state, waste_state
 
 
 def build_generic_sequence_streams(
     product_mass_kg_hr: float,
+    active_product_mass_kg_hr: float,
     route: RouteOption,
     reaction_system: ReactionSystem,
     citations: list[str],
     assumptions: list[str],
     property_packages: PropertyPackageArtifact | None = None,
     flowsheet_blueprint: FlowsheetBlueprintArtifact | None = None,
+    basis: ProjectBasis | None = None,
 ) -> SequenceSolveResult:
     if flowsheet_blueprint is not None and flowsheet_blueprint.steps:
         family = _stream_family_from_blueprint(flowsheet_blueprint)
@@ -1360,7 +1473,9 @@ def build_generic_sequence_streams(
         for item in participants
     }
 
-    product_kmol_hr = product_mass_kg_hr / max(product.molecular_weight_g_mol, 1e-9)
+    sold_product_mass_kg_hr = product_mass_kg_hr
+    active_product_mass_kg_hr = max(active_product_mass_kg_hr, 1e-9)
+    product_kmol_hr = active_product_mass_kg_hr / max(product.molecular_weight_g_mol, 1e-9)
     main_extent = product_kmol_hr / max(product.coefficient, 1e-9)
     reacted_extent = main_extent / max(reaction_system.selectivity_fraction, 1e-9)
     feed_extent = reacted_extent / max(reaction_system.conversion_fraction, 1e-9)
@@ -1758,6 +1873,8 @@ def build_generic_sequence_streams(
             reactant_keys,
             family,
             recycle_targets=remaining_recycle_targets,
+            route=route,
+            property_packages=property_packages,
         )
         for key, target in remaining_recycle_targets.items():
             unmet = max(target - purification_recycle.get(key, 0.0), 0.0)
@@ -1768,6 +1885,49 @@ def build_generic_sequence_streams(
                 continue
             _add_component(purification_recycle, key, shift)
             _add_component(waste_state, key, -shift)
+        commercial_active_fraction = _active_fraction_for_basis(basis)
+        carrier_distribution = _carrier_distribution(basis)
+        if (
+            normalize_chemical_name(product.name) == "benzalkonium_chloride"
+            and commercial_active_fraction < 0.999
+            and carrier_distribution
+        ):
+            target_carrier_mass = max(
+                sold_product_mass_kg_hr - _state_mass(product_state, component_meta),
+                0.0,
+            )
+            dilution_target_unit = "purification" if "purification" in section_lookup else "storage"
+            dilution_section_id = _section_id_for_unit(
+                section_blueprints,
+                dilution_target_unit,
+                "purification" if dilution_target_unit == "purification" else "storage",
+            )
+            for index, (carrier_name, share) in enumerate(carrier_distribution, start=1):
+                carrier_key = _ensure_carrier_meta(component_meta, carrier_name)
+                carrier_meta = component_meta[carrier_key]
+                target_mass = target_carrier_mass * share
+                existing_mass = product_state.get(carrier_key, 0.0) * carrier_meta.molecular_weight_g_mol
+                required_makeup_mass = max(target_mass - existing_mass, 0.0)
+                if required_makeup_mass <= 1e-9:
+                    continue
+                required_makeup_kmol = required_makeup_mass / max(carrier_meta.molecular_weight_g_mol, 1e-9)
+                _add_component(product_state, carrier_key, required_makeup_kmol)
+                total_fresh_feed_mass += required_makeup_mass
+                streams.append(
+                    _stream(
+                        stream_id=f"S-18{index}",
+                        description=f"{carrier_name} dilution make-up",
+                        temperature_c=30.0,
+                        pressure_bar=1.02,
+                        state={carrier_key: required_makeup_kmol},
+                        component_meta=component_meta,
+                        source_unit_id="battery_limits",
+                        destination_unit_id=dilution_target_unit,
+                        phase_hint=carrier_meta.phase or "liquid",
+                        stream_role="feed",
+                        section_id=dilution_section_id,
+                    )
+                )
         if purification_recycle and family != "solids":
             streams.append(
                 _stream(
@@ -1913,6 +2073,7 @@ def build_generic_sequence_streams(
         citations,
         assumptions,
         property_packages=property_packages,
+        route=route,
     )
     recycle_packets, convergence_summaries = build_recycle_network_packets(
         packet_streams,
@@ -1920,6 +2081,7 @@ def build_generic_sequence_streams(
         0.0,
         citations,
         assumptions,
+        separation_packets=separation_packets,
     )
     sections = _build_flowsheet_sections(
         route,

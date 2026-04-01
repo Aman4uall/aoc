@@ -127,18 +127,18 @@ def build_unit_operation_family_artifact(
             _candidate("crystallizer_classifier_dryer_train", "separation", family_label, "Solids train", 18.0, "blocked", "Solids train is not primary for oxidation-recovery service.", applicability_critics, citations, assumptions),
         ]
         supporting_unit_operations = ["oxidizer", "quench", "offgas_absorber", "recovery_column"]
-    elif family_id in {"carbonylation_liquid_train", "extraction_recovery_train"}:
+    elif family_id in {"carbonylation_liquid_train", "extraction_recovery_train", "quaternization_liquid_train"}:
         reactor_candidates = [
             _candidate("high_pressure_carbonylation_loop", "reactor", family_label, "High-pressure carbonylation or liquid-loop reactor", 95.0 if family_id == "carbonylation_liquid_train" else 72.0, "preferred" if family_id == "carbonylation_liquid_train" else "fallback", "High-pressure loop service matches carbonylation-heavy liquid families.", applicability_critics, citations, assumptions),
-            _candidate("jacketed_cstr_train", "reactor", family_label, "Jacketed CSTR train", 90.0 if family_id == "extraction_recovery_train" else 76.0, "preferred" if family_id == "extraction_recovery_train" else "fallback", "Agitated liquid service remains practical for extraction-intensive trains.", applicability_critics, citations, assumptions),
+            _candidate("jacketed_cstr_train", "reactor", family_label, "Jacketed CSTR train", 94.0 if family_id == "quaternization_liquid_train" else (90.0 if family_id == "extraction_recovery_train" else 76.0), "preferred" if family_id in {"extraction_recovery_train", "quaternization_liquid_train"} else "fallback", "Agitated liquid service remains practical for extraction-intensive and quaternization trains.", applicability_critics, citations, assumptions),
             _candidate("tubular_plug_flow_hydrator", "reactor", family_label, "Tubular hydrator", 22.0, "blocked", "Hydrator hardware does not align with carbonylation/extraction families.", applicability_critics, citations, assumptions),
         ]
         separation_candidates = [
             _candidate("solvent_extraction_recovery_train", "separation", family_label, "Solvent extraction and recovery train", 95.0 if family_id == "extraction_recovery_train" else 70.0, "preferred" if family_id == "extraction_recovery_train" else "fallback", "Extraction families need extractor plus solvent recovery basis.", applicability_critics, citations, assumptions),
-            _candidate("extractive_distillation_train", "separation", family_label, "Extractive or specialty distillation train", 90.0 if family_id == "carbonylation_liquid_train" else 84.0, "preferred" if family_id == "carbonylation_liquid_train" else "fallback", "Difficult liquid splits justify specialty distillation or extractive polishing.", applicability_critics, citations, assumptions),
+            _candidate("extractive_distillation_train", "separation", family_label, "Extractive or specialty distillation train", 90.0 if family_id == "carbonylation_liquid_train" else (86.0 if family_id == "quaternization_liquid_train" else 84.0), "preferred" if family_id in {"carbonylation_liquid_train", "quaternization_liquid_train"} else "fallback", "Difficult liquid splits justify specialty distillation or extractive polishing.", applicability_critics, citations, assumptions),
             _candidate("packed_absorption_train", "separation", family_label, "Packed absorption train", 24.0, "blocked", "Absorption-led separation is not the primary liquid purification basis here.", applicability_critics, citations, assumptions),
         ]
-        supporting_unit_operations = ["extractor", "recovery_column", "light_ends_column", "solvent_polishing"]
+        supporting_unit_operations = ["reactor", "recovery_column", "light_ends_column", "solvent_polishing"] if family_id == "quaternization_liquid_train" else ["extractor", "recovery_column", "light_ends_column", "solvent_polishing"]
     else:
         reactor_candidates = [
             _candidate("jacketed_cstr_train", "reactor", family_label, "Jacketed CSTR train", 82.0, "preferred", "Generic mixed service defaults to agitated liquid reactor service.", applicability_critics, citations, assumptions),

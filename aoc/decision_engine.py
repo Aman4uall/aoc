@@ -7,6 +7,7 @@ from aoc.models import (
     AlternativeOption,
     AssumptionRecord,
     CalcTrace,
+    ChemistryDecisionArtifact,
     CostModel,
     DecisionCriterion,
     DecisionRecord,
@@ -26,8 +27,18 @@ from aoc.models import (
     RouteFamilyArtifact,
     RouteFamilyProfile,
     RouteChemistryArtifact,
+    RouteDiscoveryArtifact,
+    RouteDiscoveryRow,
+    RouteProcessClaimRecord,
+    RouteProcessClaimsArtifact,
+    SpeciesResolutionArtifact,
+    ThermoAdmissibilityArtifact,
+    KineticsAdmissibilityArtifact,
+    RouteScreeningArtifact,
+    RouteScreeningRow,
     RouteSelectionArtifact,
     RouteSurveyArtifact,
+    ScientificGateStatus,
     ScenarioResult,
     ScenarioStability,
     SensitivityLevel,
@@ -75,6 +86,8 @@ def _route_water_ratio(profile: RouteFamilyProfile) -> float:
         return 20.0
     if profile.route_family_id in {"solids_carboxylation_train", "integrated_solvay_liquor_train"}:
         return 1.3
+    if profile.route_family_id == "quaternization_liquid_train":
+        return 1.2
     if profile.route_family_id == "chlorinated_hydrolysis_train":
         return 3.5
     if profile.route_family_id == "gas_absorption_converter_train":
@@ -344,10 +357,12 @@ def resolve_property_gaps(product_profile, config: ProjectConfig) -> PropertyGap
             sensitivity = SensitivityLevel.MEDIUM
         else:
             sensitivity = SensitivityLevel.LOW
+        has_supporting_basis = bool(item.supporting_sources or item.citations)
         blocking = (
             config.uncertainty_policy.high_sensitivity_blocks
             and sensitivity == SensitivityLevel.HIGH
             and effective_method not in {ProvenanceTag.SOURCED, ProvenanceTag.USER_SUPPLIED}
+            and not has_supporting_basis
         )
         if blocking:
             unresolved_high_sensitivity.append(item.name)
@@ -516,6 +531,779 @@ def build_process_synthesis(
     )
 
 
+def build_route_discovery_artifact(
+    route_survey: RouteSurveyArtifact,
+    route_chemistry: RouteChemistryArtifact | None = None,
+    route_families: RouteFamilyArtifact | None = None,
+) -> RouteDiscoveryArtifact:
+    graph_lookup = {graph.route_id: graph for graph in route_chemistry.route_graphs} if route_chemistry is not None else {}
+    rows: list[RouteDiscoveryRow] = []
+    for route in route_survey.routes:
+        graph = graph_lookup.get(route.route_id)
+        profile = _route_profile(route, route_families) if route_families is not None else None
+        if graph is not None and graph.anonymous_core_species:
+            status = "incomplete_chemistry"
+        elif route.evidence_score < 0.40:
+            status = "weak_evidence"
+        else:
+            status = "discovered"
+        rows.append(
+            RouteDiscoveryRow(
+                route_id=route.route_id,
+                route_name=route.name,
+                route_origin=route.route_origin,
+                route_family_id=profile.route_family_id if profile is not None else "",
+                evidence_score=route.evidence_score,
+                chemistry_completeness_score=(
+                    graph.chemistry_completeness_score if graph is not None else route.chemistry_completeness_score
+                ),
+                step_count=len(graph.reaction_steps) if graph is not None else 0,
+                batch_capable=graph.batch_capable if graph is not None else False,
+                source_document_id=route.source_document_id or "",
+                discovery_status=status,
+                citations=route.citations,
+                assumptions=route.assumptions,
+            )
+        )
+    markdown = "\n".join(
+        [
+            "| Route | Origin | Family | Evidence | Chemistry | Steps | Status |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
+            *[
+                f"| {row.route_name} | {row.route_origin} | {row.route_family_id or '-'} | {row.evidence_score:.2f} | "
+                f"{row.chemistry_completeness_score:.2f} | {row.step_count} | {row.discovery_status} |"
+                for row in rows
+            ],
+        ]
+    )
+    return RouteDiscoveryArtifact(
+        rows=rows,
+        markdown=markdown,
+        citations=sorted({citation for route in route_survey.routes for citation in route.citations}),
+        assumptions=route_survey.assumptions,
+    )
+
+
+def _clamp_penalty(value: float) -> float:
+    return max(0.0, min(100.0, value))
+
+
+def _route_context_text(route, graph, blueprint: FlowsheetBlueprintArtifact | None) -> str:
+    text_parts = [
+        route.name,
+        route.reaction_equation,
+        route.scale_up_notes,
+        route.rationale,
+        " ".join(route.catalysts),
+        " ".join(route.byproducts),
+        " ".join(route.separations),
+    ]
+    if graph is not None:
+        for step in graph.reaction_steps:
+            text_parts.append(step.step_label)
+            text_parts.append(step.reaction_family)
+            text_parts.append(" ".join(step.catalyst_names))
+            text_parts.append(" ".join(step.solvent_names))
+            text_parts.append(step.source_excerpt)
+    if blueprint is not None:
+        for step in blueprint.steps:
+            text_parts.append(step.section_label)
+            text_parts.append(step.service)
+            text_parts.append(step.step_role)
+            text_parts.extend(step.notes)
+    return " ".join(part for part in text_parts if part).lower()
+
+
+def _claim_lookup(route_process_claims: RouteProcessClaimsArtifact | None) -> dict[tuple[str, str], RouteProcessClaimRecord]:
+    if route_process_claims is None:
+        return {}
+    return {
+        (claim.route_id, claim.claim_type): claim
+        for claim in route_process_claims.claims
+    }
+
+
+def _impurity_family_tags(names: list[str]) -> set[str]:
+    families: set[str] = set()
+    for name in names:
+        lowered = name.lower()
+        if any(token in lowered for token in ("tar", "heavy", "heavies", "acetophenone", "hydroquinone", "catechol", "glycol", "alpha-methylstyrene", "propionic")):
+            families.add("heavy_organics")
+        if any(token in lowered for token in ("saline", "brine", "salt", "chloride", "mother liquor", "ammonium chloride")):
+            families.add("salts_or_aqueous")
+        if any(token in lowered for token in ("co2", "offgas", "mist", "vent", "sox", "so3", "ammonia")):
+            families.add("offgas")
+        if any(token in lowered for token in ("solid", "solids", "insoluble", "cake", "coke", "residue")):
+            families.add("solids")
+        if any(token in lowered for token in ("acid", "aldehyde", "ketone", "phenol", "alcohol")):
+            families.add("oxygenated_liquids")
+        if any(token in lowered for token in ("chlorinated", "chlorohydrin")):
+            families.add("chlorinated")
+    return families
+
+
+def _cleanup_family(label: str) -> str:
+    lowered = label.lower()
+    if "distill" in lowered:
+        return "distillation"
+    if "extract" in lowered:
+        return "extraction"
+    if "wash" in lowered or "caustic" in lowered:
+        return "washing"
+    if "flash" in lowered or "phase split" in lowered or "quench" in lowered:
+        return "phase_split"
+    if "crystal" in lowered:
+        return "crystallization"
+    if "filter" in lowered or "clar" in lowered or "salt removal" in lowered:
+        return "solids_cleanup"
+    if "dry" in lowered:
+        return "drying"
+    if "absorp" in lowered or "gas cleanup" in lowered:
+        return "scrubbing"
+    if "recovery" in lowered or "recycle" in lowered or "regeneration" in lowered or "cleanup" in lowered:
+        return "recovery"
+    return "generic_cleanup"
+
+
+def _waste_treatment_modes(route, graph, blueprint: FlowsheetBlueprintArtifact | None) -> set[str]:
+    modes: set[str] = set()
+    text = _route_context_text(route, graph, blueprint)
+    if any(token in text for token in ("saline", "brine", "mother liquor", "caustic wash", "salt removal", "ammonium chloride")):
+        modes.add("aqueous_treatment")
+    if any(token in text for token in ("offgas", "gas vent", "gas cleanup", "mist", "sox", "so3", "ammonia")):
+        modes.add("gas_scrubbing")
+    if any(token in text for token in ("chlorinated", "chloride")):
+        modes.add("halogenated_waste")
+    if any(token in text for token in ("tar", "heavy", "solvent recovery", "organic", "acetophenone", "alpha-methylstyrene", "phenol")):
+        modes.add("organic_recovery_or_incineration")
+    if any(token in text for token in ("solid", "solids", "insoluble", "filter", "cake", "drying")):
+        modes.add("solids_handling")
+    if route.catalysts:
+        modes.add("catalyst_or_media_service")
+    return modes
+
+
+def _stepwise_recovery_burden(route, graph, blueprint: FlowsheetBlueprintArtifact | None, profile: RouteFamilyProfile | None) -> tuple[float, list[str]]:
+    notes: list[str] = []
+    recoverable_species: set[str] = set()
+    catalyst_step_count = 0
+    if graph is not None:
+        for step in graph.reaction_steps:
+            recoverable_species.update(name for name in step.solvent_names if name)
+            if step.catalyst_names:
+                catalyst_step_count += 1
+    recycle_intent_count = len(blueprint.recycle_intents) if blueprint is not None else 0
+    if blueprint is not None:
+        for intent in blueprint.recycle_intents:
+            recoverable_species.update(name for name in intent.closing_species if name)
+    recovery_sections = [
+        item
+        for item in route.separations
+        if any(token in item.lower() for token in ("recovery", "recycle", "cleanup", "regeneration", "wash"))
+    ]
+    burden = 0.0
+    if recoverable_species:
+        burden += 9.0 + 4.0 * max(len(recoverable_species) - 1, 0)
+        notes.append(f"{len(recoverable_species)} recoverable reagent / solvent species need explicit closure.")
+    if recycle_intent_count:
+        burden += 8.0 + 5.0 * max(recycle_intent_count - 1, 0)
+        notes.append(f"{recycle_intent_count} recycle or recovery loop(s) must be stabilized across sections.")
+    if recovery_sections:
+        burden += 5.0 + 3.0 * max(len(recovery_sections) - 1, 0)
+        notes.append(f"Recovery-oriented sections are present: {', '.join(recovery_sections[:3])}.")
+    if catalyst_step_count >= 2:
+        burden += 6.0
+        notes.append("Catalyst-bearing chemistry spans multiple steps, increasing recovery coordination burden.")
+    if route.catalysts and recycle_intent_count == 0:
+        burden += 10.0
+        notes.append("Catalyst-bearing route lacks an explicit recycle-recovery intent in the conceptual train.")
+    if graph is not None and len(graph.reaction_steps) >= 3 and (recoverable_species or recycle_intent_count):
+        burden += 4.0 * min(len(graph.reaction_steps) - 2, 3)
+        notes.append("Recovery logic crosses multiple reaction and purification steps.")
+    if profile is not None and profile.route_family_id in {"regeneration_loop_train", "extraction_recovery_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _catalyst_lifecycle_burden(
+    route,
+    graph,
+    blueprint: FlowsheetBlueprintArtifact | None,
+    profile: RouteFamilyProfile | None,
+    recycle_claim: RouteProcessClaimRecord | None = None,
+) -> tuple[float, list[str]]:
+    catalysts = {item for item in route.catalysts if item}
+    if graph is not None:
+        for step in graph.reaction_steps:
+            catalysts.update(item for item in step.catalyst_names if item)
+    if not catalysts:
+        return 0.0, []
+    notes: list[str] = []
+    catalyst_text = " ".join(sorted(catalysts)).lower()
+    catalyst_step_count = int(round((recycle_claim.metrics.get("catalyst_step_count", 0.0) if recycle_claim is not None else 0.0))) or sum(
+        1 for step in (graph.reaction_steps if graph is not None else []) if step.catalyst_names
+    )
+    recycle_recovery_present = blueprint is not None and any(step.step_role == "recycle_recovery" for step in blueprint.steps)
+    burden = 12.0 + 8.0 * max(len(catalysts) - 1, 0) + 5.0 * max(catalyst_step_count - 1, 0)
+    notes.append(f"{len(catalysts)} catalyst or promoter system(s) need lifecycle management.")
+    if any(token in catalyst_text for token in ("rhodium", "palladium", "iodide", "enzyme")):
+        burden += 18.0
+        notes.append("Catalyst system appears high-value, poison-sensitive, or recycle-critical.")
+    elif any(token in catalyst_text for token in ("v2o5", "vanadium", "metal salt", "oxidation promoter", "co/mn")):
+        burden += 8.0
+        notes.append("Catalyst system implies periodic replacement / regeneration service.")
+    if recycle_recovery_present:
+        burden += 7.0
+        notes.append("Conceptual train already implies catalyst recovery or regeneration handling.")
+    else:
+        burden += 10.0
+        notes.append("No explicit catalyst-recovery step is present, so replacement burden stays exposed.")
+    if route.operating_temperature_c >= 250.0 or route.operating_pressure_bar >= 25.0:
+        burden += 6.0
+        notes.append("Harsh operating window increases catalyst deactivation or turnaround sensitivity.")
+    if profile is not None and profile.route_family_id in {"gas_absorption_converter_train", "regeneration_loop_train"}:
+        burden += 5.0
+    return _clamp_penalty(burden), notes
+
+
+def _reagent_and_catalyst_burden(route, profile: RouteFamilyProfile | None) -> tuple[float, list[str]]:
+    burden = max(len(route.participants) - 3, 0) * 6.0
+    notes: list[str] = []
+    catalyst_text = " ".join(route.catalysts).lower()
+    if route.catalysts:
+        burden += 8.0 + 6.0 * max(len(route.catalysts) - 1, 0)
+        notes.append(f"{len(route.catalysts)} catalyst or promoter item(s) must be sourced and managed.")
+    if any(token in catalyst_text for token in ("rhodium", "palladium", "iodide", "enzyme")):
+        burden += 20.0
+        notes.append("Catalyst system appears expensive, poison-sensitive, or recycle-sensitive.")
+    if any(token in catalyst_text for token in ("v2o5", "vanadium")):
+        burden += 8.0
+        notes.append("Catalyst service requires converter-grade replacement and handling discipline.")
+    reactant_text = " ".join(participant.name.lower() for participant in route.participants if participant.role == "reactant")
+    if any(token in reactant_text for token in ("ammonia", "chlor", "carbon monoxide", "caustic", "spent acid")):
+        burden += 14.0
+        notes.append("Reactant set includes handling-intensive or regeneration-sensitive materials.")
+    if profile is not None and profile.route_family_id in {"chlorinated_hydrolysis_train", "regeneration_loop_train"}:
+        burden += 10.0
+    return _clamp_penalty(burden), notes
+
+
+def _impurity_cleanup_sequence(route, graph, blueprint: FlowsheetBlueprintArtifact | None, profile: RouteFamilyProfile | None) -> tuple[float, list[str]]:
+    impurity_families = _impurity_family_tags(route.byproducts)
+    cleanup_sections: list[str] = []
+    cleanup_families: set[str] = set()
+    for separation in route.separations:
+        family = _cleanup_family(separation)
+        cleanup_sections.append(family)
+        cleanup_families.add(family)
+    if blueprint is not None:
+        for duty in blueprint.separation_duties:
+            cleanup_families.add(duty.separation_family or "generic_cleanup")
+        for step in blueprint.steps:
+            if step.step_role in {"phase_split", "purification", "recycle_recovery", "filtration", "drying", "waste_treatment"}:
+                cleanup_families.add(step.step_role)
+    notes: list[str] = []
+    burden = 0.0
+    if impurity_families:
+        burden += 8.0 + 6.0 * max(len(impurity_families) - 1, 0)
+        notes.append(f"Impurity families span {', '.join(sorted(impurity_families))}.")
+    if cleanup_families:
+        burden += 6.0 + 4.0 * max(len(cleanup_families) - 1, 0)
+        notes.append(f"Cleanup sequence uses {', '.join(sorted(cleanup_families))}.")
+    if len(route.byproducts) >= 2 and len(cleanup_families) < len(impurity_families):
+        burden += 8.0
+        notes.append("Multiple impurity families are being handled by a compressed cleanup train.")
+    if route.selectivity_fraction < 0.90:
+        burden += 10.0
+    if route.yield_fraction < 0.90:
+        burden += 8.0
+    if profile is not None and profile.route_family_id in {"oxidation_recovery_train", "chlorinated_hydrolysis_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _isolation_and_impurity_burden(route, profile: RouteFamilyProfile | None) -> tuple[float, list[str]]:
+    burden = (1.0 - route.selectivity_fraction) * 120.0 + (1.0 - route.yield_fraction) * 70.0
+    notes: list[str] = []
+    burden += len(route.byproducts) * 6.0
+    if route.byproducts:
+        notes.append(f"{len(route.byproducts)} explicit byproduct or impurity family/families require cleanup.")
+    impurity_text = " ".join(route.byproducts).lower()
+    if any(token in impurity_text for token in ("tar", "heavy", "chlorinated", "mist", "mother liquor", "saline", "acetophenone", "hydroquinone", "catechol")):
+        burden += 18.0
+        notes.append("Named impurity set suggests heavier polishing or cleanup burden.")
+    if profile is not None and profile.route_family_id in {"oxidation_recovery_train", "chlorinated_hydrolysis_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _separation_pain(route, profile: RouteFamilyProfile | None, blueprint: FlowsheetBlueprintArtifact | None = None) -> tuple[float, list[str]]:
+    burden = 0.0
+    notes: list[str] = []
+    section_labels = list(route.separations)
+    if blueprint is not None and blueprint.separation_duties:
+        section_labels = [item.separation_family for item in blueprint.separation_duties]
+    for separation in section_labels:
+        lowered = separation.lower()
+        if "distill" in lowered:
+            burden += 14.0
+        elif "recovery" in lowered:
+            burden += 12.0
+        elif "evapor" in lowered:
+            burden += 12.0
+        elif "ammonia" in lowered:
+            burden += 18.0
+        elif "extract" in lowered:
+            burden += 18.0
+        elif "absorp" in lowered:
+            burden += 10.0
+        elif "crystal" in lowered:
+            burden += 12.0
+        elif "filter" in lowered:
+            burden += 8.0
+        elif "dry" in lowered:
+            burden += 8.0
+        elif "wash" in lowered or "salt" in lowered or "clar" in lowered:
+            burden += 7.0
+        elif "flash" in lowered or "phase_split" in lowered:
+            burden += 6.0
+        else:
+            burden += 5.0
+    if len(section_labels) >= 4:
+        burden += 10.0
+        notes.append("Route requires a long purification train.")
+    if route.selectivity_fraction < 0.90:
+        burden += 10.0
+        notes.append("Lower selectivity implies broader impurity cleanup burden across separation sections.")
+    if len(route.byproducts) >= 2:
+        burden += 8.0
+        notes.append("Multiple byproduct families widen the downstream cleanup envelope.")
+    if profile is not None and profile.route_family_id in {"solids_carboxylation_train", "gas_absorption_converter_train"}:
+        burden += 4.0
+    if profile is not None and profile.route_family_id in {"oxidation_recovery_train", "chlorinated_hydrolysis_train"}:
+        burden += 8.0
+    if blueprint is not None and blueprint.recycle_intents:
+        burden += 6.0
+        notes.append("Downstream separation train also has to support recycle closure.")
+    if section_labels:
+        notes.append(f"Major separation sections: {', '.join(section_labels[:4])}.")
+    return _clamp_penalty(burden), notes
+
+
+def _operability_mode_burden(route, graph, operating_mode: str, blueprint: FlowsheetBlueprintArtifact | None = None) -> tuple[float, list[str]]:
+    burden = 0.0
+    notes: list[str] = []
+    step_count = len(graph.reaction_steps) if graph is not None else 0
+    batch_capable = blueprint.batch_capable if blueprint is not None else graph.batch_capable if graph is not None else False
+    if operating_mode == "continuous":
+        if step_count >= 4:
+            burden += 12.0
+        if batch_capable:
+            burden += 12.0
+            notes.append("Route chemistry appears campaign- or batch-capable, which weakens clean continuous deployment.")
+        if blueprint is not None and len(blueprint.recycle_intents) >= 2:
+            burden += 6.0
+            notes.append("Multiple recycle closures tighten continuous control and grade stability.")
+        if route.residence_time_hr >= 3.0:
+            burden += 8.0
+    else:
+        if not batch_capable and step_count <= 2:
+            burden += 8.0
+        if blueprint is not None and len(blueprint.steps) >= 7:
+            burden += 5.0
+            notes.append("Large multistep train makes batch sequencing and campaign turnover heavier.")
+    if route.operating_pressure_bar >= 20.0 or route.operating_temperature_c >= 300.0:
+        burden += 10.0
+        notes.append("Operating window is harsher to control at scale.")
+    return _clamp_penalty(burden), notes
+
+
+def _waste_treatment_load(route, graph, blueprint: FlowsheetBlueprintArtifact | None, profile: RouteFamilyProfile | None) -> tuple[float, list[str]]:
+    treatment_modes = _waste_treatment_modes(route, graph, blueprint)
+    notes: list[str] = []
+    burden = len(treatment_modes) * 10.0
+    if treatment_modes:
+        notes.append(f"Waste handling spans {', '.join(sorted(treatment_modes))}.")
+    if "halogenated_waste" in treatment_modes:
+        burden += 14.0
+        notes.append("Halogenated waste treatment pushes route-specific disposal and metallurgy burden materially higher.")
+    if "aqueous_treatment" in treatment_modes and "halogenated_waste" in treatment_modes:
+        burden += 10.0
+        notes.append("Combined chloride and aqueous-liquor cleanup requires a heavier treatment train than generic organics service.")
+    if "halogenated_waste" in treatment_modes and "organic_recovery_or_incineration" in treatment_modes:
+        burden += 6.0
+        notes.append("Mixed halogenated-organic waste requires tighter segregation and recovery / disposal routing.")
+    if "gas_scrubbing" in treatment_modes and any(token in _route_context_text(route, graph, blueprint) for token in ("mist", "sox", "so3", "ammonia")):
+        burden += 6.0
+    if any("spent" in item.lower() or "catalyst" in item.lower() for item in route.byproducts + route.catalysts):
+        burden += 8.0
+        notes.append("Spent catalyst or media handling is implied.")
+    if blueprint is not None and any(step.step_role == "waste_treatment" for step in blueprint.steps):
+        burden += 6.0
+    if profile is not None and profile.route_family_id in {"chlorinated_hydrolysis_train", "regeneration_loop_train", "oxidation_recovery_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _stepwise_recovery_burden_from_claim(
+    claim: RouteProcessClaimRecord | None,
+    route,
+    graph,
+    blueprint: FlowsheetBlueprintArtifact | None,
+    profile: RouteFamilyProfile | None,
+) -> tuple[float, list[str]]:
+    if claim is None:
+        return _stepwise_recovery_burden(route, graph, blueprint, profile)
+    notes: list[str] = []
+    recoverable_species_count = int(round(claim.metrics.get("recoverable_species_count", float(claim.item_count))))
+    recycle_intent_count = int(round(claim.metrics.get("recycle_intent_count", 0.0)))
+    catalyst_step_count = int(round(claim.metrics.get("catalyst_step_count", 0.0)))
+    recovery_section_count = int(round(claim.metrics.get("recovery_section_count", 0.0)))
+    burden = 0.0
+    if recoverable_species_count:
+        burden += 9.0 + 4.0 * max(recoverable_species_count - 1, 0)
+        notes.append(f"{recoverable_species_count} recoverable reagent / solvent species need explicit closure.")
+    if recycle_intent_count:
+        burden += 8.0 + 5.0 * max(recycle_intent_count - 1, 0)
+        notes.append(f"{recycle_intent_count} recycle or recovery loop(s) must be stabilized across sections.")
+    if recovery_section_count:
+        burden += 5.0 + 3.0 * max(recovery_section_count - 1, 0)
+        if claim.items:
+            notes.append(f"Recovery-oriented species closure includes {', '.join(claim.items[:3])}.")
+    if catalyst_step_count >= 2:
+        burden += 6.0
+        notes.append("Catalyst-bearing chemistry spans multiple steps, increasing recovery coordination burden.")
+    if route.catalysts and recycle_intent_count == 0:
+        burden += 10.0
+        notes.append("Catalyst-bearing route lacks an explicit recycle-recovery intent in the conceptual train.")
+    if graph is not None and len(graph.reaction_steps) >= 3 and (recoverable_species_count or recycle_intent_count):
+        burden += 4.0 * min(len(graph.reaction_steps) - 2, 3)
+        notes.append("Recovery logic crosses multiple reaction and purification steps.")
+    if profile is not None and profile.route_family_id in {"regeneration_loop_train", "extraction_recovery_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _impurity_cleanup_sequence_from_claim(
+    impurity_claim: RouteProcessClaimRecord | None,
+    cleanup_claim: RouteProcessClaimRecord | None,
+    route,
+    graph,
+    blueprint: FlowsheetBlueprintArtifact | None,
+    profile: RouteFamilyProfile | None,
+) -> tuple[float, list[str]]:
+    if impurity_claim is None and cleanup_claim is None:
+        return _impurity_cleanup_sequence(route, graph, blueprint, profile)
+    impurity_families = set(impurity_claim.items if impurity_claim is not None else [])
+    cleanup_families = set(cleanup_claim.items if cleanup_claim is not None else [])
+    burden = 0.0
+    notes: list[str] = []
+    if impurity_families:
+        burden += 8.0 + 6.0 * max(len(impurity_families) - 1, 0)
+        notes.append(f"Impurity families span {', '.join(sorted(impurity_families))}.")
+    if cleanup_families:
+        burden += 6.0 + 4.0 * max(len(cleanup_families) - 1, 0)
+        notes.append(f"Cleanup sequence uses {', '.join(sorted(cleanup_families))}.")
+    if len(route.byproducts) >= 2 and cleanup_families and len(cleanup_families) < max(len(impurity_families), 1):
+        burden += 8.0
+        notes.append("Multiple impurity families are being handled by a compressed cleanup train.")
+    if route.selectivity_fraction < 0.90:
+        burden += 10.0
+    if route.yield_fraction < 0.90:
+        burden += 8.0
+    if profile is not None and profile.route_family_id in {"oxidation_recovery_train", "chlorinated_hydrolysis_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _waste_treatment_load_from_claim(
+    waste_claim: RouteProcessClaimRecord | None,
+    route,
+    graph,
+    blueprint: FlowsheetBlueprintArtifact | None,
+    profile: RouteFamilyProfile | None,
+) -> tuple[float, list[str]]:
+    if waste_claim is None:
+        return _waste_treatment_load(route, graph, blueprint, profile)
+    treatment_modes = set(waste_claim.items)
+    notes: list[str] = []
+    burden = len(treatment_modes) * 10.0
+    if treatment_modes:
+        notes.append(f"Waste handling spans {', '.join(sorted(treatment_modes))}.")
+    if waste_claim.metrics.get("has_halogenated_waste", 0.0) >= 0.5:
+        burden += 14.0
+        notes.append("Halogenated waste treatment pushes route-specific disposal and metallurgy burden materially higher.")
+    if waste_claim.metrics.get("has_aqueous_treatment", 0.0) >= 0.5 and waste_claim.metrics.get("has_halogenated_waste", 0.0) >= 0.5:
+        burden += 10.0
+        notes.append("Combined chloride and aqueous-liquor cleanup requires a heavier treatment train than generic organics service.")
+    if "halogenated_waste" in treatment_modes and "organic_recovery_or_incineration" in treatment_modes:
+        burden += 6.0
+        notes.append("Mixed halogenated-organic waste requires tighter segregation and recovery / disposal routing.")
+    if waste_claim.metrics.get("has_gas_scrubbing", 0.0) >= 0.5:
+        burden += 6.0
+    if any("spent" in item.lower() or "catalyst" in item.lower() for item in route.byproducts + route.catalysts):
+        burden += 8.0
+        notes.append("Spent catalyst or media handling is implied.")
+    if blueprint is not None and any(step.step_role == "waste_treatment" for step in blueprint.steps):
+        burden += 6.0
+    if profile is not None and profile.route_family_id in {"chlorinated_hydrolysis_train", "regeneration_loop_train", "oxidation_recovery_train"}:
+        burden += 8.0
+    return _clamp_penalty(burden), notes
+
+
+def _waste_burden(route, profile: RouteFamilyProfile | None) -> tuple[float, list[str]]:
+    burden = len(route.byproducts) * 5.0
+    notes: list[str] = []
+    text = " ".join(route.byproducts + route.separations).lower()
+    if any(token in text for token in ("saline", "brine", "mother liquor", "chlorinated", "spent", "purge", "offgas", "mist", "tar")):
+        burden += 24.0
+        notes.append("Route creates disposal- or recovery-intensive waste streams.")
+    if profile is not None and profile.route_family_id in {"chlorinated_hydrolysis_train", "regeneration_loop_train"}:
+        burden += 12.0
+    if any(token in text for token in ("ammonia recovery", "gas cleanup", "caustic wash")):
+        burden += 10.0
+    return _clamp_penalty(burden), notes
+
+
+def build_route_screening_artifact(
+    route_survey: RouteSurveyArtifact,
+    route_chemistry: RouteChemistryArtifact,
+    species_resolution: SpeciesResolutionArtifact,
+    reaction_network: ReactionNetworkV2Artifact,
+    route_families: RouteFamilyArtifact | None = None,
+    unit_train_candidates: UnitTrainCandidateSet | None = None,
+    route_process_claims: RouteProcessClaimsArtifact | None = None,
+    *,
+    operating_mode: str = "continuous",
+) -> RouteScreeningArtifact:
+    graph_lookup = {graph.route_id: graph for graph in route_chemistry.route_graphs}
+    species_by_route = {row.route_id: row for row in species_resolution.routes}
+    network_by_route = {row.route_id: row for row in reaction_network.routes}
+    process_claims = _claim_lookup(route_process_claims)
+    rows: list[RouteScreeningRow] = []
+    retained_route_ids: list[str] = []
+    eliminated_route_ids: list[str] = []
+    for route in route_survey.routes:
+        species_row = species_by_route.get(route.route_id)
+        network_row = network_by_route.get(route.route_id)
+        profile = _route_profile(route, route_families) if route_families is not None else None
+        blueprint = _blueprint_for_route(unit_train_candidates, route.route_id) if unit_train_candidates is not None else None
+        recycle_claim = process_claims.get((route.route_id, "reagent_recycle"))
+        impurity_claim = process_claims.get((route.route_id, "impurity_classes"))
+        cleanup_claim = process_claims.get((route.route_id, "cleanup_sequence"))
+        waste_claim = process_claims.get((route.route_id, "waste_modes"))
+        reasons: list[str] = []
+        elimination_stage = ""
+        major_separation_defined = bool(route.separations or (profile.primary_separation_train if profile is not None else ""))
+        hazard_review_required = any(hazard.severity == "high" for hazard in route.hazards) and route.evidence_score < 0.55
+        species_status = species_row.status if species_row is not None else ScientificGateStatus.FAIL
+        network_status = network_row.status if network_row is not None else ScientificGateStatus.FAIL
+        graph = graph_lookup.get(route.route_id)
+        reagent_burden_base, reagent_notes = _reagent_and_catalyst_burden(route, profile)
+        recovery_burden, recovery_notes = _stepwise_recovery_burden_from_claim(recycle_claim, route, graph, blueprint, profile)
+        catalyst_lifecycle_burden, catalyst_notes = _catalyst_lifecycle_burden(route, graph, blueprint, profile, recycle_claim)
+        isolation_burden_base, isolation_notes = _isolation_and_impurity_burden(route, profile)
+        impurity_cleanup_burden, cleanup_notes = _impurity_cleanup_sequence_from_claim(impurity_claim, cleanup_claim, route, graph, blueprint, profile)
+        separation_pain_base, separation_notes = _separation_pain(route, profile, blueprint)
+        operability_burden, operability_notes = _operability_mode_burden(route, graph, operating_mode, blueprint)
+        waste_burden_base, waste_notes = _waste_burden(route, profile)
+        waste_treatment_load, waste_load_notes = _waste_treatment_load_from_claim(waste_claim, route, graph, blueprint, profile)
+        reagent_catalyst_burden = _clamp_penalty(
+            reagent_burden_base + recovery_burden * 0.35 + catalyst_lifecycle_burden * 0.65
+        )
+        isolation_impurity_burden = _clamp_penalty(
+            isolation_burden_base + impurity_cleanup_burden * 0.60
+        )
+        separation_pain = _clamp_penalty(
+            separation_pain_base + impurity_cleanup_burden * 0.25 + recovery_burden * 0.20
+        )
+        waste_burden = _clamp_penalty(
+            waste_burden_base + waste_treatment_load * 0.75 + catalyst_lifecycle_burden * 0.10
+        )
+        if species_status == ScientificGateStatus.FAIL:
+            reasons.append("Core species set is not valid enough to support process screening.")
+            elimination_stage = "species_identity"
+        if network_status == ScientificGateStatus.FAIL:
+            reasons.append("Reaction-step network is not complete enough to support process screening.")
+            elimination_stage = elimination_stage or "reaction_truth"
+        if not reaction_is_balanced(route):
+            reasons.append("Route stoichiometry is not balanced.")
+            elimination_stage = elimination_stage or "stoichiometry"
+        if not major_separation_defined:
+            reasons.append("Major separation burden is not defined.")
+            elimination_stage = elimination_stage or "separation_definition"
+        if profile is not None and profile.india_deployment_blocker:
+            reasons.append(profile.india_deployment_blocker)
+            elimination_stage = elimination_stage or "deployment_fit"
+        if hazard_review_required:
+            reasons.append("High-hazard route requires stronger evidence before it can outrank safer options.")
+        if reagent_catalyst_burden >= 75.0:
+            reasons.extend((reagent_notes + recovery_notes + catalyst_notes) or ["Reagent/catalyst burden is high for early process screening."])
+        if isolation_impurity_burden >= 75.0:
+            reasons.extend((isolation_notes + cleanup_notes) or ["Isolation and impurity burden is high."])
+        if separation_pain >= 75.0:
+            reasons.extend((separation_notes + cleanup_notes + recovery_notes) or ["Major separation pain is high."])
+        if operability_burden >= 70.0:
+            reasons.extend(operability_notes or ["Operability fit against the target mode is weak."])
+        if waste_burden >= 75.0:
+            reasons.extend((waste_notes + waste_load_notes + catalyst_notes) or ["Waste burden is high for this route."])
+        if recovery_burden >= 65.0:
+            reasons.extend(recovery_notes)
+        if catalyst_lifecycle_burden >= 65.0:
+            reasons.extend(catalyst_notes)
+        if impurity_cleanup_burden >= 65.0:
+            reasons.extend(cleanup_notes)
+        if waste_treatment_load >= 65.0:
+            reasons.extend(waste_load_notes)
+        extreme_process_burden = sum(
+            1
+            for value in (
+                reagent_catalyst_burden,
+                isolation_impurity_burden,
+                separation_pain,
+                operability_burden,
+                waste_burden,
+            )
+            if value >= 85.0
+        )
+        if elimination_stage:
+            screening_status = "eliminated"
+            chemistry_readiness = "blocked"
+            eliminated_route_ids.append(route.route_id)
+        elif hazard_review_required or extreme_process_burden >= 2:
+            screening_status = "review"
+            chemistry_readiness = "screening_only" if species_status != ScientificGateStatus.FAIL else "blocked"
+            retained_route_ids.append(route.route_id)
+        elif species_status == ScientificGateStatus.PASS and network_status == ScientificGateStatus.PASS:
+            screening_status = "retained"
+            chemistry_readiness = "design_ready"
+            retained_route_ids.append(route.route_id)
+        else:
+            screening_status = "review"
+            chemistry_readiness = "screening_only"
+            retained_route_ids.append(route.route_id)
+        rows.append(
+            RouteScreeningRow(
+                route_id=route.route_id,
+                route_name=route.name,
+                route_family_id=profile.route_family_id if profile is not None else "",
+                screening_status=screening_status,
+                chemistry_readiness=chemistry_readiness,
+                core_species_complete=species_row is not None and species_row.status != ScientificGateStatus.FAIL,
+                reaction_step_count=network_row.step_count if network_row is not None else 0,
+                major_separation_defined=major_separation_defined,
+                hazard_review_required=hazard_review_required,
+                reagent_catalyst_burden_score=reagent_catalyst_burden,
+                stepwise_recovery_burden_score=recovery_burden,
+                catalyst_lifecycle_burden_score=catalyst_lifecycle_burden,
+                isolation_impurity_burden_score=isolation_impurity_burden,
+                impurity_cleanup_sequence_score=impurity_cleanup_burden,
+                separation_pain_score=separation_pain,
+                operability_burden_score=operability_burden,
+                waste_burden_score=waste_burden,
+                waste_treatment_load_score=waste_treatment_load,
+                elimination_stage=elimination_stage,
+                reasons=reasons,
+                citations=route.citations,
+                assumptions=route.assumptions,
+            )
+        )
+    markdown = "\n".join(
+        [
+            "| Route | Family | Status | Chemistry | Reagent/Cat | Recovery | Catalyst life | Isolation | Impurity seq | Separation | Operability | Waste | Waste load | Reasons |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+            *[
+                f"| {row.route_name} | {row.route_family_id or '-'} | {row.screening_status} | {row.chemistry_readiness} | "
+                f"{row.reagent_catalyst_burden_score:.1f} | {row.stepwise_recovery_burden_score:.1f} | {row.catalyst_lifecycle_burden_score:.1f} | "
+                f"{row.isolation_impurity_burden_score:.1f} | {row.impurity_cleanup_sequence_score:.1f} | {row.separation_pain_score:.1f} | "
+                f"{row.operability_burden_score:.1f} | {row.waste_burden_score:.1f} | {row.waste_treatment_load_score:.1f} | {', '.join(row.reasons) or '-'} |"
+                for row in rows
+            ],
+        ]
+    )
+    return RouteScreeningArtifact(
+        rows=rows,
+        retained_route_ids=sorted(set(retained_route_ids)),
+        eliminated_route_ids=sorted(set(eliminated_route_ids)),
+        markdown=markdown,
+        citations=sorted({citation for route in route_survey.routes for citation in route.citations}),
+        assumptions=route_survey.assumptions + ["Route screening eliminates routes on chemistry/process reality before final ranking."],
+    )
+
+
+def build_chemistry_decision_artifact(
+    selected_route,
+    species_resolution: SpeciesResolutionArtifact,
+    reaction_network: ReactionNetworkV2Artifact,
+) -> ChemistryDecisionArtifact:
+    species_row = next((row for row in species_resolution.routes if row.route_id == selected_route.route_id), None)
+    network_row = next((row for row in reaction_network.routes if row.route_id == selected_route.route_id), None)
+    if species_row is None or network_row is None or species_row.status == ScientificGateStatus.FAIL or network_row.status == ScientificGateStatus.FAIL:
+        status = "blocked"
+        rationale = "Selected route does not yet have a defensible chemistry basis."
+    elif species_row.status == ScientificGateStatus.PASS and network_row.status == ScientificGateStatus.PASS:
+        status = "design_ready"
+        rationale = "Selected route has valid core species and a stepwise reaction network suitable for downstream detailed design."
+    else:
+        status = "screening_only"
+        rationale = "Selected route chemistry is coherent enough for screening, but still carries unresolved chemistry detail."
+    dominant_families = sorted(
+        {
+            step.reaction_family
+            for step in (network_row.reaction_steps if network_row is not None else [])
+            if step.reaction_family
+        }
+    )
+    catalysts = sorted(
+        {
+            catalyst
+            for step in (network_row.reaction_steps if network_row is not None else [])
+            for catalyst in step.catalyst_names
+            if catalyst
+        }
+    )
+    solvents = sorted(
+        {
+            solvent
+            for step in (network_row.reaction_steps if network_row is not None else [])
+            for solvent in step.solvent_names
+            if solvent
+        }
+    )
+    markdown = "\n".join(
+        [
+            f"- Selected route: `{selected_route.name}`",
+            f"- Chemistry basis status: `{status}`",
+            f"- Core species: {', '.join(species_row.valid_core_species_ids) if species_row and species_row.valid_core_species_ids else 'none'}",
+            f"- Unresolved species: {', '.join((species_row.unresolved_core_species_names + species_row.unresolved_intermediate_names) if species_row else []) or 'none'}",
+            f"- Reaction steps: {network_row.step_count if network_row is not None else 0}",
+            f"- Dominant reaction families: {', '.join(dominant_families) or 'none'}",
+            f"- Catalysts: {', '.join(catalysts) or 'none'}",
+            f"- Solvents: {', '.join(solvents) or 'none'}",
+            f"- Rationale: {rationale}",
+        ]
+    )
+    return ChemistryDecisionArtifact(
+        selected_route_id=selected_route.route_id,
+        selected_route_name=selected_route.name,
+        chemistry_basis_status=status,
+        core_species_ids=species_row.valid_core_species_ids if species_row is not None else [],
+        unresolved_species_names=(
+            (species_row.unresolved_core_species_names + species_row.unresolved_intermediate_names)
+            if species_row is not None
+            else []
+        ),
+        reaction_step_count=network_row.step_count if network_row is not None else 0,
+        dominant_reaction_families=dominant_families,
+        catalysts=catalysts,
+        solvents=solvents,
+        rationale=rationale,
+        markdown=markdown,
+        citations=selected_route.citations,
+        assumptions=selected_route.assumptions,
+    )
+
+
 def build_site_selection_decision(config: ProjectConfig, site_selection: SiteSelectionArtifact) -> DecisionRecord:
     preferred_sites = {item.lower() for item in config.preferred_site_candidates}
     preferred_states = {item.lower() for item in config.preferred_state_candidates}
@@ -609,6 +1397,7 @@ def _rough_case_for_route(
     reaction_intensity = {
         "liquid_hydration_train": 90.0,
         "carbonylation_liquid_train": 70.0,
+        "quaternization_liquid_train": 64.0,
         "gas_absorption_converter_train": 82.0,
         "solids_carboxylation_train": 48.0,
         "integrated_solvay_liquor_train": 54.0,
@@ -619,6 +1408,7 @@ def _rough_case_for_route(
     polishing_factor = {
         "liquid_hydration_train": 0.06,
         "carbonylation_liquid_train": 0.07,
+        "quaternization_liquid_train": 0.05,
         "gas_absorption_converter_train": 0.08,
         "solids_carboxylation_train": 0.05,
         "integrated_solvay_liquor_train": 0.09,
@@ -629,6 +1419,7 @@ def _rough_case_for_route(
     cooling_multiplier = {
         "liquid_hydration_train": 0.72,
         "carbonylation_liquid_train": 0.64,
+        "quaternization_liquid_train": 0.66,
         "gas_absorption_converter_train": 0.58,
         "solids_carboxylation_train": 0.42,
         "integrated_solvay_liquor_train": 0.47,
@@ -1433,9 +2224,17 @@ def select_route_architecture(
     heat_study: HeatIntegrationStudyArtifact,
     market,
     route_families: RouteFamilyArtifact | None = None,
+    route_screening: RouteScreeningArtifact | None = None,
+    species_resolution: SpeciesResolutionArtifact | None = None,
+    thermo_admissibility: ThermoAdmissibilityArtifact | None = None,
+    kinetics_admissibility: KineticsAdmissibilityArtifact | None = None,
 ) -> tuple[RouteSelectionArtifact, DecisionRecord, DecisionRecord, DecisionRecord, UtilityNetworkDecision]:
     routes_by_id = {route.route_id: route for route in route_survey.routes}
     route_graphs = {graph.route_id: graph for graph in route_chemistry.route_graphs} if route_chemistry is not None else {}
+    species_status_by_route = {item.route_id: item.status for item in species_resolution.routes} if species_resolution is not None else {}
+    thermo_status_by_route = thermo_admissibility.route_status if thermo_admissibility is not None else {}
+    kinetics_status_by_route = kinetics_admissibility.route_status if kinetics_admissibility is not None else {}
+    screening_by_route = {item.route_id: item for item in route_screening.rows} if route_screening is not None else {}
     rough_by_route = {case.route_id: case for case in rough_summary.cases}
     utility_by_route = {decision.route_id: decision for decision in heat_study.route_decisions}
     route_families = route_families or build_route_family_artifact(route_survey)
@@ -1473,8 +2272,10 @@ def select_route_architecture(
         DecisionCriterion(name="Chemistry completeness", weight=0.07, justification="Routes with named, non-anonymous core species are required for adaptive synthesis."),
     ]
     alternatives: list[AlternativeOption] = []
-    base_ranking: list[tuple[float, str]] = []
-    conservative_ranking: list[tuple[float, str]] = []
+    design_ranking: list[tuple[float, str]] = []
+    screening_ranking: list[tuple[float, str]] = []
+    conservative_design_ranking: list[tuple[float, str]] = []
+    conservative_screening_ranking: list[tuple[float, str]] = []
     for route_id, route in routes_by_id.items():
         profile = _route_profile(route, route_families)
         graph = route_graphs.get(route_id)
@@ -1491,9 +2292,18 @@ def select_route_architecture(
             graph.chemistry_completeness_score if graph is not None else route.chemistry_completeness_score
         ) * 100.0
         core_species_blocked = route_chemistry is not None and route_id in route_chemistry.blocking_route_ids
+        species_gate = species_status_by_route.get(route_id, ScientificGateStatus.PASS)
+        thermo_gate = thermo_status_by_route.get(route_id, ScientificGateStatus.SCREENING_ONLY)
+        kinetics_gate = kinetics_status_by_route.get(route_id, ScientificGateStatus.SCREENING_ONLY)
+        screening_row = screening_by_route.get(route_id)
         major_separation_defined = bool(rough_case.separation_train or profile.primary_separation_train or route.separations)
         hazard_support_gap = any(hazard.severity == "high" for hazard in route.hazards) and evidence_quality < 55.0
         rejection_reasons = list(route.route_rejection_reasons)
+        blocking_scientific_gate = ""
+        if screening_row is not None:
+            rejection_reasons.extend(screening_row.reasons)
+            if screening_row.elimination_stage and not blocking_scientific_gate:
+                blocking_scientific_gate = screening_row.elimination_stage
         if block_reason:
             rejection_reasons.append(block_reason)
         rejection_reasons.extend(profile.critic_flags[:2])
@@ -1505,6 +2315,15 @@ def select_route_architecture(
             rejection_reasons.append("Major separations are not defined for this route.")
         if hazard_support_gap:
             rejection_reasons.append("High-hazard route lacks enough evidence support.")
+        if species_gate == ScientificGateStatus.FAIL:
+            rejection_reasons.append("Species identity gate failed for this route.")
+            blocking_scientific_gate = "species_basis"
+        if thermo_gate == ScientificGateStatus.FAIL:
+            rejection_reasons.append("Thermo admissibility failed for the principal separation.")
+            blocking_scientific_gate = "thermo_basis"
+        if kinetics_gate == ScientificGateStatus.FAIL:
+            rejection_reasons.append("Kinetics admissibility failed for the controlling reaction step.")
+            blocking_scientific_gate = "kinetics_basis"
         score_breakdown = {
             "Economic margin": economic_scores[route_id],
             "Utility intensity": utility_scores[route_id],
@@ -1530,10 +2349,22 @@ def select_route_architecture(
         feasible = (
             block_reason is None
             and reaction_is_balanced(route)
+            and (screening_row is None or screening_row.screening_status != "eliminated")
             and not core_species_blocked
+            and species_gate != ScientificGateStatus.FAIL
+            and thermo_gate != ScientificGateStatus.FAIL
+            and kinetics_gate != ScientificGateStatus.FAIL
             and major_separation_defined
             and not hazard_support_gap
         )
+        design_feasible = (
+            feasible
+            and (screening_row is None or screening_row.screening_status == "retained")
+            and species_gate == ScientificGateStatus.PASS
+            and thermo_gate == ScientificGateStatus.PASS
+            and kinetics_gate == ScientificGateStatus.PASS
+        )
+        screening_feasible = feasible and not design_feasible
         if not feasible:
             total_score = -1.0
         conservative_result = next((item for item in utility_by_route[route_id].scenario_results if item.scenario_name == "conservative"), None)
@@ -1554,6 +2385,8 @@ def select_route_architecture(
                     "evidence_score": f"{route.evidence_score:.2f}",
                     "chemistry_completeness_score": f"{(chemistry_completeness / 100.0):.2f}",
                     "route_origin": route.route_origin,
+                    "scientific_status": "design_feasible" if design_feasible else "screening_feasible" if screening_feasible else "blocked",
+                    "blocking_scientific_gate": blocking_scientific_gate,
                 },
                 rejected_reasons=rejection_reasons,
                 score_breakdown=score_breakdown,
@@ -1564,21 +2397,30 @@ def select_route_architecture(
             )
         )
         if feasible:
-            base_ranking.append((total_score, route_id))
-            conservative_ranking.append((conservative_score, route_id))
-    base_ranking.sort(key=lambda pair: pair[0], reverse=True)
-    conservative_ranking.sort(key=lambda pair: pair[0], reverse=True)
-    if not base_ranking:
+            if design_feasible:
+                design_ranking.append((total_score, route_id))
+                conservative_design_ranking.append((conservative_score, route_id))
+            else:
+                screening_ranking.append((total_score, route_id))
+                conservative_screening_ranking.append((conservative_score, route_id))
+    design_ranking.sort(key=lambda pair: pair[0], reverse=True)
+    screening_ranking.sort(key=lambda pair: pair[0], reverse=True)
+    conservative_design_ranking.sort(key=lambda pair: pair[0], reverse=True)
+    conservative_screening_ranking.sort(key=lambda pair: pair[0], reverse=True)
+    selected_pool = design_ranking if design_ranking else screening_ranking
+    conservative_pool = conservative_design_ranking if conservative_design_ranking else conservative_screening_ranking
+    if not selected_pool:
         raise RuntimeError("No feasible route alternatives remained after decision evaluation.")
-    selected_route_id = base_ranking[0][1]
+    selected_route_id = selected_pool[0][1]
     selected_route = routes_by_id[selected_route_id]
     selected_profile = _route_profile(selected_route, route_families)
     selected_utility = utility_by_route[selected_route_id]
-    conservative_route_id = conservative_ranking[0][1] if conservative_ranking else selected_route_id
+    conservative_route_id = conservative_pool[0][1] if conservative_pool else selected_route_id
     scenario_stability = ScenarioStability.STABLE if conservative_route_id == selected_route_id else ScenarioStability.BORDERLINE
     second_gap = 1.0
-    if len(base_ranking) > 1:
-        second_gap = abs(base_ranking[0][0] - base_ranking[1][0]) / max(abs(base_ranking[0][0]), 1.0)
+    if len(selected_pool) > 1:
+        second_gap = abs(selected_pool[0][0] - selected_pool[1][0]) / max(abs(selected_pool[0][0]), 1.0)
+    selected_status = "design-feasible" if design_ranking and design_ranking[0][1] == selected_route_id else "screening-feasible"
     route_decision = DecisionRecord(
         decision_id="route_selection",
         context="Final route and process architecture selection",
@@ -1587,15 +2429,15 @@ def select_route_architecture(
         selected_candidate_id=selected_route_id,
         selected_summary=(
             f"{selected_route.name} is selected within the `{selected_profile.family_label}` family because it combines the strongest "
-            "margin, residual utility burden, maturity, evidence quality, chemistry completeness, and India deployment fit under the selected recovery architecture."
+            f"margin, residual utility burden, maturity, evidence quality, chemistry completeness, and India deployment fit under the selected recovery architecture while remaining {selected_status}."
         ),
         hard_constraint_results=(
             [f"{profile.route_id}: {profile.india_deployment_blocker}" for profile in route_families.profiles if profile.india_deployment_blocker]
-            + ["Selected route must remain atom-balanced."]
+            + ["Selected route must remain atom-balanced.", "Route selection uses scientific elimination before weighted ranking."]
         ),
-        confidence=0.88 if scenario_stability == ScenarioStability.STABLE else 0.69,
+        confidence=0.90 if selected_status == "design-feasible" and scenario_stability == ScenarioStability.STABLE else 0.72 if selected_status == "design-feasible" else 0.60,
         scenario_stability=scenario_stability,
-        approval_required=True,
+        approval_required=selected_status != "design-feasible" or second_gap < 0.05,
         citations=selected_route.citations + selected_utility.citations,
         assumptions=selected_route.assumptions + selected_utility.assumptions,
     )
@@ -1605,7 +2447,7 @@ def select_route_architecture(
         justification=(
             f"{selected_route.name} is selected because the `{selected_profile.family_label}` route family stays economically competitive after "
             f"the chosen heat-integration case `{selected_heat_case_obj.case_id if selected_heat_case_obj else 'none'}`, while retaining credible "
-            "industrial maturity and India fit."
+            f"industrial maturity and India fit. Scientific status: {selected_status}."
         ),
         comparison_markdown=(
             "| Route | Family | Total score | Residual hot utility (kW) | Heat case | Scenario stability |\n"

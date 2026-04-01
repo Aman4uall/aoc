@@ -43,6 +43,16 @@ def classify_route_family(route: RouteOption, adapter: ChemistryFamilyAdapter | 
     text = _route_text(route)
     phases = _phases(route)
     descriptors = [item.lower().replace(" ", "_") for item in route.separations]
+    is_quaternization_train = any(
+        token in text
+        for token in {
+            "quaternization",
+            "quaternary ammonium",
+            "benzalkonium",
+            "benzyl chloride",
+            "alkyldimethylamine",
+        }
+    )
 
     family_id = "generic_mixed_train"
     family_label = "Generic Mixed Train"
@@ -59,7 +69,30 @@ def classify_route_family(route: RouteOption, adapter: ChemistryFamilyAdapter | 
     critic_flags: list[str] = []
     india_blocker = ""
 
-    if "chlor" in text:
+    if is_quaternization_train:
+        family_id = "quaternization_liquid_train"
+        family_label = "Quaternization Liquid Train"
+        dominant_phase_pattern = "liquid_reactive"
+        primary_reactor_class = "Jacketed liquid-phase quaternization reactor"
+        primary_separation_train = "Reaction hold -> solvent/alcohol recovery -> dilution/polishing"
+        heat_recovery_style = "staged_utility_header_network"
+        maturity_score = 83.0
+        india_fit_score = 74.0
+        utility_factor = 0.98
+        capex_factor = 1.02
+        operability_score = 72.0
+        data_anchor_requirements = [
+            "liquid_density",
+            "liquid_viscosity",
+            "reaction_exotherm_basis",
+            "quaternary_salt_solution_handling_basis",
+        ]
+        critic_flags = [
+            "reaction_exotherm_control",
+            "amine_feed_quality_window",
+            "colored_impurity_control",
+        ]
+    elif "chlor" in text:
         family_id = "chlorinated_hydrolysis_train"
         family_label = "Chlorinated Hydrolysis Train"
         dominant_phase_pattern = "liquid_salt_slurry"

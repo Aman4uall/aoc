@@ -70,6 +70,46 @@ def _selected_location_datum(site: SiteSelectionArtifact):
     return site.india_location_data[0] if site.india_location_data else None
 
 
+def _component_molecular_weight_lookup(stream_table: StreamTable) -> dict[str, float]:
+    lookup: dict[str, float] = {}
+    for stream in stream_table.streams:
+        for component in stream.components:
+            if component.molar_flow_kmol_hr > 1e-12:
+                lookup.setdefault(component.name, component.mass_flow_kg_hr / component.molar_flow_kmol_hr)
+    return lookup
+
+
+def _fresh_makeup_mass_kg_hr(stream_table: StreamTable) -> float:
+    explicit_feed_mass = sum(
+        component.mass_flow_kg_hr
+        for stream in stream_table.streams
+        if stream.stream_role == "feed"
+        for component in stream.components
+    )
+    if explicit_feed_mass > 0.0:
+        return explicit_feed_mass
+    if not stream_table.recycle_packets:
+        return 0.0
+    molecular_weights = _component_molecular_weight_lookup(stream_table)
+    loop_components: set[str] = set()
+    loop_fresh_mass = 0.0
+    for packet in stream_table.recycle_packets:
+        for component_name, fresh_kmol_hr in packet.component_fresh_kmol_hr.items():
+            mw = molecular_weights.get(component_name, 0.0)
+            if mw <= 0.0:
+                continue
+            loop_components.add(component_name)
+            loop_fresh_mass += fresh_kmol_hr * mw
+    non_loop_feed_mass = sum(
+        component.mass_flow_kg_hr
+        for stream in stream_table.streams
+        if stream.stream_role == "feed"
+        for component in stream.components
+        if component.name not in loop_components
+    )
+    return loop_fresh_mass + non_loop_feed_mass
+
+
 def _blueprint_metrics(flowsheet_blueprint: FlowsheetBlueprintArtifact | None) -> tuple[int, int, int, bool]:
     if flowsheet_blueprint is None:
         return 0, 0, 0, False
@@ -1759,12 +1799,14 @@ def build_cost_model_v2(
         citations,
         assumptions,
     )
-    feed_mass = sum(
-        component.mass_flow_kg_hr
-        for stream in stream_table.streams
-        if stream.stream_role == "feed"
-        for component in stream.components
-    ) * annual_hours
+    feed_mass = _fresh_makeup_mass_kg_hr(stream_table) * annual_hours
+    if feed_mass <= 0.0:
+        feed_mass = sum(
+            component.mass_flow_kg_hr
+            for stream in stream_table.streams
+            if stream.stream_role == "feed"
+            for component in stream.components
+        ) * annual_hours
     if feed_mass <= 0.0:
         feed_mass = sum(
             component.mass_flow_kg_hr

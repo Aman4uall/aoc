@@ -28,7 +28,7 @@ from aoc.properties.models import (
     SolubilityCurve,
 )
 from aoc.properties.requirements import requirement_failures_for_stage
-from aoc.properties.vle import build_separation_thermo_artifact, component_k_value
+from aoc.properties.vle import build_section_separation_thermo_artifact, build_separation_thermo_artifact, component_k_value
 
 __all__ = [
     "ChemicalIdentifier",
@@ -54,6 +54,7 @@ __all__ = [
     "build_property_method_decision",
     "build_property_package_artifact",
     "build_property_requirement_artifact",
+    "build_section_separation_thermo_artifact",
     "build_separation_thermo_artifact",
     "component_k_value",
     "mixture_property_for_unit",

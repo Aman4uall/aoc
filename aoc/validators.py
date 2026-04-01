@@ -2,10 +2,18 @@ from __future__ import annotations
 
 from aoc.calculators import operating_hours_per_year, reaction_balance_delta, reaction_is_balanced
 from aoc.models import (
+    BACImpurityModelArtifact,
+    BACPurificationSectionArtifact,
     BenchmarkManifest,
     ChemistryFamilyAdapter,
+    ChemistryDecisionArtifact,
     ChapterArtifact,
+    ClaimGraphArtifact,
+    ClaimStatus,
+    DesignConfidenceArtifact,
     DocumentFactCollectionArtifact,
+    EconomicCoverageDecision,
+    FlowsheetIntentArtifact,
     ReportAcceptanceArtifact,
     ReportAcceptanceStatus,
     ReportParityArtifact,
@@ -27,6 +35,7 @@ from aoc.models import (
     IndianLocationDatum,
     IndianPriceDatum,
     KineticAssessmentArtifact,
+    KineticsAdmissibilityArtifact,
     MechanicalDesignArtifact,
     MethodSelectionArtifact,
     OperationsPlanningArtifact,
@@ -37,25 +46,37 @@ from aoc.models import (
     ProjectConfig,
     ProjectRunState,
     PropertyRecord,
+    ReactionNetworkV2Artifact,
     ReactionSystem,
     ReactorDesign,
     ResearchBundle,
     ResolvedSourceSet,
     ResolvedValueArtifact,
+    RevisionLedgerArtifact,
+    CommercialProductBasisArtifact,
+    RouteDiscoveryArtifact,
     RouteFamilyArtifact,
     RouteChemistryArtifact,
     RouteEconomicBasisArtifact,
+    RouteProcessClaimsArtifact,
+    RouteScreeningArtifact,
     RouteSiteFitArtifact,
     RouteSelectionComparisonArtifact,
     RouteSelectionArtifact,
+    ScientificGateMatrixArtifact,
+    ScientificGateStatus,
     SiteSelectionArtifact,
     ScenarioStability,
     Severity,
     SparseDataPolicyArtifact,
+    SpeciesResolutionArtifact,
     SourceDomain,
     SourceRecord,
     StreamTable,
     ThermoAssessmentArtifact,
+    ThermoAdmissibilityArtifact,
+    TopologyCandidateArtifact,
+    UnitTrainConsistencyArtifact,
     UnitTrainCandidateSet,
     UnitOperationFamilyArtifact,
     UtilitySummaryArtifact,
@@ -64,6 +85,7 @@ from aoc.models import (
     ValidationIssue,
     WorkingCapitalModel,
     SensitivityLevel,
+    InferenceQuestionQueueArtifact,
 )
 from aoc.properties import active_identifier_ids_for_route, requirement_failures_for_stage
 from aoc.properties.models import MixturePropertyArtifact, PropertyMethodDecision, PropertyPackageArtifact, PropertyRequirementSet, SeparationThermoArtifact
@@ -2636,6 +2658,113 @@ def validate_route_chemistry_artifact(artifact: RouteChemistryArtifact) -> list[
     return issues
 
 
+def validate_route_discovery_artifact(artifact: RouteDiscoveryArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    route_ids = [row.route_id for row in artifact.rows]
+    if len(route_ids) != len(set(route_ids)):
+        issues.append(
+            ValidationIssue(
+                code="duplicate_route_discovery_rows",
+                severity=Severity.BLOCKED,
+                message="Route discovery artifact contains duplicate route ids.",
+                artifact_ref="route_discovery",
+            )
+        )
+    if not artifact.rows:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_discovery_rows",
+                severity=Severity.BLOCKED,
+                message="Route discovery artifact is empty.",
+                artifact_ref="route_discovery",
+            )
+        )
+    return issues
+
+
+def validate_route_screening_artifact(artifact: RouteScreeningArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    route_ids = [row.route_id for row in artifact.rows]
+    if len(route_ids) != len(set(route_ids)):
+        issues.append(
+            ValidationIssue(
+                code="duplicate_route_screening_rows",
+                severity=Severity.BLOCKED,
+                message="Route screening artifact contains duplicate route ids.",
+                artifact_ref="route_screening",
+            )
+        )
+    retained = set(artifact.retained_route_ids)
+    eliminated = set(artifact.eliminated_route_ids)
+    if retained & eliminated:
+        issues.append(
+            ValidationIssue(
+                code="route_screening_conflicting_status",
+                severity=Severity.BLOCKED,
+                message="A route cannot be both retained and eliminated in route screening.",
+                artifact_ref="route_screening",
+            )
+        )
+    if not retained:
+        issues.append(
+            ValidationIssue(
+                code="route_screening_no_retained_routes",
+                severity=Severity.BLOCKED,
+                message="Route screening eliminated every route before final selection.",
+                artifact_ref="route_screening",
+            )
+        )
+    return issues
+
+
+def validate_route_process_claims_artifact(artifact: RouteProcessClaimsArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.claims:
+        issues.append(
+            ValidationIssue(
+                code="missing_route_process_claims",
+                severity=Severity.BLOCKED,
+                message="No route process claims were generated for process screening.",
+                artifact_ref="route_process_claims",
+            )
+        )
+        return issues
+    keys = [(claim.route_id, claim.claim_type) for claim in artifact.claims]
+    if len(keys) != len(set(keys)):
+        issues.append(
+            ValidationIssue(
+                code="duplicate_route_process_claims",
+                severity=Severity.BLOCKED,
+                message="Route process claims contain duplicate route/claim-type pairs.",
+                artifact_ref="route_process_claims",
+            )
+        )
+    return issues
+
+
+def validate_chemistry_decision_artifact(artifact: ChemistryDecisionArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.selected_route_id:
+        issues.append(
+            ValidationIssue(
+                code="missing_chemistry_decision_route",
+                severity=Severity.BLOCKED,
+                message="Chemistry decision artifact must identify the selected route.",
+                artifact_ref="chemistry_decision",
+            )
+        )
+    if artifact.chemistry_basis_status == "blocked":
+        issues.append(
+            ValidationIssue(
+                code="chemistry_decision_blocked",
+                severity=Severity.BLOCKED,
+                message="Selected route chemistry is still blocked.",
+                artifact_ref="chemistry_decision",
+            )
+        )
+    return issues
+
+
 def validate_property_demand_plan(plan: PropertyDemandPlan) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     if not plan.items:
@@ -2657,6 +2786,363 @@ def validate_property_demand_plan(plan: PropertyDemandPlan) -> list[ValidationIs
                 artifact_ref="property_demand_plan",
             )
         )
+    return issues
+
+
+def validate_species_resolution_artifact(artifact: SpeciesResolutionArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.routes:
+        issues.append(
+            ValidationIssue(
+                code="missing_species_resolution_routes",
+                severity=Severity.BLOCKED,
+                message="Species-resolution artifact is empty.",
+                artifact_ref="species_resolution",
+            )
+        )
+        return issues
+    for route in artifact.routes:
+        if route.invalid_core_species_names:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_core_species_detected",
+                    severity=Severity.BLOCKED,
+                    message=f"Route '{route.route_id}' has invalid core species: {', '.join(route.invalid_core_species_names[:6])}.",
+                    artifact_ref="species_resolution",
+                    source_refs=route.citations,
+                )
+            )
+    return issues
+
+
+def validate_reaction_network_v2_artifact(artifact: ReactionNetworkV2Artifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.routes:
+        issues.append(
+            ValidationIssue(
+                code="missing_reaction_network_routes",
+                severity=Severity.BLOCKED,
+                message="Reaction-network v2 artifact is empty.",
+                artifact_ref="reaction_network_v2",
+            )
+        )
+        return issues
+    for route in artifact.routes:
+        if route.step_count <= 0:
+            issues.append(
+                ValidationIssue(
+                    code="missing_reaction_steps_v2",
+                    severity=Severity.BLOCKED,
+                    message=f"Route '{route.route_id}' has no reaction steps in reaction-network v2.",
+                    artifact_ref="reaction_network_v2",
+                    source_refs=route.citations,
+                )
+            )
+    return issues
+
+
+def validate_thermo_admissibility_artifact(artifact: ThermoAdmissibilityArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.sections:
+        issues.append(
+            ValidationIssue(
+                code="missing_thermo_admissibility_sections",
+                severity=Severity.BLOCKED,
+                message="Thermo-admissibility artifact contains no section evaluations.",
+                artifact_ref="thermo_admissibility",
+            )
+        )
+        return issues
+    if artifact.selected_route_id and artifact.selected_route_status == ScientificGateStatus.FAIL:
+        issues.append(
+            ValidationIssue(
+                code="selected_route_thermo_inadmissible",
+                severity=Severity.BLOCKED,
+                message=f"Selected route '{artifact.selected_route_id}' failed thermodynamic admissibility.",
+                artifact_ref="thermo_admissibility",
+                source_refs=artifact.citations,
+            )
+        )
+    return issues
+
+
+def validate_kinetics_admissibility_artifact(artifact: KineticsAdmissibilityArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.steps:
+        issues.append(
+            ValidationIssue(
+                code="missing_kinetics_admissibility_steps",
+                severity=Severity.BLOCKED,
+                message="Kinetics-admissibility artifact contains no reaction-step evaluations.",
+                artifact_ref="kinetics_admissibility",
+            )
+        )
+        return issues
+    if artifact.selected_route_id and artifact.selected_route_status == ScientificGateStatus.FAIL:
+        issues.append(
+            ValidationIssue(
+                code="selected_route_kinetics_inadmissible",
+                severity=Severity.BLOCKED,
+                message=f"Selected route '{artifact.selected_route_id}' failed kinetics admissibility.",
+                artifact_ref="kinetics_admissibility",
+                source_refs=artifact.citations,
+            )
+        )
+    return issues
+
+
+def validate_flowsheet_intent_artifact(artifact: FlowsheetIntentArtifact) -> list[ValidationIssue]:
+    if artifact.intents:
+        return []
+    return [
+        ValidationIssue(
+            code="missing_flowsheet_intents",
+            severity=Severity.BLOCKED,
+            message="Flowsheet-intent artifact has no synthesized intents.",
+            artifact_ref="flowsheet_intents",
+            source_refs=artifact.citations,
+        )
+    ]
+
+
+def validate_topology_candidate_artifact(artifact: TopologyCandidateArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.candidates:
+        issues.append(
+            ValidationIssue(
+                code="missing_topology_candidates",
+                severity=Severity.BLOCKED,
+                message="Topology-candidate artifact is empty.",
+                artifact_ref="topology_candidates",
+            )
+        )
+        return issues
+    if artifact.selected_route_id:
+        selected = next((item for item in artifact.candidates if item.route_id == artifact.selected_route_id), None)
+        if selected is None:
+            issues.append(
+                ValidationIssue(
+                    code="selected_topology_candidate_missing",
+                    severity=Severity.BLOCKED,
+                    message=f"Selected route '{artifact.selected_route_id}' has no topology candidate row.",
+                    artifact_ref="topology_candidates",
+                )
+            )
+        elif selected.status == ScientificGateStatus.FAIL:
+            issues.append(
+                ValidationIssue(
+                    code="selected_topology_inadmissible",
+                    severity=Severity.BLOCKED,
+                    message=f"Selected route '{artifact.selected_route_id}' has no admissible topology candidate.",
+                    artifact_ref="topology_candidates",
+                    source_refs=selected.citations,
+                )
+            )
+    return issues
+
+
+def validate_commercial_product_basis_artifact(artifact: CommercialProductBasisArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if artifact.sold_solution_basis_kg_hr <= 0.0 or artifact.active_basis_kg_hr <= 0.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_commercial_product_basis_flow",
+                severity=Severity.BLOCKED,
+                message="Commercial product basis must carry positive sold-solution and active-basis throughput.",
+                artifact_ref="commercial_product_basis",
+            )
+        )
+    if not 0.0 < artifact.active_fraction <= 1.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_commercial_active_fraction",
+                severity=Severity.BLOCKED,
+                message="Commercial product basis active fraction must lie between zero and one.",
+                artifact_ref="commercial_product_basis",
+            )
+        )
+    if artifact.sold_solution_price_inr_per_kg <= 0.0 or artifact.active_price_inr_per_kg <= 0.0:
+        issues.append(
+            ValidationIssue(
+                code="invalid_commercial_price_basis",
+                severity=Severity.BLOCKED,
+                message="Commercial product basis must include positive sold-solution and active-normalized prices.",
+                artifact_ref="commercial_product_basis",
+            )
+        )
+    return issues
+
+
+def validate_bac_impurity_model_artifact(artifact: BACImpurityModelArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.items:
+        issues.append(
+            ValidationIssue(
+                code="missing_bac_impurity_model",
+                severity=Severity.WARNING,
+                message="BAC impurity model was not generated.",
+                artifact_ref="bac_impurity_model",
+            )
+        )
+        return issues
+    if artifact.unresolved_impurity_ids:
+        issues.append(
+            ValidationIssue(
+                code="unresolved_bac_impurity_classes",
+                severity=Severity.WARNING,
+                message="BAC impurity model still has unresolved impurity classes: " + ", ".join(artifact.unresolved_impurity_ids) + ".",
+                artifact_ref="bac_impurity_model",
+            )
+        )
+    return issues
+
+
+def validate_bac_purification_section_artifact(artifact: BACPurificationSectionArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.sections:
+        issues.append(
+            ValidationIssue(
+                code="missing_bac_purification_sections",
+                severity=Severity.WARNING,
+                message="BAC purification-section artifact was not generated.",
+                artifact_ref="bac_purification_sections",
+            )
+        )
+        return issues
+    if artifact.unresolved_section_ids:
+        issues.append(
+            ValidationIssue(
+                code="unresolved_bac_purification_sections",
+                severity=Severity.WARNING,
+                message="BAC purification sections remain unresolved: " + ", ".join(artifact.unresolved_section_ids) + ".",
+                artifact_ref="bac_purification_sections",
+            )
+        )
+    return issues
+
+
+def validate_unit_train_consistency_artifact(artifact: UnitTrainConsistencyArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.rows:
+        issues.append(
+            ValidationIssue(
+                code="missing_unit_train_consistency_rows",
+                severity=Severity.WARNING,
+                message="Unit-train consistency artifact has no comparison rows.",
+                artifact_ref="unit_train_consistency",
+            )
+        )
+        return issues
+    for row in artifact.rows:
+        if row.status == "blocked":
+            issues.append(
+                ValidationIssue(
+                    code="unit_train_consistency_blocked",
+                    severity=Severity.BLOCKED,
+                    message=f"Artifact '{row.artifact_ref}' diverges from the selected unit train.",
+                    artifact_ref="unit_train_consistency",
+                    source_refs=[row.artifact_ref],
+                )
+            )
+    return issues
+
+
+def validate_design_confidence_artifact(artifact: DesignConfidenceArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if artifact.blocked_unit_ids:
+        issues.append(
+            ValidationIssue(
+                code="blocked_unit_design_confidence",
+                severity=Severity.BLOCKED,
+                message="Major unit design remains blocked for: " + ", ".join(artifact.blocked_unit_ids[:8]) + ".",
+                artifact_ref="design_confidence",
+            )
+        )
+    return issues
+
+
+def validate_economic_coverage_decision(artifact: EconomicCoverageDecision) -> list[ValidationIssue]:
+    if artifact.status != "blocked":
+        return []
+    return [
+        ValidationIssue(
+            code="economic_coverage_blocked",
+            severity=Severity.BLOCKED,
+            message="Economic coverage is blocked: " + (", ".join(artifact.missing_basis) or artifact.rationale),
+            artifact_ref="economic_coverage",
+            source_refs=artifact.citations,
+        )
+    ]
+
+
+def validate_claim_graph_artifact(artifact: ClaimGraphArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if not artifact.claims:
+        issues.append(
+            ValidationIssue(
+                code="missing_scientific_claims",
+                severity=Severity.WARNING,
+                message="Claim graph is empty.",
+                artifact_ref="claim_graph",
+            )
+        )
+        return issues
+    for claim in artifact.claims:
+        if claim.status == ClaimStatus.BLOCKED and claim.blocking:
+            issues.append(
+                ValidationIssue(
+                    code="blocked_scientific_claim",
+                    severity=Severity.BLOCKED,
+                    message=f"Scientific claim '{claim.claim_id}' is blocked.",
+                    artifact_ref="claim_graph",
+                    source_refs=claim.citations,
+                )
+            )
+    return issues
+
+
+def validate_inference_question_queue(artifact: InferenceQuestionQueueArtifact) -> list[ValidationIssue]:
+    if artifact.active_questions:
+        return []
+    return [
+        ValidationIssue(
+            code="missing_inference_questions",
+            severity=Severity.WARNING,
+            message="No active inference questions were generated.",
+            artifact_ref="inference_question_queue",
+        )
+    ]
+
+
+def validate_revision_ledger_artifact(artifact: RevisionLedgerArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    for ticket in artifact.tickets:
+        if ticket.status == "skipped":
+            issues.append(
+                ValidationIssue(
+                    code="revision_budget_exhausted",
+                    severity=Severity.BLOCKED,
+                    message=f"Revision budget exhausted for target stage '{ticket.target_stage_id}'.",
+                    artifact_ref="revision_ledger",
+                    source_refs=ticket.citations,
+                )
+            )
+    return issues
+
+
+def validate_scientific_gate_matrix(artifact: ScientificGateMatrixArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    for entry in artifact.entries:
+        if entry.status == ScientificGateStatus.FAIL:
+            issues.append(
+                ValidationIssue(
+                    code=f"{entry.gate_id}_failed",
+                    severity=Severity.BLOCKED,
+                    message=f"Scientific gate '{entry.gate_id}' failed.",
+                    artifact_ref="scientific_gate_matrix",
+                    source_refs=entry.citations,
+                )
+            )
     return issues
 
 

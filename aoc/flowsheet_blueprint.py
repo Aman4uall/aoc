@@ -44,6 +44,13 @@ def _take_tag(pools: dict[str, list[str]], *types: str) -> str:
 
 def _primary_separation_family(route: RouteOption, profile) -> str:
     text = " ".join(route.separations + [profile.primary_separation_train if profile is not None else ""]).lower()
+    if profile is not None and profile.route_family_id == "quaternization_liquid_train":
+        if "extract" in text:
+            return "extraction"
+        if any(token in text for token in ("recovery", "strip", "vacuum", "polish", "trim", "blend", "distill", "column")):
+            return "distillation"
+        if "flash" in text or "phase split" in text:
+            return "flash"
     if "absor" in text or "strip" in text:
         return "absorption"
     if "extract" in text:
@@ -217,6 +224,36 @@ def _build_blueprint_for_route(
             assumptions=route.assumptions,
         )
     )
+
+    if profile is not None and profile.route_family_id == "quaternization_liquid_train":
+        _append_step(
+            steps,
+            route,
+            "concentration",
+            "Concentration",
+            "concentration",
+            "concentration",
+            "concentration",
+            "evaporation",
+            "Volatile cleanup and concentration",
+            unit_tag=_take_tag(pools, "evaporator", "distillation_column_or_condenser", "separator"),
+            separation_basis_ref="concentration and volatile cleanup",
+            phase_basis="solvent and light-end trim",
+            notes=["BAC liquid-quaternization trains retain an explicit concentration / volatile-cleanup step before final purification and blending."],
+        )
+        duties.append(
+            SeparationDutyItem(
+                duty_id=f"{route.route_id}_concentration",
+                route_id=route.route_id,
+                step_id="concentration",
+                separation_family="evaporation",
+                driving_force="volatility and concentration",
+                key_species=["Ethanol", "Water", "Benzyl chloride"],
+                basis="BAC solvent/light-end concentration prior to final purification.",
+                citations=route.citations,
+                assumptions=route.assumptions,
+            )
+        )
 
     if separation_family in {"distillation", "evaporation", "absorption", "extraction"}:
         _append_step(

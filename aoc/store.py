@@ -73,3 +73,8 @@ class ArtifactStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(data, indent=2), encoding="utf-8")
         return path
+
+    def delete_path(self, project_id: str, relative_path: str) -> None:
+        path = self.project_dir(project_id) / relative_path
+        if path.exists():
+            path.unlink()

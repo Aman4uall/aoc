@@ -15,6 +15,7 @@ from aoc.models import (
     UnitOperationFamilyArtifact,
     UtilitySummaryArtifact,
 )
+from aoc.route_families import RouteFamilyArtifact, profile_for_route
 
 
 def _adapter_bonus(candidate_id: str, preferred_ids: list[str] | None, magnitude: float) -> float:
@@ -75,14 +76,34 @@ def _apply_unit_family_basis(
             candidate.rejected_reasons = list(dict.fromkeys([*candidate.rejected_reasons, *(critic_flags[:2] or ["Unit-operation family screening blocked this candidate for the selected route."])]))
 
 
+def _route_family_id(
+    route: RouteOption,
+    unit_family: UnitOperationFamilyArtifact | None,
+    route_families: RouteFamilyArtifact | None = None,
+) -> str:
+    if unit_family is not None and unit_family.route_family_id:
+        return unit_family.route_family_id
+    profile = profile_for_route(route_families, route.route_id) if route_families is not None else None
+    if profile is not None:
+        return profile.route_family_id
+    text = f"{route.route_id} {route.name} {' '.join(route.separations)}".lower()
+    if "quaternization" in text or "benzalkonium" in text:
+        return "quaternization_liquid_train"
+    if "hydration" in text:
+        return "liquid_hydration_train"
+    return ""
+
+
 def select_reactor_configuration(
     route: RouteOption,
     archetype: ProcessArchetype | None,
     adapter: ChemistryFamilyAdapter | None = None,
     unit_family: UnitOperationFamilyArtifact | None = None,
+    route_families: RouteFamilyArtifact | None = None,
 ) -> DecisionRecord:
     compound_family = archetype.compound_family if archetype else "organic"
     separation_family = archetype.dominant_separation_family if archetype else "distillation"
+    route_family_id = _route_family_id(route, unit_family, route_families)
     candidates = [
         AlternativeOption(
             candidate_id="tubular_plug_flow_hydrator",
@@ -155,6 +176,21 @@ def select_reactor_configuration(
             assumptions=route.assumptions,
         ),
     ]
+    if route_family_id == "quaternization_liquid_train":
+        for candidate in candidates:
+            if candidate.candidate_id == "jacketed_cstr_train":
+                candidate.total_score = 96.0
+                candidate.description = "Jacketed liquid quaternization reactor train"
+                candidate.score_breakdown = {"heat_management": 94.0, "selectivity": 90.0, "operability": 96.0}
+                candidate.feasible = True
+            elif candidate.candidate_id == "tubular_plug_flow_hydrator":
+                candidate.total_score = 24.0
+                candidate.feasible = False
+                candidate.rejected_reasons = list(dict.fromkeys([*candidate.rejected_reasons, "Tubular hydrator geometry is not aligned with liquid-phase BAC quaternization service."]))
+            elif candidate.candidate_id in {"fixed_bed_converter", "high_pressure_carbonylation_loop", "trickle_bed_oxidizer", "slurry_loop_reactor", "slurry_carboxylation_reactor"}:
+                candidate.total_score = min(candidate.total_score, 28.0)
+                candidate.feasible = False
+                candidate.rejected_reasons = list(dict.fromkeys([*candidate.rejected_reasons, "Selected route family requires an agitated liquid reactor train."]))
     for candidate in candidates:
         candidate.total_score = round(candidate.total_score + _adapter_bonus(candidate.candidate_id, adapter.preferred_reactor_candidates if adapter else None, 10.0), 3)
     _apply_unit_family_basis(candidates, unit_family, "reactor")
@@ -169,7 +205,7 @@ def select_reactor_configuration(
         ],
         candidates,
         route.citations,
-        route.assumptions + ["Reactor selector scored alternatives from route type, process archetype, chemistry-family adapter preferences, and unit-operation family screening."],
+        route.assumptions + [f"Reactor selector scored alternatives from route type, process archetype, route family `{route_family_id or 'unclassified'}`, chemistry-family adapter preferences, and unit-operation family screening."],
     )
 
 

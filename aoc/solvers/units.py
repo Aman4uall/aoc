@@ -54,6 +54,19 @@ def _product_stream_id(stream_table: StreamTable) -> str:
     return "S-401"
 
 
+def _is_liquid_quaternization_route(route: RouteOption) -> bool:
+    text = " ".join(
+        [
+            route.route_id,
+            route.name,
+            route.reaction_equation,
+            *route.separations,
+            *route.reaction_family_hints,
+        ]
+    ).lower()
+    return "quaternization" in text or "benzalkonium" in text
+
+
 def _unit_operation_packet(
     stream_table: StreamTable,
     *,
@@ -82,6 +95,50 @@ def _separation_packets(
         if families and packet.separation_family in families:
             matches.append(packet)
     return matches
+
+
+def _governing_equilibrium_packet(equilibrium_packets: list[SeparationPacket]) -> SeparationPacket | None:
+    priority = {"purification": 0, "concentration": 1, "regeneration": 2, "primary_separation": 3, "primary_flash": 4}
+    ranked = sorted(
+        equilibrium_packets,
+        key=lambda packet: (
+            priority.get(packet.unit_id, 9),
+            0 if packet.activity_model else 1,
+            0 if packet.average_relative_volatility > 1.0 else 1,
+            -(packet.recycle_mass_fraction + packet.waste_mass_fraction),
+        ),
+    )
+    return ranked[0] if ranked else None
+
+
+def _equilibrium_burden_factor(equilibrium_packets: list[SeparationPacket], governing_packet: SeparationPacket | None) -> tuple[float, float]:
+    if not equilibrium_packets:
+        return 1.0, 1.0
+    spread_terms = []
+    model_penalty = 0.0
+    split_penalty = 0.0
+    for packet in equilibrium_packets:
+        top_alpha = max(packet.top_relative_volatility, 1.01)
+        bottom_alpha = max(packet.bottom_relative_volatility, 1.01)
+        spread_terms.append(abs(math.log(top_alpha / max(bottom_alpha, 1.01))))
+        split_penalty += packet.recycle_mass_fraction * 0.18 + packet.waste_mass_fraction * 0.12
+        if "family_estimated" in packet.activity_model:
+            model_penalty += 0.10
+        elif "nrtl" in packet.activity_model:
+            model_penalty += 0.06
+        elif packet.equilibrium_fallback:
+            model_penalty += 0.02
+    governing_penalty = 0.0
+    if governing_packet is not None:
+        governing_penalty += governing_packet.recycle_mass_fraction * 0.12 + governing_packet.waste_mass_fraction * 0.10
+        if "family_estimated" in governing_packet.activity_model:
+            governing_penalty += 0.10
+        elif "nrtl" in governing_packet.activity_model:
+            governing_penalty += 0.05
+    avg_spread = sum(spread_terms) / max(len(spread_terms), 1)
+    reflux_factor = min(max(1.0 + 0.10 * avg_spread + model_penalty / max(len(equilibrium_packets), 1) + governing_penalty, 1.0), 1.55)
+    duty_factor = min(max(1.0 + 0.14 * avg_spread + split_penalty / max(len(equilibrium_packets), 1) + governing_penalty, 1.0), 1.75)
+    return reflux_factor, duty_factor
 
 
 def _thermal_packet(
@@ -520,6 +577,7 @@ def build_reactor_design_generic(
     kinetics: KineticAssessmentArtifact | None = None,
 ) -> ReactorDesign:
     reactor_type = reactor_choice.selected_candidate_id if reactor_choice and reactor_choice.selected_candidate_id else "jacketed_cstr"
+    sizing_assumptions: list[str] = []
     reactor_packet = _unit_operation_packet(stream_table, unit_ids=("reactor",), unit_types=("reactor",))
     reactor_state = composition_state_for_unit(stream_table.composition_states, unit_ids=("reactor",), unit_types=("reactor",))
     feed_mass = reactor_packet.inlet_mass_flow_kg_hr if reactor_packet is not None else _feed_mass(stream_table)
@@ -533,6 +591,7 @@ def build_reactor_design_generic(
     reactor_temperature_k = max(route.operating_temperature_c + 273.15, 250.0)
     kinetic_rate_constant = 0.0
     kinetic_space_time = route.residence_time_hr
+    kinetic_trace_note = "Stage 3 reactor design now ties residence time to the selected kinetic basis instead of only a fixed route heuristic."
     if kinetics is not None:
         kinetic_rate_constant = min(
             max(
@@ -551,6 +610,17 @@ def build_reactor_design_generic(
                 0.05,
             )
         kinetic_space_time = max(kinetic_space_time, kinetics.design_residence_time_hr * 0.60)
+    if _is_liquid_quaternization_route(route) and any(token in reactor_type for token in ("cstr", "jacketed", "stirred")):
+        practical_cap_hr = max(route.residence_time_hr * 2.5, 4.0)
+        if kinetic_space_time > practical_cap_hr:
+            kinetic_space_time = practical_cap_hr
+            kinetic_trace_note = (
+                f"Liquid quaternization reactor sizing is capped at {practical_cap_hr:.2f} h to preserve a practical "
+                "continuous agitated-reactor envelope when kinetic extrapolation materially exceeds the route basis."
+            )
+            sizing_assumptions.append(
+                "Continuous liquid quaternization reactor sizing is capped to a practical residence-time envelope when first-order kinetic extrapolation materially exceeds the route basis."
+            )
     residence_time = max(route.residence_time_hr, kinetic_space_time, reaction_system.excess_ratio * 0.03)
     if "fixed_bed" in reactor_type or "converter" in reactor_type:
         liquid_holdup_m3 = volumetric_flow_m3_hr * residence_time * 0.65
@@ -702,7 +772,7 @@ def build_reactor_design_generic(
             },
             result=f"{residence_time:.3f}",
             units="h",
-            notes="Stage 3 reactor design now ties residence time to the selected kinetic basis instead of only a fixed route heuristic.",
+            notes=kinetic_trace_note,
         ),
         CalcTrace(trace_id="reactor_reynolds", title="Reactor-side Reynolds number", formula="Re = rho * v * Dh / mu", substitutions={"rho": f"{density:.1f}", "v": f"{velocity_m_s:.3f}", "Dh": f"{hydraulic_diameter_m:.3f}", "mu": f"{viscosity_pa_s:.5f}"}, result=f"{reynolds:.1f}", units="-"),
         CalcTrace(trace_id="reactor_nusselt", title="Reactor-side Nusselt number", formula="Nu = 0.023 Re^0.8 Pr^0.4", substitutions={"Re": f"{reynolds:.1f}", "Pr": f"{prandtl:.2f}"}, result=f"{nusselt:.2f}", units="-"),
@@ -866,7 +936,12 @@ def build_reactor_design_generic(
             ),
         ],
         citations=sorted(set(route.citations + reaction_system.citations + energy_balance.citations + (reactor_choice.citations if reactor_choice else []) + (kinetics.citations if kinetics is not None else []))),
-        assumptions=route.assumptions + reaction_system.assumptions + energy_balance.assumptions + (reactor_choice.assumptions if reactor_choice else []) + (kinetics.assumptions if kinetics is not None else []),
+        assumptions=route.assumptions
+        + reaction_system.assumptions
+        + energy_balance.assumptions
+        + (reactor_choice.assumptions if reactor_choice else [])
+        + (kinetics.assumptions if kinetics is not None else [])
+        + sizing_assumptions,
     )
 
 
@@ -918,6 +993,7 @@ def build_column_design_generic(
             if packet.equilibrium_model in {"henry_law", "heuristic_gle_fallback", "solubility_curve", "heuristic_sle_fallback"}
             or packet.separation_family in {"absorption", "stripping", "crystallization", "filtration", "drying", "extraction"}
         ]
+    governing_packet = _governing_equilibrium_packet(equilibrium_packets)
     process_state = composition_state_for_unit(
         stream_table.composition_states,
         unit_ids=("purification", "concentration", "regeneration", "filtration", "drying"),
@@ -938,9 +1014,31 @@ def build_column_design_generic(
     )
     target_purity = min(max(basis.target_purity_wt_pct / 100.0, 0.85), 0.999)
     packet_families = {packet.separation_family for packet in equilibrium_packets}
-    is_absorption_family = "absorption" in separation_type or bool(packet_families & {"absorption", "stripping"})
-    is_crystallization_family = ("crystallization" in separation_type or "filtration" in separation_type) or bool(packet_families & {"crystallization", "filtration", "drying"})
-    is_extraction_family = "extraction" in separation_type or "extraction" in packet_families
+    explicit_absorption_family = "absorption" in separation_type
+    explicit_crystallization_family = any(
+        token in separation_type for token in ("crystallization", "crystallizer", "filtration", "dryer", "drying")
+    )
+    explicit_extraction_family = "extraction" in separation_type
+    explicit_distillation_family = any(
+        token in separation_type for token in ("distill", "fraction", "column", "rectif", "strip")
+    )
+    explicit_family_selected = any(
+        (
+            explicit_absorption_family,
+            explicit_crystallization_family,
+            explicit_extraction_family,
+            explicit_distillation_family,
+        )
+    )
+    is_absorption_family = explicit_absorption_family or (
+        not explicit_family_selected and bool(packet_families & {"absorption", "stripping"})
+    )
+    is_crystallization_family = explicit_crystallization_family or (
+        not explicit_family_selected and bool(packet_families & {"crystallization", "filtration", "drying"})
+    )
+    is_extraction_family = explicit_extraction_family or (
+        not explicit_family_selected and "extraction" in packet_families
+    )
     if is_absorption_family:
         service = "Absorption tower train"
         light_key = "Offgas"
@@ -994,6 +1092,15 @@ def build_column_design_generic(
         vle_alpha_top = separation_thermo.relative_volatility.top_alpha
         vle_alpha_bottom = separation_thermo.relative_volatility.bottom_alpha
         vle_method = separation_thermo.relative_volatility.method
+    if governing_packet is not None and governing_packet.average_relative_volatility > 1.0:
+        if governing_packet.light_key:
+            light_key = governing_packet.light_key
+        if governing_packet.heavy_key:
+            heavy_key = governing_packet.heavy_key
+        alpha = governing_packet.average_relative_volatility
+        vle_alpha_top = governing_packet.top_relative_volatility or vle_alpha_top
+        vle_alpha_bottom = governing_packet.bottom_relative_volatility or vle_alpha_bottom
+        vle_method = governing_packet.equilibrium_model or governing_packet.activity_model or vle_method
     process_unit_ids = ("purification", "concentration", "regeneration", "drying", "filtration")
     heating_train_steps, selected_utility_case, utility_island_lookup = _rank_train_steps_for_service(
         utility_architecture,
@@ -1028,12 +1135,18 @@ def build_column_design_generic(
     xB_hk = min(max(target_purity, 0.88), 0.999)
     xD_hk = min(max(1.0 - xD_lk, 0.0015), 0.10)
     q_factor = min(max(1.0 + (process_cp * max(bottom_temp - top_temp, 15.0)) / 2200.0, 0.85), 1.35)
+    reflux_burden_factor, duty_burden_factor = _equilibrium_burden_factor(equilibrium_packets, governing_packet)
     min_stages = _fenske_min_stages(alpha, xD_lk, xB_lk, xD_hk, xB_hk) if alpha > 1.03 else (6.0 if "absorption" in service.lower() else 3.0)
     min_reflux = _underwood_min_reflux_proxy(alpha, q_factor, xD_lk) if "distillation" in service.lower() else (0.16 if "absorption" in service.lower() else 0.08 if "crystallizer" in service.lower() else 0.24)
+    min_reflux *= reflux_burden_factor
     reflux = max(
         min_reflux * (1.32 if "distillation" in service.lower() else 1.20 if "absorption" in service.lower() else 1.12),
         0.12 if "crystallizer" in service.lower() else 0.20,
     )
+    reflux *= min(max(0.96 + 0.18 * reflux_burden_factor, 1.0), 1.45)
+    if "distillation" in service.lower():
+        reboiler *= duty_burden_factor
+        condenser *= min(max(1.0 + (duty_burden_factor - 1.0) * 0.85, 1.0), 1.65)
     theoretical_stages = _gilliland_actual_stages_proxy(min_stages, min_reflux, reflux) if alpha > 1.03 else max(min_stages * 1.18, min_stages + 1.0)
     tray_efficiency = _tray_efficiency_proxy(process_viscosity, alpha, service)
     murphree_efficiency = min(max(tray_efficiency * (0.96 if "distillation" in service.lower() else 0.92), 0.35), 0.88)
@@ -1200,10 +1313,10 @@ def build_column_design_generic(
             trace_id="column_underwood_min_reflux",
             title="Minimum reflux proxy",
             formula="Rmin = f(alpha, q, xD,LK)",
-            substitutions={"alpha": f"{alpha:.3f}", "q": f"{q_factor:.3f}", "xD,LK": f"{xD_lk:.4f}"},
+            substitutions={"alpha": f"{alpha:.3f}", "q": f"{q_factor:.3f}", "xD,LK": f"{xD_lk:.4f}", "reflux_burden_factor": f"{reflux_burden_factor:.3f}"},
             result=f"{min_reflux:.3f}",
             units="-",
-            notes="This is a screening Underwood-style reflux estimate built from the solved property basis and separation severity.",
+            notes="This is a screening Underwood-style reflux estimate built from the solved property basis, then burden-adjusted for section-specific non-ideal cleanup severity.",
         ),
         CalcTrace(
             trace_id="column_feed_quality_basis",
@@ -1214,10 +1327,11 @@ def build_column_design_generic(
                 "alpha_top": f"{top_relative_volatility:.3f}",
                 "alpha_bottom": f"{bottom_relative_volatility:.3f}",
                 "murphree_efficiency": f"{murphree_efficiency:.3f}",
+                "duty_burden_factor": f"{duty_burden_factor:.3f}",
             },
             result=f"{q_factor:.3f}",
             units="-",
-            notes="Stage 2 separation design keeps the feed-quality and section-volatility basis explicit instead of burying it inside the reflux proxy.",
+            notes="Stage 2 separation design keeps the feed-quality and section-volatility basis explicit and carries the section burden factor into duty sizing.",
         ),
         CalcTrace(
             trace_id="column_gilliland_actual_stages",

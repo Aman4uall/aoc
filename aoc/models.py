@@ -84,6 +84,33 @@ class RunStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class ClaimStatus(str, Enum):
+    RESOLVED = "resolved"
+    PARTIAL = "partial"
+    INVALID = "invalid"
+    BLOCKED = "blocked"
+
+
+class ScientificClaimProvenance(str, Enum):
+    SOURCED = "sourced"
+    CALCULATED = "calculated"
+    METHOD_DERIVED = "method_derived"
+    ENVELOPE_MODEL = "envelope_model"
+
+
+class ScientificGateStatus(str, Enum):
+    PASS = "pass"
+    SCREENING_ONLY = "screening_only"
+    FAIL = "fail"
+
+
+class ScientificConfidence(str, Enum):
+    DETAILED = "detailed"
+    METHOD_DERIVED = "method_derived"
+    SCREENING = "screening"
+    BLOCKED = "blocked"
+
+
 class GateStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -189,6 +216,12 @@ class ProjectBasis(BaseModel):
     labor_basis_year: int = 2025
     economic_reference_year: int = 2025
     india_only: bool = False
+    throughput_basis: Literal["finished_product", "active_component"] = "finished_product"
+    nominal_active_wt_pct: Optional[float] = None
+    product_form: str = ""
+    carrier_components: list[str] = Field(default_factory=list)
+    homolog_distribution: dict[str, float] = Field(default_factory=dict)
+    quality_targets: list[str] = Field(default_factory=list)
 
 
 class UserDocument(BaseModel):
@@ -544,6 +577,7 @@ class RouteOption(ProvenancedModel):
     reaction_family_hints: list[str] = Field(default_factory=list)
     core_species_complete: bool = True
     catalysts: list[str] = Field(default_factory=list)
+    solvents: list[str] = Field(default_factory=list)
     operating_temperature_c: float
     operating_pressure_bar: float
     residence_time_hr: float
@@ -649,6 +683,29 @@ class ByproductClosure(ProvenancedModel):
     closure_status: Literal["converged", "estimated", "blocked"] = "estimated"
     blocking: bool = False
     notes: list[str] = Field(default_factory=list)
+
+
+class BACImpurityItem(ProvenancedModel):
+    impurity_id: str
+    name: str
+    impurity_class: str
+    origin_section: str = ""
+    control_section: str = ""
+    fate: str = ""
+    estimated_mass_flow_kg_hr: float = 0.0
+    estimated_mass_fraction: float = 0.0
+    severity: str = "moderate"
+    status: Literal["estimated", "method_derived", "blocked"] = "estimated"
+
+
+class BACImpurityModelArtifact(ProvenancedModel):
+    route_id: str = ""
+    selected_route_name: str = ""
+    product_basis_active_fraction: float = 1.0
+    items: list[BACImpurityItem] = Field(default_factory=list)
+    product_quality_targets: list[str] = Field(default_factory=list)
+    unresolved_impurity_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
 
 
 class SiteOption(ProvenancedModel):
@@ -785,6 +842,13 @@ class PhaseSplitSpec(ProvenancedModel):
     equilibrium_model: str = ""
     equilibrium_parameter_ids: list[str] = Field(default_factory=list)
     equilibrium_fallback: bool = False
+    section_thermo_artifact_id: str = ""
+    activity_model: str = ""
+    light_key: str = ""
+    heavy_key: str = ""
+    top_relative_volatility: float = 0.0
+    bottom_relative_volatility: float = 0.0
+    average_relative_volatility: float = 0.0
     phase_split_status: Literal["complete", "partial", "blocked"] = "partial"
     notes: list[str] = Field(default_factory=list)
 
@@ -813,6 +877,13 @@ class SeparatorPerformance(ProvenancedModel):
     equilibrium_model: str = ""
     equilibrium_parameter_ids: list[str] = Field(default_factory=list)
     equilibrium_fallback: bool = False
+    section_thermo_artifact_id: str = ""
+    activity_model: str = ""
+    light_key: str = ""
+    heavy_key: str = ""
+    top_relative_volatility: float = 0.0
+    bottom_relative_volatility: float = 0.0
+    average_relative_volatility: float = 0.0
     performance_status: Literal["converged", "estimated", "blocked"] = "estimated"
     notes: list[str] = Field(default_factory=list)
 
@@ -845,6 +916,13 @@ class SeparationPacket(ProvenancedModel):
     equilibrium_model: str = ""
     equilibrium_parameter_ids: list[str] = Field(default_factory=list)
     equilibrium_fallback: bool = False
+    section_thermo_artifact_id: str = ""
+    activity_model: str = ""
+    light_key: str = ""
+    heavy_key: str = ""
+    top_relative_volatility: float = 0.0
+    bottom_relative_volatility: float = 0.0
+    average_relative_volatility: float = 0.0
     split_status: Literal["converged", "estimated", "blocked"] = "estimated"
     closure_error_pct: float = 0.0
     notes: list[str] = Field(default_factory=list)
@@ -2169,6 +2247,7 @@ class ProjectRunState(BaseModel):
     blocking_issues: list[ValidationIssue] = Field(default_factory=list)
     missing_india_coverage: list[str] = Field(default_factory=list)
     stale_source_groups: list[str] = Field(default_factory=list)
+    stage_revision_counts: dict[str, int] = Field(default_factory=dict)
     created_at: str = Field(default_factory=utc_now)
     last_updated: str = Field(default_factory=utc_now)
 
@@ -2262,6 +2341,11 @@ class ReportAcceptanceArtifact(ProvenancedModel):
     blocking_issue_codes: list[str] = Field(default_factory=list)
     decision_results: list[DecisionAcceptanceResult] = Field(default_factory=list)
     conditional_notes: list[str] = Field(default_factory=list)
+    route_evidence_status: str = "not_evaluated"
+    product_basis_status: str = "not_evaluated"
+    unit_train_consistency_status: str = "not_evaluated"
+    purification_rigor_status: str = "not_evaluated"
+    economic_realism_status: str = "not_evaluated"
     summary: str = ""
     markdown: str = ""
 
@@ -2389,7 +2473,32 @@ class ProductProfileArtifact(ProvenancedModel):
     uses: list[str]
     industrial_relevance: str
     safety_notes: list[str]
+    commercial_basis_summary: str = ""
+    nominal_active_wt_pct: Optional[float] = None
+    product_form: str = ""
+    carrier_components: list[str] = Field(default_factory=list)
+    homolog_distribution: dict[str, float] = Field(default_factory=dict)
+    quality_targets: list[str] = Field(default_factory=list)
     markdown: str
+
+
+class CommercialProductBasisArtifact(ProvenancedModel):
+    product_name: str
+    throughput_basis: Literal["finished_product", "active_component"] = "finished_product"
+    sold_solution_basis_kg_hr: float = 0.0
+    active_basis_kg_hr: float = 0.0
+    active_fraction: float = 1.0
+    sold_concentration_wt_pct: float = 100.0
+    sold_solution_price_inr_per_kg: float = 0.0
+    active_price_inr_per_kg: float = 0.0
+    packaging_mode: str = ""
+    dispatch_mode: str = ""
+    product_form: str = ""
+    carrier_components: list[str] = Field(default_factory=list)
+    homolog_distribution: dict[str, float] = Field(default_factory=dict)
+    quality_targets: list[str] = Field(default_factory=list)
+    capacity_basis_note: str = ""
+    markdown: str = ""
 
 
 class MarketAssessmentArtifact(ProvenancedModel):
@@ -2405,6 +2514,24 @@ class MarketAssessmentArtifact(ProvenancedModel):
 class RouteSurveyArtifact(ProvenancedModel):
     routes: list[RouteOption]
     markdown: str
+
+
+class RouteDiscoveryRow(ProvenancedModel):
+    route_id: str
+    route_name: str
+    route_origin: Literal["seeded", "document", "hybrid", "generated"] = "seeded"
+    route_family_id: str = ""
+    evidence_score: float = 0.0
+    chemistry_completeness_score: float = 0.0
+    step_count: int = 0
+    batch_capable: bool = False
+    source_document_id: str = ""
+    discovery_status: Literal["discovered", "weak_evidence", "incomplete_chemistry"] = "discovered"
+
+
+class RouteDiscoveryArtifact(ProvenancedModel):
+    rows: list[RouteDiscoveryRow] = Field(default_factory=list)
+    markdown: str = ""
 
 
 class SpeciesResolutionIssue(ProvenancedModel):
@@ -2426,6 +2553,9 @@ class SpeciesNode(ProvenancedModel):
     phase_hint: str = ""
     source_document_ids: list[str] = Field(default_factory=list)
     resolution_status: Literal["resolved", "partial", "anonymous"] = "resolved"
+    species_kind: Literal["discrete", "bundle", "impurity_class", "carrier"] = "discrete"
+    commercial_role: str = ""
+    volatility_class: Literal["volatile", "semivolatile", "nonvolatile", "carrier", "unknown"] = "unknown"
 
 
 class ReactionStep(ProvenancedModel):
@@ -2507,6 +2637,338 @@ class MethodCoverageDecision(ProvenancedModel):
     markdown: str = ""
 
 
+class SpeciesResolutionRecord(ProvenancedModel):
+    route_id: str
+    route_name: str
+    core_species_ids: list[str] = Field(default_factory=list)
+    valid_core_species_ids: list[str] = Field(default_factory=list)
+    invalid_core_species_names: list[str] = Field(default_factory=list)
+    unresolved_core_species_names: list[str] = Field(default_factory=list)
+    unresolved_intermediate_names: list[str] = Field(default_factory=list)
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    markdown: str = ""
+
+
+class SpeciesResolutionArtifact(ProvenancedModel):
+    selected_route_id: str = ""
+    routes: list[SpeciesResolutionRecord] = Field(default_factory=list)
+    blocking_route_ids: list[str] = Field(default_factory=list)
+    invalid_species_names: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class ReactionNetworkRoute(ProvenancedModel):
+    route_id: str
+    route_name: str
+    core_species_complete: bool = False
+    step_count: int = 0
+    reaction_steps: list[ReactionStep] = Field(default_factory=list)
+    blocking_issue_codes: list[str] = Field(default_factory=list)
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    markdown: str = ""
+
+
+class ReactionNetworkV2Artifact(ProvenancedModel):
+    selected_route_id: str = ""
+    routes: list[ReactionNetworkRoute] = Field(default_factory=list)
+    blocking_route_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class RouteScreeningRow(ProvenancedModel):
+    route_id: str
+    route_name: str
+    route_family_id: str = ""
+    screening_status: Literal["retained", "review", "eliminated"] = "review"
+    chemistry_readiness: Literal["design_ready", "screening_only", "blocked"] = "screening_only"
+    core_species_complete: bool = False
+    reaction_step_count: int = 0
+    major_separation_defined: bool = False
+    hazard_review_required: bool = False
+    reagent_catalyst_burden_score: float = 0.0
+    stepwise_recovery_burden_score: float = 0.0
+    catalyst_lifecycle_burden_score: float = 0.0
+    isolation_impurity_burden_score: float = 0.0
+    impurity_cleanup_sequence_score: float = 0.0
+    separation_pain_score: float = 0.0
+    operability_burden_score: float = 0.0
+    waste_burden_score: float = 0.0
+    waste_treatment_load_score: float = 0.0
+    elimination_stage: str = ""
+    reasons: list[str] = Field(default_factory=list)
+
+
+class RouteScreeningArtifact(ProvenancedModel):
+    rows: list[RouteScreeningRow] = Field(default_factory=list)
+    retained_route_ids: list[str] = Field(default_factory=list)
+    eliminated_route_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class RouteProcessClaimRecord(ProvenancedModel):
+    route_id: str
+    route_name: str
+    claim_type: Literal["reagent_recycle", "impurity_classes", "cleanup_sequence", "waste_modes"]
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    items: list[str] = Field(default_factory=list)
+    item_count: int = 0
+    metrics: dict[str, float] = Field(default_factory=dict)
+    rationale: str = ""
+
+
+class RouteProcessClaimsArtifact(ProvenancedModel):
+    claims: list[RouteProcessClaimRecord] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class ChemistryDecisionArtifact(ProvenancedModel):
+    selected_route_id: str = ""
+    selected_route_name: str = ""
+    chemistry_basis_status: Literal["design_ready", "screening_only", "blocked"] = "screening_only"
+    core_species_ids: list[str] = Field(default_factory=list)
+    unresolved_species_names: list[str] = Field(default_factory=list)
+    reaction_step_count: int = 0
+    dominant_reaction_families: list[str] = Field(default_factory=list)
+    catalysts: list[str] = Field(default_factory=list)
+    solvents: list[str] = Field(default_factory=list)
+    rationale: str = ""
+    markdown: str = ""
+
+
+class ThermoSectionAdmissibility(ProvenancedModel):
+    route_id: str
+    section_id: str
+    separation_family: str
+    method_family: str
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    required_inputs: list[str] = Field(default_factory=list)
+    missing_inputs: list[str] = Field(default_factory=list)
+    rationale: str = ""
+
+
+class ThermoAdmissibilityArtifact(ProvenancedModel):
+    selected_route_id: str = ""
+    selected_route_status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    selected_route_confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    route_status: dict[str, ScientificGateStatus] = Field(default_factory=dict)
+    route_confidence: dict[str, ScientificConfidence] = Field(default_factory=dict)
+    sections: list[ThermoSectionAdmissibility] = Field(default_factory=list)
+    blocking_route_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class BACPurificationSection(ProvenancedModel):
+    section_id: str
+    step_id: str = ""
+    label: str
+    service: str
+    separation_family: str
+    key_species: list[str] = Field(default_factory=list)
+    recovery_targets: list[str] = Field(default_factory=list)
+    purge_targets: list[str] = Field(default_factory=list)
+    thermo_method: str = ""
+    activity_model: str = ""
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    notes: list[str] = Field(default_factory=list)
+
+
+class BACPurificationSectionArtifact(ProvenancedModel):
+    route_id: str = ""
+    blueprint_id: str = ""
+    sections: list[BACPurificationSection] = Field(default_factory=list)
+    unresolved_section_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class KineticsStepAdmissibility(ProvenancedModel):
+    route_id: str
+    step_id: str
+    reaction_family: str = ""
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    kinetics_required: bool = True
+    rationale: str = ""
+
+
+class KineticsAdmissibilityArtifact(ProvenancedModel):
+    selected_route_id: str = ""
+    selected_route_status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    selected_route_confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    route_status: dict[str, ScientificGateStatus] = Field(default_factory=dict)
+    route_confidence: dict[str, ScientificConfidence] = Field(default_factory=dict)
+    steps: list[KineticsStepAdmissibility] = Field(default_factory=list)
+    blocking_route_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class FlowsheetIntentItem(ProvenancedModel):
+    route_id: str
+    step_id: str
+    intent_type: str
+    unit_id: str
+    service: str
+    phase_basis: str = ""
+    upstream_intent_ids: list[str] = Field(default_factory=list)
+    basis: str = ""
+
+
+class FlowsheetIntentArtifact(ProvenancedModel):
+    route_id: str
+    blueprint_id: str = ""
+    batch_capable: bool = False
+    intents: list[FlowsheetIntentItem] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class TopologyCandidateRecord(ProvenancedModel):
+    blueprint_id: str
+    route_id: str
+    route_name: str
+    step_count: int = 0
+    tagged_unit_count: int = 0
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    screening_balance_allowed: bool = False
+    reasons: list[str] = Field(default_factory=list)
+
+
+class TopologyCandidateArtifact(ProvenancedModel):
+    selected_route_id: str = ""
+    selected_blueprint_id: str = ""
+    screening_balance_allowed: bool = False
+    candidates: list[TopologyCandidateRecord] = Field(default_factory=list)
+    route_to_unit_map: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class UnitTrainConsistencyRow(ProvenancedModel):
+    artifact_ref: str
+    expected_unit_aliases: list[str] = Field(default_factory=list)
+    observed_unit_ids: list[str] = Field(default_factory=list)
+    missing_expected_units: list[str] = Field(default_factory=list)
+    unexpected_units: list[str] = Field(default_factory=list)
+    status: Literal["pass", "warning", "blocked"] = "warning"
+    notes: list[str] = Field(default_factory=list)
+
+
+class UnitTrainConsistencyArtifact(ProvenancedModel):
+    route_id: str = ""
+    blueprint_id: str = ""
+    canonical_unit_ids: list[str] = Field(default_factory=list)
+    canonical_sections: list[str] = Field(default_factory=list)
+    alias_map: dict[str, list[str]] = Field(default_factory=dict)
+    rows: list[UnitTrainConsistencyRow] = Field(default_factory=list)
+    overall_status: Literal["pass", "warning", "blocked"] = "warning"
+    blocking_artifact_refs: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class UnitDesignConfidence(BaseModel):
+    unit_id: str
+    unit_type: str
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    rationale: str = ""
+    blocking_reasons: list[str] = Field(default_factory=list)
+
+
+class DesignConfidenceArtifact(ProvenancedModel):
+    selected_route_id: str = ""
+    overall_confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    blocked_unit_ids: list[str] = Field(default_factory=list)
+    units: list[UnitDesignConfidence] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class EconomicCoverageDecision(ProvenancedModel):
+    route_id: str = ""
+    status: Literal["detailed", "screening", "blocked"] = "screening"
+    missing_basis: list[str] = Field(default_factory=list)
+    rationale: str = ""
+    markdown: str = ""
+
+
+class ScientificClaim(ProvenancedModel):
+    claim_id: str
+    stage_id: str
+    domain: str
+    subject: str
+    value_text: str
+    units: str = ""
+    status: ClaimStatus = ClaimStatus.PARTIAL
+    provenance: ScientificClaimProvenance = ScientificClaimProvenance.ENVELOPE_MODEL
+    uncertainty_class: str = "review"
+    dependency_ids: list[str] = Field(default_factory=list)
+    revision_count: int = 0
+    frozen: bool = False
+    blocking: bool = False
+
+
+class ClaimGraphArtifact(ProvenancedModel):
+    claims: list[ScientificClaim] = Field(default_factory=list)
+    changed_claim_ids: list[str] = Field(default_factory=list)
+    frozen_claim_ids: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class InferenceQuestion(ProvenancedModel):
+    question_id: str
+    domain: str
+    prompt: str
+    why_it_matters: str
+    dependent_claim_ids: list[str] = Field(default_factory=list)
+    evidence_targets: list[str] = Field(default_factory=list)
+    unanswered_effect: Literal["downgrade", "block"] = "block"
+    priority_score: float = 0.0
+    active: bool = True
+
+
+class QuestionAnswer(ProvenancedModel):
+    question_id: str
+    answer_text: str
+    resolved_claim_ids: list[str] = Field(default_factory=list)
+    source_ids: list[str] = Field(default_factory=list)
+
+
+class InferenceQuestionQueueArtifact(ProvenancedModel):
+    active_questions: list[InferenceQuestion] = Field(default_factory=list)
+    resolved_answers: list[QuestionAnswer] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class RevisionTicket(ProvenancedModel):
+    ticket_id: str
+    target_stage_id: str
+    triggered_by_stage_id: str
+    reason: str
+    dependent_claim_ids: list[str] = Field(default_factory=list)
+    status: Literal["open", "applied", "closed", "skipped"] = "open"
+    material_change: bool = True
+    revision_limit: int = 0
+
+
+class RevisionLedgerArtifact(ProvenancedModel):
+    tickets: list[RevisionTicket] = Field(default_factory=list)
+    active_ticket_ids: list[str] = Field(default_factory=list)
+    revision_counts_by_stage: dict[str, int] = Field(default_factory=dict)
+    markdown: str = ""
+
+
+class ScientificGateEntry(ProvenancedModel):
+    gate_id: str
+    domain: str
+    status: ScientificGateStatus = ScientificGateStatus.SCREENING_ONLY
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    rationale: str = ""
+    blocking_claim_ids: list[str] = Field(default_factory=list)
+    blocking_question_ids: list[str] = Field(default_factory=list)
+
+
+class ScientificGateMatrixArtifact(ProvenancedModel):
+    entries: list[ScientificGateEntry] = Field(default_factory=list)
+    markdown: str = ""
+
+
 class RouteSelectionComparisonRow(ProvenancedModel):
     route_id: str
     route_name: str
@@ -2518,6 +2980,8 @@ class RouteSelectionComparisonRow(ProvenancedModel):
     separation_complexity_score: float = 0.0
     selected_heat_case_id: str = ""
     feasible: bool = True
+    scientific_status: Literal["design_feasible", "screening_feasible", "blocked"] = "design_feasible"
+    blocking_scientific_gate: str = ""
     selected: bool = False
     rejection_reasons: list[str] = Field(default_factory=list)
     why_not_chosen: str = ""
@@ -2528,6 +2992,13 @@ class RouteSelectionComparisonArtifact(ProvenancedModel):
     rows: list[RouteSelectionComparisonRow] = Field(default_factory=list)
     blocked_route_ids: list[str] = Field(default_factory=list)
     markdown: str = ""
+
+
+class ProcessSelectionComparisonArtifact(RouteSelectionComparisonArtifact):
+    route_discovery_count: int = 0
+    retained_route_count: int = 0
+    eliminated_route_count: int = 0
+    selected_route_name: str = ""
 
 
 class RouteSelectionArtifact(ProvenancedModel):

@@ -557,6 +557,53 @@ class MockReasoningService(BaseReasoningService):
                 citations=citations,
                 assumptions=["Mock phenol profile uses seeded public values for deterministic testing."],
             )
+        if product_key == "benzalkonium_chloride":
+            active_pct = basis.nominal_active_wt_pct or 50.0
+            carrier_components = basis.carrier_components or ["water", "ethanol"]
+            homolog_distribution = basis.homolog_distribution or {"c12": 0.40, "c14": 0.50, "c16": 0.10}
+            product_form = basis.product_form or "50_wt_pct_aqueous_or_alcohol_solution"
+            quality_targets = basis.quality_targets or [
+                "Residual free benzyl chloride below finished-goods limit",
+                "Residual free tertiary amine below finished-goods limit",
+                "Color and odor acceptable for formulation service",
+            ]
+            homolog_text = ", ".join(f"{key.upper()} {value * 100.0:.0f} wt%" for key, value in homolog_distribution.items())
+            carrier_text = ", ".join(carrier_components)
+            commercial_basis = (
+                f"Commercial basis is a {active_pct:.0f} wt% active benzalkonium chloride solution on a "
+                f"{basis.throughput_basis.replace('_', ' ')} basis, carried in {carrier_text}. "
+                f"The active phase is treated as a homolog bundle ({homolog_text}) rather than a single pure compound."
+            )
+            return ProductProfileArtifact(
+                product_name=basis.target_product,
+                properties=[
+                    PropertyRecord(name="Molecular weight", value="368.04", units="g/mol", supporting_sources=citations, citations=citations, assumptions=["Representative active MW for a commercial BAC homolog bundle."]),
+                    PropertyRecord(name="Melting point", value="-5.0", units="C", supporting_sources=citations, citations=citations, assumptions=["Representative active-solution handling point for seeded BAC service."]),
+                    PropertyRecord(name="Boiling point", value="100.0", units="C", supporting_sources=citations, citations=citations, assumptions=["Finished-product BAC is treated as a solution service rather than a neat distillation product."]),
+                    PropertyRecord(name="Density", value="0.995", units="g/cm3", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Finished-product active content", value=f"{active_pct:.0f}", units="wt%", supporting_sources=citations, citations=citations),
+                    PropertyRecord(name="Representative viscosity", value="0.0025", units="Pa.s", supporting_sources=citations, citations=citations),
+                ],
+                uses=["Hard-surface disinfectant formulations", "Preservative systems", "Industrial biocide and sanitation service"],
+                industrial_relevance="Benzalkonium chloride is treated as a formulated quaternary-ammonium active where continuous quaternization, residual-reactant cleanup, and active-content control matter more than pure-component finishing.",
+                safety_notes=[
+                    "Benzyl chloride handling and residual control dominate the acute hazard envelope because of lachrymatory and toxic exposure risk.",
+                    "Continuous quaternization requires exotherm management, controlled amine feed quality, and color-body suppression through mild thermal history.",
+                ],
+                commercial_basis_summary=commercial_basis + " Quality targets: " + "; ".join(quality_targets) + ".",
+                nominal_active_wt_pct=active_pct,
+                product_form=product_form,
+                carrier_components=list(carrier_components),
+                homolog_distribution=dict(homolog_distribution),
+                quality_targets=list(quality_targets),
+                markdown=(
+                    "Benzalkonium chloride is not treated here as a single neat molecule. The product basis is a 50 wt% commercial active solution built around a homolog bundle and carrier phase, "
+                    "so process design must focus on active-content control, residual benzyl chloride / free amine cleanup, color management, and continuous liquid handling.\n\n"
+                    + commercial_basis
+                ),
+                citations=citations,
+                assumptions=["Mock BAC product profile uses a representative 50 wt% commercial active-solution basis for deterministic testing."],
+            )
         properties = [
             PropertyRecord(name="Molecular weight", value="150.00", units="g/mol", supporting_sources=citations, citations=citations),
             PropertyRecord(name="Melting point", value="60", units="C", supporting_sources=citations, citations=citations),
@@ -667,6 +714,31 @@ class MockReasoningService(BaseReasoningService):
                 markdown="Phenol is treated as a large continuous aromatic intermediate where oxidation selectivity, acetone credit, and India aromatics logistics together shape the business case.",
                 citations=citations,
                 assumptions=["Mock phenol market values are seeded and INR-normalized."],
+            )
+        if product_key == "benzalkonium_chloride":
+            active_pct = basis.nominal_active_wt_pct or 50.0
+            return MarketAssessmentArtifact(
+                estimated_price_per_kg=185.0,
+                price_range="INR 165-220 per kg on a commercial BAC solution basis.",
+                competitor_notes=[
+                    "Commercial pricing is usually quoted on active-solution grade, not on an isolated pure active basis.",
+                    "Margin resilience depends on feed amine cost, benzyl chloride quality, and solution-basis logistics rather than only on reaction yield.",
+                ],
+                demand_drivers=["Institutional and household disinfectants", "Industrial sanitation", "Preservative and antimicrobial formulations"],
+                capacity_rationale=(
+                    f"{basis.capacity_tpa:.0f} TPA is framed as a large continuous formulation-active train on a finished-product basis, "
+                    f"with product sold as roughly {active_pct:.0f} wt% active solution rather than as a purified neat salt."
+                ),
+                india_price_data=[
+                    IndianPriceDatum(datum_id="bac_product", category="product", item_name="Benzalkonium chloride solution", region="India", units="INR/kg", value_inr=185.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="bac_benzyl_chloride", category="raw_material", item_name="Benzyl chloride", region="India", units="INR/kg", value_inr=92.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="bac_amine", category="raw_material", item_name="Alkyldimethylamine blend", region="India", units="INR/kg", value_inr=148.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="bac_power", category="utility", item_name="Electricity", region="India", units="INR/kWh", value_inr=8.4, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                    IndianPriceDatum(datum_id="bac_labor", category="labor", item_name="Operating labour", region="India", units="INR/person-year", value_inr=640000.0, reference_year=2025, normalization_year=2025, citations=[citations[0]]),
+                ],
+                markdown="Benzalkonium chloride is treated as a continuous quaternary-ammonium active solution business where active-content basis, residual cleanup, and formulation-grade logistics govern feasibility more than neat-product purification.",
+                citations=citations,
+                assumptions=["Mock BAC market values are seeded on a 50 wt% finished-product solution basis normalized to 2025 INR."],
             )
         return MarketAssessmentArtifact(
             estimated_price_per_kg=320.0,
@@ -862,6 +934,104 @@ class MockReasoningService(BaseReasoningService):
                 markdown="Phenol route survey compares the industrially dominant cumene oxidation route against chlorinated hydrolysis and direct oxidation concepts, emphasizing offgas handling, byproduct recovery, and purification burden.",
                 citations=citations,
                 assumptions=["Mock phenol route survey uses seeded oxidation and recovery route families for deterministic testing."],
+            )
+        if product_key == "benzalkonium_chloride":
+            routes = [
+                RouteOption(
+                    route_id="benzyl_chloride_quaternization_ethanol",
+                    name="Benzyl chloride quaternization in alcohol medium",
+                    reaction_equation="Alkyldimethylamine + Benzyl chloride -> Benzalkonium chloride",
+                    participants=[
+                        ReactionParticipant(name="Alkyldimethylamine", formula="C16H35N", coefficient=1.0, role="reactant", molecular_weight_g_mol=241.46, phase="liquid"),
+                        ReactionParticipant(name="Benzyl chloride", formula="C7H7Cl", coefficient=1.0, role="reactant", molecular_weight_g_mol=126.58, phase="liquid"),
+                        ReactionParticipant(name="Benzalkonium chloride", formula="C23H42ClN", coefficient=1.0, role="product", molecular_weight_g_mol=368.04, phase="liquid"),
+                    ],
+                    evidence_score=0.88,
+                    chemistry_completeness_score=0.95,
+                    separation_complexity_score=0.58,
+                    catalysts=[],
+                    solvents=["Ethanol", "Water"],
+                    operating_temperature_c=82.0,
+                    operating_pressure_bar=2.5,
+                    residence_time_hr=2.0,
+                    yield_fraction=0.96,
+                    selectivity_fraction=0.97,
+                    byproducts=["trace benzyl alcohol from hydrolysis", "residual free amine", "residual benzyl chloride"],
+                    separations=["feed drying and conditioning", "continuous quaternization", "ethanol recovery", "light-ends stripping", "active dilution and polishing"],
+                    scale_up_notes="Industrial BAC route using a C12-C16 alkyldimethylamine blend and benzyl chloride in alcohol medium. Continuous quaternization gives a solution-phase active that is sold on a 50 wt% finished-product solution basis after residual-reactant cleanup and dilution.",
+                    hazards=[
+                        RouteHazard(severity="high", description="Benzyl chloride toxicity and liquid-phase quaternization exotherm", safeguard="Closed feed handling, staged reactant addition, and residual benzyl chloride stripping/polishing"),
+                    ],
+                    route_score=9.1,
+                    rationale="Best industrial fit because it matches commercial BAC solution manufacture, gives manageable continuous operation, and keeps solvent recovery and residual cleanup within a familiar liquid train.",
+                    citations=citations,
+                ),
+                RouteOption(
+                    route_id="benzyl_chloride_quaternization_high_strength",
+                    name="High-strength continuous quaternization with low-solvent finishing",
+                    reaction_equation="Alkyldimethylamine + Benzyl chloride -> Benzalkonium chloride",
+                    participants=[
+                        ReactionParticipant(name="Alkyldimethylamine", formula="C16H35N", coefficient=1.0, role="reactant", molecular_weight_g_mol=241.46, phase="liquid"),
+                        ReactionParticipant(name="Benzyl chloride", formula="C7H7Cl", coefficient=1.0, role="reactant", molecular_weight_g_mol=126.58, phase="liquid"),
+                        ReactionParticipant(name="Benzalkonium chloride", formula="C23H42ClN", coefficient=1.0, role="product", molecular_weight_g_mol=368.04, phase="liquid"),
+                    ],
+                    evidence_score=0.76,
+                    chemistry_completeness_score=0.93,
+                    separation_complexity_score=0.66,
+                    catalysts=[],
+                    solvents=["Ethanol", "Water"],
+                    operating_temperature_c=88.0,
+                    operating_pressure_bar=3.0,
+                    residence_time_hr=1.6,
+                    yield_fraction=0.95,
+                    selectivity_fraction=0.95,
+                    byproducts=["residual free amine", "residual benzyl chloride", "color bodies"],
+                    separations=["feed drying and conditioning", "high-strength quaternization", "light-ends flashing", "vacuum polishing", "water/alcohol trim blend"],
+                    scale_up_notes="Higher active-content route with less solvent circulation, but stronger viscosity, color, and exotherm-control burden. Useful where solvent load must be minimized, but residual cleanup is tighter.",
+                    hazards=[
+                        RouteHazard(severity="high", description="Higher adiabatic temperature rise and tighter residual-reactant window", safeguard="Intensified heat removal, narrow feed-ratio control, and continuous residual polish"),
+                    ],
+                    route_score=7.8,
+                    rationale="Credible continuous variant, but operability and product-color burden are harder than the alcohol-medium base case.",
+                    citations=citations,
+                ),
+                RouteOption(
+                    route_id="benzyl_alcohol_activation_quaternization",
+                    name="Integrated benzyl alcohol activation followed by quaternization",
+                    reaction_equation="Benzyl alcohol + HCl + Alkyldimethylamine -> Benzalkonium chloride + H2O",
+                    participants=[
+                        ReactionParticipant(name="Benzyl alcohol", formula="C7H8O", coefficient=1.0, role="reactant", molecular_weight_g_mol=108.14, phase="liquid"),
+                        ReactionParticipant(name="Hydrogen chloride", formula="HCl", coefficient=1.0, role="reactant", molecular_weight_g_mol=36.46, phase="gas"),
+                        ReactionParticipant(name="Alkyldimethylamine", formula="C16H35N", coefficient=1.0, role="reactant", molecular_weight_g_mol=241.46, phase="liquid"),
+                        ReactionParticipant(name="Benzalkonium chloride", formula="C23H42ClN", coefficient=1.0, role="product", molecular_weight_g_mol=368.04, phase="liquid"),
+                        ReactionParticipant(name="Water", formula="H2O", coefficient=1.0, role="byproduct", molecular_weight_g_mol=18.015, phase="liquid"),
+                    ],
+                    evidence_score=0.62,
+                    chemistry_completeness_score=0.88,
+                    separation_complexity_score=0.74,
+                    catalysts=[],
+                    solvents=["Water"],
+                    operating_temperature_c=95.0,
+                    operating_pressure_bar=3.5,
+                    residence_time_hr=3.0,
+                    yield_fraction=0.90,
+                    selectivity_fraction=0.91,
+                    byproducts=["hydrolyzed benzyl species", "aqueous chloride purge", "residual free amine"],
+                    separations=["benzyl activation", "quaternization", "water removal", "chloride-bearing purge cleanup", "product polishing"],
+                    scale_up_notes="Chemically plausible integrated route, but extra water and chloride-handling burden make it less attractive than direct benzyl chloride quaternization for a large continuous BAC plant.",
+                    hazards=[
+                        RouteHazard(severity="high", description="HCl handling, chloride corrosion, and added water-removal burden", safeguard="Corrosion-resistant metallurgy, dry-feed control, and chloride purge management"),
+                    ],
+                    route_score=6.4,
+                    rationale="Provides a real alternative hypothesis, but the added activation and water-removal burden make it weaker for this basis.",
+                    citations=citations,
+                ),
+            ]
+            return RouteSurveyArtifact(
+                routes=routes,
+                markdown="Benzalkonium chloride route survey compares continuous quaternization variants built around benzyl chloride and alkyldimethylamine feed bundles, with screening focused on exotherm control, residual benzyl chloride cleanup, solvent recovery, and active-solution product quality.",
+                citations=citations,
+                assumptions=["Mock BAC route survey uses seeded quaternization route hypotheses anchored to a commercial active-solution product basis."],
             )
         routes = [
             RouteOption(

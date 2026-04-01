@@ -7,6 +7,7 @@ from aoc.models import (
     AlternativeOption,
     DecisionCriterion,
     DecisionRecord,
+    PropertyDemandPlan,
     PropertyEstimate,
     ProductProfileArtifact,
     ProjectConfig,
@@ -119,12 +120,33 @@ def _profile_property_lookup(product_profile: ProductProfileArtifact) -> dict[st
     return {normalize_chemical_name(item.name): item for item in product_profile.properties}
 
 
+def _profile_is_formulated_solution(product_profile: ProductProfileArtifact) -> bool:
+    product_form = normalize_chemical_name(product_profile.product_form or "")
+    if "solution" in product_form or "formulation" in product_form:
+        return True
+    if product_profile.nominal_active_wt_pct is not None and product_profile.carrier_components:
+        return True
+    if "solution" in (product_profile.commercial_basis_summary or "").lower():
+        return True
+    return False
+
+
 def _property_from_profile(
     identifier: ChemicalIdentifier,
     property_field: str,
     product_profile: ProductProfileArtifact,
 ) -> _ResolvedPropertyCandidate | None:
     if normalize_chemical_name(identifier.canonical_name) != normalize_chemical_name(product_profile.product_name):
+        return None
+    if _profile_is_formulated_solution(product_profile) and property_field in {
+        "normal_boiling_point",
+        "melting_point",
+        "liquid_density",
+        "liquid_viscosity",
+        "liquid_heat_capacity",
+        "heat_of_vaporization",
+        "thermal_conductivity",
+    }:
         return None
     lookup = _profile_property_lookup(product_profile)
     property_record = lookup.get(property_field) or lookup.get(
@@ -712,8 +734,17 @@ def build_property_package_artifact(
     )
 
 
-def property_value_records(property_packages: PropertyPackageArtifact) -> list:
+def property_value_records(
+    property_packages: PropertyPackageArtifact,
+    property_demand_plan: PropertyDemandPlan | None = None,
+) -> list:
     value_records = []
+    demanded_pairs = None
+    if property_demand_plan is not None:
+        demanded_pairs = {
+            (item.species_id, item.property_name)
+            for item in property_demand_plan.items
+        }
     for package in property_packages.packages:
         for field in (
             "molecular_weight",
@@ -725,6 +756,8 @@ def property_value_records(property_packages: PropertyPackageArtifact) -> list:
             "heat_of_vaporization",
             "thermal_conductivity",
         ):
+            if demanded_pairs is not None and (package.identifier.identifier_id, field) not in demanded_pairs:
+                continue
             prop = getattr(package, field)
             if prop is None:
                 continue

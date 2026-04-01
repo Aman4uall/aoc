@@ -6,7 +6,10 @@ from pathlib import Path
 from aoc.config import load_project_config
 from aoc.models import (
     AgentDecisionFabricArtifact,
+    BACImpurityModelArtifact,
+    BACPurificationSectionArtifact,
     ChemistryFamilyAdapter,
+    CommercialProductBasisArtifact,
     CostModel,
     CriticRegistryArtifact,
     DecisionRecord,
@@ -18,16 +21,23 @@ from aoc.models import (
     FlowsheetBlueprintArtifact,
     FlowsheetCase,
     MechanicalDesignArtifact,
+    ModelSettings,
     NarrativeArtifact,
     OperationsPlanningArtifact,
     DocumentFactCollectionArtifact,
     DocumentProcessOptionsArtifact,
     PlantCostSummary,
+    ProcessSelectionComparisonArtifact,
+    ProjectBasis,
+    ProjectConfig,
+    ProjectRunState,
     ReactorDesign,
+    RunStatus,
     ColumnDesign,
     RouteChemistryArtifact,
     RouteEconomicBasisArtifact,
     RouteSelectionComparisonArtifact,
+    RouteProcessClaimsArtifact,
     RouteSelectionArtifact,
     RouteSiteFitArtifact,
     RouteSurveyArtifact,
@@ -37,6 +47,7 @@ from aoc.models import (
     ReportAcceptanceArtifact,
     RouteFamilyArtifact,
     SolveResult,
+    UnitTrainConsistencyArtifact,
     UnitTrainCandidateSet,
     UserDocument,
     UtilityArchitectureDecision,
@@ -71,6 +82,30 @@ class PipelineTests(unittest.TestCase):
 
     def _config_from_example(self):
         return self._config_from_example_file("ethylene_glycol_india_mock.yaml")
+
+    def _bac_benchmark_config(self):
+        return ProjectConfig(
+            project_id="bac-benchmark-pipeline-test",
+            benchmark_profile="benzalkonium_chloride",
+            basis=ProjectBasis(
+                target_product="Benzalkonium chloride",
+                capacity_tpa=50000,
+                target_purity_wt_pct=50.0,
+                operating_mode="continuous",
+                throughput_basis="finished_product",
+                nominal_active_wt_pct=50.0,
+                product_form="50_wt_pct_solution",
+                carrier_components=["water", "ethanol"],
+                homolog_distribution={"c12": 0.4, "c14": 0.5, "c16": 0.1},
+                quality_targets=[
+                    "50 wt% active",
+                    "Residual free benzyl chloride below finished-goods limit",
+                    "Residual free tertiary amine below finished-goods limit",
+                ],
+            ),
+            model=ModelSettings(backend="mock", model_name="gemini-3.1-pro-preview", temperature=0.2),
+            output_root=self.temp_dir,
+        )
 
     def _run_to_completion(self, runner: PipelineRunner):
         state = runner.run()
@@ -153,6 +188,10 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("user_doc_1_process_4", [route.route_id for route in route_survey.routes])
         self.assertGreaterEqual(route_chemistry.resolved_species_count, 1)
         self.assertEqual(route_chemistry.blocking_route_ids, [])
+        selected_route = next(route for route in route_survey.routes if route.route_id == "user_doc_1_process_4")
+        reactants = [participant.name for participant in selected_route.participants if participant.role == "reactant"]
+        self.assertIn("Isobutyl benzene", reactants)
+        self.assertNotIn("88%", reactants)
 
     def test_pipeline_gate_flow_and_render(self):
         runner = PipelineRunner(self._config_from_example())
@@ -183,7 +222,10 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("### Route-Family Duty Focus", runner.store.load_chapter(runner.config.project_id, "energy_balance").rendered_markdown)
         self.assertIn("### Energy-Balance Calculation Traces", runner.store.load_chapter(runner.config.project_id, "energy_balance").rendered_markdown)
         self.assertIn("### Chemistry Family Adapter", process_selection.rendered_markdown)
+        self.assertIn("### Route Discovery", process_selection.rendered_markdown)
+        self.assertIn("### Route Screening", process_selection.rendered_markdown)
         self.assertIn("### Route Selection Comparison", process_selection.rendered_markdown)
+        self.assertIn("### Chemistry Decision", process_selection.rendered_markdown)
         self.assertIn("### Route-Derived Flowsheet Blueprint", process_selection.rendered_markdown)
         self.assertIn("### Route Family Profiles", process_selection.rendered_markdown)
         self.assertIn("### Unit-Operation Family Expansion", process_selection.rendered_markdown)
@@ -249,6 +291,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("family_adapter:", inspect_text)
         self.assertIn("report_parity:", inspect_text)
         self.assertIn("report_acceptance:", inspect_text)
+        self.assertIn("scientific_basis:", inspect_text)
+        self.assertIn("scientific_inference:", inspect_text)
         self.assertIn("overall_status: partial", inspect_text)
         self.assertIn("pipeline_status: awaiting_approval", inspect_text)
         self.assertIn("route_families:", inspect_text)
@@ -282,6 +326,7 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(runner._load("route_family_profiles", RouteFamilyArtifact).profiles)
         self.assertTrue(runner._load("route_selection_comparison", RouteSelectionComparisonArtifact).rows)
         self.assertTrue(runner._load("unit_train_candidates", UnitTrainCandidateSet).blueprints)
+        self.assertTrue(runner._load("route_process_claims", RouteProcessClaimsArtifact).claims)
         self.assertTrue(runner._load("flowsheet_blueprint", FlowsheetBlueprintArtifact).steps)
         self.assertTrue(runner._load("unit_operation_family", UnitOperationFamilyArtifact).reactor_candidates)
         self.assertGreaterEqual(len(runner._load("critic_registry", CriticRegistryArtifact).findings), 1)
@@ -874,6 +919,61 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("Turnaround (INR)", financial_analysis.rendered_markdown)
         self.assertIn("Availability and Outage Calendar", financial_analysis.rendered_markdown)
         self.assertIn("Startup Loss (d)", financial_analysis.rendered_markdown)
+
+    def test_bac_benchmark_artifacts_are_emitted_and_consistent(self):
+        config = self._bac_benchmark_config()
+        runner = PipelineRunner(config)
+        state = ProjectRunState(
+            project_id=config.project_id,
+            model_name=config.model.model_name,
+            strict_citation_policy=config.strict_citation_policy,
+        )
+        runner.store.save_run_state(state)
+
+        runner._run_project_intake()
+        runner._run_product_profile()
+        runner._run_market_capacity()
+        runner._run_literature_route_survey()
+        runner._run_property_gap_resolution()
+        runner._run_site_selection()
+        runner._run_process_synthesis()
+        runner._run_rough_alternative_balances()
+        runner._run_heat_integration_optimization()
+        runner._run_route_selection()
+        runner._refresh_scientific_inference("route_selection", state)
+        thermo_result = runner._run_thermodynamic_feasibility()
+        runner._refresh_scientific_inference("thermodynamic_feasibility", state)
+        runner._run_kinetic_feasibility()
+        runner._run_block_diagram()
+        runner._run_process_description()
+        material_result = runner._run_material_balance()
+        runner._refresh_scientific_inference("material_balance", state)
+        runner._save_report_acceptance(RunStatus.READY)
+
+        commercial_basis = runner._load("commercial_product_basis", CommercialProductBasisArtifact)
+        process_selection = runner._load("process_selection_comparison", ProcessSelectionComparisonArtifact)
+        purification_sections = runner._load("bac_purification_sections", BACPurificationSectionArtifact)
+        impurity_model = runner._load("bac_impurity_model", BACImpurityModelArtifact)
+        consistency = runner._load("unit_train_consistency", UnitTrainConsistencyArtifact)
+        thermo_chapter = next(chapter for chapter in thermo_result.chapters if chapter.chapter_id == "thermodynamic_feasibility")
+        material_chapter = next(chapter for chapter in material_result.chapters if chapter.chapter_id == "material_balance")
+        inspect_text = runner.inspect()
+
+        self.assertAlmostEqual(commercial_basis.active_fraction, 0.5, places=6)
+        self.assertGreater(commercial_basis.sold_solution_basis_kg_hr, commercial_basis.active_basis_kg_hr)
+        self.assertGreater(process_selection.route_discovery_count, 0)
+        self.assertEqual(process_selection.selected_route_id, runner._load("route_selection", RouteSelectionArtifact).selected_route_id)
+        self.assertTrue(any(section.section_id == "concentration" for section in purification_sections.sections))
+        self.assertTrue(impurity_model.items)
+        self.assertIn(consistency.overall_status, {"pass", "warning"})
+        self.assertNotIn("CRYS-201", material_chapter.rendered_markdown)
+        self.assertNotIn("FILT-201", material_chapter.rendered_markdown)
+        self.assertNotIn("DRY-301", material_chapter.rendered_markdown)
+        self.assertIn("### BAC Purification Sections", thermo_chapter.rendered_markdown)
+        self.assertIn("### BAC Impurity Model", material_chapter.rendered_markdown)
+        self.assertIn("commercial_product_basis:", inspect_text)
+        self.assertIn("bac_benchmark_basis:", inspect_text)
+        self.assertIn("route_evidence_status:", inspect_text)
 
     def test_pipeline_blocks_on_missing_citations(self):
         runner = PipelineRunner(self._config_from_example())

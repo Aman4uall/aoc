@@ -1,0 +1,30 @@
+project_id: benzalkonium-chloride-india-live
+basis:
+  target_product: Benzalkonium Chloride
+  capacity_tpa: 5000
+  target_purity_wt_pct: 99.0
+  operating_mode: batch
+  annual_operating_days: 300
+  region: India
+  currency: INR
+  target_state: Gujarat
+  tariff_reference_year: 2025
+  utility_basis_year: 2025
+  labor_basis_year: 2025
+  economic_reference_year: 2025
+strict_citation_policy: true
+preferred_state_candidates:
+  - Gujarat
+  - Maharashtra
+  - Telangana
+user_documents:
+  - label: Benchmark feasibility home paper structure
+    path: /Users/ayzaman/Downloads/11CHE1017 Swapnil Deshmukh.pdf
+    source_kind: user_document
+    source_domain: technical
+    geographic_scope: global
+output_root: outputs
+model:
+  backend: google
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.2

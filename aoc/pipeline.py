@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 import math
+import re
 
 from aoc.archetypes import build_alternative_sets, classify_process_archetype
 from aoc.agent_fabric import build_agent_decision_fabric
@@ -23,9 +24,12 @@ from aoc.calculators import (
     reaction_is_balanced,
 )
 from aoc.decision_engine import (
+    build_chemistry_decision_artifact,
     build_economic_basis_decision,
     build_heat_integration_study,
     build_process_synthesis,
+    build_route_discovery_artifact,
+    build_route_screening_artifact,
     build_rough_alternatives,
     build_site_selection_decision,
     build_utility_basis_decision,
@@ -68,12 +72,36 @@ from aoc.route_families import build_route_family_artifact, profile_for_route
 from aoc.route_chemistry import build_property_demand_plan, build_route_chemistry_artifact
 from aoc.route_planning import build_route_selection_comparison
 from aoc.report_parity import build_report_parity_framework, evaluate_report_acceptance, evaluate_report_parity
+from aoc.scientific_inference import (
+    build_bac_impurity_model_artifact,
+    build_bac_purification_section_artifact,
+    build_claim_graph_artifact,
+    build_commercial_product_basis_artifact,
+    build_design_confidence_artifact,
+    build_economic_coverage_decision,
+    build_flowsheet_intent_artifact,
+    build_inference_question_queue,
+    build_kinetics_admissibility_artifact,
+    build_reaction_network_v2_artifact,
+    build_route_process_claims_artifact,
+    build_revision_ledger,
+    build_scientific_gate_matrix_artifact,
+    build_species_resolution_artifact,
+    build_thermo_admissibility_artifact,
+    build_topology_candidate_artifact,
+    build_unit_train_consistency_artifact,
+)
 from aoc.models import (
     AgentDecisionFabricArtifact,
+    BACImpurityModelArtifact,
+    BACPurificationSectionArtifact,
     BenchmarkManifest,
     ChapterArtifact,
     ChemistryFamilyAdapter,
+    ChemistryDecisionArtifact,
+    ClaimGraphArtifact,
     ChapterStatus,
+    CommercialProductBasisArtifact,
     ColumnDesign,
     ColumnHydraulics,
     ControlArchitectureDecision,
@@ -84,6 +112,7 @@ from aoc.models import (
     DecisionRecord,
     DocumentFactCollectionArtifact,
     DocumentProcessOptionsArtifact,
+    EconomicCoverageDecision,
     EquipmentDatasheet,
     EconomicScenarioModel,
     EnergyBalance,
@@ -93,6 +122,7 @@ from aoc.models import (
     FinancialSchedule,
     FlowsheetGraph,
     FlowsheetBlueprintArtifact,
+    FlowsheetIntentArtifact,
     FlowsheetCase,
     GateDecision,
     GateStatus,
@@ -103,6 +133,7 @@ from aoc.models import (
     HeatExchangerDesign,
     HeatIntegrationStudyArtifact,
     KineticAssessmentArtifact,
+    KineticsAdmissibilityArtifact,
     LayoutDecisionArtifact,
     MarketAssessmentArtifact,
     MechanicalDesignArtifact,
@@ -113,6 +144,7 @@ from aoc.models import (
     PlantCostSummary,
     PumpDesign,
     ProcessArchetype,
+    ProcessSelectionComparisonArtifact,
     ProcessSynthesisArtifact,
     ProcessNarrativeArtifact,
     PropertyDemandPlan,
@@ -125,16 +157,22 @@ from aoc.models import (
     ReportParityArtifact,
     ReportParityFrameworkArtifact,
     ReactionParticipant,
+    ReactionNetworkV2Artifact,
     ReactionSystem,
     ReactorDesign,
     ReactorDesignBasis,
     ResearchBundle,
     ResolvedSourceSet,
     ResolvedValueArtifact,
+    RevisionLedgerArtifact,
     RoughAlternativeSummaryArtifact,
     RouteOption,
     RouteChemistryArtifact,
+    RouteDiscoveryArtifact,
     RouteFamilyArtifact,
+    RouteProcessClaimsArtifact,
+    RouteScreeningArtifact,
+    ScientificGateMatrixArtifact,
     RouteSelectionComparisonArtifact,
     RouteSelectionArtifact,
     RouteEconomicBasisArtifact,
@@ -145,12 +183,17 @@ from aoc.models import (
     SparseDataPolicyArtifact,
     SensitivityLevel,
     ScenarioStability,
+    ScientificConfidence,
+    ScientificGateStatus,
     Severity,
     SiteSelectionArtifact,
     StorageDesign,
     StreamTable,
     TaxDepreciationBasis,
     ThermoAssessmentArtifact,
+    ThermoAdmissibilityArtifact,
+    TopologyCandidateArtifact,
+    UnitTrainConsistencyArtifact,
     UnitTrainCandidateSet,
     UtilityArchitectureDecision,
     UnitOperationFamilyArtifact,
@@ -159,6 +202,9 @@ from aoc.models import (
     ValidationIssue,
     VesselMechanicalDesign,
     WorkingCapitalModel,
+    SpeciesResolutionArtifact,
+    InferenceQuestionQueueArtifact,
+    DesignConfidenceArtifact,
     utc_now,
 )
 from aoc.operations import build_operating_mode_and_operations
@@ -176,6 +222,7 @@ from aoc.properties import (
     property_estimates_from_packages,
     property_value_records,
 )
+from aoc.properties.sources import is_valid_property_identifier_name, normalize_chemical_name
 from aoc.publish import annexures_markdown, assemble_report, markdown_table, references_markdown, render_pdf
 from aoc.reasoning import build_reasoning_service
 from aoc.research import ResearchManager
@@ -202,6 +249,8 @@ from aoc.utility_architecture import build_utility_architecture_decision
 from aoc.validators import (
     apply_state_issues,
     validate_architecture_package_critics,
+    validate_bac_impurity_model_artifact,
+    validate_bac_purification_section_artifact,
     validate_chapter,
     validate_chemistry_family_adapter,
     validate_column_design,
@@ -218,6 +267,7 @@ from aoc.validators import (
     validate_flowsheet_graph,
     validate_control_plan,
     validate_control_architecture,
+    validate_chemistry_decision_artifact,
     validate_hazop_node_register,
     validate_heat_integration_study,
     validate_india_location_data,
@@ -238,8 +288,18 @@ from aoc.validators import (
     validate_property_requirement_set,
     validate_property_requirements_for_stage,
     validate_property_records,
+    validate_claim_graph_artifact,
+    validate_commercial_product_basis_artifact,
+    validate_design_confidence_artifact,
+    validate_economic_coverage_decision,
+    validate_flowsheet_intent_artifact,
+    validate_inference_question_queue,
+    validate_kinetics_admissibility_artifact,
+    validate_reaction_network_v2_artifact,
+    validate_revision_ledger_artifact,
     validate_resolved_source_set,
     validate_resolved_value_artifact,
+    validate_scientific_gate_matrix,
     validate_separation_thermo_artifact,
     validate_sparse_data_policy,
     validate_sparse_data_policy_for_stage,
@@ -253,12 +313,19 @@ from aoc.validators import (
     validate_research_bundle,
     validate_route_balance,
     validate_route_chemistry_artifact,
+    validate_route_discovery_artifact,
     validate_route_economic_basis_artifact,
     validate_route_family_artifact,
     validate_route_economic_critics,
+    validate_route_process_claims_artifact,
+    validate_route_screening_artifact,
     validate_route_site_fit_artifact,
+    validate_species_resolution_artifact,
     validate_route_selection_comparison,
     validate_route_selection_critics,
+    validate_thermo_admissibility_artifact,
+    validate_topology_candidate_artifact,
+    validate_unit_train_consistency_artifact,
     validate_separation_design_critics,
     validate_separation_thermo_critics,
     validate_stream_table,
@@ -272,6 +339,21 @@ from aoc.validators import (
     validate_working_capital,
 )
 from aoc.value_engine import make_value_record
+
+
+def _coerce_numeric_value(value: object) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip()
+    try:
+        return float(text)
+    except ValueError:
+        numbers = [float(match) for match in re.findall(r"-?\d+(?:\.\d+)?", text)]
+        if not numbers:
+            raise
+        if len(numbers) >= 2 and ("-" in text or "to" in text.lower()):
+            return sum(numbers[:2]) / 2.0
+        return numbers[0]
 
 
 @dataclass(frozen=True)
@@ -297,19 +379,19 @@ class StageResult:
 STAGES = [
     StageSpec("project_intake", "Project intake and basis lock", (), ("project_basis", "research_bundle", "benchmark_manifest", "resolved_sources", "report_parity_framework", "user_document_facts", "document_process_options")),
     StageSpec("product_profile", "Introduction and product profile", ("research_bundle",), ("product_profile",)),
-    StageSpec("market_capacity", "Market and capacity selection", ("research_bundle",), ("market_assessment", "capacity_decision")),
-    StageSpec("literature_route_survey", "Literature survey", ("research_bundle",), ("route_survey", "route_chemistry")),
+    StageSpec("market_capacity", "Market and capacity selection", ("research_bundle",), ("market_assessment", "capacity_decision", "commercial_product_basis")),
+    StageSpec("literature_route_survey", "Literature survey", ("research_bundle",), ("route_survey", "route_chemistry", "route_discovery")),
     StageSpec("property_gap_resolution", "Property gap resolution", ("product_profile", "resolved_sources", "route_survey", "research_bundle"), ("property_gap", "resolved_values", "property_packages", "property_requirements", "property_demand_plan", "agent_decision_fabric"), "evidence_lock", "Evidence Lock", "Approve the resolved source and value basis before process synthesis proceeds."),
     StageSpec("site_selection", "Site selection", ("research_bundle",), ("site_selection", "site_selection_decision")),
-    StageSpec("process_synthesis", "Process synthesis", ("route_survey", "property_gap"), ("process_synthesis", "operations_planning", "chemistry_family_adapter", "route_family_profiles", "sparse_data_policy", "property_requirements", "unit_train_candidates")),
+    StageSpec("process_synthesis", "Process synthesis", ("route_survey", "property_gap"), ("process_synthesis", "operations_planning", "chemistry_family_adapter", "route_family_profiles", "sparse_data_policy", "property_requirements", "unit_train_candidates", "route_process_claims", "route_screening")),
     StageSpec("rough_alternative_balances", "Rough alternative balances", ("process_synthesis", "market_assessment"), ("rough_alternatives",)),
     StageSpec("heat_integration_optimization", "Heat integration optimization", ("rough_alternatives", "market_assessment"), ("heat_integration_study",), "heat_integration", "Heat Integration Review", "Approve the selected heat-integration studies before route finalization."),
-    StageSpec("route_selection", "Process selection", ("route_survey", "rough_alternatives", "heat_integration_study", "market_assessment"), ("route_selection", "route_selection_comparison", "route_decision", "reactor_choice_decision", "separation_choice_decision", "utility_network_decision", "unit_operation_family", "flowsheet_blueprint"), "process_architecture", "Process Architecture", "Approve the selected route, reactor, separation train, and utility-integration basis before downstream design work continues."),
-    StageSpec("thermodynamic_feasibility", "Thermodynamics", ("route_selection", "route_survey", "research_bundle", "property_packages", "property_requirements"), ("thermo_assessment", "thermo_method_decision", "property_method_decision", "separation_thermo")),
+    StageSpec("route_selection", "Process selection", ("route_survey", "rough_alternatives", "heat_integration_study", "market_assessment"), ("route_selection", "route_selection_comparison", "process_selection_comparison", "route_decision", "reactor_choice_decision", "separation_choice_decision", "utility_network_decision", "unit_operation_family", "flowsheet_blueprint", "chemistry_decision"), "process_architecture", "Process Architecture", "Approve the selected route, reactor, separation train, and utility-integration basis before downstream design work continues."),
+    StageSpec("thermodynamic_feasibility", "Thermodynamics", ("route_selection", "route_survey", "research_bundle", "property_packages", "property_requirements"), ("thermo_assessment", "thermo_method_decision", "property_method_decision", "separation_thermo", "bac_purification_sections")),
     StageSpec("kinetic_feasibility", "Kinetics", ("route_selection", "route_survey", "research_bundle"), ("kinetic_assessment", "kinetics_method_decision")),
     StageSpec("block_diagram", "Block diagram", ("route_selection", "route_survey", "research_bundle"), ("process_narrative",)),
     StageSpec("process_description", "Process description", ("process_narrative",), ("process_narrative",)),
-    StageSpec("material_balance", "Material balance", ("route_selection", "kinetic_assessment", "process_narrative"), ("reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case")),
+    StageSpec("material_balance", "Material balance", ("route_selection", "kinetic_assessment", "process_narrative"), ("reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case", "bac_impurity_model")),
     StageSpec("energy_balance", "Energy balance", ("stream_table", "thermo_assessment", "property_packages", "property_requirements"), ("energy_balance", "solve_result", "mixture_properties"), "design_basis", "Design Basis Lock", "Approve thermo, kinetics, process narrative, and balance basis before detailed design."),
     StageSpec("reactor_design", "Reactor design", ("reaction_system", "stream_table", "energy_balance", "mixture_properties", "property_packages", "property_requirements", "kinetic_assessment"), ("reactor_design", "reactor_design_basis")),
     StageSpec("distillation_design", "Distillation/process-unit design", ("stream_table", "energy_balance", "mixture_properties", "property_packages", "property_requirements", "separation_thermo"), ("column_design", "column_hydraulics", "heat_exchanger_design", "heat_exchanger_thermal_design", "exchanger_choice_decision")),
@@ -323,7 +405,7 @@ STAGES = [
     StageSpec("cost_of_production", "Cost of production", ("cost_model", "market_assessment"), ("cost_model",)),
     StageSpec("working_capital", "Working capital", ("cost_model", "market_assessment", "operations_planning"), ("working_capital_model",)),
     StageSpec("financial_analysis", "Financial analysis", ("cost_model", "working_capital_model", "market_assessment"), ("financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios", "debt_schedule", "tax_depreciation_basis", "financial_schedule"), "india_cost_basis", "India Cost Basis", "Approve India site and economics basis before final assembly."),
-    StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report", "report_parity", "report_acceptance"), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
+    StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report", "report_parity", "report_acceptance", "unit_train_consistency"), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
 ]
 
 
@@ -423,8 +505,16 @@ class PipelineRunner:
             state.run_status = RunStatus.RUNNING
             self.store.save_run_state(state)
             result = getattr(self, f"_run_{stage.id}")()
+            scientific_issues, rewind_stage_id = self._refresh_scientific_inference(stage.id, state)
+            result.issues.extend(scientific_issues)
             self._refresh_critic_registry(stage.id, result.issues)
             self._refresh_agent_fabric()
+            if rewind_stage_id is not None:
+                state.stage_revision_counts[rewind_stage_id] = state.stage_revision_counts.get(rewind_stage_id, 0) + 1
+                self._invalidate_from_stage(state, rewind_stage_id)
+                state.run_status = RunStatus.READY
+                self.store.save_run_state(state)
+                continue
             blocking_issues = [issue for issue in result.issues if issue.severity == Severity.BLOCKED]
             if blocking_issues:
                 state.run_status = RunStatus.BLOCKED
@@ -499,6 +589,11 @@ class PipelineRunner:
             lines.append(f"awaiting_gate: {state.awaiting_gate_id}")
         if state.blocked_stage_id:
             lines.append(f"blocked_stage: {state.blocked_stage_id}")
+        if state.stage_revision_counts:
+            lines.append(
+                "stage_revisions: "
+                + ", ".join(f"{stage_id}={count}" for stage_id, count in sorted(state.stage_revision_counts.items()))
+            )
         if state.missing_india_coverage:
             lines.append(f"missing_india_coverage: {', '.join(state.missing_india_coverage)}")
         if state.stale_source_groups:
@@ -521,6 +616,19 @@ class PipelineRunner:
         report_acceptance = self.store.maybe_load_model(self.config.project_id, "artifacts/report_acceptance.json", ReportAcceptanceArtifact)
         document_facts = self.store.maybe_load_model(self.config.project_id, "artifacts/user_document_facts.json", DocumentFactCollectionArtifact)
         document_process_options = self.store.maybe_load_model(self.config.project_id, "artifacts/document_process_options.json", DocumentProcessOptionsArtifact)
+        commercial_product_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/commercial_product_basis.json", CommercialProductBasisArtifact)
+        claim_graph = self.store.maybe_load_model(self.config.project_id, "artifacts/claim_graph.json", ClaimGraphArtifact)
+        question_queue = self.store.maybe_load_model(self.config.project_id, "artifacts/inference_question_queue.json", InferenceQuestionQueueArtifact)
+        revision_ledger = self.store.maybe_load_model(self.config.project_id, "artifacts/revision_ledger.json", RevisionLedgerArtifact)
+        scientific_gate_matrix = self.store.maybe_load_model(self.config.project_id, "artifacts/scientific_gate_matrix.json", ScientificGateMatrixArtifact)
+        species_resolution = self.store.maybe_load_model(self.config.project_id, "artifacts/species_resolution.json", SpeciesResolutionArtifact)
+        reaction_network_v2 = self.store.maybe_load_model(self.config.project_id, "artifacts/reaction_network_v2.json", ReactionNetworkV2Artifact)
+        thermo_admissibility = self.store.maybe_load_model(self.config.project_id, "artifacts/thermo_admissibility.json", ThermoAdmissibilityArtifact)
+        kinetics_admissibility = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_admissibility.json", KineticsAdmissibilityArtifact)
+        flowsheet_intents = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_intents.json", FlowsheetIntentArtifact)
+        topology_candidates = self.store.maybe_load_model(self.config.project_id, "artifacts/topology_candidates.json", TopologyCandidateArtifact)
+        design_confidence = self.store.maybe_load_model(self.config.project_id, "artifacts/design_confidence.json", DesignConfidenceArtifact)
+        economic_coverage = self.store.maybe_load_model(self.config.project_id, "artifacts/economic_coverage.json", EconomicCoverageDecision)
         resolved_sources = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_sources.json", ResolvedSourceSet)
         property_gap = self.store.maybe_load_model(self.config.project_id, "artifacts/property_gap.json", PropertyGapArtifact)
         resolved_values = self.store.maybe_load_model(self.config.project_id, "artifacts/resolved_values.json", ResolvedValueArtifact)
@@ -537,11 +645,15 @@ class PipelineRunner:
         unit_operation_family = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_operation_family.json", UnitOperationFamilyArtifact)
         sparse_data_policy = self.store.maybe_load_model(self.config.project_id, "artifacts/sparse_data_policy.json", SparseDataPolicyArtifact)
         process_synthesis = self.store.maybe_load_model(self.config.project_id, "artifacts/process_synthesis.json", ProcessSynthesisArtifact)
+        route_discovery = self.store.maybe_load_model(self.config.project_id, "artifacts/route_discovery.json", RouteDiscoveryArtifact)
+        route_screening = self.store.maybe_load_model(self.config.project_id, "artifacts/route_screening.json", RouteScreeningArtifact)
+        process_selection_comparison = self.store.maybe_load_model(self.config.project_id, "artifacts/process_selection_comparison.json", ProcessSelectionComparisonArtifact)
         unit_train_candidates = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_train_candidates.json", UnitTrainCandidateSet)
         operations_planning = self.store.maybe_load_model(self.config.project_id, "artifacts/operations_planning.json", OperationsPlanningArtifact)
         capacity_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/capacity_decision.json", DecisionRecord)
         site_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/site_selection_decision.json", DecisionRecord)
         route_selection_comparison = self.store.maybe_load_model(self.config.project_id, "artifacts/route_selection_comparison.json", RouteSelectionComparisonArtifact)
+        chemistry_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/chemistry_decision.json", ChemistryDecisionArtifact)
         route_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/route_decision.json", DecisionRecord)
         reactor_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/reactor_choice_decision.json", DecisionRecord)
         separation_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_choice_decision.json", DecisionRecord)
@@ -570,6 +682,9 @@ class PipelineRunner:
         plant_cost_summary = self.store.maybe_load_model(self.config.project_id, "artifacts/plant_cost_summary.json", PlantCostSummary)
         route_site_fit = self.store.maybe_load_model(self.config.project_id, "artifacts/route_site_fit.json", RouteSiteFitArtifact)
         route_economic_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/route_economic_basis.json", RouteEconomicBasisArtifact)
+        bac_purification_sections = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_purification_sections.json", BACPurificationSectionArtifact)
+        bac_impurity_model = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_impurity_model.json", BACImpurityModelArtifact)
+        unit_train_consistency = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_train_consistency.json", UnitTrainConsistencyArtifact)
         debt_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/debt_schedule.json", DebtSchedule)
         financial_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/financial_schedule.json", FinancialSchedule)
         if benchmark_manifest:
@@ -606,6 +721,49 @@ class PipelineRunner:
             )
             lines.append(f"- missing_expected_decisions: {', '.join(report_acceptance.missing_expected_decisions) or 'none'}")
             lines.append(f"- blocking_issue_codes: {', '.join(report_acceptance.blocking_issue_codes) or 'none'}")
+            lines.append(f"- route_evidence_status: {report_acceptance.route_evidence_status}")
+            lines.append(f"- product_basis_status: {report_acceptance.product_basis_status}")
+            lines.append(f"- unit_train_consistency_status: {report_acceptance.unit_train_consistency_status}")
+            lines.append(f"- purification_rigor_status: {report_acceptance.purification_rigor_status}")
+            lines.append(f"- economic_realism_status: {report_acceptance.economic_realism_status}")
+        if species_resolution or reaction_network_v2 or thermo_admissibility or kinetics_admissibility or topology_candidates:
+            lines.append("")
+            lines.append("scientific_basis:")
+            if species_resolution:
+                lines.append(f"- species_blocking_routes: {', '.join(species_resolution.blocking_route_ids) or 'none'}")
+            if reaction_network_v2:
+                lines.append(f"- reaction_network_blocking_routes: {', '.join(reaction_network_v2.blocking_route_ids) or 'none'}")
+            if thermo_admissibility:
+                lines.append(f"- thermo_selected_route_status: {thermo_admissibility.selected_route_status.value}")
+                lines.append(f"- thermo_selected_route_confidence: {thermo_admissibility.selected_route_confidence.value}")
+            if kinetics_admissibility:
+                lines.append(f"- kinetics_selected_route_status: {kinetics_admissibility.selected_route_status.value}")
+                lines.append(f"- kinetics_selected_route_confidence: {kinetics_admissibility.selected_route_confidence.value}")
+            if topology_candidates:
+                lines.append(f"- topology_selected_blueprint: {topology_candidates.selected_blueprint_id or 'none'}")
+                lines.append(f"- screening_balance_allowed: {'yes' if topology_candidates.screening_balance_allowed else 'no'}")
+        if flowsheet_intents or design_confidence or economic_coverage or scientific_gate_matrix or claim_graph or question_queue or revision_ledger:
+            lines.append("")
+            lines.append("scientific_inference:")
+            if flowsheet_intents:
+                lines.append(f"- flowsheet_intents: {len(flowsheet_intents.intents)}")
+            if design_confidence:
+                lines.append(f"- design_confidence: {design_confidence.overall_confidence.value}")
+                lines.append(f"- blocked_units: {', '.join(design_confidence.blocked_unit_ids) or 'none'}")
+            if economic_coverage:
+                lines.append(f"- economic_coverage: {economic_coverage.status}")
+                lines.append(f"- economic_missing_basis: {', '.join(economic_coverage.missing_basis) or 'none'}")
+            if scientific_gate_matrix:
+                lines.append(
+                    f"- scientific_gates: {', '.join(f'{item.gate_id}={item.status.value}' for item in scientific_gate_matrix.entries) or 'none'}"
+                )
+            if claim_graph:
+                lines.append(f"- claims: {len(claim_graph.claims)}")
+                lines.append(f"- changed_claims: {', '.join(claim_graph.changed_claim_ids) or 'none'}")
+            if question_queue:
+                lines.append(f"- active_questions: {len(question_queue.active_questions)}")
+            if revision_ledger:
+                lines.append(f"- active_revision_tickets: {', '.join(revision_ledger.active_ticket_ids) or 'none'}")
         if document_facts or document_process_options:
             lines.append("")
             lines.append("document_facts:")
@@ -628,6 +786,15 @@ class PipelineRunner:
                     lines.append(
                         f"- conflict[{conflict.source_domain.value}]: selected={conflict.selected_source_id or 'none'}; competing={', '.join(conflict.competing_source_ids) or 'none'}; blocking={'yes' if conflict.blocking else 'no'}"
                     )
+        if commercial_product_basis:
+            lines.append("")
+            lines.append("commercial_product_basis:")
+            lines.append(f"- throughput_basis: {commercial_product_basis.throughput_basis}")
+            lines.append(f"- sold_solution_basis_kg_hr: {commercial_product_basis.sold_solution_basis_kg_hr:,.3f}")
+            lines.append(f"- active_basis_kg_hr: {commercial_product_basis.active_basis_kg_hr:,.3f}")
+            lines.append(f"- sold_concentration_wt_pct: {commercial_product_basis.sold_concentration_wt_pct:.2f}")
+            lines.append(f"- sold_solution_price_inr_per_kg: {commercial_product_basis.sold_solution_price_inr_per_kg:,.2f}")
+            lines.append(f"- active_price_inr_per_kg: {commercial_product_basis.active_price_inr_per_kg:,.2f}")
         if property_gap:
             lines.append("")
             lines.append("value_resolution:")
@@ -776,6 +943,21 @@ class PipelineRunner:
             lines.append(f"- selected_route: {route_selection_comparison.selected_route_id}")
             lines.append(f"- rows: {len(route_selection_comparison.rows)}")
             lines.append(f"- blocked_routes: {', '.join(route_selection_comparison.blocked_route_ids) or 'none'}")
+        if process_selection_comparison:
+            lines.append(f"- discovery_count: {process_selection_comparison.route_discovery_count}")
+            lines.append(f"- retained_count: {process_selection_comparison.retained_route_count}")
+            lines.append(f"- eliminated_count: {process_selection_comparison.eliminated_route_count}")
+        if route_discovery or route_screening or chemistry_decision:
+            lines.append("")
+            lines.append("process_selection_logic:")
+            if route_discovery:
+                lines.append(f"- discovered_routes: {len(route_discovery.rows)}")
+            if route_screening:
+                lines.append(f"- retained_routes: {', '.join(route_screening.retained_route_ids) or 'none'}")
+                lines.append(f"- eliminated_routes: {', '.join(route_screening.eliminated_route_ids) or 'none'}")
+            if chemistry_decision:
+                lines.append(f"- chemistry_basis_status: {chemistry_decision.chemistry_basis_status}")
+                lines.append(f"- chemistry_steps: {chemistry_decision.reaction_step_count}")
         if agent_fabric:
             lines.append("")
             lines.append("agent_fabric:")
@@ -927,6 +1109,18 @@ class PipelineRunner:
                 lines.append(f"- financing_scenario_reversal: {'yes' if financial_model.financing_scenario_reversal else 'no'}")
                 lines.append(f"- covenant_breach_count: {len(financial_model.covenant_breach_codes)}")
                 lines.append(f"- covenant_warning_count: {len(financial_model.covenant_warnings)}")
+        if bac_purification_sections or bac_impurity_model or unit_train_consistency:
+            lines.append("")
+            lines.append("bac_benchmark_basis:")
+            if bac_purification_sections:
+                lines.append(f"- purification_sections: {len(bac_purification_sections.sections)}")
+                lines.append(f"- unresolved_purification_sections: {', '.join(bac_purification_sections.unresolved_section_ids) or 'none'}")
+            if bac_impurity_model:
+                lines.append(f"- impurity_items: {len(bac_impurity_model.items)}")
+                lines.append(f"- unresolved_impurity_ids: {', '.join(bac_impurity_model.unresolved_impurity_ids) or 'none'}")
+            if unit_train_consistency:
+                lines.append(f"- unit_train_consistency: {unit_train_consistency.overall_status}")
+                lines.append(f"- unit_train_blocking_refs: {', '.join(unit_train_consistency.blocking_artifact_refs) or 'none'}")
         return "\n".join(lines)
 
     def _require_state(self) -> ProjectRunState:
@@ -943,6 +1137,240 @@ class PipelineRunner:
 
     def _maybe_load(self, name: str, model_type):
         return self.store.maybe_load_model(self.config.project_id, f"artifacts/{name}.json", model_type)
+
+    def _stage_index(self, stage_id: str) -> int:
+        for index, stage in enumerate(STAGES):
+            if stage.id == stage_id:
+                return index
+        raise RuntimeError(f"Unknown stage '{stage_id}'.")
+
+    def _invalidate_from_stage(self, state: ProjectRunState, stage_id: str) -> None:
+        target_index = self._stage_index(stage_id)
+        invalid_stage_ids = {stage.id for stage in STAGES[target_index:]}
+        for stage in STAGES[target_index:]:
+            for artifact_name in stage.output_artifacts:
+                self.store.delete_path(self.config.project_id, f"artifacts/{artifact_name}.json")
+        for chapter_id in list(state.chapter_index):
+            chapter_artifact = self.store.maybe_load_model(self.config.project_id, f"chapter_artifacts/{chapter_id}.json", ChapterArtifact)
+            if chapter_artifact is not None and chapter_artifact.stage_id in invalid_stage_ids:
+                self.store.delete_path(self.config.project_id, f"chapter_artifacts/{chapter_id}.json")
+                self.store.delete_path(self.config.project_id, f"chapters/{chapter_id}.md")
+                state.chapter_index.pop(chapter_id, None)
+        for stage in STAGES[target_index:]:
+            if stage.gate_id:
+                state.gates.pop(stage.gate_id, None)
+        state.completed_stages = [item for item in state.completed_stages if self._stage_index(item) < target_index]
+        state.current_stage_index = target_index
+        state.current_stage_id = stage_id
+        state.awaiting_gate_id = None
+        state.blocked_stage_id = None
+
+    def _refresh_scientific_inference(self, stage_id: str, state: ProjectRunState) -> tuple[list[ValidationIssue], str | None]:
+        issues: list[ValidationIssue] = []
+        is_bac_benchmark = (
+            "benzalkonium" in self.config.basis.target_product.lower()
+            or (self.config.benchmark_profile or "").strip().lower() == "benzalkonium_chloride"
+        )
+        selected_route = self._maybe_load("route_selection", RouteSelectionArtifact)
+        selected_route_id = selected_route.selected_route_id if selected_route is not None else ""
+        route_survey = self._maybe_load("route_survey", RouteSurveyArtifact)
+        route_chemistry = self._maybe_load("route_chemistry", RouteChemistryArtifact)
+        property_packages = self._maybe_load("property_packages", PropertyPackageArtifact)
+        route_families = self._maybe_load("route_family_profiles", RouteFamilyArtifact)
+        unit_train_candidates = self._maybe_load("unit_train_candidates", UnitTrainCandidateSet)
+        route_process_claims = self._maybe_load("route_process_claims", RouteProcessClaimsArtifact)
+        flowsheet_blueprint = self._maybe_load("flowsheet_blueprint", FlowsheetBlueprintArtifact)
+        route_selection_comparison = self._maybe_load("route_selection_comparison", RouteSelectionComparisonArtifact)
+        separation_thermo = self._maybe_load("separation_thermo", SeparationThermoArtifact)
+        property_method = self._maybe_load("property_method_decision", PropertyMethodDecision)
+        kinetics_method = self._maybe_load("kinetics_method_decision", MethodSelectionArtifact)
+        kinetic_assessment = self._maybe_load("kinetic_assessment", KineticAssessmentArtifact)
+        solve_result = self._maybe_load("solve_result", SolveResult)
+        flowsheet_case = self._maybe_load("flowsheet_case", FlowsheetCase)
+        route_site_fit = self._maybe_load("route_site_fit", RouteSiteFitArtifact)
+        route_economic_basis = self._maybe_load("route_economic_basis", RouteEconomicBasisArtifact)
+        equipment_list = self._maybe_load("equipment_list", EquipmentListArtifact)
+        reactor_design = self._maybe_load("reactor_design", ReactorDesign)
+        column_design = self._maybe_load("column_design", ColumnDesign)
+        stream_table = self._maybe_load("stream_table", StreamTable)
+        energy_balance = self._maybe_load("energy_balance", EnergyBalance)
+        control_plan = self._maybe_load("control_plan", ControlPlanArtifact)
+        cost_model = self._maybe_load("cost_model", CostModel)
+        commercial_product_basis = self._maybe_load("commercial_product_basis", CommercialProductBasisArtifact)
+
+        species_resolution = None
+        reaction_network_v2 = None
+        thermo_admissibility = None
+        kinetics_admissibility = None
+        topology_candidates = None
+        flowsheet_intents = None
+        design_confidence = None
+        economic_coverage = None
+        gate_matrix = None
+        claim_graph = None
+        question_queue = None
+        revision_ledger = None
+
+        if route_chemistry is not None:
+            species_resolution = build_species_resolution_artifact(route_chemistry, selected_route_id)
+            reaction_network_v2 = build_reaction_network_v2_artifact(route_chemistry, species_resolution, selected_route_id)
+            self._save("species_resolution", species_resolution)
+            self._save("reaction_network_v2", reaction_network_v2)
+            issues.extend(validate_species_resolution_artifact(species_resolution))
+            issues.extend(validate_reaction_network_v2_artifact(reaction_network_v2))
+        if route_survey is not None and route_chemistry is not None and property_packages is not None:
+            thermo_admissibility = build_thermo_admissibility_artifact(
+                route_survey,
+                route_chemistry,
+                property_packages,
+                route_families,
+                selected_route_id=selected_route_id,
+                separation_thermo=separation_thermo,
+                property_method=property_method,
+            )
+            self._save("thermo_admissibility", thermo_admissibility)
+            issues.extend(validate_thermo_admissibility_artifact(thermo_admissibility))
+        if route_survey is not None and route_chemistry is not None:
+            kinetics_admissibility = build_kinetics_admissibility_artifact(
+                route_survey,
+                route_chemistry,
+                selected_route_id=selected_route_id,
+                kinetics_method=kinetics_method,
+                kinetic_assessment=kinetic_assessment,
+            )
+            self._save("kinetics_admissibility", kinetics_admissibility)
+            issues.extend(validate_kinetics_admissibility_artifact(kinetics_admissibility))
+        if unit_train_candidates is not None and species_resolution is not None and reaction_network_v2 is not None:
+            topology_candidates = build_topology_candidate_artifact(
+                unit_train_candidates,
+                species_resolution,
+                reaction_network_v2,
+                selected_route_id=selected_route_id,
+            )
+            self._save("topology_candidates", topology_candidates)
+            issues.extend(validate_topology_candidate_artifact(topology_candidates))
+            if route_survey is not None and route_process_claims is None:
+                route_process_claims = build_route_process_claims_artifact(
+                    route_survey,
+                    route_chemistry,
+                    unit_train_candidates,
+                )
+                self._save("route_process_claims", route_process_claims)
+        if flowsheet_blueprint is not None:
+            flowsheet_intents = build_flowsheet_intent_artifact(flowsheet_blueprint)
+            self._save("flowsheet_intents", flowsheet_intents)
+            issues.extend(validate_flowsheet_intent_artifact(flowsheet_intents))
+        if selected_route_id and topology_candidates is not None:
+            design_confidence = build_design_confidence_artifact(
+                selected_route_id=selected_route_id,
+                topology_candidates=topology_candidates,
+                thermo_admissibility=thermo_admissibility,
+                kinetics_admissibility=kinetics_admissibility,
+                flowsheet_blueprint=flowsheet_blueprint,
+                flowsheet_case=flowsheet_case,
+                solve_result=solve_result,
+                reactor_design=reactor_design,
+                column_design=column_design,
+                equipment_list=equipment_list,
+            )
+            self._save("design_confidence", design_confidence)
+            issues.extend(validate_design_confidence_artifact(design_confidence))
+        if selected_route_id and route_site_fit is not None and route_economic_basis is not None:
+            economic_coverage = build_economic_coverage_decision(
+                route_id=selected_route_id,
+                route_economic_basis=route_economic_basis,
+                route_site_fit=route_site_fit,
+                design_confidence=design_confidence,
+            )
+            self._save("economic_coverage", economic_coverage)
+            issues.extend(validate_economic_coverage_decision(economic_coverage))
+        if is_bac_benchmark and flowsheet_blueprint is not None and any(
+            artifact is not None
+            for artifact in [stream_table, energy_balance, equipment_list, control_plan, reactor_design, column_design, cost_model]
+        ):
+            unit_train_consistency = build_unit_train_consistency_artifact(
+                flowsheet_blueprint,
+                stream_table=stream_table,
+                energy_balance=energy_balance,
+                equipment_list=equipment_list,
+                control_plan=control_plan,
+                reactor_design=reactor_design,
+                column_design=column_design,
+                cost_model=cost_model,
+            )
+            self._save("unit_train_consistency", unit_train_consistency)
+            issues.extend(validate_unit_train_consistency_artifact(unit_train_consistency))
+        if selected_route is not None and stream_table is not None and commercial_product_basis is not None:
+            bac_impurity_model = build_bac_impurity_model_artifact(selected_route, stream_table, commercial_product_basis)
+            if bac_impurity_model is not None:
+                self._save("bac_impurity_model", bac_impurity_model)
+                issues.extend(validate_bac_impurity_model_artifact(bac_impurity_model))
+        if selected_route is not None and flowsheet_blueprint is not None and separation_thermo is not None:
+            bac_purification_sections = build_bac_purification_section_artifact(
+                selected_route,
+                flowsheet_blueprint,
+                separation_thermo,
+                stream_table=stream_table,
+            )
+            if bac_purification_sections is not None:
+                self._save("bac_purification_sections", bac_purification_sections)
+                issues.extend(validate_bac_purification_section_artifact(bac_purification_sections))
+        if any([species_resolution, thermo_admissibility, kinetics_admissibility, topology_candidates, design_confidence, economic_coverage]):
+            gate_matrix = build_scientific_gate_matrix_artifact(
+                species_resolution=species_resolution,
+                thermo_admissibility=thermo_admissibility,
+                kinetics_admissibility=kinetics_admissibility,
+                topology_candidates=topology_candidates,
+                design_confidence=design_confidence,
+                economic_coverage=economic_coverage,
+            )
+            self._save("scientific_gate_matrix", gate_matrix)
+            issues.extend(validate_scientific_gate_matrix(gate_matrix))
+        if any([species_resolution, reaction_network_v2, selected_route, thermo_admissibility, kinetics_admissibility, topology_candidates, design_confidence, economic_coverage]):
+            previous_claim_graph = self._maybe_load("claim_graph", ClaimGraphArtifact)
+            claim_graph = build_claim_graph_artifact(
+                stage_id=stage_id,
+                previous=previous_claim_graph,
+                selected_route_id=selected_route_id,
+                species_resolution=species_resolution,
+                reaction_network=reaction_network_v2,
+                route_process_claims=route_process_claims,
+                route_selection=selected_route,
+                thermo_admissibility=thermo_admissibility,
+                kinetics_admissibility=kinetics_admissibility,
+                topology_candidates=topology_candidates,
+                stream_table=stream_table,
+                design_confidence=design_confidence,
+                economic_coverage=economic_coverage,
+            )
+            self._save("claim_graph", claim_graph)
+            issues.extend(validate_claim_graph_artifact(claim_graph))
+            question_queue = build_inference_question_queue(
+                species_resolution=species_resolution,
+                route_process_claims=route_process_claims,
+                thermo_admissibility=thermo_admissibility,
+                kinetics_admissibility=kinetics_admissibility,
+                topology_candidates=topology_candidates,
+                economic_coverage=economic_coverage,
+            )
+            self._save("inference_question_queue", question_queue)
+            issues.extend(validate_inference_question_queue(question_queue))
+            previous_ledger = self._maybe_load("revision_ledger", RevisionLedgerArtifact)
+            revision_ledger = build_revision_ledger(
+                previous=previous_ledger,
+                stage_id=stage_id,
+                state_revision_counts=state.stage_revision_counts,
+                route_selection_comparison=route_selection_comparison,
+                thermo_admissibility=thermo_admissibility,
+                kinetics_admissibility=kinetics_admissibility,
+            )
+            self._save("revision_ledger", revision_ledger)
+            issues.extend(validate_revision_ledger_artifact(revision_ledger))
+            if any(ticket.status == "open" for ticket in revision_ledger.tickets):
+                for ticket in revision_ledger.tickets:
+                    if ticket.status == "open":
+                        return issues, ticket.target_stage_id
+        return issues, None
 
     def _benchmark_decision_presence(self) -> dict[str, bool]:
         capacity_decision = self._maybe_load("capacity_decision", DecisionRecord)
@@ -989,6 +1417,88 @@ class PipelineRunner:
             pipeline_status,
             blocked_stage_id=blocked_stage_id,
             blocking_issues=blocking_issues or [],
+        )
+        route_selection = self._maybe_load("route_selection", RouteSelectionArtifact)
+        process_selection_comparison = self._maybe_load("process_selection_comparison", ProcessSelectionComparisonArtifact)
+        commercial_product_basis = self._maybe_load("commercial_product_basis", CommercialProductBasisArtifact)
+        unit_train_consistency = self._maybe_load("unit_train_consistency", UnitTrainConsistencyArtifact)
+        bac_purification_sections = self._maybe_load("bac_purification_sections", BACPurificationSectionArtifact)
+        economic_coverage = self._maybe_load("economic_coverage", EconomicCoverageDecision)
+
+        route_evidence_status = "not_evaluated"
+        if process_selection_comparison is not None and route_selection is not None:
+            selected_row = next(
+                (
+                    row
+                    for row in process_selection_comparison.rows
+                    if row.route_id == route_selection.selected_route_id or row.selected
+                ),
+                None,
+            )
+            if selected_row is None or selected_row.scientific_status == "blocked":
+                route_evidence_status = "blocked"
+            elif selected_row.route_origin == "seeded" or selected_row.evidence_score < 0.75:
+                route_evidence_status = "conditional"
+            else:
+                route_evidence_status = "complete"
+
+        product_basis_status = "not_evaluated"
+        if commercial_product_basis is not None:
+            if (
+                commercial_product_basis.throughput_basis == "finished_product"
+                and commercial_product_basis.sold_solution_basis_kg_hr >= commercial_product_basis.active_basis_kg_hr > 0.0
+                and 0.0 < commercial_product_basis.active_fraction <= 1.0
+            ):
+                product_basis_status = "complete"
+            elif commercial_product_basis.active_basis_kg_hr > 0.0:
+                product_basis_status = "conditional"
+            else:
+                product_basis_status = "blocked"
+
+        unit_train_consistency_status = "not_evaluated"
+        if unit_train_consistency is not None:
+            unit_train_consistency_status = {
+                "pass": "complete",
+                "warning": "conditional",
+                "blocked": "blocked",
+            }[unit_train_consistency.overall_status]
+
+        purification_rigor_status = "not_evaluated"
+        if bac_purification_sections is not None:
+            section_statuses = [section.status for section in bac_purification_sections.sections]
+            section_confidences = [section.confidence for section in bac_purification_sections.sections]
+            if bac_purification_sections.unresolved_section_ids or any(
+                status == ScientificGateStatus.FAIL for status in section_statuses
+            ):
+                purification_rigor_status = "blocked"
+            elif section_statuses and all(status == ScientificGateStatus.PASS for status in section_statuses) and all(
+                confidence != ScientificConfidence.SCREENING for confidence in section_confidences
+            ):
+                purification_rigor_status = "complete"
+            else:
+                purification_rigor_status = "conditional"
+
+        economic_realism_status = "not_evaluated"
+        if economic_coverage is not None:
+            economic_realism_status = {
+                "detailed": "complete",
+                "screening": "conditional",
+                "blocked": "blocked",
+            }[economic_coverage.status]
+
+        artifact = artifact.model_copy(
+            update={
+                "route_evidence_status": route_evidence_status,
+                "product_basis_status": product_basis_status,
+                "unit_train_consistency_status": unit_train_consistency_status,
+                "purification_rigor_status": purification_rigor_status,
+                "economic_realism_status": economic_realism_status,
+                "summary": (
+                    f"{artifact.summary} Route evidence={route_evidence_status}; product basis={product_basis_status}; "
+                    f"unit-train consistency={unit_train_consistency_status}; purification rigor={purification_rigor_status}; "
+                    f"economic realism={economic_realism_status}."
+                ).strip(),
+            }
         )
         self._save("report_acceptance", artifact)
         return artifact
@@ -1197,7 +1707,29 @@ class PipelineRunner:
             route_id = option.option_id
             if route_id in existing_ids:
                 continue
-            reactants = list(dict.fromkeys(option.raw_materials[:3] or option.extracted_species[:2]))
+            valid_species = [name for name in option.extracted_species if self._is_valid_route_species_candidate(name)]
+            valid_raw_materials = [name for name in option.raw_materials if self._is_valid_route_species_candidate(name)]
+            catalyst_ids = {
+                normalize_chemical_name(name)
+                for name in option.catalysts
+                if self._is_valid_route_species_candidate(name)
+            }
+            solvent_ids = {
+                normalize_chemical_name(name)
+                for name in option.solvents
+                if self._is_valid_route_species_candidate(name)
+            }
+            target_id = normalize_chemical_name(self.config.basis.target_product)
+            candidate_reactants = valid_raw_materials[:3] or valid_species[:2]
+            reactants = list(
+                dict.fromkeys(
+                    name
+                    for name in candidate_reactants
+                    if normalize_chemical_name(name) not in catalyst_ids
+                    and normalize_chemical_name(name) not in solvent_ids
+                    and normalize_chemical_name(name) != target_id
+                )
+            )
             participants = [
                 ReactionParticipant(
                     name=name,
@@ -1236,8 +1768,8 @@ class PipelineRunner:
                     source_document_id=option.source_document_id,
                     evidence_score=evidence_score,
                     chemistry_completeness_score=completeness,
-                    separation_complexity_score=max(0.4, min(1.0, len(option.extracted_species) / 8.0)),
-                    extracted_species=list(option.extracted_species),
+                    separation_complexity_score=max(0.4, min(1.0, len(valid_species) / 8.0)),
+                    extracted_species=list(valid_species),
                     reaction_family_hints=list(option.reaction_family_hints),
                     core_species_complete=bool(reactants),
                     catalysts=list(option.catalysts),
@@ -1277,6 +1809,10 @@ class PipelineRunner:
         )
         return artifact.model_copy(update={"routes": augmented_routes, "markdown": "\n\n".join(markdown_parts)}, deep=True)
 
+    @staticmethod
+    def _is_valid_route_species_candidate(name: str) -> bool:
+        return is_valid_property_identifier_name(name)
+
     def _existing_chapters(self, state: ProjectRunState) -> list[ChapterArtifact]:
         return [self.store.load_chapter(self.config.project_id, chapter_id) for chapter_id in state.chapter_index]
 
@@ -1311,11 +1847,30 @@ class PipelineRunner:
         artifact = self.reasoning.build_product_profile(self.config.basis, bundle.sources, bundle.corpus_excerpt)
         self._save("product_profile", artifact)
         issues = validate_property_records(artifact.properties, self._source_ids(), self.config.strict_citation_policy)
+        chapter_markdown = artifact.markdown
+        if self.config.benchmark_profile == "benzalkonium_chloride" and artifact.properties:
+            property_rows = [
+                [
+                    item.name,
+                    item.value,
+                    item.units or "-",
+                    item.method.value,
+                    ", ".join(item.citations) or "-",
+                ]
+                for item in artifact.properties
+            ]
+            chapter_markdown += (
+                "\n\n### Properties\n\n"
+                + markdown_table(
+                    ["Property", "Value", "Units", "Quality", "Citations"],
+                    property_rows,
+                )
+            )
         chapter = self._chapter(
             "introduction_product_profile",
             "Introduction and Product Profile",
             "product_profile",
-            artifact.markdown,
+            chapter_markdown,
             artifact.citations,
             artifact.assumptions,
             ["product_profile"],
@@ -1327,7 +1882,9 @@ class PipelineRunner:
 
     def _run_market_capacity(self) -> StageResult:
         bundle = self._load("research_bundle", ResearchBundle)
+        product_profile = self._load("product_profile", ProductProfileArtifact)
         artifact = self.reasoning.build_market_assessment(self.config.basis, bundle.sources, bundle.corpus_excerpt)
+        commercial_basis = build_commercial_product_basis_artifact(self.config.basis, product_profile, artifact)
         default_price_source = next((source_id for source_id in bundle.india_source_ids if source_id.startswith("india_sheet_")), None)
         if default_price_source:
             for datum in artifact.india_price_data:
@@ -1337,17 +1894,20 @@ class PipelineRunner:
         capacity_decision = build_capacity_decision(self.config, artifact)
         self._save("market_assessment", artifact)
         self._save("capacity_decision", capacity_decision)
+        self._save("commercial_product_basis", commercial_basis)
         self._refresh_agent_fabric()
         issues = validate_india_price_data(artifact.india_price_data, self._source_ids(), self.config, "market_assessment")
+        issues.extend(validate_commercial_product_basis_artifact(commercial_basis))
         chapter = self._chapter(
             "market_capacity_selection",
             "Market and Capacity Selection",
             "market_capacity",
-            artifact.markdown + f"\n\n### Capacity Decision\n\n{capacity_decision.selected_summary}",
-            sorted(set(artifact.citations + capacity_decision.citations)),
-            artifact.assumptions + capacity_decision.assumptions,
-            ["market_assessment", "capacity_decision"],
-            required_inputs=["research_bundle"],
+            artifact.markdown
+            + f"\n\n### Commercial Product Basis\n\n{commercial_basis.markdown}\n\n### Capacity Decision\n\n{capacity_decision.selected_summary}",
+            sorted(set(artifact.citations + capacity_decision.citations + commercial_basis.citations)),
+            artifact.assumptions + commercial_basis.assumptions + capacity_decision.assumptions,
+            ["market_assessment", "capacity_decision", "commercial_product_basis"],
+            required_inputs=["research_bundle", "product_profile"],
             summary=artifact.capacity_rationale,
         )
         issues.extend(validate_decision_record(capacity_decision, "capacity_decision"))
@@ -1360,25 +1920,29 @@ class PipelineRunner:
         artifact = self._normalize_route_survey(artifact)
         artifact = self._augment_route_survey_from_documents(artifact, bundle)
         route_chemistry = build_route_chemistry_artifact(artifact, bundle.user_document_facts)
+        route_discovery = build_route_discovery_artifact(artifact, route_chemistry)
         document_process_options = self._load("document_process_options", DocumentProcessOptionsArtifact)
         self._save("route_survey", artifact)
         self._save("route_chemistry", route_chemistry)
+        self._save("route_discovery", route_discovery)
         chapter = self._chapter(
             "literature_survey",
             "Literature Survey",
             "literature_route_survey",
             (
                 f"{artifact.markdown}\n\n"
+                f"### Route Discovery\n\n{route_discovery.markdown}\n\n"
                 f"### Route Chemistry Coverage\n\n{route_chemistry.markdown}\n\n"
                 f"### Document-Derived Process Options\n\n"
                 f"{document_process_options.markdown if document_process_options.options else 'No document-derived process options.'}"
             ),
             artifact.citations,
             artifact.assumptions,
-            ["route_survey", "route_chemistry"],
+            ["route_survey", "route_chemistry", "route_discovery"],
             required_inputs=["research_bundle"],
         )
         issues = validate_route_chemistry_artifact(route_chemistry)
+        issues.extend(validate_route_discovery_artifact(route_discovery))
         issues.extend(self._chapter_issues(chapter))
         return StageResult(chapters=[chapter], issues=issues)
 
@@ -1392,10 +1956,11 @@ class PipelineRunner:
         artifact = resolve_property_gaps(product_profile, self.config)
         property_packages = build_property_package_artifact(self.config, bundle, product_profile, route_survey)
         property_requirements = build_property_requirement_artifact(self.config, property_packages)
+        property_demand_plan = build_property_demand_plan(route_chemistry, property_packages)
         resolved_values = build_resolved_value_artifact(artifact, resolved_sources, self.config)
         resolved_values = extend_resolved_value_artifact(
             resolved_values,
-            property_value_records(property_packages),
+            property_value_records(property_packages, property_demand_plan),
             resolved_sources,
             self.config,
             "property_engine",
@@ -1434,7 +1999,6 @@ class PipelineRunner:
         self._save("resolved_values", resolved_values)
         self._save("property_packages", property_packages)
         self._save("property_requirements", property_requirements)
-        property_demand_plan = build_property_demand_plan(route_chemistry, property_packages)
         self._save("property_demand_plan", property_demand_plan)
         self._refresh_agent_fabric()
         issues = validate_property_gap_artifact(artifact, self.config)
@@ -1460,7 +2024,7 @@ class PipelineRunner:
         sparse_data_policy = build_sparse_data_policy(self.config, family_adapter, property_packages)
         archetype = archetype.model_copy(update={"chemistry_family_adapter_id": family_adapter.adapter_id}, deep=True)
         property_requirements = build_property_requirement_artifact(self.config, property_packages, sparse_data_policy)
-        alternative_sets = build_alternative_sets(self.config, archetype, survey)
+        alternative_sets = build_alternative_sets(self.config, archetype, survey, route_families)
         citations = sorted(set(survey.citations + property_gap.citations + archetype.citations))
         assumptions = survey.assumptions + property_gap.assumptions + archetype.assumptions
         operating_mode_decision, operations_planning = build_operating_mode_and_operations(self.config.basis, archetype, citations, assumptions)
@@ -1471,12 +2035,29 @@ class PipelineRunner:
             operating_mode_decision=operating_mode_decision,
             route_families=route_families,
         )
+        species_resolution = build_species_resolution_artifact(route_chemistry)
+        reaction_network_v2 = build_reaction_network_v2_artifact(route_chemistry, species_resolution)
         unit_train_candidates = build_unit_train_candidate_set(
             survey,
             route_chemistry,
             route_families,
             bundle.user_document_facts,
             operating_mode_decision.selected_candidate_id or self.config.basis.operating_mode,
+        )
+        route_process_claims = build_route_process_claims_artifact(
+            survey,
+            route_chemistry,
+            unit_train_candidates,
+        )
+        route_screening = build_route_screening_artifact(
+            survey,
+            route_chemistry,
+            species_resolution,
+            reaction_network_v2,
+            route_families,
+            unit_train_candidates,
+            route_process_claims,
+            operating_mode=operating_mode_decision.selected_candidate_id or self.config.basis.operating_mode,
         )
         artifact.archetype = archetype
         artifact.family_adapter = family_adapter
@@ -1490,6 +2071,8 @@ class PipelineRunner:
         self._save("property_requirements", property_requirements)
         self._save("operations_planning", operations_planning)
         self._save("unit_train_candidates", unit_train_candidates)
+        self._save("route_process_claims", route_process_claims)
+        self._save("route_screening", route_screening)
         self._save(
             "resolved_values",
             extend_resolved_value_artifact(self._load("resolved_values", ResolvedValueArtifact), operations_planning.value_records, self._load("resolved_sources", ResolvedSourceSet), self.config, "process_synthesis"),
@@ -1504,6 +2087,8 @@ class PipelineRunner:
         issues.extend(validate_process_archetype(archetype))
         issues.extend(validate_operations_planning(operations_planning))
         issues.extend(validate_unit_train_candidate_set(unit_train_candidates))
+        issues.extend(validate_route_process_claims_artifact(route_process_claims))
+        issues.extend(validate_route_screening_artifact(route_screening))
         return StageResult(issues=issues)
 
     def _run_rough_alternative_balances(self) -> StageResult:
@@ -1546,6 +2131,9 @@ class PipelineRunner:
     def _run_route_selection(self) -> StageResult:
         survey = self._load("route_survey", RouteSurveyArtifact)
         route_chemistry = self._load("route_chemistry", RouteChemistryArtifact)
+        route_discovery = self.store.maybe_load_model(self.config.project_id, "artifacts/route_discovery.json", RouteDiscoveryArtifact)
+        route_process_claims = self.store.maybe_load_model(self.config.project_id, "artifacts/route_process_claims.json", RouteProcessClaimsArtifact)
+        route_screening = self.store.maybe_load_model(self.config.project_id, "artifacts/route_screening.json", RouteScreeningArtifact)
         rough_alternatives = self._load("rough_alternatives", RoughAlternativeSummaryArtifact)
         heat_study = self._load("heat_integration_study", HeatIntegrationStudyArtifact)
         market = self._load("market_assessment", MarketAssessmentArtifact)
@@ -1555,6 +2143,18 @@ class PipelineRunner:
         family_adapter = self.store.maybe_load_model(self.config.project_id, "artifacts/chemistry_family_adapter.json", ChemistryFamilyAdapter)
         route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
         sparse_data_policy = self.store.maybe_load_model(self.config.project_id, "artifacts/sparse_data_policy.json", SparseDataPolicyArtifact)
+        species_resolution = build_species_resolution_artifact(route_chemistry)
+        reaction_network_v2 = build_reaction_network_v2_artifact(route_chemistry, species_resolution)
+        thermo_admissibility = build_thermo_admissibility_artifact(
+            survey,
+            route_chemistry,
+            property_packages,
+            route_families,
+        )
+        kinetics_admissibility = build_kinetics_admissibility_artifact(
+            survey,
+            route_chemistry,
+        )
         selection, route_decision, reactor_choice, separation_choice, utility_network = select_route_architecture(
             self.config,
             survey,
@@ -1563,6 +2163,10 @@ class PipelineRunner:
             heat_study,
             market,
             route_families,
+            route_screening=route_screening,
+            species_resolution=species_resolution,
+            thermo_admissibility=thermo_admissibility,
+            kinetics_admissibility=kinetics_admissibility,
         )
         route_selection_comparison = build_route_selection_comparison(
             survey,
@@ -1573,12 +2177,61 @@ class PipelineRunner:
             heat_study,
             route_families,
         )
+        process_selection_comparison = ProcessSelectionComparisonArtifact(
+            **route_selection_comparison.model_dump(),
+            route_discovery_count=len(route_discovery.rows) if route_discovery is not None else len(survey.routes),
+            retained_route_count=len(route_screening.retained_route_ids) if route_screening is not None else 0,
+            eliminated_route_count=len(route_screening.eliminated_route_ids) if route_screening is not None else 0,
+            selected_route_name=next(
+                (row.route_name for row in route_selection_comparison.rows if row.route_id == selection.selected_route_id),
+                selection.selected_route_id,
+            ),
+        )
         self._save("route_selection", selection)
         selected_route = self._selected_route()
         flowsheet_blueprint = select_flowsheet_blueprint(unit_train_candidates, selected_route.route_id)
+        species_resolution = build_species_resolution_artifact(route_chemistry, selected_route.route_id)
+        reaction_network_v2 = build_reaction_network_v2_artifact(route_chemistry, species_resolution, selected_route.route_id)
+        if route_screening is None:
+            if route_process_claims is None:
+                route_process_claims = build_route_process_claims_artifact(
+                    survey,
+                    route_chemistry,
+                    unit_train_candidates,
+                )
+            route_screening = build_route_screening_artifact(
+                survey,
+                route_chemistry,
+                species_resolution,
+                reaction_network_v2,
+                route_families,
+                unit_train_candidates,
+                route_process_claims,
+                operating_mode=self.config.basis.operating_mode,
+            )
+        thermo_admissibility = build_thermo_admissibility_artifact(
+            survey,
+            route_chemistry,
+            property_packages,
+            route_families,
+            selected_route_id=selected_route.route_id,
+        )
+        kinetics_admissibility = build_kinetics_admissibility_artifact(
+            survey,
+            route_chemistry,
+            selected_route_id=selected_route.route_id,
+        )
         unit_operation_family = build_unit_operation_family_artifact(selected_route, archetype, family_adapter, route_families)
-        reactor_choice = select_reactor_configuration(selected_route, archetype, family_adapter, unit_operation_family)
+        reactor_choice = select_reactor_configuration(selected_route, archetype, family_adapter, unit_operation_family, route_families)
         separation_choice = select_separation_configuration(selected_route, archetype, family_adapter, unit_operation_family)
+        topology_candidates = build_topology_candidate_artifact(
+            unit_train_candidates,
+            species_resolution,
+            reaction_network_v2,
+            selected_route_id=selected_route.route_id,
+        )
+        flowsheet_intents = build_flowsheet_intent_artifact(flowsheet_blueprint)
+        chemistry_decision = build_chemistry_decision_artifact(selected_route, species_resolution, reaction_network_v2)
         route_selection_issues = validate_route_selection_critics(selection, route_families)
         unit_family_property_issues = validate_unit_family_property_coverage(
             selected_route,
@@ -1613,9 +2266,21 @@ class PipelineRunner:
         self._save("reactor_choice_decision", reactor_choice)
         self._save("separation_choice_decision", separation_choice)
         self._save("utility_network_decision", utility_network)
+        self._save("species_resolution", species_resolution)
+        self._save("reaction_network_v2", reaction_network_v2)
+        self._save("thermo_admissibility", thermo_admissibility)
+        self._save("kinetics_admissibility", kinetics_admissibility)
         self._save("unit_operation_family", unit_operation_family)
         self._save("route_selection_comparison", route_selection_comparison)
+        self._save("process_selection_comparison", process_selection_comparison)
+        if route_screening is not None:
+            self._save("route_screening", route_screening)
+        if route_process_claims is not None:
+            self._save("route_process_claims", route_process_claims)
         self._save("flowsheet_blueprint", flowsheet_blueprint)
+        self._save("topology_candidates", topology_candidates)
+        self._save("flowsheet_intents", flowsheet_intents)
+        self._save("chemistry_decision", chemistry_decision)
         self._refresh_agent_fabric()
         issues = (
             validate_route_balance(selected_route)
@@ -1623,10 +2288,20 @@ class PipelineRunner:
             + validate_decision_record(reactor_choice, "reactor_choice")
             + validate_decision_record(separation_choice, "separation_choice")
             + validate_route_selection_comparison(route_selection_comparison)
+            + validate_route_selection_comparison(process_selection_comparison)
+            + validate_species_resolution_artifact(species_resolution)
+            + validate_reaction_network_v2_artifact(reaction_network_v2)
+            + (validate_route_process_claims_artifact(route_process_claims) if route_process_claims is not None else [])
+            + validate_route_screening_artifact(route_screening)
+            + validate_chemistry_decision_artifact(chemistry_decision)
+            + validate_thermo_admissibility_artifact(thermo_admissibility)
+            + validate_kinetics_admissibility_artifact(kinetics_admissibility)
             + route_selection_issues
             + unit_family_property_issues
             + validate_unit_operation_family_artifact(unit_operation_family)
             + validate_flowsheet_blueprint(flowsheet_blueprint)
+            + validate_topology_candidate_artifact(topology_candidates)
+            + validate_flowsheet_intent_artifact(flowsheet_intents)
             + validate_utility_network_decision(utility_network, self.config)
         )
         selected_heat = selected_heat_case(utility_network)
@@ -1636,7 +2311,11 @@ class PipelineRunner:
             "route_selection",
             (
                 f"### Route Comparison\n\n{selection.comparison_markdown}\n\n"
+                f"### Route Discovery\n\n{route_discovery.markdown if route_discovery else 'No explicit route-discovery artifact generated.'}\n\n"
+                f"### Route Screening\n\n{route_screening.markdown if route_screening else 'No explicit route-screening artifact generated.'}\n\n"
                 f"### Route Selection Comparison\n\n{route_selection_comparison.markdown}\n\n"
+                f"### Process Selection Comparison\n\n{process_selection_comparison.markdown}\n\n"
+                f"### Chemistry Decision\n\n{chemistry_decision.markdown}\n\n"
                 f"### Selected Route\n\n{selection.justification}\n\n"
                 f"### Route-Derived Flowsheet Blueprint\n\n{flowsheet_blueprint.markdown}\n\n"
                 f"### Route Family Profiles\n\n{route_families.markdown if route_families else 'No route-family profiles generated.'}\n\n"
@@ -1653,6 +2332,10 @@ class PipelineRunner:
                     selection.citations
                     + survey.citations
                     + route_selection_comparison.citations
+                    + process_selection_comparison.citations
+                    + (route_discovery.citations if route_discovery else [])
+                    + (route_screening.citations if route_screening else [])
+                    + chemistry_decision.citations
                     + flowsheet_blueprint.citations
                     + (family_adapter.citations if family_adapter else [])
                     + (sparse_data_policy.citations if sparse_data_policy else [])
@@ -1661,6 +2344,10 @@ class PipelineRunner:
             survey.assumptions
             + selection.assumptions
             + route_selection_comparison.assumptions
+            + process_selection_comparison.assumptions
+            + (route_discovery.assumptions if route_discovery else [])
+            + (route_screening.assumptions if route_screening else [])
+            + chemistry_decision.assumptions
             + flowsheet_blueprint.assumptions
             + route_decision.assumptions
             + reactor_choice.assumptions
@@ -1669,7 +2356,11 @@ class PipelineRunner:
             + (sparse_data_policy.assumptions if sparse_data_policy else []),
             [
                 "route_selection",
+                "route_discovery",
+                "route_screening",
                 "route_selection_comparison",
+                "process_selection_comparison",
+                "chemistry_decision",
                 "route_decision",
                 "reactor_choice_decision",
                 "separation_choice_decision",
@@ -1713,6 +2404,7 @@ class PipelineRunner:
     def _run_thermodynamic_feasibility(self) -> StageResult:
         bundle = self._load("research_bundle", ResearchBundle)
         route = self._selected_route()
+        route_selection_artifact = self._load("route_selection", RouteSelectionArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         property_packages = self._load("property_packages", PropertyPackageArtifact)
@@ -1723,6 +2415,8 @@ class PipelineRunner:
         separation_choice = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_choice_decision.json", DecisionRecord)
         unit_operation_family = self.store.maybe_load_model(self.config.project_id, "artifacts/unit_operation_family.json", UnitOperationFamilyArtifact)
         utility_network = self._load("utility_network_decision", UtilityNetworkDecision)
+        route_survey = self._load("route_survey", RouteSurveyArtifact)
+        route_chemistry = self._load("route_chemistry", RouteChemistryArtifact)
         property_method = build_property_method_decision(route, property_packages)
         separation_thermo = build_separation_thermo_artifact(
             route,
@@ -1827,6 +2521,23 @@ class PipelineRunner:
         self._save("thermo_method_decision", method_artifact)
         self._save("property_method_decision", property_method)
         self._save("separation_thermo", separation_thermo)
+        thermo_admissibility = build_thermo_admissibility_artifact(
+            route_survey,
+            route_chemistry,
+            property_packages,
+            self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact),
+            selected_route_id=route.route_id,
+            separation_thermo=separation_thermo,
+            property_method=property_method,
+        )
+        bac_purification_sections = build_bac_purification_section_artifact(
+            route_selection_artifact,
+            self._maybe_load("flowsheet_blueprint", FlowsheetBlueprintArtifact),
+            separation_thermo,
+        )
+        self._save("thermo_admissibility", thermo_admissibility)
+        if bac_purification_sections is not None:
+            self._save("bac_purification_sections", bac_purification_sections)
         self._save("route_decision", route_decision)
         if separation_choice is not None:
             self._save("separation_choice_decision", separation_choice)
@@ -1840,10 +2551,15 @@ class PipelineRunner:
             "thermodynamic_feasibility",
             "Thermodynamic Feasibility",
             "thermodynamic_feasibility",
-            artifact.markdown,
+            artifact.markdown
+            + (
+                f"\n\n### BAC Purification Sections\n\n{bac_purification_sections.markdown}"
+                if bac_purification_sections is not None
+                else ""
+            ),
             artifact.citations,
-            artifact.assumptions,
-            ["thermo_assessment", "thermo_method_decision"],
+            artifact.assumptions + (bac_purification_sections.assumptions if bac_purification_sections is not None else []),
+            ["thermo_assessment", "thermo_method_decision", "property_method_decision", "separation_thermo", "bac_purification_sections"],
             required_inputs=["route_selection", "route_survey", "research_bundle"],
             summary=artifact.equilibrium_comment,
         )
@@ -1854,6 +2570,8 @@ class PipelineRunner:
             + validate_decision_record(utility_network.decision, "utility_network_decision")
             + validate_property_method_decision(property_method)
             + validate_separation_thermo_artifact(separation_thermo)
+            + validate_thermo_admissibility_artifact(thermo_admissibility)
+            + (validate_bac_purification_section_artifact(bac_purification_sections) if bac_purification_sections is not None else [])
             + validate_separation_thermo_critics(route, separation_thermo)
             + architecture_package_issues
             + validate_decision_record(method_artifact.decision, "thermo_method_decision")
@@ -1874,6 +2592,7 @@ class PipelineRunner:
     def _run_kinetic_feasibility(self) -> StageResult:
         bundle = self._load("research_bundle", ResearchBundle)
         route = self._selected_route()
+        route_selection_artifact = self._load("route_selection", RouteSelectionArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
@@ -1885,6 +2604,8 @@ class PipelineRunner:
         property_packages = self._load("property_packages", PropertyPackageArtifact)
         separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
         utility_network = self._load("utility_network_decision", UtilityNetworkDecision)
+        route_survey = self._load("route_survey", RouteSurveyArtifact)
+        route_chemistry = self._load("route_chemistry", RouteChemistryArtifact)
         method_artifact = build_kinetics_method_decision(self.config, route, resolved_values, archetype)
         artifact = self.reasoning.build_kinetic_assessment(self.config.basis, route, bundle.sources, bundle.corpus_excerpt)
         method_map = {
@@ -1972,6 +2693,14 @@ class PipelineRunner:
         utility_network = utility_network.model_copy(update={"decision": utility_network_decision}, deep=True)
         self._save("kinetic_assessment", artifact)
         self._save("kinetics_method_decision", method_artifact)
+        kinetics_admissibility = build_kinetics_admissibility_artifact(
+            route_survey,
+            route_chemistry,
+            selected_route_id=route.route_id,
+            kinetics_method=method_artifact,
+            kinetic_assessment=artifact,
+        )
+        self._save("kinetics_admissibility", kinetics_admissibility)
         self._save("route_decision", route_decision)
         self._save("reactor_choice_decision", reactor_choice)
         self._save("utility_network_decision", utility_network)
@@ -1995,6 +2724,7 @@ class PipelineRunner:
             + validate_decision_record(reactor_choice, "reactor_choice_decision")
             + validate_decision_record(utility_network.decision, "utility_network_decision")
             + validate_decision_record(method_artifact.decision, "kinetics_method_decision")
+            + validate_kinetics_admissibility_artifact(kinetics_admissibility)
             + validate_kinetics_method_critics(route, method_artifact)
             + architecture_package_issues
             + validate_kinetic_assessment(artifact)
@@ -3824,9 +4554,25 @@ class PipelineRunner:
 
     def _run_material_balance(self) -> StageResult:
         route = self._selected_route()
+        route_selection_artifact = self._load("route_selection", RouteSelectionArtifact)
         kinetics = self._load("kinetic_assessment", KineticAssessmentArtifact)
         process_narrative = self._ensure_process_narrative()
         flowsheet_blueprint = self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_blueprint.json", FlowsheetBlueprintArtifact)
+        topology_candidates = self.store.maybe_load_model(self.config.project_id, "artifacts/topology_candidates.json", TopologyCandidateArtifact)
+        if topology_candidates is not None:
+            selected_topology = next((item for item in topology_candidates.candidates if item.route_id == route.route_id), None)
+            if selected_topology is not None and selected_topology.status == ScientificGateStatus.FAIL:
+                return StageResult(
+                    issues=[
+                        ValidationIssue(
+                            code="material_balance_topology_blocked",
+                            severity=Severity.BLOCKED,
+                            message=f"Selected route '{route.route_id}' has no admissible topology for even screening-level balance work.",
+                            artifact_ref="topology_candidates",
+                            source_refs=selected_topology.citations,
+                        )
+                    ]
+                )
         property_packages = self._load("property_packages", PropertyPackageArtifact)
         route_families = self.store.maybe_load_model(self.config.project_id, "artifacts/route_family_profiles.json", RouteFamilyArtifact)
         route_profile = profile_for_route(route_families, route.route_id)
@@ -3849,10 +4595,14 @@ class PipelineRunner:
             flowsheet_blueprint,
         )
         flowsheet_case = build_flowsheet_case(route.route_id, self.config.basis.operating_mode, stream_table, flowsheet_graph)
+        commercial_product_basis = self._maybe_load("commercial_product_basis", CommercialProductBasisArtifact)
+        bac_impurity_model = build_bac_impurity_model_artifact(route_selection_artifact, stream_table, commercial_product_basis)
         self._save("reaction_system", reaction_system)
         self._save("stream_table", stream_table)
         self._save("flowsheet_graph", flowsheet_graph)
         self._save("flowsheet_case", flowsheet_case)
+        if bac_impurity_model is not None:
+            self._save("bac_impurity_model", bac_impurity_model)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = extend_resolved_value_artifact(resolved_values, reaction_system.value_records, resolved_sources, self.config, "material_balance_reaction_system")
@@ -3863,10 +4613,10 @@ class PipelineRunner:
             "material_balance",
             "Material Balance",
             "material_balance",
-            material_markdown,
+            material_markdown + (f"\n\n### BAC Impurity Model\n\n{bac_impurity_model.markdown}" if bac_impurity_model is not None else ""),
             sorted(set(stream_table.citations + reaction_system.citations)),
-            reaction_system.assumptions + stream_table.assumptions,
-            ["reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case"],
+            reaction_system.assumptions + stream_table.assumptions + (bac_impurity_model.assumptions if bac_impurity_model is not None else []),
+            ["reaction_system", "stream_table", "flowsheet_graph", "flowsheet_case", "bac_impurity_model"],
             required_inputs=["route_selection", "kinetic_assessment", "process_narrative"],
         )
         process_description_chapter = self._chapter(
@@ -3885,6 +4635,7 @@ class PipelineRunner:
             + validate_stream_table(stream_table)
             + validate_flowsheet_graph(flowsheet_graph)
             + validate_flowsheet_case(flowsheet_case)
+            + (validate_bac_impurity_model_artifact(bac_impurity_model) if bac_impurity_model is not None else [])
             + self._value_issues(reaction_system, "reaction_system")
             + self._value_issues(stream_table, "stream_table")
             + self._chapter_issues(chapter)
@@ -3894,6 +4645,19 @@ class PipelineRunner:
 
     def _run_energy_balance(self) -> StageResult:
         route = self._selected_route()
+        thermo_admissibility = self.store.maybe_load_model(self.config.project_id, "artifacts/thermo_admissibility.json", ThermoAdmissibilityArtifact)
+        if thermo_admissibility is not None and thermo_admissibility.selected_route_status != ScientificGateStatus.PASS:
+            return StageResult(
+                issues=[
+                    ValidationIssue(
+                        code="energy_balance_requires_detailed_thermo",
+                        severity=Severity.BLOCKED,
+                        message="Detailed energy balance is blocked until thermodynamic admissibility reaches detailed-design grade.",
+                        artifact_ref="thermo_admissibility",
+                        source_refs=thermo_admissibility.citations,
+                    )
+                ]
+            )
         stream_table = self._load("stream_table", StreamTable)
         thermo = self._load("thermo_assessment", ThermoAssessmentArtifact)
         kinetics = self._load("kinetic_assessment", KineticAssessmentArtifact)
@@ -3948,6 +4712,19 @@ class PipelineRunner:
 
     def _run_reactor_design(self) -> StageResult:
         route = self._selected_route()
+        kinetics_admissibility = self.store.maybe_load_model(self.config.project_id, "artifacts/kinetics_admissibility.json", KineticsAdmissibilityArtifact)
+        if kinetics_admissibility is not None and kinetics_admissibility.selected_route_status != ScientificGateStatus.PASS:
+            return StageResult(
+                issues=[
+                    ValidationIssue(
+                        code="reactor_design_requires_detailed_kinetics",
+                        severity=Severity.BLOCKED,
+                        message="Detailed reactor design is blocked until kinetics admissibility reaches detailed-design grade.",
+                        artifact_ref="kinetics_admissibility",
+                        source_refs=kinetics_admissibility.citations,
+                    )
+                ]
+            )
         reaction_system = self._load("reaction_system", ReactionSystem)
         stream_table = self._load("stream_table", StreamTable)
         energy = self._load("energy_balance", EnergyBalance)
@@ -4045,6 +4822,19 @@ class PipelineRunner:
 
     def _run_distillation_design(self) -> StageResult:
         route = self._selected_route()
+        thermo_admissibility = self.store.maybe_load_model(self.config.project_id, "artifacts/thermo_admissibility.json", ThermoAdmissibilityArtifact)
+        if thermo_admissibility is not None and thermo_admissibility.selected_route_status != ScientificGateStatus.PASS:
+            return StageResult(
+                issues=[
+                    ValidationIssue(
+                        code="separation_design_requires_detailed_thermo",
+                        severity=Severity.BLOCKED,
+                        message="Detailed separation design is blocked until thermodynamic admissibility reaches detailed-design grade.",
+                        artifact_ref="thermo_admissibility",
+                        source_refs=thermo_admissibility.citations,
+                    )
+                ]
+            )
         stream_table = self._load("stream_table", StreamTable)
         energy = self._load("energy_balance", EnergyBalance)
         mixture_properties = self._load("mixture_properties", MixturePropertyArtifact)
@@ -4122,7 +4912,8 @@ class PipelineRunner:
         density_record = next((item for item in product_profile.properties if item.name == "Density"), None)
         density_kg_m3 = 1100.0
         if density_record:
-            density_kg_m3 = float(density_record.value) * 1000.0 if density_record.units == "g/cm3" else float(density_record.value)
+            density_value = _coerce_numeric_value(density_record.value)
+            density_kg_m3 = density_value * 1000.0 if density_record.units == "g/cm3" else density_value
         route = self._selected_route()
         reactor = self._load("reactor_design", ReactorDesign)
         column = self._load("column_design", ColumnDesign)
@@ -4743,6 +5534,10 @@ class PipelineRunner:
             ["Main separation material", next((item.material_of_construction for item in equipment.items if item.equipment_id == column.column_id), "n/a")],
         ]
         self._save("mechanical_design", artifact)
+        produced_outputs = ["mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs", "equipment_datasheets"]
+        if self.config.benchmark_profile == "benzalkonium_chloride":
+            self._save("mechanical_design_moc", artifact)
+            produced_outputs.insert(1, "mechanical_design_moc")
         self._save("mechanical_design_basis", basis)
         self._save(
             "vessel_mechanical_designs",
@@ -4908,7 +5703,7 @@ class PipelineRunner:
                 "Mechanical chapter now uses deterministic screening calculations for shell thickness, nozzles, support load cases, foundation/access basis, connection classes, piping class basis, and equipment-wise material of construction basis with alternates and service rationale.",
                 "Inspection and maintainability basis remains feasibility-level screening, but it now follows service class, support variant, and access provisions equipment by equipment.",
             ],
-            ["mechanical_design", "mechanical_design_basis", "vessel_mechanical_designs", "equipment_datasheets"],
+            produced_outputs,
             required_inputs=["equipment_list", "route_selection"],
             summary="Mechanical design chapter includes screening shell/head/nozzle/support derivations, piping/connection basis, MoC option screening, inspection/maintainability basis, and equipment-wise material-of-construction justification.",
         )
@@ -5832,6 +6627,10 @@ class PipelineRunner:
             assumptions=layout_decision.assumptions,
         )
         self._save("layout_plan", artifact)
+        produced_outputs = ["layout_plan", "layout_decision"]
+        if self.config.benchmark_profile == "benzalkonium_chloride":
+            self._save("layout", artifact)
+            produced_outputs.insert(1, "layout")
         self._save("layout_decision", layout_decision)
         self._refresh_agent_fabric()
         chapter = self._chapter(
@@ -5841,7 +6640,7 @@ class PipelineRunner:
             artifact.markdown,
             artifact.citations or site.citations or equipment.citations or utilities.citations,
             artifact.assumptions,
-            ["layout_plan", "layout_decision"],
+            produced_outputs,
             required_inputs=["equipment_list", "utility_summary", "site_selection", "mechanical_design", "operations_planning"],
             summary=artifact.summary,
         )
@@ -6415,6 +7214,19 @@ class PipelineRunner:
         return StageResult(chapters=[chapter], issues=issues)
 
     def _run_financial_analysis(self) -> StageResult:
+        economic_coverage = self.store.maybe_load_model(self.config.project_id, "artifacts/economic_coverage.json", EconomicCoverageDecision)
+        if economic_coverage is not None and economic_coverage.status != "detailed":
+            return StageResult(
+                issues=[
+                    ValidationIssue(
+                        code="financial_analysis_requires_detailed_economics",
+                        severity=Severity.BLOCKED,
+                        message="Detailed financial analysis is blocked until route-derived economics reaches detailed coverage.",
+                        artifact_ref="economic_coverage",
+                        source_refs=economic_coverage.citations,
+                    )
+                ]
+            )
         cost_model = self._load("cost_model", CostModel)
         working_capital = self._load("working_capital_model", WorkingCapitalModel)
         market = self._load("market_assessment", MarketAssessmentArtifact)

@@ -5,6 +5,7 @@ from pathlib import Path
 
 from aoc.config import load_project_config
 from aoc.methods import build_capacity_decision, build_kinetics_method_decision, build_thermo_method_decision
+from aoc.models import ModelSettings, ProjectBasis, ProjectConfig
 from aoc.pipeline import PipelineRunner
 from aoc.reasoning import build_reasoning_service
 from aoc.research import ResearchManager
@@ -92,19 +93,51 @@ class MethodAndBenchmarkTests(unittest.TestCase):
     def test_para_nitroanisole_blocks_honestly_at_evidence_lock(self):
         state, inspect_text = self._run_expected_block("examples/pna_project.yaml")
         self.assertEqual(state.run_status.value, "blocked")
-        self.assertEqual(state.current_stage_id, "property_gap_resolution")
-        self.assertEqual(state.blocked_stage_id, "property_gap_resolution")
+        self.assertEqual(state.current_stage_id, "literature_route_survey")
+        self.assertEqual(state.blocked_stage_id, "literature_route_survey")
         self.assertIn("benchmark:", inspect_text)
         self.assertIn("para_nitroanisole", inspect_text)
         self.assertIn("specialty_aromatic_separation_intensive", inspect_text)
         self.assertIn("report_acceptance:", inspect_text)
         self.assertIn("overall_status: blocked", inspect_text)
         self.assertIn("pipeline_status: blocked", inspect_text)
-        self.assertIn("evidence_lock_unresolved", inspect_text)
-        self.assertIn("property_requirement_stage_failures:", inspect_text)
-        self.assertIn("unresolved_identifiers:", inspect_text)
+        self.assertIn("missing_route_species_graph", inspect_text)
+        self.assertIn("invalid_core_species", inspect_text)
+        self.assertIn("species_blocking_routes: none", inspect_text)
+        self.assertIn("route_chemistry:", inspect_text)
+        self.assertIn("anonymous_species_count: 3", inspect_text)
         self.assertIn("agent_fabric:", inspect_text)
         self.assertIn("critic_registry:", inspect_text)
+
+    def test_benzalkonium_chloride_advances_past_generic_route_discovery(self):
+        config = ProjectConfig(
+            project_id="benzalkonium-chloride-test",
+            basis=ProjectBasis(
+                target_product="Benzalkonium chloride",
+                capacity_tpa=50000,
+                target_purity_wt_pct=80.0,
+                operating_mode="continuous",
+                throughput_basis="finished_product",
+                nominal_active_wt_pct=80.0,
+                product_form="aqueous_or_alcohol_solution",
+                carrier_components=["water", "ethanol"],
+                homolog_distribution={"c12": 0.4, "c14": 0.5, "c16": 0.1},
+                quality_targets=[
+                    "Residual free benzyl chloride below finished-goods limit",
+                    "Residual free tertiary amine below finished-goods limit",
+                ],
+            ),
+            model=ModelSettings(backend="mock", model_name="gemini-3.1-pro-preview", temperature=0.2),
+        )
+        config.output_root = self.temp_dir
+        runner = PipelineRunner(config)
+        state = runner.run()
+        inspect_text = runner.inspect()
+        self.assertNotEqual(state.blocked_stage_id, "literature_route_survey", msg=inspect_text)
+        self.assertIn("process_selection_logic:", inspect_text)
+        self.assertIn("discovered_routes: 3", inspect_text)
+        self.assertIn("route_chemistry:", inspect_text)
+        self.assertIn("blocking_routes: none", inspect_text)
 
 
 if __name__ == "__main__":

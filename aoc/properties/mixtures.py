@@ -70,6 +70,9 @@ def _component_property(package, property_name: str, dominant_phase: str, compon
     value = _float_value(prop.value)
     if value is None:
         return _surrogate_property(component_name, property_name, dominant_phase), True
+    units = str(getattr(prop, "units", "") or "").strip().lower()
+    if property_name == "liquid_density" and units in {"g/cm3", "g/cc", "g/ml"}:
+        value *= 1000.0
     return value, prop.resolution_status != "resolved"
 
 

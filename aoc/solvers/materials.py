@@ -1,14 +1,6 @@
 from __future__ import annotations
 
-from aoc.models import (
-    FlowsheetBlueprintArtifact,
-    ProcessTemplate,
-    ProjectBasis,
-    ReactionSystem,
-    RouteOption,
-    SensitivityLevel,
-    StreamTable,
-)
+from aoc.models import FlowsheetBlueprintArtifact, ProcessTemplate, ProjectBasis, ReactionSystem, RouteOption, SensitivityLevel, StreamTable
 from aoc.properties.models import PropertyPackageArtifact
 from aoc.solvers.composition import build_unit_composition_artifacts
 from aoc.solvers.flowsheet_sequence import build_generic_sequence_streams
@@ -17,6 +9,14 @@ from aoc.value_engine import make_value_record
 
 def _hourly_output_kg(basis: ProjectBasis) -> float:
     return basis.capacity_tpa * 1000.0 / (basis.annual_operating_days * 24.0)
+
+
+def _hourly_active_output_kg(basis: ProjectBasis) -> float:
+    sold_basis = _hourly_output_kg(basis)
+    if basis.throughput_basis == "active_component":
+        return sold_basis
+    active_fraction = max(min((basis.nominal_active_wt_pct or 100.0) / 100.0, 1.0), 0.01)
+    return sold_basis * active_fraction
 
 
 def build_stream_table_generic(
@@ -30,12 +30,14 @@ def build_stream_table_generic(
 ) -> StreamTable:
     solve_result = build_generic_sequence_streams(
         product_mass_kg_hr=_hourly_output_kg(basis),
+        active_product_mass_kg_hr=_hourly_active_output_kg(basis),
         route=route,
         reaction_system=reaction_system,
         citations=citations,
         assumptions=assumptions,
         property_packages=property_packages,
         flowsheet_blueprint=flowsheet_blueprint,
+        basis=basis,
     )
     composition_states, composition_closures = build_unit_composition_artifacts(
         solve_result.streams,
@@ -68,6 +70,15 @@ def build_stream_table_generic(
                 "stream_product_mass_flow",
                 "Product mass flow",
                 _hourly_output_kg(basis),
+                "kg/h",
+                citations=citations,
+                assumptions=assumptions + extra_assumptions,
+                sensitivity=SensitivityLevel.HIGH,
+            ),
+            make_value_record(
+                "stream_active_product_mass_flow",
+                "Active product mass flow",
+                _hourly_active_output_kg(basis),
                 "kg/h",
                 citations=citations,
                 assumptions=assumptions + extra_assumptions,

@@ -77,6 +77,8 @@ def build_route_selection_comparison(
                 separation_complexity_score=route.separation_complexity_score,
                 selected_heat_case_id=alternative.outputs.get("selected_heat_case", ""),
                 feasible=alternative.feasible,
+                scientific_status=alternative.outputs.get("scientific_status", "design_feasible"),
+                blocking_scientific_gate=alternative.outputs.get("blocking_scientific_gate", ""),
                 selected=selected,
                 rejection_reasons=rejection_reasons,
                 why_not_chosen=why_not_chosen,
@@ -87,13 +89,13 @@ def build_route_selection_comparison(
     rows.sort(key=lambda item: (item.selected, item.total_score), reverse=True)
     markdown = "\n".join(
         [
-            "| Route | Origin | Family | Score | Evidence | Chemistry | Selected | Rejection / Why not chosen |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| Route | Origin | Family | Score | Evidence | Chemistry | Scientific Status | Selected | Rejection / Why not chosen |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             *[
                 f"| {row.route_name} | {row.route_origin} | {row.route_family_id or '-'} | {row.total_score:.2f} | "
-                f"{row.evidence_score:.2f} | {row.chemistry_completeness_score:.2f} | "
+                f"{row.evidence_score:.2f} | {row.chemistry_completeness_score:.2f} | {row.scientific_status} | "
                 f"{'yes' if row.selected else 'no'} | "
-                f"{'; '.join(row.rejection_reasons) or row.why_not_chosen or '-'} |"
+                f"{'; '.join(row.rejection_reasons) or row.why_not_chosen or row.blocking_scientific_gate or '-'} |"
                 for row in rows
             ],
         ]
