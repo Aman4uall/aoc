@@ -1,0 +1,235 @@
+{
+  "sources": [
+    {
+      "source_id": "user_doc_1",
+      "source_kind": "user_document",
+      "source_domain": "technical",
+      "title": "EG technical basis",
+      "url_or_doi": null,
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "EG technical basis (user supplied document)",
+      "extraction_snippet": "Ethylene glycol (MEG) is a bulk petrochemical intermediate used mainly in polyester, PET resin, coolants, solvents, and industrial formulations.\n\nKey property note:\n- Molecular weight: 62.07 g/mol\n- Melting point: about -12.9 C\n- Boiling point: about 197.3 C\n- Density at ambient conditions: about 1.113 g/cm3\n- Fully miscible with water\n\nIndustrial route note:\n- The dominant industrial route is hydration of ethylene oxide with excess water.\n- High water dilution suppresses formation of diethylene glycol and triethylene glycol.\n- Major design burden shifts from reaction feasibility to heat removal, water recycle, and purification.\n\nHazard note:\n- Ethylene oxide is highly flammable, toxic, and reactive.\n- Ethylene glycol product handling is less severe but hot glycol service still requires containment and burn protection.\n",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": "/Users/ayzaman/.gemini/antigravity/scratch/AoC/examples/eg_sources/technical_basis.md",
+      "geographic_scope": "global",
+      "geographic_label": "global",
+      "reference_year": null,
+      "normalization_year": null,
+      "country": null
+    },
+    {
+      "source_id": "user_doc_2",
+      "source_kind": "user_document",
+      "source_domain": "site",
+      "title": "India site note",
+      "url_or_doi": null,
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "India site note (user supplied document)",
+      "extraction_snippet": "India siting note for a high-capacity ethylene glycol plant:\n\n- Gujarat clusters such as Dahej and Jamnagar are attractive because of petrochemical integration, marine logistics, and industrial utility infrastructure.\n- Dahej is strong on chemical-cluster services, west-coast port connectivity, and established operating ecosystem.\n- Jamnagar benefits from refining and petrochemical integration but project-specific utility tie-ins still need confirmation.\n- Paradip offers east-coast port access and strategic logistics, but the surrounding petrochemical services ecosystem is generally thinner than the major Gujarat clusters.\n\nSite selection logic:\n- Feedstock integration matters more than simple land cost.\n- Utility reliability, wastewater handling, and export connectivity should be included in the site score.\n- For an India-only feasibility package, site justification should remain tied to public Indian industrial references and tariff context.\n",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": "/Users/ayzaman/.gemini/antigravity/scratch/AoC/examples/eg_sources/india_site_note.md",
+      "geographic_scope": "india",
+      "geographic_label": "India",
+      "reference_year": null,
+      "normalization_year": null,
+      "country": "India"
+    },
+    {
+      "source_id": "india_sheet_1",
+      "source_kind": "market",
+      "source_domain": "economics",
+      "title": "India Market",
+      "url_or_doi": null,
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "India Market (India market sheet)",
+      "extraction_snippet": "item | category | region | units | value_inr | reference_year | normalization_year | note\nMonoethylene glycol | product | India | INR/kg | 63 | 2025 | 2025 | Seed India MEG selling-price basis\nEthylene oxide | raw_material | India | INR/kg | 62 | 2025 | 2025 | Seed EO feedstock basis\nElectricity | utility | Gujarat | INR/kWh | 8.5 | 2025 | 2025 | Industrial tariff basis\nOperating labour | labor | India | INR/person-year | 650000 | 2025 | 2025 | Annual direct labor burden",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": "/Users/ayzaman/.gemini/antigravity/scratch/AoC/examples/eg_sources/india_market.csv",
+      "geographic_scope": "india",
+      "geographic_label": "India",
+      "reference_year": null,
+      "normalization_year": null,
+      "country": "India"
+    },
+    {
+      "source_id": "eg_handbook",
+      "source_kind": "handbook",
+      "source_domain": "technical",
+      "title": "Ethylene glycol handbook properties",
+      "url_or_doi": "https://example.com/eg/properties",
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "Compiled thermophysical property note for ethylene glycol.",
+      "extraction_snippet": "Ethylene glycol molecular weight, boiling point, density, and handling note.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": null,
+      "reference_year": 2024,
+      "normalization_year": null,
+      "country": null
+    },
+    {
+      "source_id": "eg_kinetics",
+      "source_kind": "literature",
+      "source_domain": "technical",
+      "title": "Ethylene oxide hydration kinetics note",
+      "url_or_doi": "https://example.com/eg/kinetics",
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "Seed kinetics note for ethylene oxide hydration to ethylene glycol.",
+      "extraction_snippet": "Hydration kinetics, heat of reaction, and route comparison note.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": null,
+      "reference_year": 2022,
+      "normalization_year": null,
+      "country": null
+    },
+    {
+      "source_id": "eg_market_india",
+      "source_kind": "market",
+      "source_domain": "economics",
+      "title": "India MEG market note",
+      "url_or_doi": "https://example.com/india/meg-market",
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "Seed India market note for monoethylene glycol.",
+      "extraction_snippet": "India demand, pricing, and downstream polyester/resins context.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "india",
+      "geographic_label": "India",
+      "reference_year": 2025,
+      "normalization_year": 2025,
+      "country": "India"
+    },
+    {
+      "source_id": "eg_sites_india",
+      "source_kind": "company_report",
+      "source_domain": "site",
+      "title": "India petrochemical cluster siting note",
+      "url_or_doi": "https://example.com/india/sites",
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "Seed cluster comparison across Gujarat, Maharashtra, and Odisha.",
+      "extraction_snippet": "Dahej, Jamnagar, and Paradip compared on logistics, feedstock, and utilities.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "india",
+      "geographic_label": "India",
+      "reference_year": 2025,
+      "normalization_year": null,
+      "country": "India"
+    },
+    {
+      "source_id": "eg_utilities_gujarat",
+      "source_kind": "utility",
+      "source_domain": "utilities",
+      "title": "India utility tariff note",
+      "url_or_doi": "https://example.com/india/utilities",
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "Seed utility tariff note for industrial Gujarat service.",
+      "extraction_snippet": "Industrial steam, power, and cooling water tariff placeholders normalized to 2025 INR.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "state",
+      "geographic_label": "Gujarat",
+      "reference_year": 2025,
+      "normalization_year": 2025,
+      "country": "India"
+    },
+    {
+      "source_id": "eg_safety",
+      "source_kind": "sds",
+      "source_domain": "safety",
+      "title": "Ethylene oxide and ethylene glycol SDS note",
+      "url_or_doi": "https://example.com/eg/safety",
+      "access_date": "2026-04-01T17:24:23+00:00",
+      "citation_text": "Seed SDS summary for EO and EG handling hazards.",
+      "extraction_snippet": "EO flammability, toxicity, and EG handling controls.",
+      "confidence": 1.0,
+      "provenance_tag": "sourced",
+      "local_path": null,
+      "geographic_scope": "global",
+      "geographic_label": null,
+      "reference_year": 2024,
+      "normalization_year": null,
+      "country": null
+    }
+  ],
+  "technical_source_ids": [
+    "user_doc_1",
+    "eg_handbook",
+    "eg_kinetics",
+    "eg_safety"
+  ],
+  "india_source_ids": [
+    "user_doc_2",
+    "india_sheet_1",
+    "eg_market_india",
+    "eg_sites_india",
+    "eg_utilities_gujarat"
+  ],
+  "corpus_excerpt": "[user_doc_1] EG technical basis\nEthylene glycol (MEG) is a bulk petrochemical intermediate used mainly in polyester, PET resin, coolants, solvents, and industrial formulations.\n\nKey property note:\n- Molecular weight: 62.07 g/mol\n- Melting point: about -12.9 C\n- Boiling point: about 197.3 C\n- Density at ambient conditions: about 1.113 g/cm3\n- Fully miscible with water\n\nIndustrial route note:\n- The dominant industrial route is hydration of ethylene oxide with excess water.\n- High water dilution suppresses formation of diethylene glycol and triethylene glycol.\n- Major design burden shifts from reaction feasibility to heat removal, water recycle, and purification.\n\nHazard note:\n- Ethylene oxide is highly flammable, toxic, and reactive.\n- Ethylene glycol product handling is less severe but hot glycol service still requires containment and burn protection.\n\n\n[user_doc_1_facts] Document facts extracted for EG technical basis.\nProcess options: 0.\nEquipment mentions: 0.\nSelected process in document: not found.\nSelected site in document: not found.\n\n[user_doc_2] India site note\nIndia siting note for a high-capacity ethylene glycol plant:\n\n- Gujarat clusters such as Dahej and Jamnagar are attractive because of petrochemical integration, marine logistics, and industrial utility infrastructure.\n- Dahej is strong on chemical-cluster services, west-coast port connectivity, and established operating ecosystem.\n- Jamnagar benefits from refining and petrochemical integration but project-specific utility tie-ins still need confirmation.\n- Paradip offers east-coast port access and strategic logistics, but the surrounding petrochemical services ecosystem is generally thinner than the major Gujarat clusters.\n\nSite selection logic:\n- Feedstock integration matters more than simple land cost.\n- Utility reliability, wastewater handling, and export connectivity should be included in the site score.\n- For an India-only feasibility package, site justification should remain tied to public Indian industrial references and tariff context.\n\n\n[user_doc_2_facts] Document facts extracted for India site note.\nProcess options: 0.\nEquipment mentions: 0.\nSelected process in document: not found.\nSelected site in document: not found.\n\n[india_sheet_1] India Market\nitem | category | region | units | value_inr | reference_year | normalization_year | note\nMonoethylene glycol | product | India | INR/kg | 63 | 2025 | 2025 | Seed India MEG selling-price basis\nEthylene oxide | raw_material | India | INR/kg | 62 | 2025 | 2025 | Seed EO feedstock basis\nElectricity | utility | Gujarat | INR/kWh | 8.5 | 2025 | 2025 | Industrial tariff basis\nOperating labour | labor | India | INR/person-year | 650000 | 2025 | 2025 | Annual direct labor burden\n\n[eg_handbook] Ethylene glycol handbook properties\nEthylene glycol molecular weight, boiling point, density, and handling note.\n\n[eg_kinetics] Ethylene oxide hydration kinetics note\nHydration kinetics, heat of reaction, and route comparison note.\n\n[eg_market_india] India MEG market note\nIndia demand, pricing, and downstream polyester/resins context.\n\n[eg_sites_india] India petrochemical cluster siting note\nDahej, Jamnagar, and Paradip compared on logistics, feedstock, and utilities.\n\n[eg_utilities_gujarat] India utility tariff note\nIndustrial steam, power, and cooling water tariff placeholders normalized to 2025 INR.\n\n[eg_safety] Ethylene oxide and ethylene glycol SDS note\nEO flammability, toxicity, and EG handling controls.\n\nSeed research bundle for India-mode ethylene glycol including technical, safety, market, site, and utility references.",
+  "user_document_ids": [
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "user_document_facts": [
+    {
+      "citations": [
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Document-fact extraction uses deterministic heuristics over user-supplied text and is intentionally conservative."
+      ],
+      "document_id": "user_doc_1_eg_technical_basis",
+      "source_id": "user_doc_1",
+      "title": "EG technical basis",
+      "process_comparisons": [],
+      "reaction_mentions": [],
+      "equipment_mentions": [],
+      "site_comparisons": [],
+      "economic_facts": [],
+      "operating_mode_hints": [],
+      "utility_mentions": [],
+      "alias_map": {
+        "ethylene_glycol": [
+          "Ethylene Glycol"
+        ]
+      },
+      "markdown": "Document facts extracted for EG technical basis.\nProcess options: 0.\nEquipment mentions: 0.\nSelected process in document: not found.\nSelected site in document: not found."
+    },
+    {
+      "citations": [
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Document-fact extraction uses deterministic heuristics over user-supplied text and is intentionally conservative."
+      ],
+      "document_id": "user_doc_2_india_site_note",
+      "source_id": "user_doc_2",
+      "title": "India site note",
+      "process_comparisons": [],
+      "reaction_mentions": [],
+      "equipment_mentions": [],
+      "site_comparisons": [],
+      "economic_facts": [],
+      "operating_mode_hints": [],
+      "utility_mentions": [],
+      "alias_map": {
+        "ethylene_glycol": [
+          "Ethylene Glycol"
+        ]
+      },
+      "markdown": "Document facts extracted for India site note.\nProcess options: 0.\nEquipment mentions: 0.\nSelected process in document: not found.\nSelected site in document: not found."
+    }
+  ],
+  "document_process_options": []
+}

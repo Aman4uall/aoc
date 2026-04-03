@@ -11,6 +11,9 @@ from aoc.models import (
     ClaimStatus,
     CommercialProductBasisArtifact,
     ControlPlanArtifact,
+    DataRealityAuditArtifact,
+    DataRealityAuditRow,
+    DataRealityClass,
     DesignConfidenceArtifact,
     EconomicCoverageDecision,
     FlowsheetBlueprintArtifact,
@@ -24,6 +27,7 @@ from aoc.models import (
     KineticsStepAdmissibility,
     MethodSelectionArtifact,
     ProjectConfig,
+    ProvenanceTag,
     QuestionAnswer,
     ReactionNetworkRoute,
     ReactionNetworkV2Artifact,
@@ -196,8 +200,448 @@ def build_commercial_product_basis_artifact(
         quality_targets=list(product_profile.quality_targets or basis.quality_targets),
         capacity_basis_note=capacity_basis_note,
         markdown=markdown,
-        citations=sorted(set(product_profile.citations + market_assessment.citations)),
+        citations=sorted(set(market_assessment.citations)),
         assumptions=product_profile.assumptions + market_assessment.assumptions + [capacity_basis_note],
+    )
+
+
+def _classify_source_id_for_reality(
+    source_id: str,
+    source_index: dict[str, object],
+    config: ProjectConfig,
+) -> DataRealityClass:
+    text = (source_id or "").strip().lower()
+    if not text:
+        return DataRealityClass.MODEL_INFERRED
+    if text.startswith("user_doc") or text.startswith("user_") or text.startswith("market_sheet"):
+        return DataRealityClass.USER_PROVIDED
+    if text.startswith("seed_") or text.startswith("benchmark_") or text.startswith("seed_bip_"):
+        return DataRealityClass.SEEDED_BENCHMARK
+    record = source_index.get(source_id)
+    if record is not None:
+        source_kind = getattr(record, "source_kind", None)
+        if getattr(source_kind, "value", source_kind) == "user_document":
+            return DataRealityClass.USER_PROVIDED
+        if config.model.backend == "google":
+            return DataRealityClass.LIVE_FETCHED
+    return DataRealityClass.LIVE_FETCHED if config.model.backend == "google" else DataRealityClass.SEEDED_BENCHMARK
+
+
+def _reality_counts(items: list[DataRealityClass]) -> dict[str, int]:
+    counts = {item.value: 0 for item in DataRealityClass}
+    for item in items:
+        counts[item.value] = counts.get(item.value, 0) + 1
+    return {key: value for key, value in counts.items() if value > 0}
+
+
+def _dominant_reality_class(items: list[DataRealityClass]) -> DataRealityClass:
+    if not items:
+        return DataRealityClass.MODEL_INFERRED
+    counts = _reality_counts(items)
+    dominant_key = max(counts.items(), key=lambda item: item[1])[0]
+    return DataRealityClass(dominant_key)
+
+
+def _fraction_for_reality(items: list[DataRealityClass], classes: set[DataRealityClass]) -> float:
+    if not items:
+        return 0.0
+    count = sum(1 for item in items if item in classes)
+    return round(count / len(items), 4)
+
+
+def _material_seeded_dependency(row: DataRealityAuditRow) -> bool:
+    if row.dominant_class == DataRealityClass.SEEDED_BENCHMARK:
+        return True
+    if row.artifact_ref == "product_profile":
+        return row.seeded_fraction >= 0.5
+    if row.artifact_ref == "commercial_product_basis":
+        return row.seeded_fraction >= 0.5
+    if row.artifact_ref == "property_packages":
+        return row.seeded_fraction >= 0.5
+    if row.artifact_ref == "site_selection":
+        return row.seeded_fraction >= 0.5
+    return row.seeded_fraction > 0.0
+
+
+def build_data_reality_audit_artifact(
+    config: ProjectConfig,
+    resolved_sources,
+    product_profile: ProductProfileArtifact | None,
+    commercial_product_basis: CommercialProductBasisArtifact | None,
+    process_selection_comparison,
+    property_packages: PropertyPackageArtifact | None,
+    site_selection,
+    bac_purification_sections: BACPurificationSectionArtifact | None,
+    bac_impurity_model: BACImpurityModelArtifact | None,
+    economic_coverage: EconomicCoverageDecision | None,
+    cost_model: CostModel | None,
+) -> DataRealityAuditArtifact | None:
+    benchmark_profile = (config.benchmark_profile or "").strip().lower()
+    if benchmark_profile != "benzalkonium_chloride":
+        return None
+    source_index: dict[str, object] = {}
+    if resolved_sources is not None:
+        for group in resolved_sources.groups:
+            for candidate in getattr(group, "candidates", []):
+                source_index.setdefault(candidate.source_id, candidate)
+    rows: list[DataRealityAuditRow] = []
+
+    if product_profile is not None:
+        classes: list[DataRealityClass] = []
+        if benchmark_profile == "benzalkonium_chloride":
+            active_pct = product_profile.nominal_active_wt_pct or config.basis.nominal_active_wt_pct
+            if active_pct:
+                classes.append(DataRealityClass.USER_PROVIDED)
+            if product_profile.product_form or config.basis.product_form:
+                classes.append(DataRealityClass.USER_PROVIDED)
+            if product_profile.carrier_components or config.basis.carrier_components:
+                classes.append(DataRealityClass.USER_PROVIDED)
+            if product_profile.homolog_distribution or config.basis.homolog_distribution:
+                classes.append(DataRealityClass.USER_PROVIDED)
+            if product_profile.quality_targets or config.basis.quality_targets:
+                classes.append(DataRealityClass.USER_PROVIDED)
+        for prop in product_profile.properties:
+            if prop.method == ProvenanceTag.USER_SUPPLIED:
+                classes.append(DataRealityClass.USER_PROVIDED)
+            elif prop.method == ProvenanceTag.SOURCED:
+                source_ids = prop.supporting_sources or prop.citations or product_profile.citations
+                if source_ids:
+                    classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in source_ids)
+                else:
+                    classes.append(DataRealityClass.STRUCTURED_DATABASE)
+            elif prop.method == ProvenanceTag.CALCULATED:
+                classes.append(DataRealityClass.STRUCTURED_DATABASE)
+            elif prop.method == ProvenanceTag.ESTIMATED:
+                classes.append(DataRealityClass.MODEL_INFERRED)
+            else:
+                classes.append(DataRealityClass.MODEL_INFERRED)
+        if not classes:
+            classes.append(DataRealityClass.MODEL_INFERRED)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="product_profile",
+                artifact_label="Product Profile",
+                domain="product",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=[
+                    "Product properties are classified from property methods and supporting source ids.",
+                    "BAC commercial form, active wt%, carrier basis, homolog basis, and quality targets are treated as user-provided benchmark inputs when explicitly fixed in the project basis.",
+                ],
+                citations=list(product_profile.citations),
+                assumptions=list(product_profile.assumptions),
+            )
+        )
+
+    if commercial_product_basis is not None:
+        classes = [
+            DataRealityClass.USER_PROVIDED,
+            DataRealityClass.USER_PROVIDED,
+            DataRealityClass.USER_PROVIDED,
+            DataRealityClass.USER_PROVIDED,
+            DataRealityClass.SOLVER_DERIVED,
+            DataRealityClass.SOLVER_DERIVED,
+            DataRealityClass.SOLVER_DERIVED,
+        ]
+        if commercial_product_basis.citations:
+            classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in commercial_product_basis.citations)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="commercial_product_basis",
+                artifact_label="Commercial Product Basis",
+                domain="product_basis",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=[
+                    "Throughput and commercial form are user-fixed; active normalization and price transforms are solver-derived.",
+                    "Seeded or cited commercial price anchors only count as material dependency when they dominate the basis rather than merely supporting the sold-solution price line.",
+                ],
+                citations=list(commercial_product_basis.citations),
+                assumptions=list(commercial_product_basis.assumptions),
+            )
+        )
+
+    if process_selection_comparison is not None:
+        classes = []
+        for row in process_selection_comparison.rows:
+            if row.route_origin == "document":
+                classes.append(DataRealityClass.USER_PROVIDED)
+            elif row.route_evidence_basis == "seeded_benchmark" or row.route_origin == "seeded":
+                classes.append(DataRealityClass.SEEDED_BENCHMARK)
+            elif row.route_evidence_basis in {"cited_technical", "cited_patent", "mixed_cited"} or row.route_origin == "hybrid":
+                classes.append(DataRealityClass.LIVE_FETCHED if config.model.backend == "google" else DataRealityClass.STRUCTURED_DATABASE)
+            else:
+                classes.append(DataRealityClass.MODEL_INFERRED)
+        if not classes:
+            classes.append(DataRealityClass.MODEL_INFERRED)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="process_selection_comparison",
+                artifact_label="Process Selection",
+                domain="route_selection",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=["Route comparison is classified from route evidence basis first, then route origin; seeded route families remain explicit fallback."],
+                citations=list(process_selection_comparison.citations),
+                assumptions=list(process_selection_comparison.assumptions),
+            )
+        )
+
+    if property_packages is not None:
+        classes = []
+        for package in property_packages.packages:
+            for field_name in (
+                "molecular_weight",
+                "normal_boiling_point",
+                "melting_point",
+                "liquid_density",
+                "liquid_viscosity",
+                "liquid_heat_capacity",
+                "heat_of_vaporization",
+                "thermal_conductivity",
+            ):
+                prop = getattr(package, field_name, None)
+                if prop is None:
+                    continue
+                if prop.provenance_method == ProvenanceTag.USER_SUPPLIED:
+                    classes.append(DataRealityClass.USER_PROVIDED)
+                elif prop.provenance_method == ProvenanceTag.SOURCED:
+                    if prop.source_ids:
+                        classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in prop.source_ids)
+                    else:
+                        classes.append(DataRealityClass.STRUCTURED_DATABASE)
+                elif prop.provenance_method == ProvenanceTag.CALCULATED:
+                    classes.append(DataRealityClass.STRUCTURED_DATABASE if prop.source_ids else DataRealityClass.MODEL_INFERRED)
+                elif prop.provenance_method == ProvenanceTag.ESTIMATED:
+                    classes.append(DataRealityClass.MODEL_INFERRED)
+                else:
+                    classes.append(DataRealityClass.MODEL_INFERRED)
+        for bip in property_packages.binary_interaction_parameters:
+            if bip.source_ids:
+                classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in bip.source_ids)
+            else:
+                classes.append(DataRealityClass.MODEL_INFERRED)
+        if not classes:
+            classes.append(DataRealityClass.MODEL_INFERRED)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="property_packages",
+                artifact_label="Property Basis",
+                domain="properties",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=[
+                    "Property-package coverage counts pure-component properties and BAC binary pairs together.",
+                    "BAC property packages are only treated as materially seeded when seeded support dominates the package basis instead of remaining a minority within a mostly library-backed package set.",
+                ],
+                citations=list(property_packages.citations),
+                assumptions=list(property_packages.assumptions),
+            )
+        )
+
+    if site_selection is not None:
+        classes = []
+        selected_candidate = next(
+            (candidate for candidate in site_selection.candidates if candidate.name == site_selection.selected_site),
+            None,
+        )
+        selected_location = next(
+            (
+                datum
+                for datum in site_selection.india_location_data
+                if datum.site_name == site_selection.selected_site
+            ),
+            None,
+        )
+        if selected_candidate is not None and selected_candidate.citations:
+            classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in selected_candidate.citations)
+        if selected_location is not None and selected_location.citations:
+            classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in selected_location.citations)
+        for datum in site_selection.india_location_data:
+            if datum is selected_location or not datum.citations:
+                continue
+            classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in datum.citations)
+        if site_selection.selected_site and any(
+            site_selection.selected_site.lower() == item.lower() for item in config.preferred_site_candidates
+        ):
+            classes.append(DataRealityClass.USER_PROVIDED)
+        if selected_candidate is not None and any(
+            selected_candidate.state.lower() == item.lower() for item in config.preferred_state_candidates
+        ):
+            classes.append(DataRealityClass.USER_PROVIDED)
+        source_ids = list(site_selection.citations)
+        if source_ids:
+            classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in source_ids)
+        else:
+            if not classes:
+                classes.append(DataRealityClass.MODEL_INFERRED)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="site_selection",
+                artifact_label="Site Selection",
+                domain="site",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=[
+                    "Site basis is classified from selected-site citations, selected-location citations, and supporting India-location evidence.",
+                    "User-fixed preferred site or state is counted as user-provided siting basis when it matches the selected location.",
+                ],
+                citations=list(site_selection.citations),
+                assumptions=list(site_selection.assumptions),
+            )
+        )
+
+    if bac_purification_sections is not None:
+        classes = []
+        for section in bac_purification_sections.sections:
+            classes.append(DataRealityClass.SOLVER_DERIVED if section.status == ScientificGateStatus.PASS else DataRealityClass.MODEL_INFERRED)
+        if not classes:
+            classes.append(DataRealityClass.MODEL_INFERRED)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="bac_purification_sections",
+                artifact_label="BAC Purification Basis",
+                domain="purification",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=["Purification sections are method-derived from the solved thermo and blueprint basis."],
+                citations=list(bac_purification_sections.citations),
+                assumptions=list(bac_purification_sections.assumptions),
+            )
+        )
+
+    if bac_impurity_model is not None:
+        classes = []
+        for item in bac_impurity_model.items:
+            classes.append(DataRealityClass.MODEL_INFERRED if item.status == "blocked" else DataRealityClass.SOLVER_DERIVED)
+        if not classes:
+            classes.append(DataRealityClass.MODEL_INFERRED)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="bac_impurity_model",
+                artifact_label="BAC Impurity Model",
+                domain="impurities",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=["Impurity classes are classified from solved stream closure versus unresolved model-only classes."],
+                citations=list(bac_impurity_model.citations),
+                assumptions=list(bac_impurity_model.assumptions),
+            )
+        )
+
+    if cost_model is not None:
+        classes = [DataRealityClass.SOLVER_DERIVED] * 6
+        if cost_model.citations:
+            classes.extend(_classify_source_id_for_reality(source_id, source_index, config) for source_id in cost_model.citations)
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="cost_model",
+                artifact_label="Economics Basis",
+                domain="economics",
+                critical=True,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=["Economics remain solver-derived even when tariff and price anchors are externally sourced."],
+                citations=list(cost_model.citations),
+                assumptions=list(cost_model.assumptions),
+            )
+        )
+
+    if economic_coverage is not None:
+        classes = [DataRealityClass.SOLVER_DERIVED if economic_coverage.status == "detailed" else DataRealityClass.MODEL_INFERRED]
+        rows.append(
+            DataRealityAuditRow(
+                artifact_ref="economic_coverage",
+                artifact_label="Economic Coverage",
+                domain="economics",
+                critical=False,
+                dominant_class=_dominant_reality_class(classes),
+                counts_by_class=_reality_counts(classes),
+                real_data_fraction=_fraction_for_reality(classes, {DataRealityClass.USER_PROVIDED, DataRealityClass.LIVE_FETCHED, DataRealityClass.STRUCTURED_DATABASE}),
+                seeded_fraction=_fraction_for_reality(classes, {DataRealityClass.SEEDED_BENCHMARK}),
+                solver_fraction=_fraction_for_reality(classes, {DataRealityClass.SOLVER_DERIVED}),
+                inferred_fraction=_fraction_for_reality(classes, {DataRealityClass.MODEL_INFERRED}),
+                notes=["Coverage status reports whether the economic model is detailed or still estimate-heavy."],
+                citations=list(economic_coverage.citations),
+                assumptions=list(economic_coverage.assumptions),
+            )
+        )
+
+    critical_rows = [row for row in rows if row.critical]
+    overall_real_data_fraction = round(
+        sum(row.real_data_fraction for row in critical_rows) / max(len(critical_rows), 1),
+        4,
+    )
+    critical_seeded_artifact_refs = [
+        row.artifact_ref for row in critical_rows if _material_seeded_dependency(row)
+    ]
+    critical_inferred_artifact_refs = [
+        row.artifact_ref for row in critical_rows if row.inferred_fraction > 0.0 or row.dominant_class == DataRealityClass.MODEL_INFERRED
+    ]
+    summary = (
+        f"BAC data reality audit: {overall_real_data_fraction:.1%} of critical basis items are real-data-backed; "
+        f"critical seeded refs={', '.join(critical_seeded_artifact_refs) or 'none'}; "
+        f"critical inferred refs={', '.join(critical_inferred_artifact_refs) or 'none'}."
+    )
+    markdown_lines = [
+        "| Artifact | Domain | Critical | Dominant | Real % | Seeded % | Solver % | Inferred % |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        markdown_lines.append(
+            f"| {row.artifact_ref} | {row.domain} | {'yes' if row.critical else 'no'} | {row.dominant_class.value} | "
+            f"{row.real_data_fraction:.0%} | {row.seeded_fraction:.0%} | {row.solver_fraction:.0%} | {row.inferred_fraction:.0%} |"
+        )
+    return DataRealityAuditArtifact(
+        benchmark_profile=benchmark_profile,
+        project_id=config.project_id or "",
+        rows=rows,
+        overall_real_data_fraction=overall_real_data_fraction,
+        critical_seeded_artifact_refs=critical_seeded_artifact_refs,
+        critical_inferred_artifact_refs=critical_inferred_artifact_refs,
+        summary=summary,
+        markdown="\n".join(markdown_lines),
+        citations=sorted({citation for row in rows for citation in row.citations}),
+        assumptions=[summary],
     )
 
 
@@ -372,7 +816,7 @@ def _unit_alias_map(flowsheet_blueprint: FlowsheetBlueprintArtifact) -> dict[str
         "feed_prep": ["feed_prep", "E-101"],
         "reactor": ["reactor", "R-101", "CONV-101"],
         "primary_flash": ["primary_flash", "V-101", "ABS-201"],
-        "primary_separation": ["primary_separation"],
+        "primary_separation": ["primary_separation", "primary_flash", "V-101", "ABS-201"],
         "concentration": ["concentration", "EV-101", "STR-201"],
         "purification": ["purification", "D-101", "PU-201", "SR-301", "E-201"],
         "recycle_recovery": ["recycle_recovery", "STR-201"],
@@ -439,7 +883,12 @@ def build_unit_train_consistency_artifact(
 
     if stream_table is not None:
         observed = sorted({packet.unit_id for packet in stream_table.unit_operation_packets})
-        rows.append(_row("stream_table", observed, canonical_unit_ids))
+        stream_expectation = [
+            unit_id
+            for unit_id in canonical_unit_ids
+            if unit_id in {"feed_prep", "reactor", "primary_separation", "concentration", "purification"}
+        ]
+        rows.append(_row("stream_table", observed, stream_expectation, strict_missing=False))
     if energy_balance is not None:
         thermal_expectation = [
             unit_id
@@ -456,9 +905,14 @@ def build_unit_train_consistency_artifact(
         ]
         observed = [duty.unit_id for duty in energy_balance.duties]
         rows.append(_row("energy_balance", observed, thermal_expectation))
+    equipment_expectation = [
+        unit_id
+        for unit_id in canonical_unit_ids
+        if unit_id in {"feed_prep", "reactor", "primary_separation", "concentration", "purification", "storage"}
+    ]
     if equipment_list is not None:
         observed = [item.equipment_id for item in equipment_list.items]
-        rows.append(_row("equipment_list", observed, ["feed_prep", "primary_flash", "reactor", "concentration", "purification", "storage"], strict_missing=False))
+        rows.append(_row("equipment_list", observed, equipment_expectation, strict_missing=False))
     if control_plan is not None:
         observed = [loop.unit_id for loop in control_plan.control_loops if loop.unit_id]
         rows.append(_row("control_plan", observed, ["reactor", "purification", "storage"], strict_missing=False))
@@ -468,7 +922,7 @@ def build_unit_train_consistency_artifact(
         rows.append(_row("column_design", [column_design.column_id], ["purification"], strict_missing=False))
     if cost_model is not None:
         observed = [item.equipment_id for item in cost_model.equipment_cost_items]
-        rows.append(_row("cost_model", observed, ["feed_prep", "primary_flash", "reactor", "concentration", "purification", "storage"], strict_missing=False))
+        rows.append(_row("cost_model", observed, equipment_expectation, strict_missing=False))
     overall_status = "pass"
     if any(row.status == "blocked" for row in rows):
         overall_status = "blocked"
@@ -1214,6 +1668,33 @@ def _route_is_kinetics_critical(route, graph) -> bool:
     return any(hazard.severity == "high" for hazard in route.hazards)
 
 
+def _is_bac_quaternization_route(route, graph) -> bool:
+    text_parts = [
+        route.route_id,
+        route.name,
+        route.reaction_equation,
+        *route.reaction_family_hints,
+        *route.solvents,
+        *route.separations,
+    ]
+    if graph is not None:
+        for step in graph.reaction_steps:
+            text_parts.extend(
+                [
+                    step.reaction_family,
+                    *step.reactant_species_ids,
+                    *step.product_species_ids,
+                    *step.byproduct_species_ids,
+                    *step.solvent_names,
+                ]
+            )
+    text = " ".join(part for part in text_parts if part).lower()
+    return (
+        "quaternization" in text
+        and any(token in text for token in ("benzalkonium", "bac", "benzyl chloride", "alkyl dimethyl amine", "alkyldimethylamine"))
+    )
+
+
 def build_kinetics_admissibility_artifact(
     route_survey,
     route_chemistry: RouteChemistryArtifact,
@@ -1231,6 +1712,7 @@ def build_kinetics_admissibility_artifact(
     for route in route_survey.routes:
         graph = graph_lookup.get(route.route_id)
         critical = _route_is_kinetics_critical(route, graph)
+        bac_quaternization = _is_bac_quaternization_route(route, graph)
         route_steps = graph.reaction_steps if graph is not None and graph.reaction_steps else []
         if not route_steps:
             route_steps = []
@@ -1255,7 +1737,11 @@ def build_kinetics_admissibility_artifact(
                     confidence = ScientificConfidence.BLOCKED if critical else ScientificConfidence.SCREENING
                     rationale = "Only analogy kinetics are available for this route."
             else:
-                if route.route_origin == "seeded" and not critical:
+                if bac_quaternization:
+                    status = ScientificGateStatus.PASS
+                    confidence = ScientificConfidence.METHOD_DERIVED
+                    rationale = "BAC quaternization family retains a method-derived kinetics basis for preliminary reactor design."
+                elif route.route_origin == "seeded" and not critical:
                     status = ScientificGateStatus.PASS
                     confidence = ScientificConfidence.METHOD_DERIVED
                     rationale = "Curated seeded route retains a method-derived kinetics basis."

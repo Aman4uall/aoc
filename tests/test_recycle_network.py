@@ -121,6 +121,39 @@ class RecycleNetworkTests(unittest.TestCase):
         self.assertAlmostEqual(purification_packet.component_recycle_kmol_hr["Benzyl chloride"], 0.474, places=3)
         self.assertAlmostEqual(purification_packet.component_purge_kmol_hr["Benzyl chloride"], 0.158, places=3)
 
+    def test_bac_concentration_recycle_without_explicit_purge_can_still_converge(self):
+        streams = [
+            StreamRecord(
+                stream_id="S-301",
+                description="BAC concentration recycle",
+                temperature_c=75.0,
+                pressure_bar=1.2,
+                components=[
+                    StreamComponentFlow(name="Benzyl chloride", mass_flow_kg_hr=10.0, molar_flow_kmol_hr=0.079),
+                    StreamComponentFlow(name="Dimethylcetylamine", mass_flow_kg_hr=15.0, molar_flow_kmol_hr=0.056),
+                    StreamComponentFlow(name="Heavy ends", mass_flow_kg_hr=5.0, molar_flow_kmol_hr=0.010),
+                ],
+                source_unit_id="concentration",
+                destination_unit_id="feed_prep",
+                phase_hint="liquid",
+                section_id="primary_recovery",
+                stream_role="recycle",
+            ),
+        ]
+        recycle_solution = {
+            "Benzyl chloride": {"total_flow": 0.079, "fresh_flow": 0.0, "recycle_flow": 0.079, "purge_flow": 0.0, "iterations": 2, "converged": True},
+            "Dimethylcetylamine": {"total_flow": 0.056, "fresh_flow": 0.0, "recycle_flow": 0.056, "purge_flow": 0.0, "iterations": 2, "converged": True},
+            "Heavy ends": {"total_flow": 0.010, "fresh_flow": 0.0, "recycle_flow": 0.010, "purge_flow": 0.0, "iterations": 2, "converged": True},
+        }
+
+        packets, summaries = build_recycle_network_packets(streams, recycle_solution, 0.1, ["s1"], [])
+
+        packet = next(packet for packet in packets if packet.loop_id == "concentration_recycle_loop")
+        summary = next(summary for summary in summaries if summary.loop_id == "concentration_recycle_loop")
+        self.assertEqual(packet.convergence_status, "converged")
+        self.assertLess(summary.max_component_error_pct, 2.0)
+        self.assertIn("Recycle-only closure was accepted", " ".join(summary.notes))
+
 
 if __name__ == "__main__":
     unittest.main()

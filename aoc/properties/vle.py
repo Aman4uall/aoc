@@ -250,6 +250,27 @@ def _preferred_bac_light_key(packages: list[PropertyPackage]) -> PropertyPackage
     preferred_ids = [
         "benzyl_chloride",
         "ethanol",
+        "isopropanol",
+        "benzyl_alcohol",
+        "water",
+    ]
+    package_lookup = {package.identifier.identifier_id: package for package in packages}
+    for identifier_id in preferred_ids:
+        if identifier_id in package_lookup:
+            return package_lookup[identifier_id]
+    return None
+
+
+def _is_bac_active_identifier(identifier_id: str) -> bool:
+    text = normalize_chemical_name(identifier_id)
+    return "benzalkonium_chloride" in text or "cetalkonium_chloride" in text
+
+
+def _preferred_bac_heavy_key(packages: list[PropertyPackage]) -> PropertyPackage | None:
+    preferred_ids = [
+        "alkyldimethylamine",
+        "dodecyldimethylamine",
+        "dimethylcetylamine",
         "benzyl_alcohol",
         "water",
     ]
@@ -302,12 +323,12 @@ def _select_key_packages_from_list(
         cleanup_packages = [
             package
             for package in packages
-            if package.identifier.identifier_id != target_id
+            if package.identifier.identifier_id != target_id and not _is_bac_active_identifier(package.identifier.identifier_id)
         ]
         if cleanup_packages:
             light = _preferred_bac_light_key(cleanup_packages) or min(cleanup_packages, key=_bp_c)
             remaining = [package for package in cleanup_packages if package.package_id != light.package_id]
-            heavy = max(remaining or cleanup_packages, key=_bp_c)
+            heavy = _preferred_bac_heavy_key(remaining or cleanup_packages) or max(remaining or cleanup_packages, key=_bp_c)
             return light, heavy, packages, family
     sorted_by_bp = sorted(packages, key=_bp_c)
     if product_package is not None:

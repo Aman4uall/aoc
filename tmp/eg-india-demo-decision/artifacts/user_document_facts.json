@@ -1,0 +1,65 @@
+{
+  "citations": [
+    "user_doc_1",
+    "user_doc_2"
+  ],
+  "assumptions": [
+    "Document-fact collection aggregates per-document heuristic extraction outputs."
+  ],
+  "documents": [
+    {
+      "citations": [
+        "user_doc_1"
+      ],
+      "assumptions": [
+        "Document-fact extraction uses deterministic heuristics over user-supplied text and is intentionally conservative."
+      ],
+      "document_id": "user_doc_1_eg_technical_basis",
+      "source_id": "user_doc_1",
+      "title": "EG technical basis",
+      "process_comparisons": [],
+      "reaction_mentions": [],
+      "equipment_mentions": [],
+      "site_comparisons": [],
+      "economic_facts": [],
+      "operating_mode_hints": [],
+      "utility_mentions": [],
+      "alias_map": {
+        "ethylene_glycol": [
+          "Ethylene Glycol"
+        ]
+      },
+      "markdown": "Document facts extracted for EG technical basis.\nProcess options: 0.\nEquipment mentions: 0.\nSelected process in document: not found.\nSelected site in document: not found."
+    },
+    {
+      "citations": [
+        "user_doc_2"
+      ],
+      "assumptions": [
+        "Document-fact extraction uses deterministic heuristics over user-supplied text and is intentionally conservative."
+      ],
+      "document_id": "user_doc_2_india_site_note",
+      "source_id": "user_doc_2",
+      "title": "India site note",
+      "process_comparisons": [],
+      "reaction_mentions": [],
+      "equipment_mentions": [],
+      "site_comparisons": [],
+      "economic_facts": [],
+      "operating_mode_hints": [],
+      "utility_mentions": [],
+      "alias_map": {
+        "ethylene_glycol": [
+          "Ethylene Glycol"
+        ]
+      },
+      "markdown": "Document facts extracted for India site note.\nProcess options: 0.\nEquipment mentions: 0.\nSelected process in document: not found.\nSelected site in document: not found."
+    }
+  ],
+  "process_option_count": 0,
+  "reaction_mention_count": 0,
+  "equipment_mention_count": 0,
+  "selected_process_labels": [],
+  "selected_site_names": [],
+  "markdown": "| Document | Process Options | Equipment Mentions | Selected Process | Selected Site |\n| --- | --- | --- | --- | --- |\n| EG technical basis | 0 | 0 | - | - |\n| India site note | 0 | 0 | - | - |"
+}

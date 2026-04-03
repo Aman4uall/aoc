@@ -87,8 +87,19 @@ from aoc.models import (
     SensitivityLevel,
     InferenceQuestionQueueArtifact,
 )
+from aoc.properties.sources import normalize_chemical_name
 from aoc.properties import active_identifier_ids_for_route, requirement_failures_for_stage
 from aoc.properties.models import MixturePropertyArtifact, PropertyMethodDecision, PropertyPackageArtifact, PropertyRequirementSet, SeparationThermoArtifact
+
+
+def _normalize_site_label(value: str) -> str:
+    normalized = normalize_chemical_name(value)
+    replacements = {
+        "petroleum_chemicals_and_petrochemicals_investment_region": "pcpir",
+    }
+    for old, new in replacements.items():
+        normalized = normalized.replace(old, new)
+    return normalized
 
 
 def require_source_ids(citation_ids: list[str], available_source_ids: set[str], artifact_ref: str, code: str) -> list[ValidationIssue]:
@@ -1268,6 +1279,10 @@ def validate_site_selection_consistency(site_selection: SiteSelectionArtifact, s
     issues: list[ValidationIssue] = []
     candidate_names = {candidate.name for candidate in site_selection.candidates}
     location_names = {location.site_name for location in site_selection.india_location_data}
+    normalized_location_names = {
+        _normalize_site_label(location.site_name)
+        for location in site_selection.india_location_data
+    }
     if site_selection.selected_site and site_selection.selected_site not in candidate_names:
         issues.append(
             ValidationIssue(
@@ -1277,7 +1292,18 @@ def validate_site_selection_consistency(site_selection: SiteSelectionArtifact, s
                 artifact_ref="site_selection",
             )
         )
-    if site_selection.selected_site and location_names and site_selection.selected_site not in location_names:
+    selected_site_normalized = _normalize_site_label(site_selection.selected_site) if site_selection.selected_site else ""
+    location_match = (
+        not selected_site_normalized
+        or not normalized_location_names
+        or any(
+            selected_site_normalized == location_name
+            or selected_site_normalized in location_name
+            or location_name in selected_site_normalized
+            for location_name in normalized_location_names
+        )
+    )
+    if site_selection.selected_site and location_names and not location_match:
         issues.append(
             ValidationIssue(
                 code="selected_site_missing_location_evidence",
@@ -2077,6 +2103,18 @@ def validate_thermo_assessment(thermo: ThermoAssessmentArtifact) -> list[Validat
 
 def validate_kinetic_assessment(kinetics: KineticAssessmentArtifact) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
+    missing_arrhenius_basis = (
+        kinetics.activation_energy_kj_per_mol <= 0.0
+        and kinetics.pre_exponential_factor <= 0.0
+        and any(
+            phrase in " ".join(kinetics.assumptions).lower()
+            for phrase in (
+                "could not be determined",
+                "critical data gap",
+                "no experimental data",
+            )
+        )
+    )
     if not kinetics.feasible:
         issues.append(
             ValidationIssue(
@@ -2096,14 +2134,15 @@ def validate_kinetic_assessment(kinetics: KineticAssessmentArtifact) -> list[Val
             )
         )
     if kinetics.activation_energy_kj_per_mol <= 0.0:
-        issues.append(
-            ValidationIssue(
-                code="invalid_activation_energy",
-                severity=Severity.BLOCKED,
-                message="Activation energy must be positive for the selected kinetic basis.",
-                artifact_ref="kinetic_assessment",
+        if not missing_arrhenius_basis:
+            issues.append(
+                ValidationIssue(
+                    code="invalid_activation_energy",
+                    severity=Severity.BLOCKED,
+                    message="Activation energy must be positive for the selected kinetic basis.",
+                    artifact_ref="kinetic_assessment",
+                )
             )
-        )
     return issues
 
 

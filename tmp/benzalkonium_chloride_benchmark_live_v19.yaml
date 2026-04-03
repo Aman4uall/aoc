@@ -1,0 +1,47 @@
+project_id: benzalkonium-chloride-benchmark-live-v19
+basis:
+  target_product: Benzalkonium chloride
+  capacity_tpa: 50000
+  target_purity_wt_pct: 50.0
+  operating_mode: continuous
+  annual_operating_days: 330
+  region: India
+  currency: INR
+  tariff_reference_year: 2025
+  utility_basis_year: 2025
+  labor_basis_year: 2025
+  economic_reference_year: 2025
+  throughput_basis: finished_product
+  nominal_active_wt_pct: 50.0
+  product_form: 50_wt_pct_solution
+  carrier_components:
+    - water
+    - ethanol
+  homolog_distribution:
+    c12: 0.40
+    c14: 0.50
+    c16: 0.10
+  quality_targets:
+    - 50 wt% active
+    - Residual free benzyl chloride below finished-goods limit
+    - Residual free tertiary amine below finished-goods limit
+strict_citation_policy: true
+public_data_only: false
+benchmark_profile: benzalkonium_chloride
+evidence_lock_required: true
+preferred_state_candidates:
+  - Gujarat
+  - Maharashtra
+  - Telangana
+preferred_site_candidates:
+  - Dahej
+  - Hazira
+  - Taloja
+require_india_only_data: false
+india_market_sheets: []
+user_documents: []
+output_root: outputs
+model:
+  backend: google
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.2

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from aoc.config import load_project_config
 from aoc.decision_engine import (
+    build_site_selection_decision,
     build_chemistry_decision_artifact,
     build_heat_integration_study,
     build_process_synthesis,
@@ -19,6 +20,7 @@ from aoc.route_families import build_route_family_artifact
 from aoc.scientific_inference import build_reaction_network_v2_artifact, build_species_resolution_artifact
 from aoc.scientific_inference import build_route_process_claims_artifact
 from aoc.models import ProvenanceTag
+from aoc.models import IndianLocationDatum, SiteOption, SiteSelectionArtifact
 from aoc.reasoning import MockReasoningService
 from aoc.research import ResearchManager
 
@@ -219,6 +221,121 @@ class DecisionEngineTests(unittest.TestCase):
         self.assertGreater(direct_oxidation.impurity_cleanup_sequence_score, cumene.impurity_cleanup_sequence_score)
         self.assertGreaterEqual(direct_oxidation.stepwise_recovery_burden_score, 0.0)
 
+    def test_site_selection_decision_credits_external_site_evidence(self):
+        artifact = SiteSelectionArtifact(
+            candidates=[
+                SiteOption(
+                    name="Dahej",
+                    state="Gujarat",
+                    raw_material_score=9,
+                    logistics_score=9,
+                    utility_score=9,
+                    business_score=8,
+                    total_score=35,
+                    rationale="Strong cluster fit.",
+                    citations=["seed_source_1"],
+                ),
+                SiteOption(
+                    name="Hazira",
+                    state="Gujarat",
+                    raw_material_score=8,
+                    logistics_score=9,
+                    utility_score=8,
+                    business_score=8,
+                    total_score=33,
+                    rationale="Strong west coast fit with better cited site evidence.",
+                    citations=["src_site_01"],
+                ),
+            ],
+            selected_site="Dahej",
+            india_location_data=[
+                IndianLocationDatum(
+                    location_id="loc_dahej",
+                    site_name="Dahej",
+                    state="Gujarat",
+                    port_access="test",
+                    utility_note="test",
+                    logistics_note="test",
+                    regulatory_note="test",
+                    reference_year=2025,
+                    citations=["seed_source_1"],
+                ),
+                IndianLocationDatum(
+                    location_id="loc_hazira",
+                    site_name="Hazira",
+                    state="Gujarat",
+                    port_access="test",
+                    utility_note="test",
+                    logistics_note="test",
+                    regulatory_note="test",
+                    reference_year=2025,
+                    citations=["src_site_01"],
+                ),
+            ],
+            markdown="test",
+            citations=["src_site_01"],
+            assumptions=[],
+        )
+
+        decision = build_site_selection_decision(self.config, artifact)
+
+        self.assertEqual(decision.selected_candidate_id, "Hazira")
+        hazira = next(item for item in decision.alternatives if item.candidate_id == "Hazira")
+        dahej = next(item for item in decision.alternatives if item.candidate_id == "Dahej")
+        self.assertGreater(float(hazira.outputs["site_evidence_bonus"]), float(dahej.outputs["site_evidence_bonus"]))
+
+    def test_route_selection_scores_cited_route_evidence_above_seeded_fallback(self):
+        property_gap = resolve_property_gaps(self.profile, self.config)
+        survey = self.survey.model_copy(deep=True)
+        eo_route = next(route for route in survey.routes if route.route_id == "eo_hydration")
+        omega_route = next(route for route in survey.routes if route.route_id == "omega_catalytic")
+        eo_route.route_evidence_basis = "seeded_benchmark"
+        eo_route.route_origin = "seeded"
+        eo_route.evidence_score = 0.95
+        omega_route.route_evidence_basis = "cited_technical"
+        omega_route.route_origin = "hybrid"
+        omega_route.evidence_score = 0.62
+
+        route_families = build_route_family_artifact(survey)
+        route_chemistry = build_route_chemistry_artifact(survey, [])
+        species_resolution = build_species_resolution_artifact(route_chemistry)
+        reaction_network_v2 = build_reaction_network_v2_artifact(route_chemistry, species_resolution)
+        unit_train_candidates = build_unit_train_candidate_set(
+            survey,
+            route_chemistry,
+            route_families,
+            [],
+            self.config.basis.operating_mode,
+        )
+        route_screening = build_route_screening_artifact(
+            survey,
+            route_chemistry,
+            species_resolution,
+            reaction_network_v2,
+            route_families,
+            unit_train_candidates,
+            build_route_process_claims_artifact(survey, route_chemistry, unit_train_candidates),
+            operating_mode=self.config.basis.operating_mode,
+        )
+        synthesis = build_process_synthesis(self.config, survey, property_gap, route_families=route_families)
+        rough = build_rough_alternatives(self.config, survey, synthesis, self.market, route_families)
+        heat_study = build_heat_integration_study(self.config, rough, self.market)
+        _, route_decision, *_ = select_route_architecture(
+            self.config,
+            survey,
+            route_chemistry,
+            rough,
+            heat_study,
+            self.market,
+            route_families,
+            route_screening=route_screening,
+        )
+
+        eo_alt = next(item for item in route_decision.alternatives if item.candidate_id == "eo_hydration")
+        omega_alt = next(item for item in route_decision.alternatives if item.candidate_id == "omega_catalytic")
+        self.assertLessEqual(eo_alt.score_breakdown["Evidence quality"], 55.0)
+        self.assertGreaterEqual(omega_alt.score_breakdown["Evidence quality"], 80.0)
+
     def test_route_family_profiles_drive_rough_cases(self):
         route_families = build_route_family_artifact(self.survey)
         self.assertTrue(route_families.profiles)
@@ -243,7 +360,6 @@ class DecisionEngineTests(unittest.TestCase):
         self.assertGreater(hydration_case.blueprint_step_count, 0)
         self.assertGreater(hydration_case.separation_duty_count, 0)
         self.assertIn("Blueprint complexity", hydration_case.notes)
-
 
 if __name__ == "__main__":
     unittest.main()

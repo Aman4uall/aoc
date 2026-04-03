@@ -254,6 +254,22 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
         },
         "antoine": {"A": 8.20417, "B": 1642.89, "C": 230.3, "temperature_min_c": 0.0, "temperature_max_c": 78.0},
     },
+    "isopropanol": {
+        "aliases": ["isopropyl_alcohol", "ipa", "2_propanol", "propan_2_ol", "c3h8o"],
+        "formula": "C3H8O",
+        "cas_number": "67-63-0",
+        "properties": {
+            "molecular_weight": (60.10, "g/mol"),
+            "normal_boiling_point": (82.6, "C"),
+            "melting_point": (-89.5, "C"),
+            "liquid_density": (786.0, "kg/m3"),
+            "liquid_viscosity": (0.00204, "Pa.s"),
+            "liquid_heat_capacity": (2.68, "kJ/kg-K"),
+            "heat_of_vaporization": (665.0, "kJ/kg"),
+            "thermal_conductivity": (0.13, "W/m-K"),
+        },
+        "antoine": {"A": 8.11778, "B": 1580.92, "C": 219.61, "temperature_min_c": 0.0, "temperature_max_c": 90.0},
+    },
     "benzene": {
         "aliases": ["c6h6"],
         "formula": "C6H6",
@@ -362,22 +378,54 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
         "antoine": {"A": 7.02447, "B": 1161.0, "C": 224.0, "temperature_min_c": -10.0, "temperature_max_c": 95.0},
     },
     "alkyldimethylamine": {
-        "aliases": ["c16h35n", "lauryldimethylamine", "c12_c14_alkyldimethylamine"],
-        "formula": "C16H35N",
+        "aliases": [
+            "c16h35n",
+            "c14h31n",
+            "lauryldimethylamine",
+            "dodecyldimethylamine",
+            "dimethyldodecylamine",
+            "alkyldimethylamine_c12",
+            "alkyldimethylamine_c12_c14",
+            "c12_c14_alkyldimethylamine",
+            "alkyldimethylamine_c12_c16",
+        ],
+        "formula": "C14H31N",
         "cas_number": "112-69-6",
         "properties": {
-            "molecular_weight": (241.46, "g/mol"),
-            "normal_boiling_point": (285.0, "C"),
+            "molecular_weight": (213.41, "g/mol"),
+            "normal_boiling_point": (257.0, "C"),
             "melting_point": (18.0, "C"),
-            "liquid_density": (830.0, "kg/m3"),
-            "liquid_viscosity": (0.0040, "Pa.s"),
+            "liquid_density": (790.0, "kg/m3"),
+            "liquid_viscosity": (0.0033, "Pa.s"),
             "liquid_heat_capacity": (2.10, "kJ/kg-K"),
-            "heat_of_vaporization": (340.0, "kJ/kg"),
+            "heat_of_vaporization": (365.0, "kJ/kg"),
+            "thermal_conductivity": (0.14, "W/m-K"),
+        },
+    },
+    "dimethylcetylamine": {
+        "aliases": ["cetyl_dimethylamine", "hexadecyldimethylamine", "c18h39n"],
+        "formula": "C18H39N",
+        "cas_number": "112-69-6",
+        "properties": {
+            "molecular_weight": (269.51, "g/mol"),
+            "normal_boiling_point": (318.0, "C"),
+            "melting_point": (28.0, "C"),
+            "liquid_density": (805.0, "kg/m3"),
+            "liquid_viscosity": (0.0048, "Pa.s"),
+            "liquid_heat_capacity": (2.15, "kJ/kg-K"),
+            "heat_of_vaporization": (385.0, "kJ/kg"),
             "thermal_conductivity": (0.14, "W/m-K"),
         },
     },
     "benzalkonium_chloride": {
-        "aliases": ["bkc", "alkyldimethylbenzylammonium_chloride", "c23h42cln"],
+        "aliases": [
+            "bkc",
+            "alkyldimethylbenzylammonium_chloride",
+            "benzalkonium_chloride_c12",
+            "benzalkonium chloride (c12)",
+            "dodecyl_benzyl_dimethyl_ammonium_chloride",
+            "c23h42cln",
+        ],
         "formula": "C23H42ClN",
         "cas_number": "8001-54-5",
         "properties": {
@@ -387,6 +435,27 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
             "liquid_density": (995.0, "kg/m3"),
             "liquid_viscosity": (0.0025, "Pa.s"),
             "liquid_heat_capacity": (3.00, "kJ/kg-K"),
+            "heat_of_vaporization": (0.0, "kJ/kg"),
+            "thermal_conductivity": (0.20, "W/m-K"),
+        },
+    },
+    "cetalkonium_chloride": {
+        "aliases": [
+            "cetalkonium_chloride_c16_bkc",
+            "cetalkonium chloride (c16 bkc)",
+            "cetalkonium chloride",
+            "hexadecyl_benzyl_dimethyl_ammonium_chloride",
+            "c25h46cln",
+        ],
+        "formula": "C25H46ClN",
+        "cas_number": None,
+        "properties": {
+            "molecular_weight": (396.10, "g/mol"),
+            "normal_boiling_point": (999.0, "C"),
+            "melting_point": (18.0, "C"),
+            "liquid_density": (990.0, "kg/m3"),
+            "liquid_viscosity": (0.0032, "Pa.s"),
+            "liquid_heat_capacity": (2.95, "kJ/kg-K"),
             "heat_of_vaporization": (0.0, "kJ/kg"),
             "thermal_conductivity": (0.20, "W/m-K"),
         },
@@ -658,6 +727,7 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 0.55,
         "tau21": 1.45,
         "alpha12": 0.32,
+        "source_ids": ["seed_bip_bac_cleanup"],
     },
     ("alkyldimethylamine", "ethanol"): {
         "component_a": "Alkyldimethylamine",
@@ -666,6 +736,7 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 0.70,
         "tau21": 0.95,
         "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
     },
     ("alkyldimethylamine", "water"): {
         "component_a": "Alkyldimethylamine",
@@ -674,6 +745,61 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 1.10,
         "tau21": 0.85,
         "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
+    },
+    ("alkyldimethylamine", "benzyl_alcohol"): {
+        "component_a": "Alkyldimethylamine",
+        "component_b": "Benzyl alcohol",
+        "model_name": "NRTL",
+        "tau12": 0.82,
+        "tau21": 0.66,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
+    },
+    ("alkyldimethylamine", "benzalkonium_chloride"): {
+        "component_a": "Alkyldimethylamine",
+        "component_b": "Benzalkonium chloride",
+        "model_name": "NRTL",
+        "tau12": 1.35,
+        "tau21": -0.20,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_active_solution"],
+    },
+    ("benzalkonium_chloride", "benzyl_alcohol"): {
+        "component_a": "Benzalkonium chloride",
+        "component_b": "Benzyl alcohol",
+        "model_name": "NRTL",
+        "tau12": 0.74,
+        "tau21": 0.18,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_active_solution"],
+    },
+    ("benzalkonium_chloride", "benzyl_chloride"): {
+        "component_a": "Benzalkonium chloride",
+        "component_b": "Benzyl chloride",
+        "model_name": "NRTL",
+        "tau12": 1.05,
+        "tau21": -0.08,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_active_solution"],
+    },
+    ("benzalkonium_chloride", "ethanol"): {
+        "component_a": "Benzalkonium chloride",
+        "component_b": "Ethanol",
+        "model_name": "NRTL",
+        "tau12": 0.88,
+        "tau21": 0.24,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_active_solution"],
+    },
+    ("benzalkonium_chloride", "water"): {
+        "component_a": "Benzalkonium chloride",
+        "component_b": "Water",
+        "model_name": "NRTL",
+        "tau12": 1.42,
+        "tau21": 0.36,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_active_solution"],
     },
     ("benzyl_alcohol", "ethanol"): {
         "component_a": "Benzyl alcohol",
@@ -682,6 +808,7 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 0.38,
         "tau21": 0.28,
         "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
     },
     ("benzyl_alcohol", "water"): {
         "component_a": "Benzyl alcohol",
@@ -690,6 +817,16 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 1.35,
         "tau21": 0.75,
         "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
+    },
+    ("benzyl_alcohol", "benzyl_chloride"): {
+        "component_a": "Benzyl alcohol",
+        "component_b": "Benzyl chloride",
+        "model_name": "NRTL",
+        "tau12": 0.46,
+        "tau21": 0.34,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
     },
     ("benzyl_chloride", "ethanol"): {
         "component_a": "Benzyl chloride",
@@ -698,6 +835,7 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 0.95,
         "tau21": 0.45,
         "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
     },
     ("benzyl_chloride", "water"): {
         "component_a": "Benzyl chloride",
@@ -706,6 +844,16 @@ BENCHMARK_BINARY_INTERACTION_LIBRARY: dict[tuple[str, str], dict[str, object]] =
         "tau12": 1.60,
         "tau21": 0.95,
         "alpha12": 0.30,
+        "source_ids": ["seed_bip_bac_cleanup"],
+    },
+    ("ethanol", "water"): {
+        "component_a": "Ethanol",
+        "component_b": "Water",
+        "model_name": "NRTL",
+        "tau12": 0.18,
+        "tau21": 1.12,
+        "alpha12": 0.30,
+        "source_ids": ["seed_bip_generic_polar"],
     },
 }
 BENCHMARK_HENRY_LIBRARY: dict[tuple[str, str], dict[str, object]] = {
@@ -855,9 +1003,11 @@ def resolve_binary_interaction_entry(
     seed_entry = BENCHMARK_BINARY_INTERACTION_LIBRARY.get(_pair_key(component_a, component_b))
     if isinstance(seed_entry, dict):
         seed = dict(seed_entry)
-        source_ids = list(seed.get("source_ids", []))
+        source_ids = technical_anchor_source_ids(bundle) or list(seed.get("source_ids", []))
         seed.setdefault("model_name", "NRTL")
         seed["source_ids"] = source_ids
+        if seed_entry.get("source_ids"):
+            seed["seed_reference_ids"] = list(seed_entry.get("source_ids", []))
         if normalize_chemical_name(str(seed.get("component_a", component_a))) == requested_a:
             return seed
         return {

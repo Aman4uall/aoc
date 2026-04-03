@@ -577,12 +577,50 @@ class MockReasoningService(BaseReasoningService):
             return ProductProfileArtifact(
                 product_name=basis.target_product,
                 properties=[
-                    PropertyRecord(name="Molecular weight", value="368.04", units="g/mol", supporting_sources=citations, citations=citations, assumptions=["Representative active MW for a commercial BAC homolog bundle."]),
-                    PropertyRecord(name="Melting point", value="-5.0", units="C", supporting_sources=citations, citations=citations, assumptions=["Representative active-solution handling point for seeded BAC service."]),
-                    PropertyRecord(name="Boiling point", value="100.0", units="C", supporting_sources=citations, citations=citations, assumptions=["Finished-product BAC is treated as a solution service rather than a neat distillation product."]),
-                    PropertyRecord(name="Density", value="0.995", units="g/cm3", supporting_sources=citations, citations=citations),
-                    PropertyRecord(name="Finished-product active content", value=f"{active_pct:.0f}", units="wt%", supporting_sources=citations, citations=citations),
-                    PropertyRecord(name="Representative viscosity", value="0.0025", units="Pa.s", supporting_sources=citations, citations=citations),
+                    PropertyRecord(
+                        name="Molecular weight",
+                        value="368.04",
+                        units="g/mol",
+                        method=ProvenanceTag.CALCULATED,
+                        supporting_sources=citations,
+                        citations=citations,
+                        assumptions=["Representative active MW is calculated from a commercial BAC homolog bundle basis rather than treated as a single pure compound constant."],
+                    ),
+                    PropertyRecord(
+                        name="Melting point",
+                        value="-5.0",
+                        units="C",
+                        method=ProvenanceTag.ESTIMATED,
+                        assumptions=["Representative active-solution handling point for BAC service."],
+                    ),
+                    PropertyRecord(
+                        name="Boiling point",
+                        value="100.0",
+                        units="C",
+                        method=ProvenanceTag.ESTIMATED,
+                        assumptions=["Finished-product BAC is treated as a solution service rather than a neat distillation product."],
+                    ),
+                    PropertyRecord(
+                        name="Density",
+                        value="0.995",
+                        units="g/cm3",
+                        method=ProvenanceTag.ESTIMATED,
+                        assumptions=["Representative finished-solution density for benchmark BAC commercial basis."],
+                    ),
+                    PropertyRecord(
+                        name="Finished-product active content",
+                        value=f"{active_pct:.0f}",
+                        units="wt%",
+                        method=ProvenanceTag.USER_SUPPLIED,
+                        assumptions=["Finished-product active content is fixed directly from the BAC benchmark basis."],
+                    ),
+                    PropertyRecord(
+                        name="Representative viscosity",
+                        value="0.0025",
+                        units="Pa.s",
+                        method=ProvenanceTag.ESTIMATED,
+                        assumptions=["Representative finished-solution viscosity used for benchmark liquid-handling basis."],
+                    ),
                 ],
                 uses=["Hard-surface disinfectant formulations", "Preservative systems", "Industrial biocide and sanitation service"],
                 industrial_relevance="Benzalkonium chloride is treated as a formulated quaternary-ammonium active where continuous quaternization, residual-reactant cleanup, and active-content control matter more than pure-component finishing.",
@@ -1308,6 +1346,26 @@ class MockReasoningService(BaseReasoningService):
         )
 
     def build_control_strategy(self, basis: ProjectBasis, equipment_json: str, utilities_json: str) -> ControlPlanArtifact:
+        if self._product_key(basis) == "benzalkonium_chloride":
+            loops = [
+                ControlLoop(control_id="TIC-101", controlled_variable="Quaternization reactor temperature", manipulated_variable="Jacket heat-transfer fluid flow", sensor="RTD", actuator="Control valve", notes="Primary exotherm-control loop for the BAC quaternization reactor train."),
+                ControlLoop(control_id="FRC-101", controlled_variable="Benzyl chloride to tertiary amine ratio", manipulated_variable="Benzyl chloride feed pump speed", sensor="Mass flow meter", actuator="VFD", notes="Maintains reaction stoichiometry and limits residual free amine or residual benzyl chloride drift."),
+                ControlLoop(control_id="LIC-201", controlled_variable="Primary disengagement level", manipulated_variable="Recycle / transfer valve", sensor="Level transmitter", actuator="Control valve", notes="Prevents carryover into concentration and keeps the recycle leg stable."),
+                ControlLoop(control_id="PIC-301", controlled_variable="Purification train pressure", manipulated_variable="Vent / vacuum control valve", sensor="Pressure transmitter", actuator="Control valve", notes="Maintains volatile cleanup window and prevents benzyl chloride vent excursions."),
+                ControlLoop(control_id="AIC-401", controlled_variable="Finished-product active concentration", manipulated_variable="Dilution-water control valve", sensor="Inline analyzer", actuator="Control valve", notes="Holds sold solution at the 50 wt% active target."),
+                ControlLoop(control_id="QIC-501", controlled_variable="Residual benzyl chloride in product", manipulated_variable="Purification severity / recycle split", sensor="At-line GC", actuator="Operator-set supervisory target", notes="Quality safeguard loop to maintain biocidal product specification."),
+            ]
+            markdown = (
+                "The BAC control philosophy focuses on quaternization exotherm control, benzyl chloride-to-amine ratio control, "
+                "primary disengagement stability, purification pressure control, finished-product active concentration hold, "
+                "and product-quality supervision for residual benzyl chloride."
+            )
+            return ControlPlanArtifact(
+                control_loops=loops,
+                markdown=markdown,
+                citations=[],
+                assumptions=["Control strategy is preliminary and should be refined during FEED."],
+            )
         loops = [
             ControlLoop(control_id="TIC-102", controlled_variable="Hydrator temperature", manipulated_variable="Jacket cooling flow", sensor="RTD", actuator="Control valve", notes="Prevents selectivity loss and thermal upset."),
             ControlLoop(control_id="PIC-102", controlled_variable="Hydrator pressure", manipulated_variable="Back-pressure valve", sensor="Pressure transmitter", actuator="Control valve", notes="Maintains liquid-phase operating window."),
@@ -1320,6 +1378,20 @@ class MockReasoningService(BaseReasoningService):
         return ControlPlanArtifact(control_loops=loops, markdown=markdown, citations=[], assumptions=["Control strategy is preliminary and should be refined during FEED."])
 
     def build_safety_environment(self, basis: ProjectBasis, route_json: str, hazop_json: str) -> NarrativeArtifact:
+        if self._product_key(basis) == "benzalkonium_chloride":
+            return NarrativeArtifact(
+                artifact_id="safety_environment",
+                title="Safety, Health, Environment, and Waste Management",
+                markdown=(
+                    "The SHE basis prioritizes benzyl chloride containment, quaternization exotherm control, high-torque agitation monitoring, "
+                    "closed handling of quaternary ammonium product, vent and scrubber routing for volatile organics, segregation of aqueous cleanup streams, "
+                    "off-spec quarantine, and controlled handling of spent scrubber media and ETP residues. Emergency response and waste routing are tied directly "
+                    "to the reactor, primary disengagement, concentration, purification, and product storage sections."
+                ),
+                summary="SHE narrative ties BAC quaternization hazards, vent handling, effluent control, and off-spec management to the actual unit train.",
+                citations=[],
+                assumptions=["Waste treatment remains conceptual until detailed composition data is available."],
+            )
         return NarrativeArtifact(
             artifact_id="safety_environment",
             title="Safety, Health, Environment, and Waste Management",
@@ -1347,8 +1419,16 @@ class MockReasoningService(BaseReasoningService):
             )
             assumptions = ["Executive summary compiled from deterministic workflow artifacts."]
         else:
-            markdown = f"## Executive Summary\n\nThis v1 report develops a cited conceptual plant-design package for {basis.target_product} at {basis.capacity_tpa:.0f} TPA."
-            assumptions = ["Executive summary compiled from seeded workflow artifacts."]
+            if self._product_key(basis) == "benzalkonium_chloride":
+                markdown = (
+                    f"## Executive Summary\n\nThis report develops a preliminary engineering case for {basis.target_product} at {basis.capacity_tpa:.0f} TPA "
+                    f"on a sold-solution basis. The selected BAC case uses a continuous quaternization route, a jacketed liquid reactor train, "
+                    "a volatile-cleanup and purification section, Dahej-side siting logic, and integrated material, energy, equipment, safety, and economic chapters."
+                )
+                assumptions = ["Executive summary compiled from deterministic BAC report state."]
+            else:
+                markdown = f"## Executive Summary\n\nThis v1 report develops a cited conceptual plant-design package for {basis.target_product} at {basis.capacity_tpa:.0f} TPA."
+                assumptions = ["Executive summary compiled from seeded workflow artifacts."]
         return NarrativeArtifact(
             artifact_id="executive_summary",
             title="Executive Summary",
@@ -1366,10 +1446,17 @@ class MockReasoningService(BaseReasoningService):
                 f"With headline payback of {data['payback_years']:.2f} years and IRR of {data['irr']:.2f}%, the current feasibility case supports progression to deeper engineering, provided live-cited tariffs, market references, and detailed mechanical code design are carried into the next phase."
             )
         else:
-            markdown = (
-                f"The conceptual study indicates that {basis.target_product} can be framed as a buildable project under the selected route and site assumptions. "
-                f"With headline payback of {data['payback_years']:.2f} years and IRR of {data['irr']:.2f}%, the seeded economics support progression to a more detailed package."
-            )
+            if self._product_key(basis) == "benzalkonium_chloride":
+                markdown = (
+                    f"The BAC benchmark case indicates that {basis.target_product} can be carried through a coherent continuous quaternization and purification train on a sold-solution basis. "
+                    f"With headline payback of {data['payback_years']:.2f} years and IRR of {data['irr']:.2f}%, the current case supports further engineering, "
+                    "provided purification thermodynamics, recycle closure, and recovery-aware economics are tightened in the next phase."
+                )
+            else:
+                markdown = (
+                    f"The conceptual study indicates that {basis.target_product} can be framed as a buildable project under the selected route and site assumptions. "
+                    f"With headline payback of {data['payback_years']:.2f} years and IRR of {data['irr']:.2f}%, the seeded economics support progression to a more detailed package."
+                )
         return NarrativeArtifact(
             artifact_id="conclusion",
             title="Conclusion",

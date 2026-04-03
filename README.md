@@ -69,6 +69,16 @@ After passing the `final_signoff` gate, generate the completed PDF report:
 aoc render <PROJECT_ID>
 ```
 
+## Live BAC Mode
+
+The repository now includes a benzalkonium chloride benchmark config that switches the source layer from mock evidence to search-backed Gemini evidence while keeping the same solver and report pipeline:
+
+```bash
+python3 -m aoc run --config examples/benzalkonium_chloride_benchmark_live.yaml
+```
+
+See [docs/bac_real_data_mode.md](/Users/ayzaman/.gemini/antigravity/scratch/AoC/docs/bac_real_data_mode.md) for the expected data split, required `GEMINI_API_KEY`, and the gate-by-gate run sequence.
+
 ## Example Pipeline Script
 
 The repository includes a helper script `run_full_pipeline.sh` that demonstrates an end-to-end automated run:

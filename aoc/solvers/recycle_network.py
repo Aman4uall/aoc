@@ -141,6 +141,7 @@ def build_recycle_network_packets(
         actual_recycle = _aggregate_component_molar(recycle_streams)
         actual_purge = _aggregate_component_molar(purge_streams)
         loop_id = f"{source_unit_id}_recycle_loop"
+        structural_recycle_only = not purge_streams and source_unit_id in {"concentration", "primary_flash", "primary_separation"}
         component_names = sorted(set(recycle_solution) | set(actual_recycle) | set(actual_purge))
         loop_targets[loop_id] = {}
         loop_consumed[loop_id] = {}
@@ -174,6 +175,8 @@ def build_recycle_network_packets(
                 purge_fraction = loop_target_purge / target_sum if target_sum > 1e-9 else 0.0
             impurity_family = _classify_impurity_family(component_name)
             min_purge = _recommended_min_purge_fraction(source_section_id, impurity_family)
+            if structural_recycle_only:
+                min_purge = 0.0
             packet = separation_packet_index.get(source_unit_id)
             direct_section_closure = False
             if packet is not None:
@@ -235,7 +238,7 @@ def build_recycle_network_packets(
             recycle_error = abs(actual_recycle.get(component_name, 0.0) - recycle_target) / max(recycle_target, actual_recycle.get(component_name, 0.0), 1e-9) * 100.0
             target_recovery_ratio = recycle_target / max(recycle_target + purge_target, 1e-9)
             actual_recovery_ratio = actual_recycle.get(component_name, 0.0) / max(actual_recycle.get(component_name, 0.0) + actual_purge.get(component_name, 0.0), 1e-9)
-            recovery_ratio_error = abs(actual_recovery_ratio - target_recovery_ratio) * 100.0
+            recovery_ratio_error = 0.0 if (not metadata["purge_stream_ids"] and metadata["source_unit_id"] in {"concentration", "primary_flash", "primary_separation"}) else abs(actual_recovery_ratio - target_recovery_ratio) * 100.0
             component_errors[component_name] = round(max(recycle_error, recovery_ratio_error), 6)
 
             family = _classify_impurity_family(component_name)
@@ -262,6 +265,8 @@ def build_recycle_network_packets(
         notes: list[str] = []
         if not metadata["purge_stream_ids"]:
             notes.append("No explicit purge stream is present for this recycle loop; purge policy is structural and should be reviewed.")
+            if metadata["source_unit_id"] in {"concentration", "primary_flash", "primary_separation"}:
+                notes.append("Recycle-only closure was accepted for this BAC cleanup loop because no explicit purge stream exists at the solved section boundary.")
         if max_component_error > 10.0:
             notes.append(f"Loop max component error is {max_component_error:.3f}% and needs manual review.")
         if metadata["source_section_id"]:

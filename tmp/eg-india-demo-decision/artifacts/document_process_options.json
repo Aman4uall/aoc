@@ -1,0 +1,10 @@
+{
+  "citations": [],
+  "assumptions": [
+    "Document process options are derived directly from user-document process sections and comparison text."
+  ],
+  "options": [],
+  "selected_option_ids": [],
+  "source_document_ids": [],
+  "markdown": "| Route | Selected | Yield | Source Document |\n| --- | --- | --- | --- |"
+}

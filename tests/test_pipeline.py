@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from aoc.benchmarks import build_benchmark_manifest
 from aoc.config import load_project_config
 from aoc.models import (
     AgentDecisionFabricArtifact,
@@ -12,6 +13,7 @@ from aoc.models import (
     CommercialProductBasisArtifact,
     CostModel,
     CriticRegistryArtifact,
+    DataRealityAuditArtifact,
     DecisionRecord,
     DebtSchedule,
     EnergyBalance,
@@ -26,21 +28,33 @@ from aoc.models import (
     OperationsPlanningArtifact,
     DocumentFactCollectionArtifact,
     DocumentProcessOptionsArtifact,
+    GeographicScope,
     PlantCostSummary,
     ProcessSelectionComparisonArtifact,
+    ProductProfileArtifact,
     ProjectBasis,
     ProjectConfig,
     ProjectRunState,
+    RealDataMode,
     ReactorDesign,
+    ResearchBundle,
     RunStatus,
+    IndianLocationDatum,
     ColumnDesign,
     RouteChemistryArtifact,
     RouteEconomicBasisArtifact,
+    RouteOption,
     RouteSelectionComparisonArtifact,
+    RouteSelectionComparisonRow,
     RouteProcessClaimsArtifact,
     RouteSelectionArtifact,
     RouteSiteFitArtifact,
     RouteSurveyArtifact,
+    SiteSelectionArtifact,
+    SiteOption,
+    SourceDomain,
+    SourceKind,
+    SourceRecord,
     ProcessSynthesisArtifact,
     ReportParityArtifact,
     ReportParityFrameworkArtifact,
@@ -56,12 +70,32 @@ from aoc.models import (
 )
 from aoc.pipeline import PipelineRunner
 from aoc.reasoning import MockReasoningService
+from aoc.validators import validate_site_selection_consistency
 
 
 class BrokenMockReasoningService(MockReasoningService):
     def build_product_profile(self, basis, sources, corpus):
         artifact = super().build_product_profile(basis, sources, corpus)
         artifact.citations = []
+        for item in artifact.properties:
+            item.citations = []
+            item.supporting_sources = []
+        return artifact
+
+
+class BrokenSiteCitationReasoningService(MockReasoningService):
+    def select_site(self, basis, sources, corpus):
+        artifact = super().select_site(basis, sources, corpus)
+        artifact.citations = artifact.citations or [source.source_id for source in sources[:2]]
+        for datum in artifact.india_location_data:
+            datum.citations = []
+        return artifact
+
+
+class MissingPropertyRowCitationReasoningService(MockReasoningService):
+    def build_product_profile(self, basis, sources, corpus):
+        artifact = super().build_product_profile(basis, sources, corpus)
+        artifact.citations = artifact.citations or [source.source_id for source in sources[:2]]
         for item in artifact.properties:
             item.citations = []
             item.supporting_sources = []
@@ -367,6 +401,7 @@ class PipelineTests(unittest.TestCase):
         self.assertGreaterEqual(route_economic_basis.raw_material_complexity_factor, 1.0)
         self.assertGreaterEqual(route_economic_basis.site_input_cost_factor, 1.0)
         self.assertGreaterEqual(route_economic_basis.logistics_intensity_factor, 1.0)
+        self.assertEqual(runner._load("economic_basis_decision", DecisionRecord).selected_candidate_id, "selected_integrated_base")
         self.assertGreaterEqual(cost_model.route_site_fit_score, route_site_fit.overall_fit_score - 0.01)
         self.assertGreaterEqual(cost_model.route_feedstock_cluster_factor, 1.0)
         self.assertGreaterEqual(cost_model.route_logistics_penalty_factor, 1.0)
@@ -955,6 +990,8 @@ class PipelineTests(unittest.TestCase):
         purification_sections = runner._load("bac_purification_sections", BACPurificationSectionArtifact)
         impurity_model = runner._load("bac_impurity_model", BACImpurityModelArtifact)
         consistency = runner._load("unit_train_consistency", UnitTrainConsistencyArtifact)
+        data_reality = runner._load("data_reality_audit", DataRealityAuditArtifact)
+        report_acceptance = runner._load("report_acceptance", ReportAcceptanceArtifact)
         thermo_chapter = next(chapter for chapter in thermo_result.chapters if chapter.chapter_id == "thermodynamic_feasibility")
         material_chapter = next(chapter for chapter in material_result.chapters if chapter.chapter_id == "material_balance")
         inspect_text = runner.inspect()
@@ -966,6 +1003,13 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(any(section.section_id == "concentration" for section in purification_sections.sections))
         self.assertTrue(impurity_model.items)
         self.assertIn(consistency.overall_status, {"pass", "warning"})
+        self.assertGreater(len(data_reality.rows), 0)
+        self.assertNotIn("product_profile", data_reality.critical_seeded_artifact_refs)
+        self.assertNotIn("commercial_product_basis", data_reality.critical_seeded_artifact_refs)
+        self.assertNotIn("property_packages", data_reality.critical_seeded_artifact_refs)
+        self.assertIn("process_selection_comparison", data_reality.critical_seeded_artifact_refs)
+        self.assertEqual(report_acceptance.real_data_status, "conditional")
+        self.assertGreater(report_acceptance.real_data_coverage_fraction, 0.0)
         self.assertNotIn("CRYS-201", material_chapter.rendered_markdown)
         self.assertNotIn("FILT-201", material_chapter.rendered_markdown)
         self.assertNotIn("DRY-301", material_chapter.rendered_markdown)
@@ -974,6 +1018,243 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("commercial_product_basis:", inspect_text)
         self.assertIn("bac_benchmark_basis:", inspect_text)
         self.assertIn("route_evidence_status:", inspect_text)
+        self.assertIn("data_reality:", inspect_text)
+
+    def test_bac_strict_real_data_mode_blocks_acceptance_when_seeded_dependencies_remain(self):
+        config = self._bac_benchmark_config()
+        config.real_data_mode = RealDataMode.STRICT
+        config.minimum_real_data_fraction = 0.75
+        runner = PipelineRunner(config)
+        state = ProjectRunState(
+            project_id=config.project_id,
+            model_name=config.model.model_name,
+            strict_citation_policy=config.strict_citation_policy,
+        )
+        runner.store.save_run_state(state)
+
+        runner._run_project_intake()
+        runner._run_product_profile()
+        runner._run_market_capacity()
+        runner._run_literature_route_survey()
+        runner._run_property_gap_resolution()
+        runner._run_site_selection()
+        runner._run_process_synthesis()
+        runner._run_rough_alternative_balances()
+        runner._run_heat_integration_optimization()
+        runner._run_route_selection()
+        runner._run_thermodynamic_feasibility()
+        runner._run_kinetic_feasibility()
+        runner._run_block_diagram()
+        runner._run_process_description()
+        runner._run_material_balance()
+        runner._save_report_acceptance(RunStatus.READY)
+
+        acceptance = runner._load("report_acceptance", ReportAcceptanceArtifact)
+        self.assertEqual(acceptance.overall_status.value, "blocked")
+        self.assertIn("real_data_policy_blocked", acceptance.blocking_issue_codes)
+        self.assertGreater(acceptance.real_data_coverage_fraction, 0.0)
+        self.assertTrue(acceptance.critical_seeded_dependencies)
+
+    def test_route_evidence_basis_reclassifies_external_cited_routes(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        survey = RouteSurveyArtifact(
+            routes=[
+                RouteOption(
+                    route_id="bac_live_route",
+                    name="BAC live cited route",
+                    reaction_equation="A + B -> P",
+                    participants=[],
+                    evidence_score=0.86,
+                    operating_temperature_c=85.0,
+                    operating_pressure_bar=2.0,
+                    residence_time_hr=2.0,
+                    yield_fraction=0.95,
+                    selectivity_fraction=0.96,
+                    scale_up_notes="test",
+                    route_score=8.5,
+                    rationale="test",
+                    citations=["src_lit_01"],
+                )
+            ],
+            markdown="test",
+            citations=["src_lit_01"],
+            assumptions=[],
+        )
+        bundle = ResearchBundle(
+            sources=[
+                SourceRecord(
+                    source_id="src_lit_01",
+                    source_kind=SourceKind.LITERATURE,
+                    source_domain=SourceDomain.TECHNICAL,
+                    title="BAC process paper",
+                    citation_text="BAC process paper",
+                    geographic_scope=GeographicScope.GLOBAL,
+                )
+            ],
+            technical_source_ids=["src_lit_01"],
+            corpus_excerpt="BAC process paper excerpt",
+        )
+
+        updated = runner._apply_route_evidence_basis(survey, bundle)
+
+        self.assertEqual(updated.routes[0].route_origin, "hybrid")
+        self.assertEqual(updated.routes[0].route_evidence_basis, "cited_technical")
+
+    def test_report_acceptance_uses_route_evidence_basis_for_bac_process_selection(self):
+        config = self._bac_benchmark_config()
+        runner = PipelineRunner(config)
+        state = ProjectRunState(
+            project_id=config.project_id,
+            model_name=config.model.model_name,
+            strict_citation_policy=config.strict_citation_policy,
+        )
+        runner.store.save_run_state(state)
+        runner._run_project_intake()
+        runner._save(
+            "route_selection",
+            RouteSelectionArtifact(
+                selected_route_id="bac_live_route",
+                justification="Selected from cited live evidence.",
+                comparison_markdown="test",
+                citations=["src_lit_01"],
+                assumptions=[],
+            ),
+        )
+        runner._save(
+            "process_selection_comparison",
+            ProcessSelectionComparisonArtifact(
+                selected_route_id="bac_live_route",
+                selected_route_name="BAC live cited route",
+                route_discovery_count=1,
+                retained_route_count=1,
+                eliminated_route_count=0,
+                rows=[
+                    RouteSelectionComparisonRow(
+                        route_id="bac_live_route",
+                        route_name="BAC live cited route",
+                        route_origin="hybrid",
+                        route_evidence_basis="cited_technical",
+                        evidence_score=0.86,
+                        scientific_status="design_feasible",
+                        selected=True,
+                        citations=["src_lit_01"],
+                        assumptions=[],
+                    )
+                ],
+                citations=["src_lit_01"],
+                assumptions=[],
+            ),
+        )
+
+        runner._save_report_acceptance(RunStatus.READY)
+        acceptance = runner._load("report_acceptance", ReportAcceptanceArtifact)
+
+        self.assertEqual(acceptance.route_evidence_status, "complete")
+
+    def test_bac_route_survey_rebinds_to_external_technical_sources_when_available(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        survey = runner.reasoning.survey_routes(runner.config.basis, [], "")
+        bundle = ResearchBundle(
+            sources=[
+                SourceRecord(
+                    source_id="src_bac_route_01",
+                    source_kind=SourceKind.LITERATURE,
+                    source_domain=SourceDomain.TECHNICAL,
+                    title="BAC process note",
+                    citation_text="BAC process note",
+                    geographic_scope=GeographicScope.GLOBAL,
+                )
+            ],
+            technical_source_ids=["src_bac_route_01"],
+            corpus_excerpt="BAC process note",
+        )
+
+        updated = runner._replace_bac_route_survey_with_external_candidates(survey, bundle)
+
+        self.assertEqual(updated.citations, ["src_bac_route_01"])
+        self.assertTrue(all(route.route_origin == "hybrid" for route in updated.routes))
+        self.assertTrue(all(route.route_evidence_basis in {"cited_technical", "mixed_cited"} for route in updated.routes))
+        self.assertTrue(all(route.citations == ["src_bac_route_01"] for route in updated.routes))
+
+    def test_bac_site_selection_rebinds_to_external_site_sources_when_available(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        artifact = runner.reasoning.select_site(runner.config.basis, [], "")
+        bundle = ResearchBundle(
+            sources=[
+                SourceRecord(
+                    source_id="src_bac_site_01",
+                    source_kind=SourceKind.COMPANY_REPORT,
+                    source_domain=SourceDomain.SITE,
+                    title="BAC site note",
+                    citation_text="BAC site note",
+                    geographic_scope=GeographicScope.INDIA,
+                )
+            ],
+            india_source_ids=["src_bac_site_01"],
+            corpus_excerpt="BAC site note",
+        )
+
+        updated = runner._replace_bac_site_selection_with_external_candidates(artifact, bundle)
+
+        self.assertEqual(updated.citations, ["src_bac_site_01"])
+        self.assertTrue(all(candidate.citations == ["src_bac_site_01"] for candidate in updated.candidates))
+        self.assertTrue(all(location.citations == ["src_bac_site_01"] for location in updated.india_location_data))
+        self.assertIn("externally sourced", updated.markdown.lower())
+
+    def test_site_selection_audit_credits_selected_external_site_evidence(self):
+        config = self._bac_benchmark_config()
+        config.model.backend = "google"
+        runner = PipelineRunner(config)
+        state = ProjectRunState(
+            project_id=config.project_id,
+            model_name=config.model.model_name,
+            strict_citation_policy=config.strict_citation_policy,
+        )
+        runner.store.save_run_state(state)
+        runner._save("benchmark_manifest", build_benchmark_manifest(config))
+        runner._save(
+            "site_selection",
+            SiteSelectionArtifact(
+                candidates=[
+                    SiteOption(
+                        name="Dahej",
+                        state="Gujarat",
+                        raw_material_score=9,
+                        logistics_score=9,
+                        utility_score=9,
+                        business_score=8,
+                        total_score=35,
+                        rationale="test",
+                        citations=["src_site_01"],
+                    )
+                ],
+                selected_site="Dahej",
+                india_location_data=[
+                    IndianLocationDatum(
+                        location_id="site_dahej",
+                        site_name="Dahej",
+                        state="Gujarat",
+                        port_access="test",
+                        utility_note="test",
+                        logistics_note="test",
+                        regulatory_note="test",
+                        reference_year=2025,
+                        citations=["src_site_01"],
+                    )
+                ],
+                markdown="test",
+                citations=["src_site_01"],
+                assumptions=[],
+            ),
+        )
+
+        runner._save_report_acceptance(RunStatus.READY)
+        audit = runner._load("data_reality_audit", DataRealityAuditArtifact)
+        site_row = next(row for row in audit.rows if row.artifact_ref == "site_selection")
+
+        self.assertEqual(site_row.dominant_class.value, "live_fetched")
+        self.assertGreater(site_row.real_data_fraction, 0.5)
+        self.assertNotIn("site_selection", audit.critical_seeded_artifact_refs)
 
     def test_pipeline_blocks_on_missing_citations(self):
         runner = PipelineRunner(self._config_from_example())
@@ -981,3 +1262,56 @@ class PipelineTests(unittest.TestCase):
         state = runner.run()
         self.assertEqual(state.run_status.value, "blocked")
         self.assertEqual(state.blocked_stage_id, "product_profile")
+
+    def test_repair_artifact_citations_filters_internal_ids(self):
+        runner = PipelineRunner(self._config_from_example())
+        runner._run_project_intake()
+        bundle = runner._load("research_bundle", ResearchBundle)
+        artifact = NarrativeArtifact(
+            artifact_id="safety_environment",
+            title="SHE",
+            markdown="test",
+            summary="test",
+            citations=["route_2", "R-101", bundle.sources[0].source_id],
+            assumptions=[],
+        )
+
+        fallback_citations = [source.source_id for source in bundle.sources[:2]]
+        runner._repair_artifact_citations(artifact, fallback_citations, "normalized")
+
+        self.assertEqual(artifact.citations, [bundle.sources[0].source_id])
+        self.assertIn("normalized", artifact.assumptions)
+
+    def test_site_selection_inherits_location_citations_when_row_ids_are_missing(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        runner.reasoning = BrokenSiteCitationReasoningService()
+        runner._run_project_intake()
+        result = runner._run_site_selection()
+
+        self.assertFalse(any(issue.code == "uncited_india_location" for issue in result.issues))
+        artifact = runner._load("site_selection", SiteSelectionArtifact)
+        self.assertTrue(artifact.india_location_data)
+        self.assertTrue(all(item.citations for item in artifact.india_location_data))
+
+    def test_site_selection_allows_specific_location_label_to_match_selected_cluster_label(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        runner.reasoning = BrokenSiteCitationReasoningService()
+        runner._run_project_intake()
+        runner._run_site_selection()
+        artifact = runner._load("site_selection", SiteSelectionArtifact)
+        artifact.selected_site = "Dahej PCPIR"
+        artifact.india_location_data[0].site_name = "Payal Industrial Park, Dahej PCPIR"
+
+        issues = validate_site_selection_consistency(artifact)
+        self.assertFalse(any(issue.code == "selected_site_missing_location_evidence" for issue in issues))
+
+    def test_product_profile_inherits_property_row_citations_when_row_ids_are_missing(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        runner.reasoning = MissingPropertyRowCitationReasoningService()
+        runner._run_project_intake()
+        result = runner._run_product_profile()
+
+        self.assertFalse(any(issue.code == "missing_property_sources" for issue in result.issues))
+        artifact = runner._load("product_profile", ProductProfileArtifact)
+        self.assertTrue(artifact.properties)
+        self.assertTrue(all(item.supporting_sources or item.citations for item in artifact.properties))

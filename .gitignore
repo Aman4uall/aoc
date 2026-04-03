@@ -18,6 +18,10 @@ env/
 .env
 .env.*
 
+# GCP Service Account Keys
+aocproject-492204-1c908bc815ae.json
+*.credentials.json
+
 # IDE
 .vscode/
 .idea/

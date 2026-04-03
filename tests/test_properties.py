@@ -31,7 +31,7 @@ from aoc.properties import (
     requirement_failures_for_stage,
 )
 from aoc.properties.models import ChemicalIdentifier, MixturePropertyArtifact, PropertyPackage, PropertyPackageArtifact, PureComponentProperty
-from aoc.properties.sources import collect_identifier_specs
+from aoc.properties.sources import collect_identifier_specs, match_benchmark_entry
 from aoc.reasoning import build_reasoning_service
 from aoc.research import ResearchManager
 from aoc.route_chemistry import build_route_chemistry_artifact
@@ -276,6 +276,7 @@ class PropertyEngineTests(unittest.TestCase):
         survey = reasoning.survey_routes(config.basis, bundle.sources, bundle.corpus_excerpt)
         route = next(item for item in survey.routes if item.route_id == "benzyl_chloride_quaternization_high_strength")
         property_packages = build_property_package_artifact(config, bundle, profile, survey)
+        self.assertEqual(property_packages.unresolved_binary_pairs, [])
         separation_thermo = build_separation_thermo_artifact(
             route,
             property_packages,
@@ -296,12 +297,35 @@ class PropertyEngineTests(unittest.TestCase):
         self.assertEqual(separation_thermo.light_key, "Benzyl chloride")
         self.assertEqual(separation_thermo.heavy_key, "Alkyldimethylamine")
         self.assertTrue(separation_thermo.relative_volatility.feasible)
-        self.assertEqual(separation_thermo.activity_model, "nrtl_family_estimated_modified_raoult")
+        self.assertEqual(separation_thermo.activity_model, "nrtl_modified_raoult")
         self.assertEqual(separation_thermo.missing_binary_pairs, [])
         bac_top = next(item for item in separation_thermo.top_k_values if item.identifier_id == "benzalkonium_chloride")
         self.assertLess(bac_top.k_value, 1e-6)
         self.assertIn("nonvolatile", bac_top.method)
         self.assertEqual(thermo_admissibility.selected_route_status.value, "pass")
+
+    def test_bac_route_species_pick_up_seeded_isopropanol_and_c12_amine_properties(self):
+        amine_key, amine_entry = match_benchmark_entry("Alkyldimethylamine (C12)", "C14H31N")
+        ipa_key, ipa_entry = match_benchmark_entry("Isopropanol", "C3H8O")
+
+        self.assertEqual(amine_key, "alkyldimethylamine")
+        self.assertIsNotNone(amine_entry)
+        self.assertEqual(amine_entry["properties"]["molecular_weight"][0], 213.41)
+        self.assertEqual(ipa_key, "isopropanol")
+        self.assertIsNotNone(ipa_entry)
+        self.assertEqual(ipa_entry["properties"]["normal_boiling_point"][0], 82.6)
+
+    def test_bac_live_homolog_aliases_resolve_to_seeded_property_entries(self):
+        c12_bac_key, c12_bac_entry = match_benchmark_entry("Benzalkonium chloride (C12)")
+        c16_bac_key, c16_bac_entry = match_benchmark_entry("Cetalkonium chloride (C16 BKC)")
+        c16_amine_key, c16_amine_entry = match_benchmark_entry("Dimethylcetylamine")
+
+        self.assertEqual(c12_bac_key, "benzalkonium_chloride")
+        self.assertEqual(c16_bac_key, "cetalkonium_chloride")
+        self.assertEqual(c16_amine_key, "dimethylcetylamine")
+        self.assertEqual(c12_bac_entry["properties"]["heat_of_vaporization"][0], 0.0)
+        self.assertEqual(c16_bac_entry["properties"]["normal_boiling_point"][0], 999.0)
+        self.assertGreater(c16_amine_entry["properties"]["molecular_weight"][0], 260.0)
 
     def test_bac_section_specific_cleanup_pair_tracks_purification_feed(self):
         config = self._bac_config()
@@ -324,7 +348,8 @@ class PropertyEngineTests(unittest.TestCase):
 
         self.assertEqual(section_thermo.light_key, "Benzyl chloride")
         self.assertEqual(section_thermo.heavy_key, "Alkyldimethylamine")
-        self.assertEqual(section_thermo.activity_model, "nrtl_family_estimated_modified_raoult")
+        self.assertEqual(section_thermo.activity_model, "nrtl_modified_raoult")
+        self.assertEqual(section_thermo.missing_binary_pairs, [])
         self.assertGreater(section_thermo.relative_volatility.average_alpha, 1.0)
 
     def test_bac_distillation_design_stays_liquid_purification_when_distillation_is_selected(self):

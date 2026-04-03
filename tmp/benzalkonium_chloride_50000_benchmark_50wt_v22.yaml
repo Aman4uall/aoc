@@ -1,0 +1,86 @@
+project_id: benzalkonium-chloride-50000-benchmark-50wt-v22
+basis:
+  target_product: Benzalkonium chloride
+  capacity_tpa: 50000.0
+  target_purity_wt_pct: 50.0
+  operating_mode: continuous
+  annual_operating_days: 330
+  region: India
+  currency: INR
+  site_assumptions: []
+  process_template: generic_small_molecule
+  target_state: null
+  target_city: null
+  tariff_reference_year: 2025
+  utility_basis_year: 2025
+  labor_basis_year: 2025
+  economic_reference_year: 2025
+  india_only: false
+  throughput_basis: finished_product
+  nominal_active_wt_pct: 50.0
+  product_form: 50_wt_pct_solution
+  carrier_components:
+    - water
+    - ethanol
+  homolog_distribution:
+    c12: 0.40
+    c14: 0.50
+    c16: 0.10
+  quality_targets:
+    - 50 wt% active
+    - Residual free benzyl chloride below finished-goods limit
+    - Residual free tertiary amine below finished-goods limit
+strict_citation_policy: true
+public_data_only: false
+decision_policy: hybrid
+optimization_scope: eg_first
+preferred_route_id: null
+preferred_site: null
+preferred_site_candidates: []
+preferred_state_candidates:
+  - Gujarat
+  - Maharashtra
+  - Telangana
+compound_family_hint: null
+phase_system_hint: null
+benchmark_profile: benzalkonium_chloride
+evidence_lock_required: true
+capacity_case_candidates: []
+require_india_only_data: false
+user_documents: []
+india_market_sheets: []
+output_root: outputs
+model:
+  backend: mock
+  model_name: gemini-3.1-pro-preview
+  temperature: 0.2
+heat_integration:
+  enabled: true
+  min_recoverable_duty_kw: 5000.0
+  min_approach_temp_c: 20.0
+  allow_htm_loops: true
+uncertainty_policy:
+  high_sensitivity_blocks: true
+scenario_policy:
+  cases:
+    - name: base
+      description: Base India tariff and market basis.
+      steam_price_multiplier: 1.0
+      power_price_multiplier: 1.0
+      feedstock_price_multiplier: 1.0
+      selling_price_multiplier: 1.0
+      capex_multiplier: 1.0
+    - name: conservative
+      description: Higher utilities/feedstock and lower sales realization.
+      steam_price_multiplier: 1.25
+      power_price_multiplier: 1.15
+      feedstock_price_multiplier: 1.1
+      selling_price_multiplier: 0.95
+      capex_multiplier: 1.1
+    - name: upside
+      description: Milder utilities and stronger selling-price realization.
+      steam_price_multiplier: 0.9
+      power_price_multiplier: 0.95
+      feedstock_price_multiplier: 0.97
+      selling_price_multiplier: 1.04
+      capex_multiplier: 0.97

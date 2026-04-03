@@ -33,6 +33,15 @@ class ProvenanceTag(str, Enum):
     CALCULATED = "calculated"
 
 
+class DataRealityClass(str, Enum):
+    USER_PROVIDED = "user_provided"
+    LIVE_FETCHED = "live_fetched"
+    STRUCTURED_DATABASE = "structured_database"
+    SEEDED_BENCHMARK = "seeded_benchmark"
+    SOLVER_DERIVED = "solver_derived"
+    MODEL_INFERRED = "model_inferred"
+
+
 class GeographicScope(str, Enum):
     INDIA = "india"
     GLOBAL = "global"
@@ -130,6 +139,12 @@ class DecisionPolicy(str, Enum):
 class OptimizationScope(str, Enum):
     EG_FIRST = "eg_first"
     GENERIC = "generic"
+
+
+class RealDataMode(str, Enum):
+    AUDIT = "audit"
+    ENFORCE_CRITICAL = "enforce_critical"
+    STRICT = "strict"
 
 
 class SensitivityLevel(str, Enum):
@@ -239,6 +254,8 @@ class ProjectConfig(BaseModel):
     public_data_only: bool = True
     decision_policy: DecisionPolicy = DecisionPolicy.HYBRID
     optimization_scope: OptimizationScope = OptimizationScope.EG_FIRST
+    real_data_mode: RealDataMode = RealDataMode.AUDIT
+    minimum_real_data_fraction: float = 0.75
     preferred_route_id: Optional[str] = None
     preferred_site: Optional[str] = None
     preferred_site_candidates: list[str] = Field(default_factory=list)
@@ -568,6 +585,7 @@ class RouteOption(ProvenancedModel):
     reaction_equation: str
     participants: list[ReactionParticipant]
     route_origin: Literal["seeded", "document", "hybrid", "generated"] = "seeded"
+    route_evidence_basis: Literal["seeded_benchmark", "document_derived", "cited_technical", "cited_patent", "mixed_cited", "generated"] = "seeded_benchmark"
     source_document_id: Optional[str] = None
     evidence_score: float = 0.0
     chemistry_completeness_score: float = 0.0
@@ -2346,6 +2364,34 @@ class ReportAcceptanceArtifact(ProvenancedModel):
     unit_train_consistency_status: str = "not_evaluated"
     purification_rigor_status: str = "not_evaluated"
     economic_realism_status: str = "not_evaluated"
+    real_data_status: str = "not_evaluated"
+    real_data_coverage_fraction: float = 0.0
+    critical_seeded_dependencies: list[str] = Field(default_factory=list)
+    summary: str = ""
+    markdown: str = ""
+
+
+class DataRealityAuditRow(ProvenancedModel):
+    artifact_ref: str
+    artifact_label: str
+    domain: str
+    critical: bool = False
+    dominant_class: DataRealityClass = DataRealityClass.MODEL_INFERRED
+    counts_by_class: dict[str, int] = Field(default_factory=dict)
+    real_data_fraction: float = 0.0
+    seeded_fraction: float = 0.0
+    solver_fraction: float = 0.0
+    inferred_fraction: float = 0.0
+    notes: list[str] = Field(default_factory=list)
+
+
+class DataRealityAuditArtifact(ProvenancedModel):
+    benchmark_profile: str = ""
+    project_id: str = ""
+    rows: list[DataRealityAuditRow] = Field(default_factory=list)
+    overall_real_data_fraction: float = 0.0
+    critical_seeded_artifact_refs: list[str] = Field(default_factory=list)
+    critical_inferred_artifact_refs: list[str] = Field(default_factory=list)
     summary: str = ""
     markdown: str = ""
 
@@ -2973,6 +3019,7 @@ class RouteSelectionComparisonRow(ProvenancedModel):
     route_id: str
     route_name: str
     route_origin: Literal["seeded", "document", "hybrid", "generated"] = "seeded"
+    route_evidence_basis: Literal["seeded_benchmark", "document_derived", "cited_technical", "cited_patent", "mixed_cited", "generated"] = "seeded_benchmark"
     route_family_id: str = ""
     total_score: float = 0.0
     evidence_score: float = 0.0

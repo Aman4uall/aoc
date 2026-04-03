@@ -66,6 +66,7 @@ def build_route_selection_comparison(
                 route_id=route.route_id,
                 route_name=route.name,
                 route_origin=route.route_origin,
+                route_evidence_basis=route.route_evidence_basis,
                 route_family_id=profile.route_family_id if profile is not None else (rough_case.route_family_id if rough_case is not None else ""),
                 total_score=alternative.total_score,
                 evidence_score=route.evidence_score,
