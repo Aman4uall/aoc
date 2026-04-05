@@ -376,12 +376,12 @@ def build_sentence_pattern_library() -> SentencePatternLibrary:
                 "The design values obtained show that ...",
             ],
             "financial analysis": [
-                "On the basis of the above results, the economic viability of the project may be judged from ...",
-                "The values obtained indicate that the project is ...",
+                "On the basis of the above results, the project economics may be screened from ...",
+                "The values obtained indicate a feasibility-stage economic position of ...",
             ],
             "conclusion": [
                 "From the foregoing chapters, it may be concluded that ...",
-                "Hence, the selected basis may be recommended for preliminary design submission.",
+                "Hence, the selected basis may be carried forward for further preliminary design work subject to the assumptions stated.",
             ],
         },
         transition_patterns=[
@@ -468,12 +468,12 @@ def build_tone_style_rules() -> ToneStyleRules:
                 "The values obtained from the solved case indicate the principal material movements, recycle behaviour, and losses within the plant.",
             ],
             "financial analysis": [
-                "On the basis of the results obtained, the economic viability of the project may be judged from the principal profitability indicators retained in this chapter.",
-                "The financial figures derived here must therefore be read together with the selected technical basis of the plant.",
+                "On the basis of the results obtained, the project economics may be screened from the principal profitability indicators retained in this chapter.",
+                "The financial figures derived here must therefore be read as feasibility-stage indicators together with the selected technical basis of the plant.",
             ],
             "conclusion": [
-                "From the foregoing chapters, it may be concluded that the proposed plant configuration is feasible at the present level of design.",
-                "Hence, the selected basis may be recommended for preliminary design submission subject to the assumptions stated in the report.",
+                "From the foregoing chapters, it may be concluded that the proposed plant configuration is technically coherent at the present level of design.",
+                "Hence, the selected basis may be carried forward for preliminary design review subject to the assumptions and unresolved items stated in the report.",
             ],
         },
         chapter_table_discussion_templates={
@@ -624,6 +624,11 @@ def build_formatter_target_profile(project_basis: ProjectBasis) -> FormatterTarg
         FormatterChapterGroup(group_id="separation_design", target_title="Process Design of Separation System", source_chapter_ids=["distillation_design"]),
         FormatterChapterGroup(group_id="equipment_sizing", target_title="Sizing of Equipment", source_chapter_ids=["equipment_design_sizing"]),
         FormatterChapterGroup(group_id="mechanical_design", target_title="Mechanical Design", source_chapter_ids=["mechanical_design_moc"]),
+        FormatterChapterGroup(
+            group_id="reactor_mechanical_appendix",
+            target_title="Detailed Mechanical Design of Reactor R-101",
+            source_chapter_ids=["reactor_mechanical_appendix"],
+        ),
         FormatterChapterGroup(group_id="storage_utilities", target_title="Storage and Utilities", source_chapter_ids=["storage_utilities"]),
         FormatterChapterGroup(group_id="control", target_title="Instrumentation & Process Control", source_chapter_ids=["instrumentation_control"]),
         FormatterChapterGroup(group_id="hazop", target_title="HAZOP", source_chapter_ids=["hazop"]),

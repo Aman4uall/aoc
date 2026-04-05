@@ -205,6 +205,7 @@ def build_process_flow_diagram(
     control_plan: ControlPlanArtifact | None = None,
 ) -> ProcessFlowDiagramArtifact:
     equipment_index = {item.equipment_id: item for item in (equipment.items if equipment is not None else [])}
+    equipment_items = equipment.items if equipment is not None else []
     stream_index = {stream.stream_id: stream for stream in stream_table.streams}
     utility_note_by_unit: dict[str, str] = {}
     if energy_balance is not None:
@@ -224,12 +225,13 @@ def build_process_flow_diagram(
             if loop.unit_id:
                 loops_by_unit.setdefault(loop.unit_id, []).append(loop.control_id)
     for rank, node in enumerate(flowsheet_graph.nodes):
-        equipment_item = equipment_index.get(node.node_id)
-        labels = [DiagramLabel(text=node.label)]
-        if equipment_item is not None:
-            labels.append(DiagramLabel(text=equipment_item.equipment_id, kind="secondary"))
-        elif node.node_id:
-            labels.append(DiagramLabel(text=node.node_id.upper(), kind="secondary"))
+        equipment_tag, display_label, node_family, equipment_item = _resolve_pfd_identity(
+            node,
+            equipment_items,
+            target,
+        )
+        labels = [DiagramLabel(text=equipment_tag, kind="primary")]
+        labels.append(DiagramLabel(text=display_label, kind="secondary"))
         loop_ids = _control_loop_ids_for_node(node, equipment_item.equipment_id if equipment_item is not None else "", loops_by_unit)
         if loop_ids:
             labels.append(DiagramLabel(text=", ".join(loop_ids[:2]), kind="utility"))
@@ -239,9 +241,9 @@ def build_process_flow_diagram(
             DiagramNode(
                 node_id=node.node_id,
                 label=node.label,
-                node_family=_pfd_node_family(node.unit_type, node.label),
+                node_family=node_family,
                 section_id=node.section_id,
-                equipment_tag=equipment_item.equipment_id if equipment_item is not None else node.node_id,
+                equipment_tag=equipment_tag,
                 labels=labels,
                 layout=DiagramLayoutHints(rank=rank),
                 notes=node.notes,
@@ -298,6 +300,13 @@ def build_process_flow_diagram(
     for sheet in sheets:
         sheet_node_lookup = {node_id: node_lookup[node_id] for node_id in sheet.node_ids if node_id in node_lookup}
         _layout_sheet_nodes(list(sheet_node_lookup.values()), style, sheet.title)
+        if _is_bac_target(target):
+            _apply_bac_pfd_layout(sheet, list(sheet_node_lookup.values()))
+        if sheet_node_lookup:
+            max_x = max(node.x + node.width for node in sheet_node_lookup.values())
+            max_y = max(node.y + node.height for node in sheet_node_lookup.values())
+            sheet.width_px = max(sheet.width_px, int(max_x + 220))
+            sheet.height_px = max(sheet.height_px, int(max_y + 180))
 
     edges: list[DiagramEdge] = []
     edge_counter = 1
@@ -312,9 +321,14 @@ def build_process_flow_diagram(
         if node_sheet_lookup[source_unit_id] != node_sheet_lookup[destination_unit_id]:
             continue
         source_stream = stream_index.get(stream.stream_id)
-        label = _pfd_stream_label(stream.stream_id, source_stream.description if source_stream is not None else "", stream.stream_role)
+        stream_description = source_stream.description if source_stream is not None else ""
+        if _is_bac_target(target):
+            label, show_condition = _bac_stream_callout(stream.stream_id, stream_description, stream.stream_role)
+        else:
+            label = _pfd_stream_label(stream.stream_id, stream_description, stream.stream_role)
+            show_condition = bool(source_stream is not None and stream.stream_role == "main")
         condition_label = ""
-        if source_stream is not None and source_stream.temperature_c and source_stream.pressure_bar:
+        if show_condition and source_stream is not None and source_stream.temperature_c and source_stream.pressure_bar:
             condition_label = f"{source_stream.temperature_c:.0f} C / {source_stream.pressure_bar:.1f} bar"
         edges.append(
             DiagramEdge(
@@ -492,6 +506,13 @@ def build_diagram_acceptance(
                 missing_edges.append("recycle stream")
             outlet_edge_types = {edge.edge_type for edge in edges}
             for required_edge in ("product", "waste", "vent"):
+                if required_edge == "vent":
+                    vent_routed_with_waste = any(
+                        stream.stream_role == "vent" and stream.destination_unit_id == "waste_treatment"
+                        for stream in flowsheet_case.streams
+                    ) and "waste" in outlet_edge_types
+                    if vent_routed_with_waste:
+                        continue
                 if any(stream.stream_role == required_edge for stream in flowsheet_case.streams) and required_edge not in outlet_edge_types:
                     missing_edges.append(required_edge)
         if any("`" in node.label for node in nodes):
@@ -574,6 +595,10 @@ def _layout_linear_nodes(
 
 def _pfd_node_family(unit_type: str, label: str) -> str:
     lowered = f"{unit_type} {label}".lower()
+    if any(token in lowered for token in ("compressor", "blower")):
+        return "compressor"
+    if any(token in lowered for token in ("condenser", "reboiler")):
+        return "condenser"
     if any(token in lowered for token in ("reactor", "cstr", "pfr")):
         return "reactor"
     if any(token in lowered for token in ("column", "distillation")):
@@ -591,14 +616,42 @@ def _pfd_node_family(unit_type: str, label: str) -> str:
     return "separator"
 
 
+def _resolve_pfd_identity(node, equipment_items, target: DiagramTargetProfile):
+    base_family = _pfd_node_family(node.unit_type, node.label)
+    if _is_bac_target(target):
+        mapping = {
+            "reactor": ("R-101", "Jacketed CSTR Reactor", "bac_reactor"),
+            "primary_flash": ("V-101", "Primary Flash Drum", "bac_flash_drum"),
+            "purification": ("PU-201", "Purification Column", "bac_purification_column"),
+            "storage": ("TK-301", "Product Storage Tank", "bac_storage_tank"),
+            "concentration": ("E-101", "Concentration / Cleanup Exchanger", "bac_exchanger_package"),
+            "feed_prep": ("M-101", "Feed Preparation Vessel", "bac_premix_vessel"),
+            "waste_treatment": ("WT-401", "Waste / Purge Receiver", "bac_waste_receiver"),
+        }
+        if node.node_id in mapping:
+            tag, label, family = mapping[node.node_id]
+            equipment_item = next((item for item in equipment_items if item.equipment_id == tag), None)
+            return tag, label, family, equipment_item
+    equipment_item = None
+    for item in equipment_items:
+        if item.equipment_id == node.node_id:
+            equipment_item = item
+            break
+    equipment_tag = equipment_item.equipment_id if equipment_item is not None else node.node_id.upper()
+    display_label = _display_equipment_label(node.label)
+    return equipment_tag, display_label, base_family, equipment_item
+
+
 def _build_pfd_sheets(nodes: list[DiagramNode], style: DiagramStyleProfile, target: DiagramTargetProfile) -> list[DiagramSheet]:
+    default_width = max(style.canvas_width_px, 2050 if _is_bac_target(target) else style.canvas_width_px)
+    default_height = max(style.canvas_height_px, 1080 if _is_bac_target(target) else style.canvas_height_px)
     if not _should_split_pfd_sheet(nodes, target):
         return [
             DiagramSheet(
                 sheet_id="sheet_1",
                 title="Process Flow Diagram",
-                width_px=max(style.canvas_width_px, int(len(nodes) * 260 + 260)),
-                height_px=max(style.canvas_height_px, 940),
+                width_px=max(default_width, int(len(nodes) * 260 + 260)),
+                height_px=max(default_height, 940),
                 orientation="landscape",
                 presentation_mode="sheet",
                 preferred_scale=1.0,
@@ -622,8 +675,8 @@ def _build_pfd_sheets(nodes: list[DiagramNode], style: DiagramStyleProfile, targ
             DiagramSheet(
                 sheet_id=f"sheet_{index}",
                 title=title,
-                width_px=max(style.canvas_width_px, int(len(node_ids) * 250 + 240)),
-                height_px=max(style.canvas_height_px, 940),
+                width_px=max(default_width, int(len(node_ids) * 250 + 240)),
+                height_px=max(default_height, 940),
                 orientation="landscape",
                 presentation_mode="sheet",
                 preferred_scale=1.0,
@@ -637,6 +690,8 @@ def _build_pfd_sheets(nodes: list[DiagramNode], style: DiagramStyleProfile, targ
 
 
 def _should_split_pfd_sheet(nodes: list[DiagramNode], target: DiagramTargetProfile) -> bool:
+    if _is_bac_target(target):
+        return True
     if len(nodes) > target.main_body_max_pfd_nodes:
         return True
     if len(nodes) < max(4, target.main_body_max_pfd_nodes):
@@ -668,38 +723,306 @@ def _sheet_title_for_section(section_id: str) -> str:
 def _layout_sheet_nodes(nodes: list[DiagramNode], style: DiagramStyleProfile, title: str) -> None:
     family_lane = {
         "reactor": 0,
+        "bac_reactor": 0,
+        "compressor": 0,
         "heat exchanger": 1,
+        "condenser": 1,
         "separator": 1,
         "column": 1,
+        "bac_purification_column": 1,
         "vessel": 1,
+        "bac_premix_vessel": 1,
+        "bac_flash_drum": 1,
+        "bac_exchanger_package": 1,
+        "bac_waste_receiver": 1,
         "pump": 2,
         "tank": 2,
+        "bac_storage_tank": 2,
         "terminal": 1,
     }
+    section_bucket = {
+        "feed": 0,
+        "reaction": 1,
+        "cleanup": 2,
+        "concentration": 3,
+        "purification": 4,
+        "storage": 5,
+        "waste": 6,
+    }
+    def _section_rank(section_id: str) -> int:
+        lowered = section_id.replace("_", " ").lower()
+        for token, rank in section_bucket.items():
+            if token in lowered:
+                return rank
+        return 99
+
+    nodes.sort(key=lambda node: (_section_rank(node.section_id), node.layout.rank, node.equipment_tag))
     x = 90.0
     for index, node in enumerate(nodes):
         lane = family_lane.get(node.node_family, 1)
         node.layout.lane = f"lane_{lane}"
-        node.width = 210 if node.node_family not in {"column", "pump"} else (160 if node.node_family == "column" else 176)
-        node.height = 92 if node.node_family != "column" else 132
+        if node.node_family in {"column", "bac_purification_column"}:
+            node.width = 150
+            node.height = 190
+        elif node.node_family == "pump":
+            node.width = 170
+            node.height = 92
+        elif node.node_family == "compressor":
+            node.width = 190
+            node.height = 96
+        elif node.node_family == "bac_reactor":
+            node.width = 220
+            node.height = 176
+        elif node.node_family == "bac_premix_vessel":
+            node.width = 214
+            node.height = 142
+        elif node.node_family == "bac_flash_drum":
+            node.width = 220
+            node.height = 132
+        elif node.node_family == "bac_storage_tank":
+            node.width = 194
+            node.height = 158
+        elif node.node_family == "bac_waste_receiver":
+            node.width = 206
+            node.height = 136
+        elif node.node_family in {"reactor", "tank", "vessel", "separator"}:
+            node.width = 190
+            node.height = 150
+        elif node.node_family == "bac_exchanger_package":
+            node.width = 230
+            node.height = 116
+        elif node.node_family in {"heat exchanger", "condenser"}:
+            node.width = 205
+            node.height = 104
+        else:
+            node.width = 190
+            node.height = 104
         node.x = x
-        node.y = 170 + lane * 210
-        x += node.width + 82
+        node.y = 150 + lane * 235
+        x += node.width + 92
+
+
+def _is_bac_target(target: DiagramTargetProfile) -> bool:
+    lowered = target.target_product.lower()
+    return "benzalkonium" in lowered or "bac" == lowered.strip()
+
+
+def _bac_pfd_layout_map() -> dict[str, dict[str, object]]:
+    return {
+        "PFD Sheet 1: Feed, Reaction, and Cleanup": {
+            "node_positions": {
+                "feed_prep": (330.0, 322.0),
+                "reactor": (708.0, 252.0),
+                "primary_flash": (1048.0, 260.0),
+                "concentration": (1460.0, 280.0),
+                "waste_treatment": (1758.0, 282.0),
+            },
+            "terminal_positions": {
+                "S-101": (118.0, 238.0),
+                "S-102": (118.0, 408.0),
+            },
+            "fallback_origin": (160.0, 676.0),
+            "fallback_step_y": 44.0,
+        },
+        "PFD Sheet 2: Purification, Storage, and Offsites": {
+            "node_positions": {
+                "purification": (278.0, 246.0),
+                "storage": (820.0, 176.0),
+                "waste_treatment": (826.0, 482.0),
+            },
+            "terminal_positions": {
+                "S-401": (112.0, 122.0),
+                "S-402": (1278.0, 190.0),
+                "S-404": (1278.0, 358.0),
+                "S-403": (1278.0, 546.0),
+            },
+            "fallback_origin": (1568.0, 708.0),
+            "fallback_step_y": 44.0,
+        },
+    }
+
+
+def _apply_bac_pfd_layout(sheet: DiagramSheet, nodes: list[DiagramNode]) -> None:
+    layout_map = _bac_pfd_layout_map().get(sheet.title)
+    if layout_map is None:
+        return
+
+    title = sheet.title.lower()
+
+    def _node_has_stream(node: DiagramNode, stream_id: str) -> bool:
+        return any(label.text.strip().upper() == stream_id.upper() for label in node.labels)
+
+    def _match_position(node: DiagramNode) -> tuple[float, float] | None:
+        terminal_positions = layout_map.get("terminal_positions", {})
+        for stream_id, position in terminal_positions.items():
+            if _node_has_stream(node, stream_id):
+                return position
+        node_positions = layout_map.get("node_positions", {})
+        if node.node_id in node_positions:
+            return node_positions[node.node_id]
+        return None
+
+    fallback_x, fallback_y = layout_map.get("fallback_origin", (120.0, 680.0))
+    fallback_step_y = float(layout_map.get("fallback_step_y", 40.0))
+
+    for node in nodes:
+        position = _match_position(node)
+        if position is not None:
+            node.x, node.y = position
+            continue
+        if node.node_family == "terminal":
+            node.x = fallback_x
+            node.y = fallback_y
+            fallback_y += node.height + fallback_step_y
 
 
 def _pfd_stream_label(stream_id: str, description: str, stream_role: str) -> str:
-    if stream_role in {"product", "waste", "vent", "purge", "recycle"}:
-        return f"{stream_id} ({stream_role.replace('_', ' ')})"
+    if stream_role in {"product", "waste", "vent", "purge", "recycle", "side_draw"}:
+        return f"{stream_id}: {stream_role.replace('_', ' ').title()}"
     if description:
         short = description.split(".")[0].strip()
-        return f"{stream_id}: {_truncate_with_ellipsis(short, 42)}"
+        return f"{stream_id}: {_truncate_with_ellipsis(short, 50)}"
     return stream_id
+
+
+def _bac_stream_callout_rules() -> dict[str, dict[str, object]]:
+    return {
+        "S-150": {"label": "S-150: Reactor feed", "show_condition": True},
+        "S-201": {"label": "S-201: Reactor effluent", "show_condition": True},
+        "S-202": {"label": "S-202: Vent / purge", "show_condition": False},
+        "S-203": {"label": "S-203: Rich liquid to cleanup", "show_condition": True},
+        "S-301": {"label": "S-301: Recycle", "show_condition": False},
+        "S-402": {"label": "S-402: Product", "show_condition": False},
+        "S-403": {"label": "S-403: Waste", "show_condition": False},
+        "S-404": {"label": "S-404: Side draw", "show_condition": False},
+        "S-401": {"label": "S-401: Recycle return", "show_condition": False},
+        "S-101": {"label": "S-101: Feed", "show_condition": False},
+        "S-102": {"label": "S-102: Feed", "show_condition": False},
+    }
+
+
+def _bac_stream_callout(stream_id: str, description: str, stream_role: str) -> tuple[str, bool]:
+    rule = _bac_stream_callout_rules().get(stream_id.upper())
+    if rule is not None:
+        return str(rule["label"]), bool(rule.get("show_condition", False))
+    return _pfd_stream_label(stream_id, description, stream_role), stream_role == "main"
+
+
+def _bac_service_label_map() -> dict[str, str]:
+    return {
+        "M-101": "Feed Prep Vessel",
+        "R-101": "Jacketed CSTR",
+        "V-101": "Primary Flash Drum",
+        "E-101": "Cleanup Exchanger",
+        "PU-201": "Purification Column",
+        "TK-301": "Product Storage",
+        "WT-401": "Waste Receiver",
+    }
+
+
+def _bac_service_label(text: str, equipment_tag: str) -> str:
+    return _bac_service_label_map().get(equipment_tag.upper(), text)
+
+
+def _bac_label_style(node: DiagramNode, label: DiagramLabel, index: int) -> dict[str, object]:
+    if label.kind == "primary":
+        return {
+            "font_size": 15,
+            "font_weight": "700",
+            "wrap": 12,
+            "line_gap": 12,
+            "y": node.y + 22,
+            "boxed": True,
+            "fill": "#ffffff",
+            "text": label.text,
+        }
+    if label.kind == "secondary":
+        return {
+            "font_size": 9,
+            "font_weight": "400",
+            "wrap": 18,
+            "line_gap": 11,
+            "y": node.y + 44,
+            "boxed": False,
+            "fill": "#ffffff",
+            "text": _bac_service_label(label.text, node.equipment_tag),
+        }
+    return {
+        "font_size": 8,
+        "font_weight": "400",
+        "wrap": 22,
+        "line_gap": 10,
+        "y": node.y + 59 + max(0, index - 2) * 13,
+        "boxed": False,
+        "fill": "#ffffff",
+        "text": label.text,
+    }
 
 
 def _edge_type_from_role(stream_role: str) -> str:
     if stream_role in {"product", "recycle", "purge", "vent", "waste", "side_draw"}:
         return stream_role
     return "main"
+
+
+def _bac_pfd_route_map() -> dict[str, dict[str, dict[str, object]]]:
+    return {
+        "PFD Sheet 1: Feed, Reaction, and Cleanup": {
+            "S-150": {
+                "points": [(536.0, 393.0), (598.0, 393.0), (598.0, 340.0), (716.0, 340.0)],
+                "label": (598.0, 322.0),
+                "condition": (598.0, 336.0),
+            },
+            "S-201": {
+                "points": [(920.0, 340.0), (976.0, 340.0), (976.0, 308.0), (1058.0, 308.0)],
+                "label": (976.0, 290.0),
+                "condition": (976.0, 304.0),
+            },
+            "S-202": {
+                "points": [(1071.0, 390.0), (1071.0, 250.0), (1450.0, 250.0), (1450.0, 130.0)],
+                "label": (1265.0, 232.0),
+                "condition": (1265.0, 246.0),
+            },
+            "S-203": {
+                "points": [(1258.0, 344.0), (1348.0, 344.0), (1348.0, 338.0), (1480.0, 338.0)],
+                "label": (1348.0, 320.0),
+                "condition": (1348.0, 334.0),
+            },
+            "S-301": {
+                "path": "M 1670.0 338.0 C 1744.0 228.0, 300.0 224.0, 338.0 393.0",
+                "label": (1008.0, 212.0),
+                "condition": (1008.0, 226.0),
+            },
+        },
+        "PFD Sheet 2: Purification, Storage, and Offsites": {
+            "S-402": {
+                "points": [(414.0, 341.0), (596.0, 341.0), (596.0, 255.0), (828.0, 255.0)],
+                "label": (596.0, 237.0),
+                "condition": (596.0, 251.0),
+            },
+            "S-403": {
+                "points": [(414.0, 341.0), (598.0, 341.0), (598.0, 550.0), (834.0, 550.0)],
+                "label": (598.0, 323.0),
+                "condition": (598.0, 337.0),
+            },
+        },
+    }
+
+
+def _path_from_points(points: list[tuple[float, float]]) -> str:
+    if not points:
+        return ""
+    segments = [f"M {points[0][0]:.1f} {points[0][1]:.1f}"]
+    for x, y in points[1:]:
+        segments.append(f"L {x:.1f} {y:.1f}")
+    return " ".join(segments)
+
+
+def _bac_edge_route(sheet_title: str, edge_label: str | None) -> dict[str, object] | None:
+    if not edge_label:
+        return None
+    stream_id = edge_label.split(":")[0].strip().upper()
+    return _bac_pfd_route_map().get(sheet_title, {}).get(stream_id)
 
 
 def _render_svg(
@@ -736,13 +1059,19 @@ def _render_svg(
         f"<svg xmlns='http://www.w3.org/2000/svg' width='{sheet.width_px}' height='{sheet.height_px}' viewBox='0 0 {sheet.width_px} {sheet.height_px}'>",
         defs,
         f"<rect x='1' y='1' width='{sheet.width_px - 2}' height='{sheet.height_px - 2}' fill='white' stroke='#222' stroke-width='1.2'/>",
-        f"<text x='{sheet.width_px/2:.0f}' y='34' text-anchor='middle' font-family='{html.escape(style.heading_font_family)}' font-size='22' font-weight='700'>{html.escape(sheet.title)}</text>",
     ]
-    if subtitle:
+    if "pfd sheet" not in sheet.title.lower():
+        parts.append(
+            f"<text x='{sheet.width_px/2:.0f}' y='34' text-anchor='middle' font-family='{html.escape(style.heading_font_family)}' font-size='22' font-weight='700'>{html.escape(sheet.title)}</text>"
+        )
+    if subtitle and "pfd sheet" not in sheet.title.lower():
         parts.append(
             f"<text x='{sheet.width_px/2:.0f}' y='58' text-anchor='middle' font-family='{html.escape(style.body_font_family)}' font-size='12'>{html.escape(subtitle)}</text>"
         )
-    if "process flow diagram" in sheet.title.lower():
+    if "pfd sheet" in sheet.title.lower():
+        parts.extend(_svg_pfd_sheet_frame(sheet.width_px, sheet.height_px, sheet.title, style))
+        parts.extend(_svg_bac_section_zones(sheet))
+    if "process flow diagram" in sheet.title.lower() or "pfd sheet" in sheet.title.lower():
         parts.extend(_svg_pfd_legend(sheet.width_px, style))
 
     for edge in edges:
@@ -753,11 +1082,20 @@ def _render_svg(
         line_color = edge_color_map.get(edge.edge_type, style.stream_stroke)
         marker = f"url(#arrow-{edge.edge_type if edge.edge_type in edge_color_map else 'main'})"
         stroke_dash = "8,6" if edge.edge_type in {"recycle", "purge", "vent", "waste", "side_draw"} else "none"
-        x1 = source.x + source.width
-        y1 = source.y + source.height / 2
-        x2 = target.x
-        y2 = target.y + target.height / 2
-        if edge.edge_type == "recycle":
+        x1, y1 = _node_connection_point(source, "right")
+        x2, y2 = _node_connection_point(target, "left")
+        manual_route = _bac_edge_route(sheet.title, edge.label) if "pfd sheet" in sheet.title.lower() else None
+        if manual_route is not None:
+            if "path" in manual_route:
+                path = str(manual_route["path"])
+            else:
+                path = _path_from_points(list(manual_route.get("points", [])))
+            parts.append(
+                f"<path d='{path}' fill='none' stroke='{line_color}' stroke-width='2.2' stroke-dasharray='{stroke_dash}' marker-end='{marker}'/>"
+            )
+            label_x, label_y = manual_route.get("label", ((x1 + x2) / 2, min(y1, y2) - 8))
+            condition_x, condition_y = manual_route.get("condition", (label_x, label_y + 14))
+        elif edge.edge_type == "recycle":
             mid_y = min(source.y, target.y) - 48
             path = f"M {x1:.1f} {y1:.1f} C {x1+70:.1f} {mid_y:.1f}, {x2-70:.1f} {mid_y:.1f}, {x2:.1f} {y2:.1f}"
             parts.append(
@@ -765,6 +1103,8 @@ def _render_svg(
             )
             label_x = (x1 + x2) / 2
             label_y = mid_y - 10
+            condition_x = label_x
+            condition_y = label_y + 14
         else:
             elbow_x = x1 + max(28.0, (x2 - x1) * 0.45)
             path = f"M {x1:.1f} {y1:.1f} L {elbow_x:.1f} {y1:.1f} L {elbow_x:.1f} {y2:.1f} L {x2:.1f} {y2:.1f}"
@@ -772,33 +1112,60 @@ def _render_svg(
                 f"<path d='{path}' fill='none' stroke='{line_color}' stroke-width='2.2' stroke-dasharray='{stroke_dash}' marker-end='{marker}'/>"
             )
             label_x = elbow_x
-            label_y = min(y1, y2) - 10
+            label_y = min(y1, y2) - 8
+            condition_x = label_x
+            condition_y = label_y + 14
         if edge.label:
+            parts.extend(_svg_label_callout(label_x, label_y - 12, edge.label, style, wrap=28))
             parts.append(_svg_multiline_text(label_x, label_y, edge.label, style.body_font_family, 11, anchor="middle", wrap=28, line_gap=12))
         if edge.condition_label:
-            parts.append(_svg_multiline_text(label_x, label_y + 14, edge.condition_label, style.body_font_family, 9, anchor="middle", wrap=28, line_gap=10))
+            parts.extend(_svg_label_callout(condition_x, condition_y - 12, edge.condition_label, style, wrap=24, font_size=9, fill="#fffef8"))
+            parts.append(_svg_multiline_text(condition_x, condition_y, edge.condition_label, style.body_font_family, 9, anchor="middle", wrap=28, line_gap=10))
 
     for node in nodes:
         parts.extend(_svg_node_shape(node, style))
-        text_y = node.y + 24
         for index, label in enumerate(node.labels[:3]):
-            font_size = 12 if label.kind == "primary" else 10
-            font_weight = "700" if label.kind == "primary" else "400"
-            wrap_width = 20 if label.kind == "primary" else 22
-            if label.kind == "utility":
-                font_size = 9
-                wrap_width = 24
+            if "pfd sheet" in sheet.title.lower():
+                label_style = _bac_label_style(node, label, index)
+                font_size = int(label_style["font_size"])
+                font_weight = str(label_style["font_weight"])
+                wrap_width = int(label_style["wrap"])
+                line_gap = int(label_style["line_gap"])
+                text_y = float(label_style["y"])
+                label_text = str(label_style["text"])
+                if bool(label_style["boxed"]):
+                    parts.extend(
+                        _svg_label_callout(
+                            node.x + node.width / 2,
+                            text_y - 12,
+                            label_text,
+                            style,
+                            wrap=wrap_width,
+                            font_size=font_size,
+                            fill="#ffffff",
+                        )
+                    )
+            else:
+                text_y = node.y + 24 + index * 16
+                font_size = 13 if label.kind == "primary" else 10
+                font_weight = "700" if label.kind == "primary" else "400"
+                wrap_width = 16 if label.kind == "primary" else 24
+                line_gap = 12
+                label_text = label.text
+                if label.kind == "utility":
+                    font_size = 9
+                    wrap_width = 26
             parts.append(
                 _svg_multiline_text(
                     node.x + node.width / 2,
-                    text_y + index * 15,
-                    label.text,
+                    text_y,
+                    label_text,
                     style.body_font_family,
                     font_size,
                     anchor="middle",
                     font_weight=font_weight,
                     wrap=wrap_width,
-                    line_gap=12,
+                    line_gap=line_gap,
                 )
             )
     parts.append("</svg>")
@@ -1062,13 +1429,52 @@ def _svg_multiline_text(
     )
 
 
+def _node_connection_point(node: DiagramNode, side: str) -> tuple[float, float]:
+    cx = node.x + node.width / 2
+    cy = node.y + node.height / 2
+    if node.node_family in {"column", "bac_purification_column"}:
+        rect_width = max(100.0, node.width * 0.68)
+        rect_x = node.x + (node.width - rect_width) / 2
+        return (rect_x + rect_width + 10.0, cy) if side == "right" else (rect_x - 10.0, cy)
+    if node.node_family == "bac_exchanger_package":
+        return (node.x + node.width - 20.0, cy) if side == "right" else (node.x + 20.0, cy)
+    if node.node_family == "bac_flash_drum":
+        y_offset = -18.0 if side == "left" else 18.0
+        return (node.x + node.width - 10.0, cy + y_offset) if side == "right" else (node.x + 10.0, cy + y_offset)
+    if node.node_family in {"bac_reactor", "bac_premix_vessel", "bac_storage_tank", "bac_waste_receiver", "reactor", "tank", "vessel", "separator"}:
+        return (node.x + node.width - 8.0, cy) if side == "right" else (node.x + 8.0, cy)
+    if node.node_family in {"heat exchanger", "condenser"}:
+        return (node.x + node.width - 18.0, cy) if side == "right" else (node.x + 18.0, cy)
+    if node.node_family == "pump":
+        return (node.x + node.width - 12.0, cy) if side == "right" else (node.x + 10.0, cy)
+    if node.node_family == "compressor":
+        return (node.x + node.width - 12.0, cy) if side == "right" else (node.x + 12.0, cy)
+    return (node.x + node.width, cy) if side == "right" else (node.x, cy)
+
+
 def _svg_node_shape(node: DiagramNode, style: DiagramStyleProfile) -> list[str]:
     x = node.x
     y = node.y
     w = node.width
     h = node.height
+    cy = y + h / 2
     stroke = style.node_stroke
     fill = style.node_fill
+    if node.node_family == "bac_purification_column":
+        rect_width = max(110.0, w * 0.64)
+        rect_x = x + (w - rect_width) / 2
+        tray_positions = [y + 34, y + 70, y + 106, y + 142]
+        parts = [
+            f"<rect x='{rect_x:.1f}' y='{y + 8:.1f}' width='{rect_width:.1f}' height='{h - 16:.1f}' rx='34' ry='34' fill='{fill}' stroke='{stroke}' stroke-width='1.7'/>",
+            f"<line x1='{rect_x + rect_width/2:.1f}' y1='{y + 18:.1f}' x2='{rect_x + rect_width/2:.1f}' y2='{y + h - 18:.1f}' stroke='#9aa5b1' stroke-width='0.9' stroke-dasharray='4,3'/>",
+            f"<line x1='{rect_x - 14:.1f}' y1='{y + 36:.1f}' x2='{rect_x + 8:.1f}' y2='{y + 36:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{rect_x + rect_width - 8:.1f}' y1='{y + 52:.1f}' x2='{rect_x + rect_width + 18:.1f}' y2='{y + 52:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{rect_x + rect_width - 8:.1f}' y1='{y + h - 36:.1f}' x2='{rect_x + rect_width + 18:.1f}' y2='{y + h - 36:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{rect_x - 14:.1f}' y1='{y + h - 54:.1f}' x2='{rect_x + 8:.1f}' y2='{y + h - 54:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+        ]
+        for tray_y in tray_positions:
+            parts.append(f"<line x1='{rect_x + 18:.1f}' y1='{tray_y:.1f}' x2='{rect_x + rect_width - 18:.1f}' y2='{tray_y:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>")
+        return parts
     if node.node_family == "column":
         rect_width = max(100.0, w * 0.68)
         rect_x = x + (w - rect_width) / 2
@@ -1077,46 +1483,146 @@ def _svg_node_shape(node: DiagramNode, style: DiagramStyleProfile) -> list[str]:
             f"<line x1='{rect_x + rect_width/2:.1f}' y1='{y + 10:.1f}' x2='{rect_x + rect_width/2:.1f}' y2='{y + h - 10:.1f}' stroke='#9aa5b1' stroke-width='1.0' stroke-dasharray='4,3'/>",
             f"<line x1='{rect_x + 18:.1f}' y1='{y + 18:.1f}' x2='{rect_x + rect_width - 18:.1f}' y2='{y + 18:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>",
             f"<line x1='{rect_x + 18:.1f}' y1='{y + h - 18:.1f}' x2='{rect_x + rect_width - 18:.1f}' y2='{y + h - 18:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>",
+            f"<line x1='{rect_x - 10:.1f}' y1='{y + 24:.1f}' x2='{rect_x + 8:.1f}' y2='{y + 24:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{rect_x + rect_width - 8:.1f}' y1='{y + h - 24:.1f}' x2='{rect_x + rect_width + 10:.1f}' y2='{y + h - 24:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{rect_x + rect_width - 8:.1f}' y1='{y + 24:.1f}' x2='{rect_x + rect_width + 10:.1f}' y2='{y + 24:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{rect_x - 10:.1f}' y1='{y + h - 24:.1f}' x2='{rect_x + 8:.1f}' y2='{y + h - 24:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+        ]
+    if node.node_family == "bac_reactor":
+        shell_x = x + 22
+        shell_w = w - 44
+        return [
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + 18:.1f}' rx='{shell_w/2:.1f}' ry='18' fill='{fill}' stroke='{stroke}' stroke-width='1.9'/>",
+            f"<rect x='{shell_x:.1f}' y='{y + 18:.1f}' width='{shell_w:.1f}' height='{h - 36:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.9'/>",
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + h - 18:.1f}' rx='{shell_w/2:.1f}' ry='18' fill='{fill}' stroke='{stroke}' stroke-width='1.9'/>",
+            f"<rect x='{shell_x - 8:.1f}' y='{y + 28:.1f}' width='{shell_w + 16:.1f}' height='{h - 56:.1f}' rx='26' ry='26' fill='none' stroke='#5b84b1' stroke-width='1.0' stroke-dasharray='5,4'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y - 16:.1f}' x2='{x + w/2:.1f}' y2='{y + 30:.1f}' stroke='{stroke}' stroke-width='1.5'/>",
+            f"<circle cx='{x + w/2:.1f}' cy='{y + 42:.1f}' r='15' fill='white' stroke='#7b8794' stroke-width='1.0'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 42:.1f}' x2='{x + w/2 + 24:.1f}' y2='{y + 58:.1f}' stroke='#7b8794' stroke-width='1.1'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 42:.1f}' x2='{x + w/2 - 22:.1f}' y2='{y + 58:.1f}' stroke='#7b8794' stroke-width='1.1'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 42:.1f}' x2='{x + w/2:.1f}' y2='{y + 64:.1f}' stroke='#7b8794' stroke-width='1.1'/>",
+            f"<line x1='{x + 6:.1f}' y1='{cy:.1f}' x2='{x + 22:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.4'/>",
+            f"<line x1='{x + w - 22:.1f}' y1='{cy:.1f}' x2='{x + w - 6:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.4'/>",
+            f"<line x1='{x + w/2 - 22:.1f}' y1='{y - 4:.1f}' x2='{x + w/2 - 4:.1f}' y2='{y - 4:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{x + w/2 + 4:.1f}' y1='{y - 4:.1f}' x2='{x + w/2 + 22:.1f}' y2='{y - 4:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
         ]
     if node.node_family == "reactor":
         return [
-            f"<rect x='{x + 12:.1f}' y='{y + 10:.1f}' width='{w - 24:.1f}' height='{h - 20:.1f}' rx='22' ry='22' fill='{fill}' stroke='{stroke}' stroke-width='1.8'/>",
-            f"<line x1='{x + 26:.1f}' y1='{y + h - 24:.1f}' x2='{x + w - 26:.1f}' y2='{y + 24:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
-            f"<line x1='{x + 26:.1f}' y1='{y + 24:.1f}' x2='{x + w - 26:.1f}' y2='{y + h - 24:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
-            f"<path d='M {x + 24:.1f} {y + 24:.1f} Q {x + w/2:.1f} {y + 6:.1f} {x + w - 24:.1f} {y + 24:.1f}' fill='none' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + 16:.1f}' rx='{(w - 34)/2:.1f}' ry='16' fill='{fill}' stroke='{stroke}' stroke-width='1.8'/>",
+            f"<rect x='{x + 18:.1f}' y='{y + 16:.1f}' width='{w - 36:.1f}' height='{h - 32:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.8'/>",
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + h - 16:.1f}' rx='{(w - 34)/2:.1f}' ry='16' fill='{fill}' stroke='{stroke}' stroke-width='1.8'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y - 8:.1f}' x2='{x + w/2:.1f}' y2='{y + 24:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<circle cx='{x + w/2:.1f}' cy='{y + 36:.1f}' r='14' fill='white' stroke='#7b8794' stroke-width='1.0'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 36:.1f}' x2='{x + w/2 + 20:.1f}' y2='{y + 50:.1f}' stroke='#7b8794' stroke-width='1.0'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 36:.1f}' x2='{x + w/2 - 18:.1f}' y2='{y + 50:.1f}' stroke='#7b8794' stroke-width='1.0'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 36:.1f}' x2='{x + w/2:.1f}' y2='{y + 56:.1f}' stroke='#7b8794' stroke-width='1.0'/>",
+            f"<line x1='{x + 8:.1f}' y1='{cy:.1f}' x2='{x + 20:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 20:.1f}' y1='{cy:.1f}' x2='{x + w - 8:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+        ]
+    if node.node_family == "compressor":
+        return [
+            f"<polygon points='{x + 18:.1f},{y + 16:.1f} {x + w - 30:.1f},{y + 16:.1f} {x + w - 12:.1f},{y + h/2:.1f} {x + w - 30:.1f},{y + h - 16:.1f} {x + 18:.1f},{y + h - 16:.1f} {x + 40:.1f},{y + h/2:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<line x1='{x + 46:.1f}' y1='{y + 24:.1f}' x2='{x + w - 48:.1f}' y2='{y + 24:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<line x1='{x + 46:.1f}' y1='{y + h - 24:.1f}' x2='{x + w - 48:.1f}' y2='{y + h - 24:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<polyline points='{x + 55:.1f},{y + h/2:.1f} {x + 78:.1f},{y + 28:.1f} {x + 78:.1f},{y + h - 28:.1f}' fill='none' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<polyline points='{x + 95:.1f},{y + h/2:.1f} {x + 118:.1f},{y + 28:.1f} {x + 118:.1f},{y + h - 28:.1f}' fill='none' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<line x1='{x + 4:.1f}' y1='{cy:.1f}' x2='{x + 20:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 16:.1f}' y1='{cy:.1f}' x2='{x + w - 2:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
         ]
     if node.node_family == "heat exchanger":
         return [
-            f"<rect x='{x + 10:.1f}' y='{y + 8:.1f}' width='{w - 20:.1f}' height='{h - 16:.1f}' rx='6' ry='6' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
-            f"<line x1='{x + 22:.1f}' y1='{y + 18:.1f}' x2='{x + w - 22:.1f}' y2='{y + h - 18:.1f}' stroke='#9aa5b1' stroke-width='1.1'/>",
-            f"<line x1='{x + w - 22:.1f}' y1='{y + 18:.1f}' x2='{x + 22:.1f}' y2='{y + h - 18:.1f}' stroke='#9aa5b1' stroke-width='1.1'/>",
-            f"<line x1='{x + 22:.1f}' y1='{y + h/2:.1f}' x2='{x + w - 22:.1f}' y2='{y + h/2:.1f}' stroke='#9aa5b1' stroke-width='0.9' stroke-dasharray='4,3'/>",
+            f"<rect x='{x + 20:.1f}' y='{y + 20:.1f}' width='{w - 40:.1f}' height='{h - 40:.1f}' rx='28' ry='28' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<line x1='{x + 42:.1f}' y1='{y + h/2:.1f}' x2='{x + w - 42:.1f}' y2='{y + h/2:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<line x1='{x + 56:.1f}' y1='{y + 30:.1f}' x2='{x + 56:.1f}' y2='{y + h - 30:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>",
+            f"<line x1='{x + w - 56:.1f}' y1='{y + 30:.1f}' x2='{x + w - 56:.1f}' y2='{y + h - 30:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>",
+            f"<line x1='{x + 6:.1f}' y1='{cy:.1f}' x2='{x + 22:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 22:.1f}' y1='{cy:.1f}' x2='{x + w - 6:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+        ]
+    if node.node_family == "bac_exchanger_package":
+        body_x = x + 18
+        body_y = y + 24
+        body_w = w - 36
+        body_h = h - 48
+        return [
+            f"<rect x='{body_x:.1f}' y='{body_y:.1f}' width='{body_w:.1f}' height='{body_h:.1f}' rx='28' ry='28' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<line x1='{body_x + 20:.1f}' y1='{cy:.1f}' x2='{body_x + body_w - 20:.1f}' y2='{cy:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<line x1='{body_x + 48:.1f}' y1='{body_y + 10:.1f}' x2='{body_x + 48:.1f}' y2='{body_y + body_h - 10:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>",
+            f"<line x1='{body_x + body_w - 48:.1f}' y1='{body_y + 10:.1f}' x2='{body_x + body_w - 48:.1f}' y2='{body_y + body_h - 10:.1f}' stroke='#9aa5b1' stroke-width='0.9'/>",
+            f"<circle cx='{body_x + body_w - 58:.1f}' cy='{body_y + 24:.1f}' r='7' fill='white' stroke='#5b84b1' stroke-width='1.0'/>",
+            f"<circle cx='{body_x + body_w - 58:.1f}' cy='{body_y + body_h - 24:.1f}' r='7' fill='white' stroke='#5b84b1' stroke-width='1.0'/>",
+            f"<line x1='{x + 4:.1f}' y1='{cy:.1f}' x2='{body_x:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{body_x + body_w:.1f}' y1='{cy:.1f}' x2='{x + w - 4:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+        ]
+    if node.node_family == "condenser":
+        return [
+            f"<rect x='{x + 20:.1f}' y='{y + 20:.1f}' width='{w - 40:.1f}' height='{h - 40:.1f}' rx='28' ry='28' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<line x1='{x + 42:.1f}' y1='{y + h/2:.1f}' x2='{x + w - 42:.1f}' y2='{y + h/2:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<path d='M {x + w - 62:.1f} {y + 30:.1f} q 10 10 0 20 q -10 10 0 20 q 10 10 0 20' fill='none' stroke='#7da8d8' stroke-width='1.2'/>",
+            f"<path d='M {x + w - 48:.1f} {y + 30:.1f} q 10 10 0 20 q -10 10 0 20 q 10 10 0 20' fill='none' stroke='#7da8d8' stroke-width='1.2'/>",
+            f"<line x1='{x + 6:.1f}' y1='{cy:.1f}' x2='{x + 22:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 22:.1f}' y1='{cy:.1f}' x2='{x + w - 6:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
         ]
     if node.node_family == "pump":
-        points = [
-            (x + 18, y + h / 2),
-            (x + 64, y + 16),
-            (x + w - 18, y + 16),
-            (x + w - 18, y + h - 16),
-            (x + 64, y + h - 16),
-        ]
-        point_str = " ".join(f"{px:.1f},{py:.1f}" for px, py in points)
         return [
-            f"<polygon points='{point_str}' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
-            f"<circle cx='{x + 44:.1f}' cy='{y + h/2:.1f}' r='10' fill='white' stroke='#9aa5b1' stroke-width='1.0'/>",
-            f"<line x1='{x + 54:.1f}' y1='{y + h/2:.1f}' x2='{x + w - 32:.1f}' y2='{y + h/2:.1f}' stroke='#9aa5b1' stroke-width='1.0'/>",
+            f"<line x1='{x + 10:.1f}' y1='{y + h/2:.1f}' x2='{x + 42:.1f}' y2='{y + h/2:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<circle cx='{x + 74:.1f}' cy='{y + h/2:.1f}' r='28' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<polygon points='{x + 64:.1f},{y + h/2 - 12:.1f} {x + 90:.1f},{y + h/2:.1f} {x + 64:.1f},{y + h/2 + 12:.1f}' fill='#9aa5b1' stroke='none'/>",
+            f"<line x1='{x + 102:.1f}' y1='{y + h/2:.1f}' x2='{x + w - 12:.1f}' y2='{y + h/2:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+        ]
+    if node.node_family == "bac_premix_vessel":
+        return [
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + 14:.1f}' rx='{(w - 30)/2:.1f}' ry='14' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<rect x='{x + 15:.1f}' y='{y + 14:.1f}' width='{w - 30:.1f}' height='{h - 28:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + h - 14:.1f}' rx='{(w - 30)/2:.1f}' ry='14' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y - 10:.1f}' x2='{x + w/2:.1f}' y2='{y + 24:.1f}' stroke='{stroke}' stroke-width='1.1'/>",
+            f"<circle cx='{x + w/2:.1f}' cy='{y + 36:.1f}' r='11' fill='white' stroke='#7b8794' stroke-width='0.9'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 36:.1f}' x2='{x + w/2 + 16:.1f}' y2='{y + 46:.1f}' stroke='#7b8794' stroke-width='0.9'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + 36:.1f}' x2='{x + w/2 - 14:.1f}' y2='{y + 46:.1f}' stroke='#7b8794' stroke-width='0.9'/>",
+            f"<line x1='{x + 5:.1f}' y1='{cy:.1f}' x2='{x + 16:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{x + w - 16:.1f}' y1='{cy:.1f}' x2='{x + w - 5:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+        ]
+    if node.node_family == "bac_storage_tank":
+        return [
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + 12:.1f}' rx='{(w - 28)/2:.1f}' ry='12' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
+            f"<rect x='{x + 14:.1f}' y='{y + 12:.1f}' width='{w - 28:.1f}' height='{h - 24:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
+            f"<ellipse cx='{x + w/2:.1f}' cy='{y + h - 12:.1f}' rx='{(w - 28)/2:.1f}' ry='12' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
+            f"<line x1='{x + 4:.1f}' y1='{cy:.1f}' x2='{x + 16:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 16:.1f}' y1='{cy:.1f}' x2='{x + w - 4:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y - 6:.1f}' x2='{x + w/2:.1f}' y2='{y + 10:.1f}' stroke='{stroke}' stroke-width='1.1'/>",
         ]
     if node.node_family == "tank":
         return [
             f"<ellipse cx='{x + w/2:.1f}' cy='{y + 10:.1f}' rx='{(w - 28)/2:.1f}' ry='10' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
             f"<rect x='{x + 14:.1f}' y='{y + 10:.1f}' width='{w - 28:.1f}' height='{h - 20:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
             f"<ellipse cx='{x + w/2:.1f}' cy='{y + h - 10:.1f}' rx='{(w - 28)/2:.1f}' ry='10' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
+            f"<line x1='{x + 4:.1f}' y1='{cy:.1f}' x2='{x + 16:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 16:.1f}' y1='{cy:.1f}' x2='{x + w - 4:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+        ]
+    if node.node_family == "bac_flash_drum":
+        return [
+            f"<ellipse cx='{x + 26:.1f}' cy='{cy:.1f}' rx='26' ry='{(h - 24)/2:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<rect x='{x + 26:.1f}' y='{y + 12:.1f}' width='{w - 52:.1f}' height='{h - 24:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<ellipse cx='{x + w - 26:.1f}' cy='{cy:.1f}' rx='26' ry='{(h - 24)/2:.1f}' fill='{fill}' stroke='{stroke}' stroke-width='1.6'/>",
+            f"<line x1='{x + 36:.1f}' y1='{cy:.1f}' x2='{x + w - 36:.1f}' y2='{cy:.1f}' stroke='#9aa5b1' stroke-width='1.0' stroke-dasharray='4,3'/>",
+            f"<line x1='{x + 8:.1f}' y1='{cy - 18:.1f}' x2='{x + 28:.1f}' y2='{cy - 18:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{x + w - 28:.1f}' y1='{cy + 18:.1f}' x2='{x + w - 8:.1f}' y2='{cy + 18:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y - 10:.1f}' x2='{x + w/2:.1f}' y2='{y + 12:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+            f"<line x1='{x + w/2:.1f}' y1='{y + h - 12:.1f}' x2='{x + w/2:.1f}' y2='{y + h + 10:.1f}' stroke='{stroke}' stroke-width='1.2'/>",
+        ]
+    if node.node_family == "bac_waste_receiver":
+        return [
+            f"<rect x='{x + 12:.1f}' y='{y + 12:.1f}' width='{w - 24:.1f}' height='{h - 24:.1f}' rx='28' ry='28' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
+            f"<line x1='{x + 22:.1f}' y1='{cy:.1f}' x2='{x + w - 22:.1f}' y2='{cy:.1f}' stroke='#9aa5b1' stroke-width='1.0' stroke-dasharray='4,3'/>",
+            f"<line x1='{x + 4:.1f}' y1='{cy:.1f}' x2='{x + 18:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 18:.1f}' y1='{cy:.1f}' x2='{x + w - 4:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
         ]
     if node.node_family in {"vessel", "separator"}:
         return [
             f"<rect x='{x + 10:.1f}' y='{y + 10:.1f}' width='{w - 20:.1f}' height='{h - 20:.1f}' rx='24' ry='24' fill='{fill}' stroke='{stroke}' stroke-width='1.5'/>",
             f"<line x1='{x + 22:.1f}' y1='{y + h/2:.1f}' x2='{x + w - 22:.1f}' y2='{y + h/2:.1f}' stroke='#9aa5b1' stroke-width='1.0' stroke-dasharray='4,3'/>",
             f"<line x1='{x + w/2:.1f}' y1='{y + 18:.1f}' x2='{x + w/2:.1f}' y2='{y + h - 18:.1f}' stroke='#d0d7de' stroke-width='0.8' stroke-dasharray='3,4'/>",
+            f"<line x1='{x + 4:.1f}' y1='{cy:.1f}' x2='{x + 16:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
+            f"<line x1='{x + w - 16:.1f}' y1='{cy:.1f}' x2='{x + w - 4:.1f}' y2='{cy:.1f}' stroke='{stroke}' stroke-width='1.3'/>",
         ]
     if node.node_family == "terminal":
         return [
@@ -1126,25 +1632,107 @@ def _svg_node_shape(node: DiagramNode, style: DiagramStyleProfile) -> list[str]:
 
 
 def _svg_pfd_legend(width_px: int, style: DiagramStyleProfile) -> list[str]:
-    x = width_px - 360
-    y = 88
+    x = 72
+    y = 118
     items = [
-        ("Main process", style.stream_stroke, "none"),
-        ("Product", "#2a7f3f", "none"),
+        ("Main process stream", style.stream_stroke, "none"),
+        ("Product stream", "#2a7f3f", "none"),
         ("Vent / purge / waste", "#a63d40", "8,6"),
-        ("Recycle", style.recycle_stroke, "8,6"),
+        ("Recycle stream", style.recycle_stroke, "8,6"),
     ]
     parts = [
-        f"<rect x='{x}' y='{y}' width='288' height='162' rx='8' ry='8' fill='#fbfcfe' stroke='#7b8794' stroke-width='1.0'/>",
-        f"<text x='{x + 144}' y='{y + 20}' text-anchor='middle' font-family='{html.escape(style.body_font_family)}' font-size='12' font-weight='700'>Legend</text>",
+        f"<rect x='{x}' y='{y}' width='310' height='170' rx='0' ry='0' fill='#fdfefe' stroke='#56606b' stroke-width='1.0'/>",
+        f"<line x1='{x}' y1='{y + 24}' x2='{x + 310}' y2='{y + 24}' stroke='#56606b' stroke-width='1.0'/>",
+        f"<text x='{x + 155}' y='{y + 17}' text-anchor='middle' font-family='{html.escape(style.body_font_family)}' font-size='11' font-weight='700'>LEGEND AND NOTATION</text>",
     ]
     for index, (label, color, dash) in enumerate(items):
-        y0 = y + 40 + index * 18
+        y0 = y + 42 + index * 18
         dash_attr = f" stroke-dasharray='{dash}'" if dash != "none" else ""
         parts.append(f"<line x1='{x + 16}' y1='{y0}' x2='{x + 62}' y2='{y0}' stroke='{color}' stroke-width='2.4'{dash_attr}/>")
         parts.append(f"<text x='{x + 72}' y='{y0 + 4}' font-family='{html.escape(style.body_font_family)}' font-size='10.5'>{html.escape(label)}</text>")
-    parts.append(f"<text x='{x + 16}' y='{y + 128}' font-family='{html.escape(style.body_font_family)}' font-size='10.5' font-weight='700'>Equipment Symbols</text>")
-    parts.append(f"<line x1='{x + 16}' y1='{y + 142}' x2='{x + 52}' y2='{y + 142}' stroke='#d0d7de' stroke-width='1.1'/>")
-    parts.append(f"<text x='{x + 62}' y='{y + 146}' font-family='{html.escape(style.body_font_family)}' font-size='10.0'>Reactor / vessel / column / tank rendered by family</text>")
-    parts.append(f"<text x='{x + 16}' y='{y + 156}' font-family='{html.escape(style.body_font_family)}' font-size='9.3'>Loop badges shown only for principal controlled units.</text>")
+    parts.append(f"<text x='{x + 16}' y='{y + 125}' font-family='{html.escape(style.body_font_family)}' font-size='10.2' font-weight='700'>Notation</text>")
+    parts.append(f"<text x='{x + 16}' y='{y + 141}' font-family='{html.escape(style.body_font_family)}' font-size='9.3'>Primary label: equipment tag</text>")
+    parts.append(f"<text x='{x + 16}' y='{y + 154}' font-family='{html.escape(style.body_font_family)}' font-size='9.3'>Secondary label: service description</text>")
+    parts.append(f"<text x='{x + 16}' y='{y + 167}' font-family='{html.escape(style.body_font_family)}' font-size='9.3'>Major process lines labeled by stream number</text>")
     return parts
+
+
+def _svg_pfd_sheet_frame(width_px: int, height_px: int, title: str, style: DiagramStyleProfile) -> list[str]:
+    title_x = 52
+    title_y = 42
+    frame_x = 38
+    frame_y = 38
+    frame_w = width_px - 76
+    frame_h = height_px - 76
+    title_band_h = 54
+    info_x = width_px - 468
+    info_y = height_px - 134
+    parts = [
+        f"<rect x='{frame_x}' y='{frame_y}' width='{frame_w}' height='{frame_h}' fill='none' stroke='#222' stroke-width='1.0'/>",
+        f"<rect x='{frame_x + 10}' y='{frame_y + 10}' width='{frame_w - 20}' height='{frame_h - 20}' fill='none' stroke='#7f8a96' stroke-width='0.8'/>",
+        f"<rect x='{frame_x + 10}' y='{frame_y + 10}' width='{frame_w - 20}' height='{title_band_h}' fill='#f7f9fc' stroke='#7f8a96' stroke-width='0.8'/>",
+        f"<line x1='{frame_x + 10}' y1='{frame_y + 10 + title_band_h}' x2='{frame_x + frame_w - 10}' y2='{frame_y + 10 + title_band_h}' stroke='#7f8a96' stroke-width='0.8'/>",
+        f"<rect x='{frame_x + 22}' y='{frame_y + 86}' width='{frame_w - 44}' height='{frame_h - 210}' fill='none' stroke='#d8dde5' stroke-width='0.7'/>",
+        f"<text x='{title_x}' y='{title_y}' font-family='{html.escape(style.heading_font_family)}' font-size='17' font-weight='700'>PROCESS FLOW DIAGRAM</text>",
+        f"<text x='{title_x}' y='{title_y + 20}' font-family='{html.escape(style.body_font_family)}' font-size='11.5'>{html.escape(title)}</text>",
+        f"<text x='{title_x + 520}' y='{title_y}' font-family='{html.escape(style.body_font_family)}' font-size='10.2' font-weight='700'>Project: Benzalkonium Chloride</text>",
+        f"<text x='{title_x + 520}' y='{title_y + 18}' font-family='{html.escape(style.body_font_family)}' font-size='9.4'>Sheet type: Full-page landscape drawing sheet</text>",
+        f"<text x='{title_x + 520}' y='{title_y + 34}' font-family='{html.escape(style.body_font_family)}' font-size='9.4'>Equipment tags primary, stream numbers shown on major lines</text>",
+        f"<rect x='{info_x}' y='{info_y}' width='420' height='96' rx='0' ry='0' fill='#ffffff' stroke='#222' stroke-width='1.0'/>",
+        f"<line x1='{info_x}' y1='{info_y + 28}' x2='{info_x + 420}' y2='{info_y + 28}' stroke='#222' stroke-width='1.0'/>",
+        f"<line x1='{info_x + 296}' y1='{info_y}' x2='{info_x + 296}' y2='{info_y + 96}' stroke='#222' stroke-width='1.0'/>",
+        f"<text x='{info_x + 12}' y='{info_y + 18}' font-family='{html.escape(style.body_font_family)}' font-size='11' font-weight='700'>DRAWING NOTES</text>",
+        f"<text x='{info_x + 12}' y='{info_y + 46}' font-family='{html.escape(style.body_font_family)}' font-size='9.5'>1. Process representation only</text>",
+        f"<text x='{info_x + 12}' y='{info_y + 62}' font-family='{html.escape(style.body_font_family)}' font-size='9.5'>2. Major streams labeled by stream number</text>",
+        f"<text x='{info_x + 12}' y='{info_y + 78}' font-family='{html.escape(style.body_font_family)}' font-size='9.5'>3. Equipment tags shown above service labels</text>",
+        f"<text x='{info_x + 312}' y='{info_y + 18}' font-family='{html.escape(style.body_font_family)}' font-size='9.6' font-weight='700'>BAC</text>",
+        f"<text x='{info_x + 312}' y='{info_y + 38}' font-family='{html.escape(style.body_font_family)}' font-size='9'>Orientation: Landscape</text>",
+        f"<text x='{info_x + 312}' y='{info_y + 56}' font-family='{html.escape(style.body_font_family)}' font-size='9'>Scale: Report fit</text>",
+        f"<text x='{info_x + 312}' y='{info_y + 74}' font-family='{html.escape(style.body_font_family)}' font-size='9'>Status: Drafted sheet</text>",
+    ]
+    return parts
+
+
+def _svg_bac_section_zones(sheet: DiagramSheet) -> list[str]:
+    title = sheet.title.lower()
+    if "feed, reaction, and cleanup" in title:
+        zones = [
+            (60, 120, 220, 390, "#f3f6fb", "Feed"),
+            (560, 120, 320, 390, "#f8f5ef", "Reaction"),
+            (940, 120, 300, 390, "#f7f3fb", "Primary Recovery"),
+            (1360, 120, 470, 390, "#f2f7f0", "Cleanup / Concentration"),
+        ]
+    elif "purification, storage, and offsites" in title:
+        zones = [
+            (180, 120, 420, 410, "#f7f3fb", "Purification"),
+            (680, 120, 380, 260, "#f2f7f0", "Storage"),
+            (680, 430, 380, 260, "#fbf2f0", "Waste / Offsites"),
+            (1120, 120, 380, 600, "#f9f9f9", "Battery Limits"),
+        ]
+    else:
+        return []
+    parts: list[str] = []
+    for x, y, w, h, fill, label in zones:
+        parts.append(f"<rect x='{x}' y='{y}' width='{w}' height='{h}' fill='{fill}' stroke='#d7dde5' stroke-width='0.8'/>")
+        parts.append(f"<text x='{x + 12}' y='{y + 18}' font-family='Calibri' font-size='11' font-weight='700' fill='#51606f'>{html.escape(label)}</text>")
+    return parts
+
+
+def _svg_label_callout(
+    x: float,
+    y: float,
+    text: str,
+    style: DiagramStyleProfile,
+    *,
+    wrap: int,
+    font_size: int = 11,
+    fill: str = "#ffffff",
+) -> list[str]:
+    lines = _wrap_text_lines(text, wrap)
+    if not lines:
+        return []
+    width = min(300, max(78, max(len(line) for line in lines) * (font_size * 0.58) + 18))
+    height = max(20, len(lines) * (font_size + 2) + 8)
+    return [
+        f"<rect x='{x - width/2:.1f}' y='{y - 10:.1f}' width='{width:.1f}' height='{height:.1f}' rx='4' ry='4' fill='{fill}' stroke='#d0d7de' stroke-width='0.8'/>"
+    ]

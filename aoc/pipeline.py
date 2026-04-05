@@ -8496,6 +8496,28 @@ class PipelineRunner:
                 continue
             extra = f"\n\n### Estimation Method Note\n\n{getattr(note_artifact, 'markdown', '').strip()}"
             augmented_chapters.append(chapter.model_copy(update={"rendered_markdown": chapter.rendered_markdown.rstrip() + extra}))
+        reactor_appendix_path = self.store.project_dir(self.config.project_id) / "reactor_mechanical_design_report.md"
+        if reactor_appendix_path.exists():
+            reactor_appendix_markdown = reactor_appendix_path.read_text(encoding="utf-8").strip()
+            reactor_appendix_lines = reactor_appendix_markdown.splitlines()
+            if reactor_appendix_lines and reactor_appendix_lines[0].startswith("#"):
+                reactor_appendix_lines = reactor_appendix_lines[1:]
+                while reactor_appendix_lines and not reactor_appendix_lines[0].strip():
+                    reactor_appendix_lines = reactor_appendix_lines[1:]
+            reactor_appendix_body = "\n".join(reactor_appendix_lines).strip()
+            reactor_appendix_chapter = ChapterArtifact(
+                chapter_id="reactor_mechanical_appendix",
+                title="Detailed Mechanical Design of Reactor R-101",
+                stage_id="final_report",
+                status=ChapterStatus.COMPLETE,
+                citations=["literature_benchchem_synthesis", "sds_vertex_ai", "patent_CN109553539B"],
+                assumptions=[
+                    "This appendix reproduces the standalone reactor mechanical design dossier so the main formatted report contains the full reactor package.",
+                ],
+                summary="Standalone detailed reactor mechanical design dossier included as an appendix-style chapter in the final report package.",
+                rendered_markdown=reactor_appendix_body,
+            )
+            augmented_chapters.append(reactor_appendix_chapter)
         assumptions: list[str] = []
         for chapter in existing_chapters + [executive_chapter, conclusion_chapter]:
             assumptions.extend(chapter.assumptions)
