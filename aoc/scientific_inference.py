@@ -3,19 +3,31 @@ from __future__ import annotations
 import re
 
 from aoc.models import (
+    BACImpurityLedgerArtifact,
+    BACImpurityLedgerItem,
     BACImpurityItem,
     BACImpurityModelArtifact,
     BACPurificationSection,
     BACPurificationSectionArtifact,
+    BACPseudoComponentBasisArtifact,
+    BinaryPairCoverageArtifact,
+    BinaryPairCoverageRow,
     ClaimGraphArtifact,
     ClaimStatus,
     CommercialProductBasisArtifact,
     ControlPlanArtifact,
+    DataGapItem,
+    DataGapRegistryArtifact,
     DataRealityAuditArtifact,
     DataRealityAuditRow,
     DataRealityClass,
+    DatumRequirementRule,
     DesignConfidenceArtifact,
+    EconomicGapItem,
+    EconomicInputRealityArtifact,
     EconomicCoverageDecision,
+    EstimationMethodTag,
+    EstimationPolicy,
     FlowsheetBlueprintArtifact,
     FlowsheetCase,
     FlowsheetIntentArtifact,
@@ -39,6 +51,8 @@ from aoc.models import (
     RouteScreeningArtifact,
     RouteSelectionArtifact,
     RouteSelectionComparisonArtifact,
+    SectionThermoAssignmentArtifact,
+    SectionThermoAssignmentRow,
     ScientificClaim,
     ScientificClaimProvenance,
     ScientificConfidence,
@@ -50,6 +64,8 @@ from aoc.models import (
     SpeciesResolutionArtifact,
     SpeciesResolutionRecord,
     StreamTable,
+    RecycleBasisArtifact,
+    RecycleBasisLoop,
     ThermoAdmissibilityArtifact,
     ThermoAssessmentArtifact,
     ThermoSectionAdmissibility,
@@ -66,7 +82,14 @@ from aoc.models import (
     ReactorDesign,
     CostModel,
     EnergyBalance,
+    KineticBasisArtifact,
+    MarketAssessmentArtifact,
+    MethodBasisRecord,
+    MissingDataAcceptanceArtifact,
+    MissingDataValidationIssue,
     ProjectBasis,
+    ReactorBasisConfidenceArtifact,
+    ReportAcceptanceStatus,
 )
 from aoc.properties.models import PropertyMethodDecision, PropertyPackageArtifact, SeparationThermoArtifact
 from aoc.route_families import RouteFamilyArtifact, profile_for_route
@@ -114,6 +137,21 @@ _ROUTE_REVISION_LIMITS = {
     "thermodynamic_feasibility": 2,
     "kinetic_feasibility": 2,
 }
+
+
+def _float_value(prop) -> float | None:
+    if prop is None:
+        return None
+    try:
+        return float(prop.value)
+    except Exception:
+        match = re.search(r"-?\d+(?:\.\d+)?", str(getattr(prop, "value", prop)))
+        if not match:
+            return None
+        try:
+            return float(match.group(0))
+        except Exception:
+            return None
 
 
 def _gate_worst(left: ScientificGateStatus, right: ScientificGateStatus) -> ScientificGateStatus:
@@ -641,6 +679,490 @@ def build_data_reality_audit_artifact(
         summary=summary,
         markdown="\n".join(markdown_lines),
         citations=sorted({citation for row in rows for citation in row.citations}),
+        assumptions=[summary],
+    )
+
+
+def build_bac_estimation_policy_artifact() -> EstimationPolicy:
+    rules = [
+        DatumRequirementRule(datum_id="bac_active_pure_properties", engineering_category="pure_properties", allowed_methods=[EstimationMethodTag.DIRECT, EstimationMethodTag.PSEUDO_COMPONENT, EstimationMethodTag.LIBRARY_VALUE, EstimationMethodTag.CORRELATION], forbidden_methods=[EstimationMethodTag.FALLBACK], minimum_confidence=0.45, critical=True),
+        DatumRequirementRule(datum_id="bac_binary_pairs", engineering_category="thermo_pairs", allowed_methods=[EstimationMethodTag.RESOLVED_PAIR, EstimationMethodTag.REGRESSED_PAIR, EstimationMethodTag.FAMILY_ESTIMATED_PAIR, EstimationMethodTag.FALLBACK], forbidden_methods=[], minimum_confidence=0.40, critical=True),
+        DatumRequirementRule(datum_id="bac_kinetics", engineering_category="kinetics", allowed_methods=[EstimationMethodTag.CITED_KINETIC_FIT, EstimationMethodTag.FAMILY_ARRHENIUS_FIT, EstimationMethodTag.RESIDENCE_TIME_HEURISTIC], forbidden_methods=[EstimationMethodTag.FALLBACK], minimum_confidence=0.35, critical=True),
+        DatumRequirementRule(datum_id="bac_impurities", engineering_category="impurities", allowed_methods=[EstimationMethodTag.MEASURED_STREAM_BASIS, EstimationMethodTag.TEMPLATE_DERIVED, EstimationMethodTag.PLACEHOLDER_ESTIMATE], forbidden_methods=[], minimum_confidence=0.30, critical=True),
+        DatumRequirementRule(datum_id="bac_recycle_purge", engineering_category="recycle", allowed_methods=[EstimationMethodTag.SOLVED_BALANCE, EstimationMethodTag.FAMILY_PURGE_HEURISTIC], forbidden_methods=[], minimum_confidence=0.40, critical=True),
+        DatumRequirementRule(datum_id="bac_economics_inputs", engineering_category="economics", allowed_methods=[EstimationMethodTag.LIVE_QUOTE, EstimationMethodTag.SITE_TARIFF, EstimationMethodTag.MODEL_DERIVED, EstimationMethodTag.LIBRARY_VALUE], forbidden_methods=[], minimum_confidence=0.35, critical=True),
+    ]
+    markdown = "\n".join([
+        "| Datum Class | Allowed Methods | Minimum Confidence |",
+        "| --- | --- | --- |",
+        *[
+            f"| {rule.engineering_category} | {', '.join(item.value for item in rule.allowed_methods)} | {rule.minimum_confidence:.2f} |"
+            for rule in rules
+        ],
+    ])
+    return EstimationPolicy(
+        policy_id="bac_estimation_policy_v1",
+        benchmark_profile="benzalkonium_chloride",
+        rules=rules,
+        markdown=markdown,
+        assumptions=["BAC missing-data policy allows explicit preliminary-design estimation paths, but every estimate must carry a named method and basis."],
+    )
+
+
+def build_bac_pseudo_component_basis_artifact(
+    basis: ProjectBasis,
+    product_profile: ProductProfileArtifact | None,
+    property_packages: PropertyPackageArtifact | None,
+) -> BACPseudoComponentBasisArtifact | None:
+    if (basis.target_product or "").strip().lower() != "benzalkonium chloride":
+        return None
+    package_index = _package_index(property_packages) if property_packages is not None else {}
+    active = package_index.get("benzalkonium_chloride")
+    solution_density = 995.0
+    solution_viscosity = 0.0025
+    solution_cp = 3.0
+    if product_profile is not None:
+        for prop in product_profile.properties:
+            lowered = prop.name.lower()
+            try:
+                value = float(prop.value)
+            except Exception:
+                continue
+            if lowered == "density":
+                solution_density = value * 1000.0 if prop.units.lower() in {"g/cm3", "g/cc", "g/ml"} else value
+            elif "viscosity" in lowered:
+                solution_viscosity = value
+    active_mw = _float_value(active.molecular_weight) if active and active.molecular_weight else 368.04
+    active_density = _float_value(active.liquid_density) if active and active.liquid_density else 995.0
+    active_viscosity = _float_value(active.liquid_viscosity) if active and active.liquid_viscosity else 0.0025
+    active_cp = _float_value(active.liquid_heat_capacity) if active and active.liquid_heat_capacity else 3.0
+    active_k = _float_value(active.thermal_conductivity) if active and active.thermal_conductivity else 0.20
+    markdown = "\n".join([
+        "| Basis Slice | Value |",
+        "| --- | --- |",
+        f"| Active representative MW | {active_mw:.2f} g/mol |",
+        f"| Active density | {active_density:.2f} kg/m3 |",
+        f"| Active viscosity | {active_viscosity:.5f} Pa.s |",
+        f"| Active Cp | {active_cp:.3f} kJ/kg-K |",
+        f"| Active thermal conductivity | {active_k:.3f} W/m-K |",
+        f"| Sold-solution density | {solution_density:.2f} kg/m3 |",
+        f"| Sold-solution viscosity | {solution_viscosity:.5f} Pa.s |",
+        f"| Sold-solution Cp | {solution_cp:.3f} kJ/kg-K |",
+        "| Nonvolatile treatment | BAC active is treated as effectively nonvolatile in the present process basis. |",
+    ])
+    homolog_distribution = dict(getattr(product_profile, "homolog_distribution", {}) or basis.homolog_distribution)
+    carrier_components = list(getattr(product_profile, "carrier_components", []) or basis.carrier_components)
+    return BACPseudoComponentBasisArtifact(
+        artifact_id="bac_pseudo_component_basis",
+        active_representative_mw_g_mol=round(active_mw, 4),
+        active_density_kg_m3=round(active_density, 4),
+        active_viscosity_pa_s=round(active_viscosity, 8),
+        active_cp_kj_kg_k=round(active_cp, 6),
+        active_thermal_conductivity_w_m_k=round(active_k, 6),
+        active_nonvolatile=True,
+        sold_solution_density_kg_m3=round(solution_density, 4),
+        sold_solution_viscosity_pa_s=round(solution_viscosity, 8),
+        sold_solution_cp_kj_kg_k=round(solution_cp, 6),
+        homolog_distribution=homolog_distribution,
+        carrier_components=carrier_components,
+        markdown=markdown,
+        citations=sorted(set((property_packages.citations if property_packages is not None else []) + (product_profile.citations if product_profile is not None else []))),
+        assumptions=["BAC physical basis is represented as a sold-solution pseudo-component system instead of a neat pure-compound basis."],
+    )
+
+
+def build_bac_binary_pair_coverage_artifact(
+    route_selection: RouteSelectionArtifact | None,
+    property_packages: PropertyPackageArtifact | None,
+    separation_thermo: SeparationThermoArtifact | None,
+) -> BinaryPairCoverageArtifact | None:
+    if route_selection is None or property_packages is None:
+        return None
+    if "benzyl" not in route_selection.selected_route_id and "quaternization" not in route_selection.selected_route_id:
+        return None
+    critical_pairs = [
+        ("alkyldimethylamine", "benzyl_chloride"),
+        ("alkyldimethylamine", "ethanol"),
+        ("alkyldimethylamine", "water"),
+        ("alkyldimethylamine", "benzyl_alcohol"),
+        ("alkyldimethylamine", "benzalkonium_chloride"),
+        ("benzalkonium_chloride", "ethanol"),
+        ("benzalkonium_chloride", "water"),
+        ("benzalkonium_chloride", "benzyl_chloride"),
+        ("benzalkonium_chloride", "benzyl_alcohol"),
+    ]
+    bip_index = {item.bip_id: item for item in property_packages.binary_interaction_parameters}
+    missing_pairs = set(separation_thermo.missing_binary_pairs if separation_thermo is not None else [])
+    rows: list[BinaryPairCoverageRow] = []
+    critical_fallback_pairs: list[str] = []
+    for component_a, component_b in critical_pairs:
+        pair_id = "__".join(sorted([component_a, component_b]))
+        bip = bip_index.get(pair_id)
+        if bip is not None and bip.resolution_status == "resolved":
+            status = "resolved_from_data"
+        elif bip is not None and bip.provenance_method == ProvenanceTag.ESTIMATED:
+            status = "family_estimated"
+        elif pair_id in missing_pairs:
+            status = "fallback"
+        else:
+            status = "fallback"
+        if status == "fallback":
+            critical_fallback_pairs.append(pair_id)
+        rows.append(
+            BinaryPairCoverageRow(
+                pair_id=pair_id,
+                component_a=component_a,
+                component_b=component_b,
+                status=status,
+                model_name=bip.model_name if bip is not None else (separation_thermo.activity_model if separation_thermo is not None else "NRTL"),
+                source_refs=list(bip.source_ids if bip is not None else []),
+                notes=list(bip.notes if bip is not None else []),
+            )
+        )
+    markdown = "\n".join([
+        "| Pair | Status | Model | Source Refs |",
+        "| --- | --- | --- | --- |",
+        *[
+            f"| {row.pair_id} | {row.status} | {row.model_name} | {', '.join(row.source_refs) or '-'} |"
+            for row in rows
+        ],
+    ])
+    return BinaryPairCoverageArtifact(
+        artifact_id="bac_binary_pair_coverage",
+        route_id=route_selection.selected_route_id,
+        rows=rows,
+        critical_fallback_pairs=sorted(set(critical_fallback_pairs)),
+        markdown=markdown,
+        citations=sorted({citation for row in rows for citation in row.source_refs}),
+        assumptions=["BAC binary-pair coverage tracks whether each critical cleanup pair is resolved, family-estimated, or still on fallback treatment."],
+    )
+
+
+def build_bac_section_thermo_assignment_artifact(
+    flowsheet_blueprint: FlowsheetBlueprintArtifact | None,
+    bac_purification_sections: BACPurificationSectionArtifact | None,
+    separation_thermo: SeparationThermoArtifact | None,
+) -> SectionThermoAssignmentArtifact | None:
+    if flowsheet_blueprint is None or bac_purification_sections is None:
+        return None
+    rows = [
+        SectionThermoAssignmentRow(
+            section_id=item.section_id,
+            section_label=item.label,
+            thermo_method=item.thermo_method or (separation_thermo.relative_volatility.method if separation_thermo and separation_thermo.relative_volatility else ""),
+            activity_model=item.activity_model or (separation_thermo.activity_model if separation_thermo is not None else ""),
+            key_pairs=[" / ".join([separation_thermo.light_key, separation_thermo.heavy_key])] if separation_thermo is not None and item.step_id == "purification" else [" / ".join(item.key_species[:2])] if len(item.key_species) >= 2 else list(item.key_species),
+            confidence=item.confidence,
+            notes=list(item.notes),
+        )
+        for item in bac_purification_sections.sections
+    ]
+    markdown = "\n".join([
+        "| Section | Thermo Method | Activity Model | Key Pair(s) | Confidence |",
+        "| --- | --- | --- | --- | --- |",
+        *[
+            f"| {row.section_label or row.section_id} | {row.thermo_method or '-'} | {row.activity_model or '-'} | {', '.join(row.key_pairs) or '-'} | {row.confidence.value} |"
+            for row in rows
+        ],
+    ])
+    return SectionThermoAssignmentArtifact(
+        artifact_id="bac_section_thermo_assignment",
+        route_id=flowsheet_blueprint.route_id,
+        rows=rows,
+        markdown=markdown,
+        citations=sorted({citation for item in bac_purification_sections.sections for citation in item.citations}),
+        assumptions=["Section thermo assignments expose which BAC cleanup section uses which thermo method and activity basis."],
+    )
+
+
+def build_bac_kinetic_basis_artifact(
+    route_selection: RouteSelectionArtifact | None,
+    kinetics: KineticAssessmentArtifact | None,
+) -> KineticBasisArtifact | None:
+    if route_selection is None or kinetics is None:
+        return None
+    if "benzyl" not in route_selection.selected_route_id and "quaternization" not in route_selection.selected_route_id:
+        return None
+    basis = "Family Arrhenius fit transferred onto BAC liquid quaternization preliminary-design basis."
+    return KineticBasisArtifact(
+        artifact_id="bac_kinetic_basis",
+        route_id=route_selection.selected_route_id,
+        reaction_family="liquid_quaternization",
+        assumed_mechanism_class="second_order_sn2_hypothesis",
+        activation_energy_kj_per_mol=kinetics.activation_energy_kj_per_mol,
+        pre_exponential_factor=kinetics.pre_exponential_factor,
+        apparent_order=kinetics.apparent_order,
+        design_residence_time_hr=kinetics.design_residence_time_hr,
+        method_tag=EstimationMethodTag.FAMILY_ARRHENIUS_FIT,
+        cap_logic_summary="Liquid BAC quaternization reactor sizing remains capped to a practical continuous agitated-reactor residence-time envelope when extrapolated kinetics become unrealistic.",
+        markdown="\n".join([
+            "| Kinetic Basis Item | Value |",
+            "| --- | --- |",
+            "| Reaction family | liquid quaternization |",
+            "| Mechanism class | second_order_sn2_hypothesis |",
+            f"| Activation energy | {kinetics.activation_energy_kj_per_mol:.3f} kJ/mol |",
+            f"| Pre-exponential factor | {kinetics.pre_exponential_factor:.3e} |",
+            f"| Apparent order | {kinetics.apparent_order:.3f} |",
+            f"| Design residence time | {kinetics.design_residence_time_hr:.3f} h |",
+        ]),
+        citations=list(kinetics.citations),
+        assumptions=list(kinetics.assumptions) + [basis],
+    )
+
+
+def build_reactor_basis_confidence_artifact(
+    kinetic_basis: KineticBasisArtifact | None,
+    reactor_design: ReactorDesign | None,
+) -> ReactorBasisConfidenceArtifact | None:
+    if kinetic_basis is None or reactor_design is None:
+        return None
+    confidence = ScientificConfidence.METHOD_DERIVED
+    basis_summary = "Reactor sizing is grounded in method-derived kinetics and a practical residence-time cap for liquid BAC quaternization service."
+    return ReactorBasisConfidenceArtifact(
+        artifact_id="bac_reactor_basis_confidence",
+        route_id=kinetic_basis.route_id,
+        confidence=confidence,
+        basis_summary=basis_summary,
+        hidden_cap_logic=False,
+        markdown=f"### Reactor Basis Confidence\n\n- Confidence: `{confidence.value}`\n- Basis: {basis_summary}\n",
+        citations=list(kinetic_basis.citations),
+        assumptions=list(kinetic_basis.assumptions) + [reactor_design.design_basis],
+    )
+
+
+def build_bac_impurity_ledger_artifact(
+    impurity_model: BACImpurityModelArtifact | None,
+) -> BACImpurityLedgerArtifact | None:
+    if impurity_model is None:
+        return None
+    status_map = {
+        "blocked": "unresolved",
+        "method_derived": "template_derived",
+        "estimated": "placeholder_estimate",
+    }
+    items = [
+        BACImpurityLedgerItem(
+            impurity_id=item.impurity_id,
+            impurity_class=item.impurity_class,
+            origin=item.origin_section,
+            expected_location=item.fate,
+            control_section=item.control_section,
+            purge_mechanism=item.fate,
+            mass_estimate_kg_hr=item.estimated_mass_flow_kg_hr,
+            status=status_map.get(item.status, "template_derived"),
+            notes=[f"Severity: {item.severity}"],
+        )
+        for item in impurity_model.items
+    ]
+    markdown = "\n".join([
+        "| Impurity | Class | Origin | Control | Purge / Fate | kg/h | Status |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+        *[
+            f"| {item.impurity_id} | {item.impurity_class} | {item.origin} | {item.control_section} | {item.purge_mechanism} | {item.mass_estimate_kg_hr:.6f} | {item.status} |"
+            for item in items
+        ],
+    ])
+    return BACImpurityLedgerArtifact(
+        artifact_id="bac_impurity_ledger",
+        route_id=impurity_model.route_id,
+        items=items,
+        markdown=markdown,
+        citations=list(impurity_model.citations),
+        assumptions=list(impurity_model.assumptions),
+    )
+
+
+def build_recycle_basis_artifact(stream_table: StreamTable | None) -> RecycleBasisArtifact | None:
+    if stream_table is None or not stream_table.convergence_summaries:
+        return None
+    loops: list[RecycleBasisLoop] = []
+    for summary in stream_table.convergence_summaries:
+        purge_basis_by_family = {
+            family: ("solved_balance+family_minimum" if value > 0.0 else "solved_balance")
+            for family, value in summary.purge_policy_by_family.items()
+        }
+        loops.append(
+            RecycleBasisLoop(
+                loop_id=summary.loop_id,
+                source_section_id=summary.source_section_id,
+                target_section_id=summary.target_section_id,
+                actual_recycle_stream_ids=list(summary.recycle_stream_ids),
+                actual_purge_stream_ids=list(summary.purge_stream_ids),
+                purge_policy_by_family=dict(summary.purge_policy_by_family),
+                purge_basis_by_family=purge_basis_by_family,
+                closure_confidence=summary.convergence_status,
+                notes=list(summary.notes),
+                citations=list(summary.citations),
+                assumptions=list(summary.assumptions),
+            )
+        )
+    markdown = "\n".join([
+        "| Loop | Source Section | Target Section | Purge Families | Confidence |",
+        "| --- | --- | --- | --- | --- |",
+        *[
+            f"| {item.loop_id} | {item.source_section_id or '-'} | {item.target_section_id or '-'} | {', '.join(f'{k}={v:.3f}' for k, v in item.purge_policy_by_family.items()) or '-'} | {item.closure_confidence} |"
+            for item in loops
+        ],
+    ])
+    return RecycleBasisArtifact(
+        artifact_id="bac_recycle_basis",
+        loops=loops,
+        markdown=markdown,
+        citations=sorted({citation for item in loops for citation in item.citations}),
+        assumptions=sorted({assumption for item in loops for assumption in item.assumptions}),
+    )
+
+
+def build_economic_input_reality_artifact(
+    cost_model: CostModel | None,
+    route_economic_basis,
+    market_assessment: MarketAssessmentArtifact | None,
+) -> EconomicInputRealityArtifact | None:
+    if cost_model is None:
+        return None
+    rows = [
+        EconomicGapItem(item_id="product_price_basis", label="Product selling price basis", source_type="real_external_quote" if market_assessment and market_assessment.citations else "benchmark_anchor", normalization_basis="INR/kg sold solution", site_dependence="market-linked", estimate_method="market_assessment_anchor", gap_flag="" if market_assessment and market_assessment.citations else "selling_price_modeled"),
+        EconomicGapItem(item_id="raw_material_burden", label="Raw-material cost burden", source_type="solver_derived_burden", normalization_basis="annualized stream burden", site_dependence="selected site", estimate_method="route_stream_burden_model", gap_flag="feedstock_quote_missing"),
+        EconomicGapItem(item_id="utility_tariff_basis", label="Utility tariff basis", source_type="real_external_quote" if cost_model.india_price_data else "solver_derived_burden", normalization_basis="INR/kWh and steam equivalents", site_dependence="site-specific", estimate_method="site_tariff_or_cost_model", gap_flag="" if cost_model.india_price_data else "utility_tariff_missing"),
+        EconomicGapItem(item_id="waste_treatment_burden", label="Waste-treatment burden", source_type="route_complexity_estimate", normalization_basis="annualized burden", site_dependence="site-specific", estimate_method="route_complexity_and_waste_stream_model", gap_flag="waste_treatment_cost_modeled"),
+        EconomicGapItem(item_id="logistics_and_packaging", label="Logistics and packaging burden", source_type="route_complexity_estimate", normalization_basis="dispatch mode and throughput", site_dependence="site-specific", estimate_method="procurement_and_dispatch_model", gap_flag="packaging_logistics_missing"),
+    ]
+    markdown = "\n".join([
+        "| Economic Input | Source Type | Method | Gap Flag |",
+        "| --- | --- | --- | --- |",
+        *[
+            f"| {item.label} | {item.source_type} | {item.estimate_method} | {item.gap_flag or '-'} |"
+            for item in rows
+        ],
+    ])
+    return EconomicInputRealityArtifact(
+        artifact_id="bac_economic_input_reality",
+        rows=rows,
+        markdown=markdown,
+        citations=sorted(set(cost_model.citations + (market_assessment.citations if market_assessment is not None else []))),
+        assumptions=list(cost_model.assumptions),
+    )
+
+
+def build_bac_data_gap_registry_artifact(
+    config: ProjectConfig,
+    pseudo_component_basis: BACPseudoComponentBasisArtifact | None,
+    pair_coverage: BinaryPairCoverageArtifact | None,
+    kinetic_basis: KineticBasisArtifact | None,
+    impurity_ledger: BACImpurityLedgerArtifact | None,
+    recycle_basis: RecycleBasisArtifact | None,
+    economic_input_reality: EconomicInputRealityArtifact | None,
+) -> DataGapRegistryArtifact | None:
+    if (config.benchmark_profile or "").strip().lower() != "benzalkonium_chloride":
+        return None
+    items: list[DataGapItem] = []
+    if pseudo_component_basis is not None:
+        items.extend([
+            DataGapItem(datum_id="bac_active_mw", engineering_category="pure_properties", current_value=f"{pseudo_component_basis.active_representative_mw_g_mol:.2f}", units="g/mol", provenance_class=DataRealityClass.STRUCTURED_DATABASE, method_name="BAC pseudo-component representative MW", method_tag=EstimationMethodTag.PSEUDO_COMPONENT, method_basis="Commercial homolog bundle mapped to one representative active MW.", confidence=0.65, downstream_consumers=["property_packages", "thermodynamic_feasibility", "material_balance"], upgrade_priority="high", direct_data=False, source_refs=list(pseudo_component_basis.citations), status="estimated"),
+            DataGapItem(datum_id="bac_active_nonvolatile", engineering_category="pure_properties", current_value="true", units="-", provenance_class=DataRealityClass.MODEL_INFERRED, method_name="Nonvolatile ionic-active assumption", method_tag=EstimationMethodTag.FALLBACK, method_basis="BAC active retained in solution phase and excluded from volatility-led purification assumptions.", confidence=0.60, downstream_consumers=["separation_thermo", "distillation_design"], upgrade_priority="critical", direct_data=False, source_refs=list(pseudo_component_basis.citations), fallback_reason="Neat BAC volatility basis is not available for the commercial sold-solution design basis.", status="inferred"),
+            DataGapItem(datum_id="bac_sold_solution_properties", engineering_category="pure_properties", current_value=f"rho={pseudo_component_basis.sold_solution_density_kg_m3:.2f}, mu={pseudo_component_basis.sold_solution_viscosity_pa_s:.5f}, cp={pseudo_component_basis.sold_solution_cp_kj_kg_k:.3f}", units="mixed", provenance_class=DataRealityClass.MODEL_INFERRED, method_name="Representative sold-solution pseudo-mixture", method_tag=EstimationMethodTag.PSEUDO_COMPONENT, method_basis="Commercial 50 wt% sold-solution handling basis.", confidence=0.55, downstream_consumers=["mixture_properties", "reactor_design", "storage_design"], upgrade_priority="high", direct_data=False, source_refs=list(pseudo_component_basis.citations), status="estimated"),
+        ])
+    if pair_coverage is not None:
+        for row in pair_coverage.rows:
+            method_tag = {
+                "resolved_from_data": EstimationMethodTag.RESOLVED_PAIR,
+                "regressed_from_data": EstimationMethodTag.REGRESSED_PAIR,
+                "family_estimated": EstimationMethodTag.FAMILY_ESTIMATED_PAIR,
+                "fallback": EstimationMethodTag.FALLBACK,
+            }[row.status]
+            items.append(DataGapItem(datum_id=f"pair_{row.pair_id}", engineering_category="thermo_pairs", current_value=row.model_name, units="-", provenance_class=DataRealityClass.STRUCTURED_DATABASE if row.status == "resolved_from_data" else DataRealityClass.MODEL_INFERRED, method_name=f"{row.model_name} pair basis", method_tag=method_tag, method_basis="BAC cleanup pair coverage matrix.", confidence=0.75 if row.status == "resolved_from_data" else 0.45 if row.status == "family_estimated" else 0.20, downstream_consumers=["separation_thermo", "distillation_design", "energy_balance"], upgrade_priority="critical" if row.status == "fallback" else "high", direct_data=row.status == "resolved_from_data", source_refs=list(row.source_refs), fallback_reason="Critical BAC pair remains unresolved in the present thermo set." if row.status == "fallback" else "", status="estimated" if row.status != "resolved_from_data" else "direct"))
+    if kinetic_basis is not None:
+        items.append(DataGapItem(datum_id="bac_kinetics_basis", engineering_category="kinetics", current_value=f"Ea={kinetic_basis.activation_energy_kj_per_mol:.3f}, A={kinetic_basis.pre_exponential_factor:.3e}", units="mixed", provenance_class=DataRealityClass.MODEL_INFERRED, method_name="Family Arrhenius fit", method_tag=kinetic_basis.method_tag, method_basis=kinetic_basis.cap_logic_summary, confidence=0.45, downstream_consumers=["reaction_kinetics", "reactor_design"], upgrade_priority="critical", direct_data=False, source_refs=list(kinetic_basis.citations), status="inferred"))
+    if impurity_ledger is not None:
+        for row in impurity_ledger.items:
+            items.append(DataGapItem(datum_id=f"impurity_{row.impurity_id}", engineering_category="impurities", current_value=f"{row.mass_estimate_kg_hr:.6f}", units="kg/h", provenance_class=DataRealityClass.SOLVER_DERIVED if row.status == "measured_or_observed" else DataRealityClass.MODEL_INFERRED, method_name=row.status.replace("_", " "), method_tag=EstimationMethodTag.MEASURED_STREAM_BASIS if row.status == "measured_or_observed" else EstimationMethodTag.TEMPLATE_DERIVED if row.status == "template_derived" else EstimationMethodTag.PLACEHOLDER_ESTIMATE, method_basis=f"Origin={row.origin}; control={row.control_section}.", confidence=0.65 if row.status == "measured_or_observed" else 0.35, downstream_consumers=["material_balance", "safety_health_environment_waste", "cost_of_production"], upgrade_priority="high", direct_data=False, source_refs=list(impurity_ledger.citations), status="unresolved" if row.status == "unresolved" else "estimated"))
+    if recycle_basis is not None:
+        for row in recycle_basis.loops:
+            items.append(DataGapItem(datum_id=f"recycle_{row.loop_id}", engineering_category="recycle", current_value=row.closure_confidence, units="-", provenance_class=DataRealityClass.SOLVER_DERIVED, method_name="Multi-loop solved recycle basis", method_tag=EstimationMethodTag.SOLVED_BALANCE, method_basis=", ".join(f"{k}={v:.3f}" for k, v in row.purge_policy_by_family.items()) or "No explicit purge family.", confidence=0.80 if row.closure_confidence == "converged" else 0.45, downstream_consumers=["material_balance", "cost_model"], upgrade_priority="high", direct_data=False, source_refs=list(recycle_basis.citations), status="solver_derived" if row.closure_confidence == "converged" else "estimated"))
+    if economic_input_reality is not None:
+        for row in economic_input_reality.rows:
+            items.append(DataGapItem(datum_id=row.item_id, engineering_category="economics", current_value=row.source_type, units="-", provenance_class=DataRealityClass.LIVE_FETCHED if row.source_type == "real_external_quote" else DataRealityClass.SOLVER_DERIVED if row.source_type == "solver_derived_burden" else DataRealityClass.SEEDED_BENCHMARK if row.source_type == "benchmark_anchor" else DataRealityClass.MODEL_INFERRED, method_name=row.estimate_method, method_tag=EstimationMethodTag.LIVE_QUOTE if row.source_type == "real_external_quote" else EstimationMethodTag.MODEL_DERIVED, method_basis=row.normalization_basis, confidence=0.80 if row.source_type == "real_external_quote" else 0.40, downstream_consumers=["project_cost", "cost_of_production", "financial_analysis"], upgrade_priority="high", direct_data=row.source_type == "real_external_quote", source_refs=list(economic_input_reality.citations), fallback_reason=row.gap_flag, status="direct" if row.source_type == "real_external_quote" else "estimated"))
+    items = list(items)
+    unresolved = sum(1 for item in items if item.status == "unresolved")
+    summary = f"BAC data-gap registry captures {len(items)} critical items; {unresolved} remain unresolved."
+    markdown = "\n".join([
+        "| Datum | Category | Status | Method | Provenance | Confidence | Priority |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+        *[
+            f"| {item.datum_id} | {item.engineering_category} | {item.status} | {item.method_tag.value} | {item.provenance_class.value} | {item.confidence:.2f} | {item.upgrade_priority} |"
+            for item in items
+        ],
+    ])
+    return DataGapRegistryArtifact(
+        benchmark_profile="benzalkonium_chloride",
+        project_id=config.project_id or "",
+        items=items,
+        summary=summary,
+        markdown=markdown,
+        citations=sorted({citation for item in items for citation in item.source_refs}),
+        assumptions=[summary],
+    )
+
+
+def build_missing_data_acceptance_artifact(
+    registry: DataGapRegistryArtifact | None,
+    pair_coverage: BinaryPairCoverageArtifact | None,
+    impurity_ledger: BACImpurityLedgerArtifact | None,
+    economic_input_reality: EconomicInputRealityArtifact | None,
+) -> MissingDataAcceptanceArtifact | None:
+    if registry is None:
+        return None
+    issues: list[MissingDataValidationIssue] = []
+    hidden_placeholder_count = 0
+    critical_unresolved_count = 0
+    named_estimates = 0
+    estimated_count = 0
+    for item in registry.items:
+        if item.status in {"estimated", "inferred", "solver_derived"}:
+            estimated_count += 1
+            if item.method_name.strip():
+                named_estimates += 1
+        if item.method_tag == EstimationMethodTag.FALLBACK and not item.fallback_reason:
+            hidden_placeholder_count += 1
+            issues.append(MissingDataValidationIssue(datum_id=item.datum_id, code="missing_fallback_reason", severity="blocked", message=f"Estimated datum '{item.datum_id}' has fallback treatment without an explicit reason."))
+        if item.status == "unresolved":
+            critical_unresolved_count += 1
+            issues.append(MissingDataValidationIssue(datum_id=item.datum_id, code="critical_unresolved_datum", severity="blocked", message=f"Critical BAC datum '{item.datum_id}' remains unresolved."))
+        if item.status != "direct" and not item.method_name.strip():
+            issues.append(MissingDataValidationIssue(datum_id=item.datum_id, code="missing_method_name", severity="blocked", message=f"Estimated datum '{item.datum_id}' has no named method."))
+    if pair_coverage is not None:
+        for pair_id in pair_coverage.critical_fallback_pairs:
+            issues.append(MissingDataValidationIssue(datum_id=pair_id, code="critical_thermo_pair_fallback", severity="warning", message=f"Critical BAC thermo pair '{pair_id}' remains on fallback treatment."))
+    if impurity_ledger is not None and any(item.status == "unresolved" for item in impurity_ledger.items):
+        issues.append(MissingDataValidationIssue(datum_id="bac_impurity_ledger", code="unresolved_impurity_noted", severity="warning", message="BAC impurity ledger still contains unresolved impurity classes."))
+    if economic_input_reality is not None:
+        for row in economic_input_reality.rows:
+            if row.source_type != "real_external_quote" and not row.estimate_method:
+                issues.append(MissingDataValidationIssue(datum_id=row.item_id, code="economic_input_without_method", severity="blocked", message=f"Economic driver '{row.item_id}' is not quote-backed and has no estimate method."))
+    coverage_fraction = round(sum(1 for item in registry.items if item.status != "unresolved") / max(len(registry.items), 1), 4)
+    named_estimate_fraction = round(named_estimates / max(estimated_count, 1), 4) if estimated_count else 1.0
+    overall_status = ReportAcceptanceStatus.COMPLETE if not any(issue.severity == "blocked" for issue in issues) else ReportAcceptanceStatus.CONDITIONAL
+    if critical_unresolved_count > 0 or hidden_placeholder_count > 0:
+        overall_status = ReportAcceptanceStatus.BLOCKED
+    summary = f"Missing-data acceptance: coverage={coverage_fraction:.1%}; named estimates={named_estimate_fraction:.1%}; hidden placeholders={hidden_placeholder_count}; unresolved critical items={critical_unresolved_count}."
+    markdown = "\n".join([
+        f"- Overall status: `{overall_status.value}`",
+        f"- Coverage fraction: `{coverage_fraction:.1%}`",
+        f"- Named estimate fraction: `{named_estimate_fraction:.1%}`",
+        f"- Hidden placeholder count: `{hidden_placeholder_count}`",
+        f"- Critical unresolved count: `{critical_unresolved_count}`",
+    ])
+    return MissingDataAcceptanceArtifact(
+        artifact_id="bac_missing_data_acceptance",
+        overall_status=overall_status,
+        coverage_fraction=coverage_fraction,
+        named_estimate_fraction=named_estimate_fraction,
+        hidden_placeholder_count=hidden_placeholder_count,
+        critical_unresolved_count=critical_unresolved_count,
+        issues=issues,
+        summary=summary,
+        markdown=markdown,
+        citations=sorted({citation for item in registry.items for citation in item.source_refs}),
         assumptions=[summary],
     )
 

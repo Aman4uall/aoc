@@ -66,8 +66,14 @@ _CHAPTER_LIBRARY: dict[str, ReportChapterContract] = {
     "block_flow_diagram": ReportChapterContract(
         chapter_id="block_flow_diagram",
         benchmark_title="Block Diagram",
-        required_markers=["graph TD"],
+        required_markers=["### Diagram Basis", "### Diagram Acceptance"],
         notes="Benchmark report includes a standalone process block diagram.",
+    ),
+    "process_flow_diagram": ReportChapterContract(
+        chapter_id="process_flow_diagram",
+        benchmark_title="Process Flow Diagram",
+        required_markers=["### Diagram Basis", "### Diagram Acceptance"],
+        notes="Benchmark report may include an equipment-level process flow diagram supporting the design chapters.",
     ),
     "process_description": ReportChapterContract(
         chapter_id="process_description",

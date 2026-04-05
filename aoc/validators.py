@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aoc.calculators import operating_hours_per_year, reaction_balance_delta, reaction_is_balanced
 from aoc.models import (
+    BACImpurityLedgerArtifact,
     BACImpurityModelArtifact,
     BACPurificationSectionArtifact,
     BenchmarkManifest,
@@ -39,6 +40,7 @@ from aoc.models import (
     MechanicalDesignArtifact,
     MethodSelectionArtifact,
     OperationsPlanningArtifact,
+    MissingDataAcceptanceArtifact,
     ProcessArchetype,
     PropertyGapArtifact,
     PropertyDemandPlan,
@@ -2283,6 +2285,30 @@ def validate_report_acceptance(acceptance: ReportAcceptanceArtifact) -> list[Val
                 severity=Severity.WARNING,
                 message=acceptance.summary,
                 artifact_ref="report_acceptance",
+            )
+        )
+    return issues
+
+
+def validate_missing_data_acceptance_artifact(artifact: MissingDataAcceptanceArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    severity = Severity.BLOCKED if artifact.overall_status == ReportAcceptanceStatus.BLOCKED else Severity.WARNING
+    if artifact.overall_status != ReportAcceptanceStatus.COMPLETE:
+        issues.append(
+            ValidationIssue(
+                code="missing_data_acceptance_not_complete",
+                severity=severity,
+                message=artifact.summary,
+                artifact_ref="missing_data_acceptance",
+            )
+        )
+    for item in artifact.issues:
+        issues.append(
+            ValidationIssue(
+                code=item.code,
+                severity=Severity.BLOCKED if item.severity == "blocked" else Severity.WARNING,
+                message=item.message,
+                artifact_ref="missing_data_acceptance",
             )
         )
     return issues

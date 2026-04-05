@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import date
+import os
 import re
+import tempfile
 import textwrap
 
 import fitz
@@ -69,6 +71,7 @@ EG_CHAPTER_ORDER = [
     "thermodynamic_feasibility",
     "reaction_kinetics",
     "block_flow_diagram",
+    "process_flow_diagram",
     "process_description",
     "material_balance",
     "energy_balance",
@@ -86,6 +89,7 @@ EG_CHAPTER_ORDER = [
     "cost_of_production",
     "working_capital",
     "financial_analysis",
+    "data_gaps_estimation_methods",
     "conclusion",
 ]
 
@@ -99,6 +103,7 @@ GENERIC_CHAPTER_ORDER = [
     "thermodynamic_feasibility",
     "reaction_kinetics",
     "block_flow_diagram",
+    "process_flow_diagram",
     "process_description",
     "material_balance",
     "energy_balance",
@@ -114,6 +119,7 @@ GENERIC_CHAPTER_ORDER = [
     "cost_of_production",
     "working_capital",
     "financial_analysis",
+    "data_gaps_estimation_methods",
     "conclusion",
 ]
 
@@ -190,7 +196,7 @@ def _apply_caption_numbering(markdown_text: str) -> str:
                 output.extend([f"**Table {table_counter}. {current_heading}**", ""])
             output.append(line)
             continue
-        if stripped.startswith("```mermaid"):
+        if stripped.startswith("```mermaid") or stripped.startswith("```diagram-svg"):
             previous = _last_non_empty_line(output)
             if not previous.startswith("**Figure "):
                 figure_counter += 1
@@ -271,12 +277,18 @@ def _format_appendix_bundle(markdown_text: str) -> str:
 
 def references_markdown(source_index: dict[str, SourceRecord]) -> str:
     lines = ["## References", ""]
-    for source in sorted(source_index.values(), key=lambda item: item.title.lower()):
+    for index, source in enumerate(sorted(source_index.values(), key=lambda item: item.title.lower()), start=1):
+        organization = (source.citation_text or "").split(".", 1)[0].strip() or source.source_id
+        title = source.title.strip().rstrip(".")
+        year = str(source.reference_year) if source.reference_year else "n.d."
         location = source.url_or_doi or source.local_path or "Local source"
-        domain = source.source_domain.value
         geo = source.geographic_label or source.geographic_scope.value
-        year = source.reference_year or "n/a"
-        lines.append(f"- **{source.source_id}**: {source.citation_text}. {location} [{domain}; {geo}; ref {year}]")
+        domain = source.source_domain.value.replace("_", " ")
+        lines.append(
+            f"{index}. {organization}. *{title}*. {year}. "
+            f"Available at: {location}. "
+            f"[Source ID: {source.source_id}; Domain: {domain}; Geography: {geo}]"
+        )
     return "\n".join(lines)
 
 
@@ -1969,6 +1981,283 @@ def render_pdf(markdown_text: str, output_path: str, title: str) -> str:
             pdf_page.draw_line(fitz.Point(48, 32), fitz.Point(547, 32), color=(0, 0, 0), width=0.4)
             pdf_page.draw_line(fitz.Point(48, 808), fitz.Point(547, 808), color=(0, 0, 0), width=0.4)
         pdf_page.insert_text((260, 820), f"Page {page_index + 1}", fontsize=9, fontname="helv")
+    document.set_metadata({"title": title})
+    document.save(output_path)
+    document.close()
+    return output_path
+
+
+def render_styled_pdf(html_text: str, output_path: str, title: str, header_text: str | None = None) -> str:
+    writer = fitz.DocumentWriter(output_path)
+    head_html, body_html = _split_html_head_body(html_text)
+    for mode, fragment in _styled_pdf_fragments(body_html):
+        story = fitz.Story(html=_wrap_html_fragment(head_html, _normalize_story_fragment(fragment)))
+        if mode == "landscape":
+            page_rect = fitz.Rect(0, 0, 842, 595)
+            content_rect = fitz.Rect(28, 26, 814, 565)
+        else:
+            page_rect = fitz.Rect(0, 0, 595, 842)
+            content_rect = fitz.Rect(54, 54, 541, 790)
+        more = True
+        page_guard = 0
+        while more:
+            device = writer.begin_page(page_rect)
+            more, _ = story.place(content_rect)
+            story.draw(device)
+            writer.end_page()
+            page_guard += 1
+            if page_guard > 250:
+                raise RuntimeError(f"Styled PDF fragment exceeded pagination guard for {mode} fragment.")
+    writer.close()
+
+    document = fitz.open(output_path)
+    for page_index, page in enumerate(document, start=1):
+        width = page.rect.width
+        height = page.rect.height
+        left_margin = 54 if width < 700 else 40
+        right_margin = width - left_margin
+        if page_index > 1:
+            page.insert_text((left_margin, 26), header_text or title, fontsize=8.5, fontname="helv")
+            page.draw_line(fitz.Point(left_margin, 32), fitz.Point(right_margin, 32), color=(0, 0, 0), width=0.4)
+            page.draw_line(fitz.Point(left_margin, height - 34), fitz.Point(right_margin, height - 34), color=(0, 0, 0), width=0.4)
+        page.insert_text((width / 2 - 4, height - 22), str(page_index), fontsize=9, fontname="Times-Roman")
+    document.set_metadata({"title": title})
+    temp_fd, temp_path = tempfile.mkstemp(suffix=".pdf")
+    os.close(temp_fd)
+    document.save(temp_path)
+    document.close()
+    os.replace(temp_path, output_path)
+    return output_path
+
+
+def _split_html_head_body(html_text: str) -> tuple[str, str]:
+    head_match = re.search(r"<head>(.*?)</head>", html_text, flags=re.S | re.I)
+    body_match = re.search(r"<body>(.*?)</body>", html_text, flags=re.S | re.I)
+    head_html = head_match.group(1) if head_match else ""
+    body_html = body_match.group(1) if body_match else html_text
+    return head_html, body_html
+
+
+def _wrap_html_fragment(head_html: str, body_fragment: str) -> str:
+    return f"<html><head>{head_html}</head><body>{body_fragment}</body></html>"
+
+
+def _normalize_story_fragment(fragment_html: str) -> str:
+    fragment_html = re.sub(r"<diagram-sheet\b([^>]*)>", r"<div class='diagram-sheet'\1>", fragment_html, flags=re.I)
+    fragment_html = re.sub(r"</diagram-sheet>", "</div>", fragment_html, flags=re.I)
+    return fragment_html
+
+
+def _styled_pdf_fragments(body_html: str) -> list[tuple[str, str]]:
+    pattern = re.compile(r"(<diagram-sheet\b[^>]*>.*?</diagram-sheet>)", flags=re.S | re.I)
+    parts = re.split(pattern, body_html)
+    fragments: list[tuple[str, str]] = []
+    for part in parts:
+        if not part or not part.strip():
+            continue
+        stripped = part.lstrip()
+        if stripped.lower().startswith("<diagram-sheet"):
+            fragments.append(("landscape", part))
+        else:
+            fragments.extend(("portrait", chunk) for chunk in _split_portrait_fragment(part))
+    return fragments
+
+
+def _split_portrait_fragment(fragment_html: str) -> list[str]:
+    chapter_pattern = re.compile(r"(<section class='chapter'>.*?</section>)", flags=re.S)
+    parts = re.split(chapter_pattern, fragment_html)
+    chunks: list[str] = []
+    for part in parts:
+        if not part or not part.strip():
+            continue
+        stripped = part.strip()
+        if stripped.startswith("<section class='chapter'>"):
+            chunks.append(part)
+            continue
+        chunks.extend(_split_portrait_supporting_block(part))
+    return chunks or [fragment_html]
+
+
+def _split_portrait_supporting_block(fragment_html: str) -> list[str]:
+    heading_pattern = re.compile(r"(?=<h1\b)|(?=<h2\b)")
+    parts = re.split(heading_pattern, fragment_html)
+    chunks = [part for part in parts if part.strip()]
+    return chunks or [fragment_html]
+
+
+def render_academic_pdf(markdown_text: str, output_path: str, title: str, header_text: str | None = None) -> str:
+    clean_text = re.sub(r"`", "", markdown_text)
+    clean_text = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1", clean_text)
+    document = fitz.open()
+    page_headers: list[str | None] = []
+    page = None
+    y = 84
+    clean_lines = clean_text.splitlines()
+    current_header: str | None = None
+    cover_mode = True
+    left_margin = 62
+    right_margin = 533
+    page_top = 92
+    page_bottom = 778
+
+    def create_page(header_text_value: str | None = None, top_y: float | None = None) -> None:
+        nonlocal page, y
+        page = document.new_page()
+        page.set_mediabox(fitz.Rect(0, 0, 595, 842))
+        page_headers.append(header_text_value)
+        y = page_top if top_y is None else top_y
+
+    def draw_cover_frame() -> None:
+        page.draw_rect(fitz.Rect(48, 48, 547, 794), color=(0, 0, 0), width=1.0)
+        page.draw_rect(fitz.Rect(58, 58, 537, 784), color=(0, 0, 0), width=0.4)
+
+    create_page(top_y=110)
+    draw_cover_frame()
+
+    def ensure_space(required_bottom: float = page_bottom) -> None:
+        nonlocal y
+        if y > required_bottom:
+            create_page(current_header, top_y=page_top)
+
+    def render_wrapped(
+        text: str,
+        *,
+        fontsize: float = 12,
+        line_spacing: float = 14,
+        wrap_width: int = 88,
+        indent: int = 0,
+        fontname: str = "Times-Roman",
+        center: bool = False,
+    ) -> None:
+        nonlocal y
+        wrapped = textwrap.wrap(text, width=wrap_width) or [text]
+        for line in wrapped:
+            ensure_space()
+            if center:
+                text_width = fitz.get_text_length(line, fontname=fontname, fontsize=fontsize)
+                x = max(36, (595 - text_width) / 2)
+            else:
+                x = left_margin + indent
+            page.insert_text((x, y), line, fontsize=fontsize, fontname=fontname)
+            y += line_spacing
+
+    def render_chapter_opening(text: str) -> None:
+        nonlocal y
+        match = re.match(r"Chapter\s+(\d+)\s*:\s*(.*)", text, flags=re.IGNORECASE)
+        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin, y), color=(0, 0, 0), width=0.8)
+        y += 18
+        if match:
+            render_wrapped(f"CHAPTER {match.group(1)}", fontsize=11, line_spacing=12, wrap_width=30, fontname="Helvetica")
+            render_wrapped(match.group(2).strip().upper(), fontsize=20, line_spacing=24, wrap_width=34, fontname="Times-Bold")
+        else:
+            render_wrapped(text.upper(), fontsize=18, line_spacing=22, wrap_width=36, fontname="Times-Bold")
+        y += 6
+        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin), color=(0, 0, 0), width=0.35)
+        y += 16
+
+    def render_major_section(text: str) -> None:
+        nonlocal y
+        render_wrapped(text, fontsize=16, line_spacing=18, wrap_width=42, fontname="Times-Bold")
+        y += 2
+        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin - 130, y), color=(0, 0, 0), width=0.35)
+        y += 12
+
+    index = 0
+    while index < len(clean_lines):
+        raw_line = clean_lines[index]
+        stripped = raw_line.strip()
+        if not stripped:
+            y += 8
+            index += 1
+            continue
+        if stripped == "---":
+            if cover_mode:
+                cover_mode = False
+                create_page(top_y=page_top)
+            else:
+                ensure_space()
+                page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin, y), color=(0, 0, 0), width=0.35)
+                y += 10
+            index += 1
+            continue
+        if _is_markdown_table_start(clean_lines, index):
+            ensure_space(required_bottom=page_bottom - 40)
+            headers = [cell.strip() for cell in clean_lines[index].strip().strip("|").split("|")]
+            render_wrapped(" | ".join(headers), fontsize=10.5, line_spacing=12, wrap_width=84, fontname="Helvetica-Bold")
+            index += 2
+            while index < len(clean_lines) and clean_lines[index].strip().startswith("|"):
+                values = [cell.strip() for cell in clean_lines[index].strip().strip("|").split("|")]
+                pairs = [
+                    f"{headers[cell_index] if cell_index < len(headers) else f'Field {cell_index + 1}'}: {values[cell_index] if cell_index < len(values) else '-'}"
+                    for cell_index in range(max(len(headers), len(values)))
+                ]
+                render_wrapped(" ; ".join(pairs), fontsize=10, line_spacing=11, wrap_width=82, fontname="Times-Roman")
+                index += 1
+            y += 4
+            continue
+        level = 0
+        if stripped.startswith("#"):
+            level = len(stripped) - len(stripped.lstrip("#"))
+            stripped = stripped.lstrip("#").strip()
+        if level == 1 or stripped.startswith("Appendix "):
+            current_header = stripped
+        major_section_headings = {"Executive Summary", "Contents", "List of Tables", "List of Figures", "References", "Appendices"}
+        if not cover_mode and (stripped.startswith("Chapter ") or stripped in major_section_headings or stripped.startswith("Appendix ")):
+            if y > 110:
+                create_page(current_header, top_y=page_top)
+        if cover_mode:
+            if level == 1:
+                render_wrapped(stripped.upper(), fontsize=26, line_spacing=32, wrap_width=24, fontname="Times-Bold", center=True)
+            elif level == 2:
+                y += 8
+                render_wrapped(stripped, fontsize=15, line_spacing=20, wrap_width=42, fontname="Times-Bold", center=True)
+            else:
+                if stripped.startswith("Prepared for"):
+                    y += 44
+                render_wrapped(stripped, fontsize=12, line_spacing=15, wrap_width=54, fontname="Times-Roman", center=True)
+            y += 6
+            index += 1
+            continue
+        fontsize = 12
+        wrap_width = 88
+        line_spacing = 14
+        fontname = "Times-Roman"
+        if level == 1:
+            if stripped.startswith("Chapter "):
+                render_chapter_opening(stripped)
+                index += 1
+                continue
+            render_major_section(stripped)
+            index += 1
+            continue
+        elif level == 2:
+            fontsize = 13.5
+            wrap_width = 72
+            line_spacing = 17
+            fontname = "Times-Bold"
+        elif level == 3:
+            fontsize = 12
+            wrap_width = 82
+            line_spacing = 14
+            fontname = "Helvetica-Bold"
+        render_wrapped(stripped, fontsize=fontsize, line_spacing=line_spacing, wrap_width=wrap_width, fontname=fontname)
+        y += 4 if level else 2
+        index += 1
+
+    for page_index in range(document.page_count):
+        pdf_page = document[page_index]
+        if page_index == 0:
+            pdf_page.insert_text((190, 736), "PRELIMINARY TECHNO-ECONOMIC FEASIBILITY REPORT", fontsize=10, fontname="Helvetica")
+            pdf_page.insert_text((255, 758), date.today().isoformat(), fontsize=10, fontname="Times-Roman")
+            continue
+        header_value = page_headers[page_index] if page_index < len(page_headers) else None
+        pdf_page.insert_text((left_margin, 28), header_text or title, fontsize=8.2, fontname="Helvetica")
+        if header_value:
+            short_header = re.sub(r"^Chapter\s+\d+\s*:\s*", "", header_value)
+            pdf_page.insert_text((390, 28), short_header[:26], fontsize=8.2, fontname="Times-Italic")
+        pdf_page.draw_line(fitz.Point(left_margin, 34), fitz.Point(right_margin, 34), color=(0, 0, 0), width=0.35)
+        pdf_page.draw_line(fitz.Point(left_margin, 806), fitz.Point(right_margin, 806), color=(0, 0, 0), width=0.35)
+        pdf_page.insert_text((285, 822), f"{page_index + 1}", fontsize=9.5, fontname="Times-Roman")
     document.set_metadata({"title": title})
     document.save(output_path)
     document.close()

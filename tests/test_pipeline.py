@@ -3,27 +3,39 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import fitz
+
 from aoc.benchmarks import build_benchmark_manifest
 from aoc.config import load_project_config
 from aoc.models import (
     AgentDecisionFabricArtifact,
+    BACImpurityLedgerArtifact,
     BACImpurityModelArtifact,
     BACPurificationSectionArtifact,
+    BACPseudoComponentBasisArtifact,
+    BenchmarkVoiceProfile,
+    BinaryPairCoverageArtifact,
     ChemistryFamilyAdapter,
     CommercialProductBasisArtifact,
     CostModel,
     CriticRegistryArtifact,
+    DataGapRegistryArtifact,
     DataRealityAuditArtifact,
     DecisionRecord,
     DebtSchedule,
     EnergyBalance,
     HeatExchangerDesign,
     EquipmentListArtifact,
+    FinalReport,
+    FormattedReportArtifact,
+    FormatterAcceptanceArtifact,
+    FormatterParityArtifact,
     FinancialSchedule,
     FlowsheetBlueprintArtifact,
     FlowsheetCase,
     MechanicalDesignArtifact,
     ModelSettings,
+    NarrativeRewriteArtifact,
     NarrativeArtifact,
     OperationsPlanningArtifact,
     DocumentFactCollectionArtifact,
@@ -41,6 +53,8 @@ from aoc.models import (
     RunStatus,
     IndianLocationDatum,
     ColumnDesign,
+    MissingDataAcceptanceArtifact,
+    RecycleBasisArtifact,
     RouteChemistryArtifact,
     RouteEconomicBasisArtifact,
     RouteOption,
@@ -50,8 +64,10 @@ from aoc.models import (
     RouteSelectionArtifact,
     RouteSiteFitArtifact,
     RouteSurveyArtifact,
+    SentencePatternLibrary,
     SiteSelectionArtifact,
     SiteOption,
+    ToneStyleRules,
     SourceDomain,
     SourceKind,
     SourceRecord,
@@ -69,6 +85,7 @@ from aoc.models import (
     UtilitySummaryArtifact,
 )
 from aoc.pipeline import PipelineRunner
+from aoc.properties.sources import match_benchmark_entry
 from aoc.reasoning import MockReasoningService
 from aoc.validators import validate_site_selection_consistency
 
@@ -99,6 +116,14 @@ class MissingPropertyRowCitationReasoningService(MockReasoningService):
         for item in artifact.properties:
             item.citations = []
             item.supporting_sources = []
+        return artifact
+
+
+class MissingCriticalBACPropertyReasoningService(MockReasoningService):
+    def build_product_profile(self, basis, sources, corpus):
+        artifact = super().build_product_profile(basis, sources, corpus)
+        artifact.citations = artifact.citations or [source.source_id for source in sources[:3]]
+        artifact.properties = [item for item in artifact.properties if item.name.strip().lower() == "molecular weight"]
         return artifact
 
 
@@ -231,6 +256,7 @@ class PipelineTests(unittest.TestCase):
         runner = PipelineRunner(self._config_from_example())
         state = self._run_to_completion(runner)
         process_description = runner.store.load_chapter(runner.config.project_id, "process_description")
+        process_flow_diagram = runner.store.load_chapter(runner.config.project_id, "process_flow_diagram")
         material_balance = runner.store.load_chapter(runner.config.project_id, "material_balance")
         process_selection = runner.store.load_chapter(runner.config.project_id, "process_selection")
         reactor_chapter = runner.store.load_chapter(runner.config.project_id, "reactor_design")
@@ -241,6 +267,9 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("Carbonate loop cleanup", process_description.rendered_markdown)
         self.assertIn("### Recycle Architecture", process_description.rendered_markdown)
         self.assertIn("Solver-derived process description", process_description.rendered_markdown)
+        self.assertIn("### Diagram Basis", process_flow_diagram.rendered_markdown)
+        self.assertIn("### Diagram Acceptance", process_flow_diagram.rendered_markdown)
+        self.assertIn("```diagram-svg", process_flow_diagram.rendered_markdown)
         self.assertIn("### Unit Packet Balance Summary", material_balance.rendered_markdown)
         self.assertIn("### Reaction Extent Allocation", material_balance.rendered_markdown)
         self.assertIn("### Overall Plant Balance Summary", material_balance.rendered_markdown)
@@ -629,6 +658,9 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("Recommended operating mode", storage_utilities_chapter.rendered_markdown)
         self.assertIn("Cost Proxy", storage_utilities_chapter.rendered_markdown)
         self.assertIn("### Control Philosophy", instrumentation_chapter.rendered_markdown)
+        self.assertIn("### Control System Diagram", instrumentation_chapter.rendered_markdown)
+        self.assertIn("```diagram-svg", instrumentation_chapter.rendered_markdown)
+        self.assertIn("Instrumented Process Flow Overlay", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Loop Objective Matrix", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Controlled and Manipulated Variable Register", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Startup, Shutdown, and Override Basis", instrumentation_chapter.rendered_markdown)
@@ -637,6 +669,8 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("### Control Loop Sheets", instrumentation_chapter.rendered_markdown)
         self.assertIn("Disturbance Basis", instrumentation_chapter.rendered_markdown)
         self.assertIn("Override / Permissive Basis", instrumentation_chapter.rendered_markdown)
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "control_system_sheet_1.svg").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "control_system_sheet_2.svg").exists())
         self.assertIn("### HAZOP Coverage Summary", hazop_chapter.rendered_markdown)
         self.assertIn("### HAZOP Node Basis", hazop_chapter.rendered_markdown)
         self.assertIn("### Critical Node Summary", hazop_chapter.rendered_markdown)
@@ -744,9 +778,25 @@ class PipelineTests(unittest.TestCase):
             self.assertIn("Utility-Island Burden (INR/y)", financial_analysis_chapter.rendered_markdown)
         pdf_path = runner.render()
         self.assertTrue(Path(pdf_path).exists())
+        final_report = runner._load("final_report", FinalReport)
         final_report_path = Path(self.temp_dir) / runner.config.project_id / "final_report.md"
+        final_report_raw_path = Path(self.temp_dir) / runner.config.project_id / "final_report_raw.md"
+        final_report_formatted_path = Path(self.temp_dir) / runner.config.project_id / "final_report_formatted.md"
+        final_report_formatted_html_path = Path(self.temp_dir) / runner.config.project_id / "final_report_formatted.html"
         self.assertTrue(final_report_path.exists())
+        self.assertTrue(final_report_raw_path.exists())
+        self.assertTrue(final_report_formatted_path.exists())
+        self.assertTrue(final_report_formatted_html_path.exists())
+        self.assertEqual(Path(final_report.raw_markdown_path).resolve(), final_report_raw_path.resolve())
+        self.assertEqual(Path(final_report.formatted_markdown_path).resolve(), final_report_formatted_path.resolve())
+        self.assertEqual(runner._load("benchmark_voice_profile", BenchmarkVoiceProfile).voice_id, "ict_home_paper_voice_v1")
+        self.assertEqual(runner._load("sentence_pattern_library", SentencePatternLibrary).voice_id, "ict_home_paper_voice_v1")
+        self.assertEqual(runner._load("tone_style_rules", ToneStyleRules).voice_id, "ict_home_paper_voice_v1")
+        rewrite_plan = runner._load("narrative_rewrite_plan", NarrativeRewriteArtifact)
+        self.assertGreater(rewrite_plan.aggressive_block_count, 0)
+        self.assertGreater(rewrite_plan.protected_block_count, 0)
         final_report_markdown = final_report_path.read_text()
+        formatted_report_markdown = final_report_formatted_path.read_text()
         self.assertIn("## Report Basis", final_report_markdown)
         self.assertIn("## Document Control", final_report_markdown)
         self.assertIn("## Preliminary Techno-Economic Feasibility Report", final_report_markdown)
@@ -755,14 +805,68 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("## Index", final_report_markdown)
         self.assertIn("## Appendix Index", final_report_markdown)
         self.assertIn("# 1. Executive Summary", final_report_markdown)
-        self.assertIn("# 28. References", final_report_markdown)
-        self.assertIn("# 29. Appendices and Annexures", final_report_markdown)
+        self.assertIn("# 29. References", final_report_markdown)
+        self.assertIn("# 30. Appendices and Annexures", final_report_markdown)
         self.assertIn("**Table 1.", final_report_markdown)
         self.assertIn("**Figure 1.", final_report_markdown)
         self.assertIn("## Appendix Navigation", final_report_markdown)
         self.assertIn("## Appendix A: Material Safety Data Sheet", final_report_markdown)
         self.assertIn("## Appendix B: Python Code and Reproducibility Bundle", final_report_markdown)
         self.assertIn("## Appendix C: Process Design Data Sheet", final_report_markdown)
+        self.assertIn("# Executive Summary", formatted_report_markdown)
+        self.assertIn("# Chapter 1: Introduction", formatted_report_markdown)
+        self.assertIn("# Chapter 2: Literature Survey", formatted_report_markdown)
+        self.assertIn("# Chapter 8: Process Flow Diagram", formatted_report_markdown)
+        self.assertIn("## List of Tables", formatted_report_markdown)
+        self.assertIn("## List of Figures", formatted_report_markdown)
+        self.assertIn("- Table 1.", formatted_report_markdown)
+        self.assertIn("# Appendices", formatted_report_markdown)
+        self.assertIn("Appendix A:", formatted_report_markdown)
+        self.assertIn("In keeping with the style of a plant-design home paper", formatted_report_markdown)
+        self.assertIn("The comparative route data used for selection are presented in the following table.", formatted_report_markdown)
+        self.assertIn("The adopted commercial basis for the report is summarized in the following table.", formatted_report_markdown)
+        self.assertIn("The tabulated financial indicators below form the basis for judging the economic strength of the selected process configuration.", formatted_report_markdown)
+        self.assertIn("The process-selection chapter uses comparative tables to support the engineering judgment leading to the final route choice.", formatted_report_markdown)
+        self.assertIn("In the present study, special emphasis is placed on the commercial basis of the product because it governs the subsequent process design.", formatted_report_markdown)
+        self.assertIn("At this stage of the report, the alternatives are judged not only by reaction chemistry but also by purification burden, operability, and overall plant practicality.", formatted_report_markdown)
+        self.assertIn("The foregoing table", formatted_report_markdown)
+        self.assertIn("From the above literature survey", formatted_report_markdown)
+        self.assertIn("The financial results are therefore interpreted together with the technical basis adopted for the selected plant configuration, rather than as isolated schedule values.", formatted_report_markdown)
+        self.assertIn("The material-balance chapter records the solved stream results in tabulated form so that the plant-wide basis and the unit-wise material movement remain transparent.", formatted_report_markdown)
+        self.assertIn("The financial chapter presents the principal indicators in tabulated form and then interprets them from the standpoint of engineering feasibility.", formatted_report_markdown)
+        self.assertIn("Final Route Selection", formatted_report_markdown)
+        self.assertIn("Appendix", formatted_report_markdown)
+        self.assertIn("Detailed calculation traces and supporting technical tables for this chapter are presented in the appendices.", formatted_report_markdown)
+        self.assertIn("From the foregoing comparison, the relative strengths and limitations of the candidate routes can be read directly before arriving at the preferred process choice.", formatted_report_markdown)
+        self.assertTrue(runner._load("formatted_report", FormattedReportArtifact).formatted_html)
+        formatted_report_html = final_report_formatted_html_path.read_text()
+        self.assertNotIn("<li>*Recommendation:**", formatted_report_html)
+        self.assertNotIn("<li>*1. Analysis Summary:**", formatted_report_html)
+        self.assertIn("<diagram-sheet class='landscape full-page'>", formatted_report_html)
+        self.assertIn("<div class='diagram-sheet-figure'><svg", formatted_report_html)
+        self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "bfd_sheet_1.svg").exists())
+        self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "pfd_sheet_1.svg").exists())
+        self.assertIn(
+            runner._load("formatter_acceptance", FormatterAcceptanceArtifact).overall_status.value,
+            {"conditional", "complete"},
+        )
+        parity = runner._load("formatter_parity", FormatterParityArtifact)
+        acceptance = runner._load("formatter_acceptance", FormatterAcceptanceArtifact)
+        self.assertGreaterEqual(parity.numeric_preservation_ratio, 0.95)
+        self.assertGreater(parity.overall_parity_score, 0.6)
+        self.assertGreater(parity.table_figure_parity_score, 0.6)
+        self.assertGreater(parity.typography_layout_score, 0.6)
+        self.assertIn(acceptance.benchmark_parity_status.value, {"conditional", "complete"})
+        pdf_doc = fitz.open(pdf_path)
+        pdf_fonts = {
+            span["font"]
+            for page in pdf_doc
+            for block in page.get_text("dict")["blocks"]
+            for line in block.get("lines", [])
+            for span in line.get("spans", [])
+        }
+        pdf_doc.close()
+        self.assertTrue(any("Roman" in font for font in pdf_fonts))
         self.assertIn("## Annexure I: Evidence and Source Basis", final_report_markdown)
         self.assertIn("## Annexure II: Property and Thermodynamic Registers", final_report_markdown)
         self.assertIn("## Annexure V: Equipment, Utility, and Financial Registers", final_report_markdown)
@@ -991,6 +1095,12 @@ class PipelineTests(unittest.TestCase):
         impurity_model = runner._load("bac_impurity_model", BACImpurityModelArtifact)
         consistency = runner._load("unit_train_consistency", UnitTrainConsistencyArtifact)
         data_reality = runner._load("data_reality_audit", DataRealityAuditArtifact)
+        data_gap_registry = runner._load("data_gap_registry", DataGapRegistryArtifact)
+        pseudo_component_basis = runner._load("bac_pseudo_component_basis", BACPseudoComponentBasisArtifact)
+        pair_coverage = runner._load("binary_pair_coverage", BinaryPairCoverageArtifact)
+        impurity_ledger = runner._load("bac_impurity_ledger", BACImpurityLedgerArtifact)
+        recycle_basis = runner._load("recycle_basis", RecycleBasisArtifact)
+        missing_data_acceptance = runner._load("missing_data_acceptance", MissingDataAcceptanceArtifact)
         report_acceptance = runner._load("report_acceptance", ReportAcceptanceArtifact)
         thermo_chapter = next(chapter for chapter in thermo_result.chapters if chapter.chapter_id == "thermodynamic_feasibility")
         material_chapter = next(chapter for chapter in material_result.chapters if chapter.chapter_id == "material_balance")
@@ -1004,6 +1114,12 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(impurity_model.items)
         self.assertIn(consistency.overall_status, {"pass", "warning"})
         self.assertGreater(len(data_reality.rows), 0)
+        self.assertGreaterEqual(len(data_gap_registry.items), 5)
+        self.assertTrue(pseudo_component_basis.active_nonvolatile)
+        self.assertTrue(pair_coverage.rows)
+        self.assertTrue(impurity_ledger.items)
+        self.assertTrue(recycle_basis.loops)
+        self.assertIn(missing_data_acceptance.overall_status.value, {"conditional", "blocked", "complete"})
         self.assertNotIn("product_profile", data_reality.critical_seeded_artifact_refs)
         self.assertNotIn("commercial_product_basis", data_reality.critical_seeded_artifact_refs)
         self.assertNotIn("property_packages", data_reality.critical_seeded_artifact_refs)
@@ -1315,3 +1431,29 @@ class PipelineTests(unittest.TestCase):
         artifact = runner._load("product_profile", ProductProfileArtifact)
         self.assertTrue(artifact.properties)
         self.assertTrue(all(item.supporting_sources or item.citations for item in artifact.properties))
+
+    def test_bac_product_profile_synthesizes_required_unavailability_rows_when_live_model_omits_them(self):
+        runner = PipelineRunner(self._bac_benchmark_config())
+        runner.reasoning = MissingCriticalBACPropertyReasoningService()
+        runner._run_project_intake()
+        result = runner._run_product_profile()
+
+        self.assertFalse(any(issue.code == "missing_critical_properties" for issue in result.issues))
+        artifact = runner._load("product_profile", ProductProfileArtifact)
+        property_names = {item.name.strip().lower() for item in artifact.properties}
+        self.assertIn("melting point", property_names)
+        self.assertIn("boiling point", property_names)
+        self.assertIn("density", property_names)
+        synthesized = {item.name: item for item in artifact.properties if item.name in {"Melting Point", "Boiling Point", "Density"}}
+        self.assertTrue(all(item.value == "Not Available" for item in synthesized.values()))
+        self.assertTrue(all(item.supporting_sources or item.citations for item in synthesized.values()))
+
+    def test_property_library_matches_common_solvents_and_formulation_water_aliases(self):
+        for name in ("Acetonitrile", "Butanone", "Water (for final formulation)"):
+            key, entry = match_benchmark_entry(name)
+            self.assertIsNotNone(key)
+            self.assertIsNotNone(entry)
+            self.assertIn("properties", entry)
+            self.assertIn("molecular_weight", entry["properties"])
+            self.assertIn("normal_boiling_point", entry["properties"])
+            self.assertIn("liquid_density", entry["properties"])

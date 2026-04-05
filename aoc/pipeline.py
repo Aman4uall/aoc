@@ -37,6 +37,15 @@ from aoc.decision_engine import (
     select_route_architecture,
     selected_heat_case,
 )
+from aoc.diagrams import (
+    build_block_flow_diagram,
+    build_control_system_diagram,
+    build_diagram_acceptance,
+    build_diagram_style_profile,
+    build_diagram_target_profile,
+    build_process_flow_diagram,
+    diagram_svg_fence,
+)
 from aoc.document_facts import build_document_fact_collection, build_document_process_options
 from aoc.critics import merge_critic_registry
 from aoc.economics_v2 import (
@@ -54,6 +63,16 @@ from aoc.economics_v2 import (
 )
 from aoc.evidence import build_resolved_source_set, build_resolved_value_artifact, extend_resolved_value_artifact
 from aoc.family_adapters import build_chemistry_family_adapter
+from aoc.formatter import (
+    build_benchmark_style_profile,
+    build_benchmark_voice_profile,
+    build_formatted_report_package,
+    build_formatter_target_profile,
+    build_narrative_rewrite_artifact,
+    build_semantic_report_artifact,
+    build_sentence_pattern_library,
+    build_tone_style_rules,
+)
 from aoc.flowsheet_blueprint import (
     build_process_narrative_from_blueprint,
     build_unit_train_candidate_set,
@@ -73,17 +92,28 @@ from aoc.route_chemistry import build_property_demand_plan, build_route_chemistr
 from aoc.route_planning import build_route_selection_comparison
 from aoc.report_parity import build_report_parity_framework, evaluate_report_acceptance, evaluate_report_parity
 from aoc.scientific_inference import (
+    build_bac_binary_pair_coverage_artifact,
+    build_bac_data_gap_registry_artifact,
+    build_bac_estimation_policy_artifact,
     build_bac_impurity_model_artifact,
+    build_bac_impurity_ledger_artifact,
+    build_bac_kinetic_basis_artifact,
+    build_bac_pseudo_component_basis_artifact,
     build_bac_purification_section_artifact,
+    build_bac_section_thermo_assignment_artifact,
     build_claim_graph_artifact,
     build_commercial_product_basis_artifact,
     build_data_reality_audit_artifact,
     build_design_confidence_artifact,
+    build_economic_input_reality_artifact,
     build_economic_coverage_decision,
     build_flowsheet_intent_artifact,
     build_inference_question_queue,
     build_kinetics_admissibility_artifact,
+    build_missing_data_acceptance_artifact,
     build_reaction_network_v2_artifact,
+    build_reactor_basis_confidence_artifact,
+    build_recycle_basis_artifact,
     build_route_process_claims_artifact,
     build_revision_ledger,
     build_scientific_gate_matrix_artifact,
@@ -94,9 +124,12 @@ from aoc.scientific_inference import (
 )
 from aoc.models import (
     AgentDecisionFabricArtifact,
+    BACImpurityLedgerArtifact,
     BACImpurityModelArtifact,
     BACPurificationSectionArtifact,
+    BACPseudoComponentBasisArtifact,
     BenchmarkManifest,
+    BlockFlowDiagramArtifact,
     ChapterArtifact,
     ChemistryFamilyAdapter,
     ChemistryDecisionArtifact,
@@ -107,19 +140,27 @@ from aoc.models import (
     ColumnHydraulics,
     ControlArchitectureDecision,
     ControlPlanArtifact,
+    ControlSystemDiagramArtifact,
     CostModel,
     CriticRegistryArtifact,
+    DataGapRegistryArtifact,
     DataRealityAuditArtifact,
     DebtSchedule,
     DecisionRecord,
     DocumentFactCollectionArtifact,
     DocumentProcessOptionsArtifact,
     EconomicCoverageDecision,
+    EconomicInputRealityArtifact,
     EquipmentDatasheet,
     EconomicScenarioModel,
     EnergyBalance,
     EquipmentListArtifact,
     FinalReport,
+    FormattedReportArtifact,
+    FormatterAcceptanceArtifact,
+    FormatterDecisionArtifact,
+    FormatterParityArtifact,
+    FormatterTargetProfile,
     FinancialModel,
     FinancialSchedule,
     FlowsheetGraph,
@@ -135,12 +176,14 @@ from aoc.models import (
     HeatExchangerDesign,
     HeatIntegrationStudyArtifact,
     KineticAssessmentArtifact,
+    KineticBasisArtifact,
     KineticsAdmissibilityArtifact,
     LayoutDecisionArtifact,
     MarketAssessmentArtifact,
     MechanicalDesignArtifact,
     MechanicalDesignBasis,
     MethodSelectionArtifact,
+    BenchmarkStyleProfile,
     NarrativeArtifact,
     OperationsPlanningArtifact,
     PlantCostSummary,
@@ -149,6 +192,7 @@ from aoc.models import (
     ProcessSelectionComparisonArtifact,
     ProcessSynthesisArtifact,
     ProcessNarrativeArtifact,
+    PropertyRecord,
     PropertyDemandPlan,
     PropertyGapArtifact,
     ProductProfileArtifact,
@@ -156,6 +200,7 @@ from aoc.models import (
     ProjectConfig,
     ProjectRunState,
     RealDataMode,
+    MissingDataAcceptanceArtifact,
     ReportAcceptanceArtifact,
     ReportAcceptanceStatus,
     ReportParityArtifact,
@@ -164,6 +209,7 @@ from aoc.models import (
     ReactionNetworkV2Artifact,
     ReactionSystem,
     ReactorDesign,
+    ReactorBasisConfidenceArtifact,
     ReactorDesignBasis,
     ResearchBundle,
     ResolvedSourceSet,
@@ -193,10 +239,12 @@ from aoc.models import (
     SiteSelectionArtifact,
     StorageDesign,
     StreamTable,
+    EstimationPolicy,
     TaxDepreciationBasis,
     ThermoAssessmentArtifact,
     ThermoAdmissibilityArtifact,
     TopologyCandidateArtifact,
+    SemanticReportArtifact,
     UnitTrainConsistencyArtifact,
     UnitTrainCandidateSet,
     UtilityArchitectureDecision,
@@ -209,7 +257,11 @@ from aoc.models import (
     SpeciesResolutionArtifact,
     InferenceQuestionQueueArtifact,
     DesignConfidenceArtifact,
+    DiagramAcceptanceArtifact,
+    DiagramStyleProfile,
+    DiagramTargetProfile,
     utc_now,
+    ProcessFlowDiagramArtifact,
 )
 from aoc.operations import build_operating_mode_and_operations
 from aoc.properties import (
@@ -227,7 +279,7 @@ from aoc.properties import (
     property_value_records,
 )
 from aoc.properties.sources import is_valid_property_identifier_name, normalize_chemical_name
-from aoc.publish import annexures_markdown, assemble_report, markdown_table, references_markdown, render_pdf
+from aoc.publish import annexures_markdown, assemble_report, markdown_table, references_markdown, render_academic_pdf, render_pdf, render_styled_pdf
 from aoc.reasoning import MockReasoningService, build_reasoning_service
 from aoc.research import ResearchManager
 from aoc.selectors import (
@@ -280,6 +332,7 @@ from aoc.validators import (
     validate_kinetics_method_critics,
     validate_financing_operability_critics,
     validate_mechanical_design_artifact,
+    validate_missing_data_acceptance_artifact,
     validate_phase_feasibility,
     validate_property_method_decision,
     validate_property_package_artifact,
@@ -409,7 +462,7 @@ STAGES = [
     StageSpec("cost_of_production", "Cost of production", ("cost_model", "market_assessment"), ("cost_model",)),
     StageSpec("working_capital", "Working capital", ("cost_model", "market_assessment", "operations_planning"), ("working_capital_model",)),
     StageSpec("financial_analysis", "Financial analysis", ("cost_model", "working_capital_model", "market_assessment"), ("financial_model", "economic_basis_decision", "financing_basis_decision", "economic_scenarios", "debt_schedule", "tax_depreciation_basis", "financial_schedule"), "india_cost_basis", "India Cost Basis", "Approve India site and economics basis before final assembly."),
-    StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report", "report_parity", "report_acceptance", "unit_train_consistency"), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
+    StageSpec("final_report", "Final report assembly", ("product_profile", "financial_model"), ("final_report", "report_parity", "report_acceptance", "unit_train_consistency", "benchmark_style_profile", "benchmark_voice_profile", "sentence_pattern_library", "tone_style_rules", "formatter_target_profile", "semantic_report", "narrative_rewrite_plan", "formatted_report", "formatter_decision", "formatter_parity", "formatter_acceptance"), "final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released."),
 ]
 
 
@@ -556,14 +609,41 @@ class PipelineRunner:
         gate = state.gates.get("final_signoff")
         if not gate or gate.status != GateStatus.APPROVED:
             raise RuntimeError("Final signoff is required before PDF rendering.")
+        final_report = self.store.maybe_load_model(self.config.project_id, "artifacts/final_report.json", FinalReport)
         markdown_path = self.store.project_dir(self.config.project_id) / "final_report.md"
         if not markdown_path.exists():
             raise RuntimeError("Final markdown report does not exist yet.")
+        formatted_markdown_path = self.store.project_dir(self.config.project_id) / "final_report_formatted.md"
+        formatted_html_path = self.store.project_dir(self.config.project_id) / "final_report_formatted.html"
         pdf_path = self.store.project_dir(self.config.project_id) / "final_report.pdf"
-        render_pdf(markdown_path.read_text(encoding="utf-8"), str(pdf_path), f"{self.config.basis.target_product} Plant Design Report")
-        final_report = self.store.maybe_load_model(self.config.project_id, "artifacts/final_report.json", FinalReport)
+        formatted_pdf_path = self.store.project_dir(self.config.project_id) / "final_report_formatted.pdf"
+        if formatted_html_path.exists():
+            render_styled_pdf(
+                formatted_html_path.read_text(encoding="utf-8"),
+                str(formatted_pdf_path),
+                f"{self.config.basis.target_product} Plant Design Report",
+                header_text=f"{self.config.basis.target_product} Academic Report",
+            )
+            self.store.save_text(
+                self.config.project_id,
+                "final_report_render_source.md",
+                formatted_markdown_path.read_text(encoding="utf-8") if formatted_markdown_path.exists() else markdown_path.read_text(encoding="utf-8"),
+            )
+            pdf_path.write_bytes(formatted_pdf_path.read_bytes())
+        elif formatted_markdown_path.exists():
+            render_academic_pdf(
+                formatted_markdown_path.read_text(encoding="utf-8"),
+                str(formatted_pdf_path),
+                f"{self.config.basis.target_product} Plant Design Report",
+                header_text=f"{self.config.basis.target_product} Academic Report",
+            )
+            self.store.save_text(self.config.project_id, "final_report_render_source.md", formatted_markdown_path.read_text(encoding="utf-8") if formatted_markdown_path.exists() else markdown_path.read_text(encoding="utf-8"))
+            pdf_path.write_bytes(formatted_pdf_path.read_bytes())
+        else:
+            render_pdf(markdown_path.read_text(encoding="utf-8"), str(pdf_path), f"{self.config.basis.target_product} Plant Design Report")
         if final_report:
             final_report.pdf_path = str(pdf_path)
+            final_report.formatted_pdf_path = str(formatted_pdf_path) if formatted_markdown_path.exists() else None
             self.store.save_model(self.config.project_id, "artifacts/final_report.json", final_report)
         return str(pdf_path)
 
@@ -642,6 +722,8 @@ class PipelineRunner:
         property_demand_plan = self.store.maybe_load_model(self.config.project_id, "artifacts/property_demand_plan.json", PropertyDemandPlan)
         property_requirements = self.store.maybe_load_model(self.config.project_id, "artifacts/property_requirements.json", PropertyRequirementSet)
         separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
+        bac_purification_sections = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_purification_sections.json", BACPurificationSectionArtifact)
+        bac_impurity_model = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_impurity_model.json", BACImpurityModelArtifact)
         agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
         critic_registry = self.store.maybe_load_model(self.config.project_id, "artifacts/critic_registry.json", CriticRegistryArtifact)
         process_archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
@@ -1444,6 +1526,8 @@ class PipelineRunner:
         bac_impurity_model = self._maybe_load("bac_impurity_model", BACImpurityModelArtifact)
         economic_coverage = self._maybe_load("economic_coverage", EconomicCoverageDecision)
         cost_model = self._maybe_load("cost_model", CostModel)
+        market_assessment = self._maybe_load("market_assessment", MarketAssessmentArtifact)
+        route_economic_basis = self._maybe_load("route_economic_basis", RouteEconomicBasisArtifact)
         data_reality_audit = build_data_reality_audit_artifact(
             self.config,
             resolved_sources,
@@ -1459,6 +1543,45 @@ class PipelineRunner:
         )
         if data_reality_audit is not None:
             self._save("data_reality_audit", data_reality_audit)
+        estimation_policy = build_bac_estimation_policy_artifact() if (self.config.benchmark_profile or "").strip().lower() == "benzalkonium_chloride" else None
+        pseudo_component_basis = build_bac_pseudo_component_basis_artifact(self.config.basis, self._maybe_load("product_profile", ProductProfileArtifact), property_packages)
+        pair_coverage = build_bac_binary_pair_coverage_artifact(route_selection, property_packages, self._maybe_load("separation_thermo", SeparationThermoArtifact))
+        section_thermo_assignment = build_bac_section_thermo_assignment_artifact(self._maybe_load("flowsheet_blueprint", FlowsheetBlueprintArtifact), bac_purification_sections, self._maybe_load("separation_thermo", SeparationThermoArtifact))
+        kinetic_basis = build_bac_kinetic_basis_artifact(route_selection, self._maybe_load("kinetic_assessment", KineticAssessmentArtifact))
+        reactor_basis_confidence = build_reactor_basis_confidence_artifact(kinetic_basis, self._maybe_load("reactor_design", ReactorDesign))
+        impurity_ledger = build_bac_impurity_ledger_artifact(bac_impurity_model)
+        recycle_basis = build_recycle_basis_artifact(self._maybe_load("stream_table", StreamTable))
+        economic_input_reality = build_economic_input_reality_artifact(cost_model, route_economic_basis, market_assessment)
+        data_gap_registry = build_bac_data_gap_registry_artifact(
+            self.config,
+            pseudo_component_basis,
+            pair_coverage,
+            kinetic_basis,
+            impurity_ledger,
+            recycle_basis,
+            economic_input_reality,
+        )
+        missing_data_acceptance = build_missing_data_acceptance_artifact(
+            data_gap_registry,
+            pair_coverage,
+            impurity_ledger,
+            economic_input_reality,
+        )
+        for artifact_id, built_artifact in [
+            ("estimation_policy", estimation_policy),
+            ("bac_pseudo_component_basis", pseudo_component_basis),
+            ("binary_pair_coverage", pair_coverage),
+            ("section_thermo_assignment", section_thermo_assignment),
+            ("kinetic_basis", kinetic_basis),
+            ("reactor_basis_confidence", reactor_basis_confidence),
+            ("bac_impurity_ledger", impurity_ledger),
+            ("recycle_basis", recycle_basis),
+            ("economic_input_reality", economic_input_reality),
+            ("data_gap_registry", data_gap_registry),
+            ("missing_data_acceptance", missing_data_acceptance),
+        ]:
+            if built_artifact is not None:
+                self._save(artifact_id, built_artifact)
 
         route_evidence_status = "not_evaluated"
         if process_selection_comparison is not None and route_selection is not None:
@@ -1566,6 +1689,18 @@ class PipelineRunner:
                     if "real_data_policy_blocked" not in updated_blocking_issue_codes:
                         updated_blocking_issue_codes.append("real_data_policy_blocked")
                     updated_conditional_notes.append(real_data_note)
+        if missing_data_acceptance is not None:
+            if missing_data_acceptance.overall_status == ReportAcceptanceStatus.BLOCKED:
+                updated_overall_status = ReportAcceptanceStatus.BLOCKED
+                updated_blocked_stage = updated_blocked_stage or "report_acceptance"
+                if "missing_data_policy_blocked" not in updated_blocking_issue_codes:
+                    updated_blocking_issue_codes.append("missing_data_policy_blocked")
+            elif (
+                missing_data_acceptance.overall_status == ReportAcceptanceStatus.CONDITIONAL
+                and updated_overall_status != ReportAcceptanceStatus.BLOCKED
+            ):
+                updated_overall_status = ReportAcceptanceStatus.CONDITIONAL
+            updated_conditional_notes.append(missing_data_acceptance.summary)
 
         artifact = artifact.model_copy(
             update={
@@ -1586,6 +1721,7 @@ class PipelineRunner:
                     f"unit-train consistency={unit_train_consistency_status}; purification rigor={purification_rigor_status}; "
                     f"economic realism={economic_realism_status}; real-data status={real_data_status} "
                     f"({real_data_coverage_fraction:.1%} critical real coverage). "
+                    f"{missing_data_acceptance.summary if missing_data_acceptance is not None else ''} "
                     f"{real_data_note}".strip()
                 ).strip(),
             }
@@ -1772,6 +1908,56 @@ class PipelineRunner:
         if citation_repaired:
             artifact.assumptions.append(
                 "Per-property product-profile citations were inherited from the cited product-profile sources when the model omitted row-level source ids."
+            )
+        if self.config.benchmark_profile != "benzalkonium_chloride":
+            return
+        observed = {item.name.strip().lower() for item in getattr(artifact, "properties", [])}
+        fallback_support = list(
+            dict.fromkeys(
+                fallback_citations
+                or [
+                    source.source_id
+                    for source in getattr(self._maybe_load("research_bundle", ResearchBundle), "sources", [])
+                    if source.source_domain.value in {"technical", "safety", "market", "regulatory"}
+                ]
+            )
+        )
+        synthesized = False
+        for name, units, note in (
+            (
+                "Melting Point",
+                "°C",
+                "Physical property for the pure BAC active or a standardized commercial homolog mixture is not directly available in the cited source set.",
+            ),
+            (
+                "Boiling Point",
+                "°C",
+                "BAC active is treated as effectively nonvolatile in the process basis; a true boiling point for the commercial homolog mixture is not directly available in the cited source set.",
+            ),
+            (
+                "Density",
+                "g/cm³",
+                "A directly sourced density for the exact benchmark commercial basis is not available in the cited source set and is handled later through the BAC pseudo-component basis.",
+            ),
+        ):
+            if name.lower() in observed:
+                continue
+            artifact.properties.append(
+                PropertyRecord(
+                    name=name,
+                    value="Not Available",
+                    units=units,
+                    basis=None,
+                    method=ProvenanceTag.SOURCED,
+                    supporting_sources=list(fallback_support),
+                    citations=list(fallback_support),
+                    assumptions=[note],
+                )
+            )
+            synthesized = True
+        if synthesized:
+            artifact.assumptions.append(
+                "Required BAC product-profile rows for melting point, boiling point, and density were synthesized as explicit sourced unavailability records when the live model omitted them, so the report surfaces the data gap instead of failing silently."
             )
 
     @staticmethod
@@ -4905,20 +5091,45 @@ class PipelineRunner:
         artifact = self._ensure_process_narrative()
         route = self._selected_route()
         route_selection = self._load("route_selection", RouteSelectionArtifact)
-        chapter_citations = artifact.citations or route.citations or route_selection.citations
-        markdown = f"```mermaid\n{artifact.bfd_mermaid}\n```"
-        chapter = self._chapter(
+        flowsheet_blueprint = self._load("flowsheet_blueprint", FlowsheetBlueprintArtifact)
+        diagram_style = build_diagram_style_profile()
+        diagram_target = build_diagram_target_profile(self.config.basis)
+        bfd = build_block_flow_diagram(flowsheet_blueprint, diagram_style, diagram_target)
+        bfd_acceptance = build_diagram_acceptance(
+            diagram_kind="bfd",
+            diagram_id=bfd.diagram_id,
+            nodes=bfd.nodes,
+            edges=bfd.edges,
+            target=diagram_target,
+            blueprint=flowsheet_blueprint,
+        )
+        self._save("diagram_style_profile", diagram_style)
+        self._save("diagram_target_profile", diagram_target)
+        self._save("block_flow_diagram_artifact", bfd)
+        self._save("block_flow_diagram_acceptance", bfd_acceptance)
+        for index, sheet in enumerate(bfd.sheets, start=1):
+            self.store.save_text(self.config.project_id, f"diagrams/bfd_sheet_{index}.svg", sheet.svg)
+        chapter_citations = sorted(set(bfd.citations or artifact.citations or route.citations or route_selection.citations))
+        markdown = "\n\n".join(
+            [
+                bfd.markdown.strip(),
+                *(f"### {sheet.title}\n\n{diagram_svg_fence(sheet.svg)}" for sheet in bfd.sheets),
+                "### Diagram Acceptance\n\n" + bfd_acceptance.markdown.strip(),
+                "### Debug Mermaid Fallback\n\n```mermaid\n" + bfd.mermaid_fallback + "\n```",
+            ]
+        )
+        bfd_chapter = self._chapter(
             "block_flow_diagram",
             "Block Flow Diagram",
             "block_diagram",
             markdown,
             chapter_citations,
-            artifact.assumptions,
-            ["process_narrative"],
+            bfd.assumptions + bfd_acceptance.assumptions,
+            ["process_narrative", "block_flow_diagram_artifact", "block_flow_diagram_acceptance"],
             required_inputs=["route_selection", "route_survey", "research_bundle"],
         )
-        issues = self._chapter_issues(chapter)
-        return StageResult(chapters=[chapter], issues=issues)
+        issues = self._chapter_issues(bfd_chapter)
+        return StageResult(chapters=[bfd_chapter], issues=issues)
 
     def _run_process_description(self) -> StageResult:
         artifact = self._ensure_process_narrative()
@@ -4989,6 +5200,34 @@ class PipelineRunner:
         self._save("flowsheet_case", flowsheet_case)
         if bac_impurity_model is not None:
             self._save("bac_impurity_model", bac_impurity_model)
+        diagram_style = build_diagram_style_profile()
+        diagram_target = build_diagram_target_profile(self.config.basis)
+        equipment_for_pfd = self._maybe_load("equipment_list", EquipmentListArtifact)
+        pfd = build_process_flow_diagram(
+            flowsheet_graph,
+            flowsheet_case,
+            stream_table,
+            equipment_for_pfd,
+            None,
+            diagram_style,
+            diagram_target,
+            self._maybe_load("control_plan", ControlPlanArtifact),
+        )
+        pfd_acceptance = build_diagram_acceptance(
+            diagram_kind="pfd",
+            diagram_id=pfd.diagram_id,
+            nodes=pfd.nodes,
+            edges=pfd.edges,
+            target=diagram_target,
+            flowsheet_graph=flowsheet_graph,
+            flowsheet_case=flowsheet_case,
+        )
+        self._save("diagram_style_profile", diagram_style)
+        self._save("diagram_target_profile", diagram_target)
+        self._save("process_flow_diagram_artifact", pfd)
+        self._save("process_flow_diagram_acceptance", pfd_acceptance)
+        for index, sheet in enumerate(pfd.sheets, start=1):
+            self.store.save_text(self.config.project_id, f"diagrams/pfd_sheet_{index}.svg", sheet.svg)
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = extend_resolved_value_artifact(resolved_values, reaction_system.value_records, resolved_sources, self.config, "material_balance_reaction_system")
@@ -5016,6 +5255,24 @@ class PipelineRunner:
             required_inputs=["route_selection", "kinetic_assessment", "process_narrative"],
             summary="Solver-derived process description refreshed from solved unit packets, separation packets, and recycle loops.",
         )
+        pfd_markdown = "\n\n".join(
+            [
+                pfd.markdown.strip(),
+                *(f"### {sheet.title}\n\n{diagram_svg_fence(sheet.svg)}" for sheet in pfd.sheets),
+                "### Diagram Acceptance\n\n" + pfd_acceptance.markdown.strip(),
+            ]
+        )
+        process_flow_diagram_chapter = self._chapter(
+            "process_flow_diagram",
+            "Process Flow Diagram",
+            "material_balance",
+            pfd_markdown,
+            sorted(set(pfd.citations + stream_table.citations + flowsheet_graph.citations)),
+            pfd.assumptions + pfd_acceptance.assumptions,
+            ["process_flow_diagram_artifact", "process_flow_diagram_acceptance", "flowsheet_graph", "flowsheet_case"],
+            required_inputs=["route_selection", "kinetic_assessment", "process_narrative"],
+            summary="Equipment-level process flow diagram regenerated from the solved flowsheet graph, stream topology, and recycle structure.",
+        )
         issues = (
             validate_reaction_system(reaction_system)
             + validate_stream_table(stream_table)
@@ -5026,8 +5283,9 @@ class PipelineRunner:
             + self._value_issues(stream_table, "stream_table")
             + self._chapter_issues(chapter)
             + self._chapter_issues(process_description_chapter)
+            + self._chapter_issues(process_flow_diagram_chapter)
         )
-        return StageResult(chapters=[process_description_chapter, chapter], issues=issues)
+        return StageResult(chapters=[process_description_chapter, process_flow_diagram_chapter, chapter], issues=issues)
 
     def _run_energy_balance(self) -> StageResult:
         route = self._selected_route()
@@ -6472,7 +6730,9 @@ class PipelineRunner:
         equipment = self._load("equipment_list", EquipmentListArtifact)
         utilities = self._load("utility_summary", UtilitySummaryArtifact)
         flowsheet_graph = self._load("flowsheet_graph", FlowsheetGraph)
+        flowsheet_case = self._maybe_load("flowsheet_case", FlowsheetCase)
         route = self._selected_route()
+        diagram_style = build_diagram_style_profile()
         artifact = build_control_plan_from_flowsheet(route, equipment, utilities, flowsheet_graph)
         control_architecture = build_control_architecture_decision(
             route,
@@ -6481,8 +6741,12 @@ class PipelineRunner:
             artifact,
             flowsheet_graph,
         )
+        control_diagram = build_control_system_diagram(artifact, control_architecture, flowsheet_graph, diagram_style, flowsheet_case)
         self._save("control_plan", artifact)
         self._save("control_architecture", control_architecture)
+        self._save("control_system_diagram_artifact", control_diagram)
+        for index, sheet in enumerate(control_diagram.sheets, start=1):
+            self.store.save_text(self.config.project_id, f"diagrams/control_system_sheet_{index}.svg", sheet.svg)
         self._refresh_agent_fabric()
         rows = [
             [
@@ -6554,6 +6818,8 @@ class PipelineRunner:
         ]
         markdown = (
             artifact.markdown
+            + "\n\n### Control System Diagram\n\n"
+            + "\n\n".join(diagram_svg_fence(sheet.svg) for sheet in control_diagram.sheets)
             + "\n\n### Control Philosophy\n\n"
             + markdown_table(
                 ["Parameter", "Value"],
@@ -6604,8 +6870,8 @@ class PipelineRunner:
             "instrumentation_control",
             markdown,
             artifact.citations or control_architecture.citations or equipment.citations or utilities.citations,
-            artifact.assumptions + control_architecture.assumptions,
-            ["control_plan", "control_architecture"],
+            artifact.assumptions + control_architecture.assumptions + control_diagram.assumptions,
+            ["control_plan", "control_architecture", "control_system_diagram_artifact"],
             required_inputs=["equipment_list", "utility_summary", "flowsheet_graph"],
         )
         issues = validate_control_plan(artifact) + validate_control_architecture(control_architecture) + self._chapter_issues(chapter)
@@ -8042,6 +8308,8 @@ class PipelineRunner:
         property_packages = self.store.maybe_load_model(self.config.project_id, "artifacts/property_packages.json", PropertyPackageArtifact)
         property_requirements = self.store.maybe_load_model(self.config.project_id, "artifacts/property_requirements.json", PropertyRequirementSet)
         separation_thermo = self.store.maybe_load_model(self.config.project_id, "artifacts/separation_thermo.json", SeparationThermoArtifact)
+        bac_purification_sections = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_purification_sections.json", BACPurificationSectionArtifact)
+        bac_impurity_model = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_impurity_model.json", BACImpurityModelArtifact)
         agent_fabric = self.store.maybe_load_model(self.config.project_id, "artifacts/agent_decision_fabric.json", AgentDecisionFabricArtifact)
         critic_registry = self.store.maybe_load_model(self.config.project_id, "artifacts/critic_registry.json", CriticRegistryArtifact)
         process_archetype = self.store.maybe_load_model(self.config.project_id, "artifacts/process_archetype.json", ProcessArchetype)
@@ -8084,10 +8352,12 @@ class PipelineRunner:
         working_capital = self._load("working_capital_model", WorkingCapitalModel)
         financial = self._load("financial_model", FinancialModel)
         economic_scenarios = self.store.maybe_load_model(self.config.project_id, "artifacts/economic_scenarios.json", EconomicScenarioModel)
+        route_economic_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/route_economic_basis.json", RouteEconomicBasisArtifact)
         debt_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/debt_schedule.json", DebtSchedule)
         tax_depreciation_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/tax_depreciation_basis.json", TaxDepreciationBasis)
         financial_schedule = self.store.maybe_load_model(self.config.project_id, "artifacts/financial_schedule.json", FinancialSchedule)
         route_decision = self.store.maybe_load_model(self.config.project_id, "artifacts/route_decision.json", DecisionRecord)
+        route_selection = self.store.maybe_load_model(self.config.project_id, "artifacts/route_selection.json", RouteSelectionArtifact)
         reaction_system = self._load("reaction_system", ReactionSystem)
         reactor = self._load("reactor_design", ReactorDesign)
         reactor_basis = self.store.maybe_load_model(self.config.project_id, "artifacts/reactor_design_basis.json", ReactorDesignBasis)
@@ -8100,6 +8370,45 @@ class PipelineRunner:
         equipment_datasheets = self.store.maybe_load_model(self.config.project_id, "artifacts/equipment_datasheets.json", NarrativeArtifact)
         site = self._load("site_selection", SiteSelectionArtifact)
         bundle = self._load("research_bundle", ResearchBundle)
+        estimation_policy = build_bac_estimation_policy_artifact() if (self.config.benchmark_profile or "").strip().lower() == "benzalkonium_chloride" else None
+        pseudo_component_basis = build_bac_pseudo_component_basis_artifact(self.config.basis, product_profile, property_packages)
+        pair_coverage = build_bac_binary_pair_coverage_artifact(route_selection, property_packages, separation_thermo)
+        kinetic_basis = build_bac_kinetic_basis_artifact(route_selection, self.store.maybe_load_model(self.config.project_id, "artifacts/kinetic_assessment.json", KineticAssessmentArtifact))
+        reactor_basis_confidence = build_reactor_basis_confidence_artifact(kinetic_basis, reactor)
+        impurity_ledger = build_bac_impurity_ledger_artifact(bac_impurity_model)
+        recycle_basis = build_recycle_basis_artifact(stream_table)
+        section_thermo_assignment = build_bac_section_thermo_assignment_artifact(self.store.maybe_load_model(self.config.project_id, "artifacts/flowsheet_blueprint.json", FlowsheetBlueprintArtifact), bac_purification_sections, separation_thermo)
+        economic_input_reality = build_economic_input_reality_artifact(cost_model, route_economic_basis, self.store.maybe_load_model(self.config.project_id, "artifacts/market_assessment.json", MarketAssessmentArtifact))
+        data_gap_registry = build_bac_data_gap_registry_artifact(
+            self.config,
+            pseudo_component_basis,
+            pair_coverage,
+            kinetic_basis,
+            impurity_ledger,
+            recycle_basis,
+            economic_input_reality,
+        )
+        missing_data_acceptance = build_missing_data_acceptance_artifact(
+            data_gap_registry,
+            pair_coverage,
+            impurity_ledger,
+            economic_input_reality,
+        )
+        for artifact_id, built_artifact in [
+            ("estimation_policy", estimation_policy),
+            ("bac_pseudo_component_basis", pseudo_component_basis),
+            ("binary_pair_coverage", pair_coverage),
+            ("section_thermo_assignment", section_thermo_assignment),
+            ("kinetic_basis", kinetic_basis),
+            ("reactor_basis_confidence", reactor_basis_confidence),
+            ("bac_impurity_ledger", impurity_ledger),
+            ("recycle_basis", recycle_basis),
+            ("economic_input_reality", economic_input_reality),
+            ("data_gap_registry", data_gap_registry),
+            ("missing_data_acceptance", missing_data_acceptance),
+        ]:
+            if built_artifact is not None:
+                self._save(artifact_id, built_artifact)
         existing_chapters = self._existing_chapters(state)
         report_excerpt = "\n\n".join(chapter.rendered_markdown for chapter in existing_chapters if chapter.chapter_id not in {"executive_summary", "conclusion"})
         summary_reasoning = (
@@ -8131,6 +8440,62 @@ class PipelineRunner:
             required_inputs=["financial_model"],
             summary=conclusion.summary,
         )
+
+        data_gap_chapter: ChapterArtifact | None = None
+        if data_gap_registry is not None:
+            methodology_sections = []
+            if estimation_policy is not None:
+                methodology_sections.extend(["### Estimation Policy", "", estimation_policy.markdown, ""])
+            if pseudo_component_basis is not None:
+                methodology_sections.extend(["### BAC Pseudo-Component Basis", "", pseudo_component_basis.markdown, ""])
+            if pair_coverage is not None:
+                methodology_sections.extend(["### Binary Pair Coverage", "", pair_coverage.markdown, ""])
+            if section_thermo_assignment is not None:
+                methodology_sections.extend(["### Section Thermo Assignment", "", section_thermo_assignment.markdown, ""])
+            if kinetic_basis is not None:
+                methodology_sections.extend(["### Kinetic Basis", "", kinetic_basis.markdown, ""])
+            if recycle_basis is not None:
+                methodology_sections.extend(["### Recycle and Purge Basis", "", recycle_basis.markdown, ""])
+            if economic_input_reality is not None:
+                methodology_sections.extend(["### Economics Input Reality", "", economic_input_reality.markdown, ""])
+            if missing_data_acceptance is not None:
+                methodology_sections.extend(["### Missing-Data Acceptance", "", missing_data_acceptance.markdown, ""])
+            methodology_sections.extend(["### Data-Gap Registry", "", data_gap_registry.markdown])
+            data_gap_chapter = self._chapter(
+                "data_gaps_estimation_methods",
+                "Data Gaps and Estimation Methods",
+                "final_report",
+                "This section records the major BAC data gaps, the method used to replace each missing quantity, and the resulting confidence for preliminary design.\n\n"
+                + "\n".join(methodology_sections).strip(),
+                sorted(set(
+                    (data_gap_registry.citations if data_gap_registry is not None else [])
+                    + (pseudo_component_basis.citations if pseudo_component_basis is not None else [])
+                    + (pair_coverage.citations if pair_coverage is not None else [])
+                    + (kinetic_basis.citations if kinetic_basis is not None else [])
+                    + (economic_input_reality.citations if economic_input_reality is not None else [])
+                )),
+                sorted(set(
+                    (data_gap_registry.assumptions if data_gap_registry is not None else [])
+                    + (missing_data_acceptance.assumptions if missing_data_acceptance is not None else [])
+                )),
+                ["data_gap_registry", "estimation_policy", "bac_pseudo_component_basis", "binary_pair_coverage", "section_thermo_assignment", "kinetic_basis", "recycle_basis", "economic_input_reality", "missing_data_acceptance"],
+            )
+
+        method_notes = {
+            "thermodynamic_feasibility": pair_coverage,
+            "reaction_kinetics": kinetic_basis,
+            "material_balance": recycle_basis,
+            "financial_analysis": economic_input_reality,
+            "project_cost": economic_input_reality,
+        }
+        augmented_chapters: list[ChapterArtifact] = []
+        for chapter in existing_chapters:
+            note_artifact = method_notes.get(chapter.chapter_id)
+            if note_artifact is None:
+                augmented_chapters.append(chapter)
+                continue
+            extra = f"\n\n### Estimation Method Note\n\n{getattr(note_artifact, 'markdown', '').strip()}"
+            augmented_chapters.append(chapter.model_copy(update={"rendered_markdown": chapter.rendered_markdown.rstrip() + extra}))
         assumptions: list[str] = []
         for chapter in existing_chapters + [executive_chapter, conclusion_chapter]:
             assumptions.extend(chapter.assumptions)
@@ -8239,20 +8604,86 @@ class PipelineRunner:
                 *getattr(financial, "value_records", []),
             ],
         )
-        full_chapters = [chapter for chapter in existing_chapters if chapter.chapter_id not in {"executive_summary", "conclusion"}] + [executive_chapter, conclusion_chapter]
+        body_chapters = [chapter for chapter in augmented_chapters if chapter.chapter_id not in {"executive_summary", "conclusion"}]
+        if data_gap_chapter is not None:
+            body_chapters.append(data_gap_chapter)
+        full_chapters = body_chapters + [executive_chapter, conclusion_chapter]
+        for chapter in full_chapters:
+            if chapter.stage_id == "final_report":
+                self.store.save_chapter(self.config.project_id, chapter)
         report_markdown = assemble_report(self.config.basis, full_chapters, references_md, annexures_md)
+        raw_markdown_path = self.store.save_text(self.config.project_id, "final_report_raw.md", report_markdown)
         markdown_path = self.store.save_text(self.config.project_id, "final_report.md", report_markdown)
+        benchmark_style_profile = build_benchmark_style_profile()
+        benchmark_voice_profile = build_benchmark_voice_profile()
+        sentence_pattern_library = build_sentence_pattern_library()
+        tone_style_rules = build_tone_style_rules()
+        formatter_target_profile = build_formatter_target_profile(self.config.basis)
+        semantic_report = build_semantic_report_artifact(
+            self.config.project_id,
+            benchmark_style_profile,
+            formatter_target_profile,
+            str(raw_markdown_path),
+            full_chapters,
+        )
+        narrative_rewrite_plan = build_narrative_rewrite_artifact(
+            semantic_report,
+            benchmark_voice_profile,
+            tone_style_rules,
+        )
+        formatted_report, formatter_decision, formatter_parity, formatter_acceptance = build_formatted_report_package(
+            self.config.basis,
+            benchmark_style_profile,
+            formatter_target_profile,
+            semantic_report,
+            narrative_rewrite_plan,
+            references_md,
+            annexures_md,
+        )
+        formatted_markdown_path = self.store.save_text(
+            self.config.project_id,
+            "final_report_formatted.md",
+            formatted_report.formatted_markdown,
+        )
+        formatted_html_path = self.store.save_text(
+            self.config.project_id,
+            "final_report_formatted.html",
+            formatted_report.formatted_html,
+        )
+        self._save("benchmark_style_profile", benchmark_style_profile)
+        self._save("benchmark_voice_profile", benchmark_voice_profile)
+        self._save("sentence_pattern_library", sentence_pattern_library)
+        self._save("tone_style_rules", tone_style_rules)
+        self._save("formatter_target_profile", formatter_target_profile)
+        self._save("semantic_report", semantic_report)
+        self._save("narrative_rewrite_plan", narrative_rewrite_plan)
+        self._save("formatted_report", formatted_report)
+        self._save("formatter_decision", formatter_decision)
+        self._save("formatter_parity", formatter_parity)
+        self._save("formatter_acceptance", formatter_acceptance)
         if report_parity_framework is None:
             report_parity_framework = build_report_parity_framework(benchmark_manifest)
             self._save("report_parity_framework", report_parity_framework)
         report_parity = evaluate_report_parity(report_parity_framework, full_chapters, references_md, annexures_md)
         self._save("report_parity", report_parity)
         report_acceptance = self._save_report_acceptance(RunStatus.AWAITING_APPROVAL, report_parity=report_parity)
-        final_report = FinalReport(project_id=self.config.project_id, markdown_path=str(markdown_path), references=list(source_index.keys()), annexure_paths=[str(self.store.project_dir(self.config.project_id) / "annexures")])
+        final_report = FinalReport(
+            project_id=self.config.project_id,
+            markdown_path=str(markdown_path),
+            raw_markdown_path=str(raw_markdown_path),
+            formatted_markdown_path=str(formatted_markdown_path),
+            formatted_html_path=str(formatted_html_path),
+            style_profile_id=benchmark_style_profile.style_id,
+            formatter_target_id=formatter_target_profile.target_id,
+            references=list(source_index.keys()),
+            annexure_paths=[str(self.store.project_dir(self.config.project_id) / "annexures")],
+        )
         self._save("final_report", final_report)
         issues = self._chapter_issues(executive_chapter) + self._chapter_issues(conclusion_chapter)
         issues.extend(validate_report_parity(report_parity))
         if report_acceptance:
             issues.extend(validate_report_acceptance(report_acceptance))
+        if missing_data_acceptance is not None:
+            issues.extend(validate_missing_data_acceptance_artifact(missing_data_acceptance))
         gate = self._gate("final_signoff", "Final Signoff", "Approve the final markdown report before PDF rendering is released.")
         return StageResult(chapters=[executive_chapter, conclusion_chapter], issues=issues, missing_india_coverage=[], stale_source_groups=[], gate=gate)

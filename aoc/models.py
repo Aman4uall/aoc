@@ -40,6 +40,30 @@ class DataRealityClass(str, Enum):
     SEEDED_BENCHMARK = "seeded_benchmark"
     SOLVER_DERIVED = "solver_derived"
     MODEL_INFERRED = "model_inferred"
+    UNRESOLVED = "unresolved"
+
+
+class EstimationMethodTag(str, Enum):
+    DIRECT = "direct"
+    PSEUDO_COMPONENT = "pseudo_component"
+    LIBRARY_VALUE = "library_value"
+    CORRELATION = "correlation"
+    ANALOGY = "analogy"
+    RESOLVED_PAIR = "resolved_pair"
+    REGRESSED_PAIR = "regressed_pair"
+    FAMILY_ESTIMATED_PAIR = "family_estimated_pair"
+    FALLBACK = "fallback"
+    CITED_KINETIC_FIT = "cited_kinetic_fit"
+    FAMILY_ARRHENIUS_FIT = "family_arrhenius_fit"
+    RESIDENCE_TIME_HEURISTIC = "residence_time_heuristic"
+    MEASURED_STREAM_BASIS = "measured_stream_basis"
+    TEMPLATE_DERIVED = "template_derived"
+    PLACEHOLDER_ESTIMATE = "placeholder_estimate"
+    SOLVED_BALANCE = "solved_balance"
+    FAMILY_PURGE_HEURISTIC = "family_purge_heuristic"
+    LIVE_QUOTE = "live_quote"
+    SITE_TARIFF = "site_tariff"
+    MODEL_DERIVED = "model_derived"
 
 
 class GeographicScope(str, Enum):
@@ -2396,6 +2420,208 @@ class DataRealityAuditArtifact(ProvenancedModel):
     markdown: str = ""
 
 
+class MethodBasisRecord(ProvenancedModel):
+    method_name: str
+    method_tag: EstimationMethodTag = EstimationMethodTag.FALLBACK
+    method_basis: str = ""
+    source_refs: list[str] = Field(default_factory=list)
+    fallback_reason: str = ""
+
+
+class DatumRequirementRule(ProvenancedModel):
+    datum_id: str
+    engineering_category: str
+    allowed_methods: list[EstimationMethodTag] = Field(default_factory=list)
+    forbidden_methods: list[EstimationMethodTag] = Field(default_factory=list)
+    minimum_confidence: float = 0.0
+    critical: bool = False
+
+
+class EstimationPolicy(ProvenancedModel):
+    policy_id: str
+    benchmark_profile: str = ""
+    rules: list[DatumRequirementRule] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class DataGapItem(ProvenancedModel):
+    datum_id: str
+    engineering_category: str
+    current_value: str = ""
+    units: str = ""
+    provenance_class: DataRealityClass = DataRealityClass.MODEL_INFERRED
+    method_name: str = ""
+    method_tag: EstimationMethodTag = EstimationMethodTag.FALLBACK
+    method_basis: str = ""
+    confidence: float = 0.0
+    downstream_consumers: list[str] = Field(default_factory=list)
+    upgrade_priority: Literal["low", "medium", "high", "critical"] = "medium"
+    direct_data: bool = False
+    source_refs: list[str] = Field(default_factory=list)
+    fallback_reason: str = ""
+    status: Literal["direct", "estimated", "inferred", "solver_derived", "unresolved"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class DataGapRegistryArtifact(ProvenancedModel):
+    benchmark_profile: str = ""
+    project_id: str = ""
+    items: list[DataGapItem] = Field(default_factory=list)
+    summary: str = ""
+    markdown: str = ""
+
+
+class BACPseudoComponentBasisArtifact(ProvenancedModel):
+    artifact_id: str
+    active_basis_name: str = "BAC active pseudo-component"
+    amine_basis_name: str = "Alkyldimethylamine pseudo-component"
+    carrier_basis_name: str = "Carrier phase"
+    sold_solution_basis_name: str = "Sold-solution pseudo-mixture"
+    active_representative_mw_g_mol: float = 0.0
+    active_density_kg_m3: float = 0.0
+    active_viscosity_pa_s: float = 0.0
+    active_cp_kj_kg_k: float = 0.0
+    active_thermal_conductivity_w_m_k: float = 0.0
+    active_nonvolatile: bool = True
+    sold_solution_density_kg_m3: float = 0.0
+    sold_solution_viscosity_pa_s: float = 0.0
+    sold_solution_cp_kj_kg_k: float = 0.0
+    homolog_distribution: dict[str, float] = Field(default_factory=dict)
+    carrier_components: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class BinaryPairCoverageRow(ProvenancedModel):
+    pair_id: str
+    component_a: str
+    component_b: str
+    status: Literal["resolved_from_data", "regressed_from_data", "family_estimated", "fallback"] = "fallback"
+    model_name: str = "NRTL"
+    source_refs: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class BinaryPairCoverageArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str = ""
+    rows: list[BinaryPairCoverageRow] = Field(default_factory=list)
+    critical_fallback_pairs: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class SectionThermoAssignmentRow(ProvenancedModel):
+    section_id: str
+    section_label: str = ""
+    thermo_method: str = ""
+    activity_model: str = ""
+    key_pairs: list[str] = Field(default_factory=list)
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    notes: list[str] = Field(default_factory=list)
+
+
+class SectionThermoAssignmentArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str = ""
+    rows: list[SectionThermoAssignmentRow] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class KineticBasisArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str = ""
+    reaction_family: str = ""
+    assumed_mechanism_class: str = ""
+    activation_energy_kj_per_mol: float = 0.0
+    pre_exponential_factor: float = 0.0
+    apparent_order: float = 0.0
+    design_residence_time_hr: float = 0.0
+    method_tag: EstimationMethodTag = EstimationMethodTag.FAMILY_ARRHENIUS_FIT
+    cap_logic_summary: str = ""
+    markdown: str = ""
+
+
+class ReactorBasisConfidenceArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str = ""
+    confidence: ScientificConfidence = ScientificConfidence.SCREENING
+    basis_summary: str = ""
+    hidden_cap_logic: bool = False
+    markdown: str = ""
+
+
+class BACImpurityLedgerItem(ProvenancedModel):
+    impurity_id: str
+    impurity_class: str
+    origin: str = ""
+    expected_location: str = ""
+    control_section: str = ""
+    purge_mechanism: str = ""
+    mass_estimate_kg_hr: float = 0.0
+    status: Literal["measured_or_observed", "template_derived", "placeholder_estimate", "unresolved"] = "template_derived"
+    notes: list[str] = Field(default_factory=list)
+
+
+class BACImpurityLedgerArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str = ""
+    items: list[BACImpurityLedgerItem] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class RecycleBasisLoop(ProvenancedModel):
+    loop_id: str
+    source_section_id: str = ""
+    target_section_id: str = ""
+    actual_recycle_stream_ids: list[str] = Field(default_factory=list)
+    actual_purge_stream_ids: list[str] = Field(default_factory=list)
+    purge_policy_by_family: dict[str, float] = Field(default_factory=dict)
+    purge_basis_by_family: dict[str, str] = Field(default_factory=dict)
+    closure_confidence: Literal["converged", "estimated", "blocked"] = "estimated"
+    notes: list[str] = Field(default_factory=list)
+
+
+class RecycleBasisArtifact(ProvenancedModel):
+    artifact_id: str
+    loops: list[RecycleBasisLoop] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class EconomicGapItem(ProvenancedModel):
+    item_id: str
+    label: str
+    source_type: Literal["real_external_quote", "benchmark_anchor", "route_complexity_estimate", "solver_derived_burden"] = "solver_derived_burden"
+    normalization_basis: str = ""
+    site_dependence: str = ""
+    estimate_method: str = ""
+    gap_flag: str = ""
+    notes: list[str] = Field(default_factory=list)
+
+
+class EconomicInputRealityArtifact(ProvenancedModel):
+    artifact_id: str
+    rows: list[EconomicGapItem] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class MissingDataValidationIssue(ProvenancedModel):
+    datum_id: str
+    code: str
+    severity: Literal["warning", "blocked"] = "warning"
+    message: str
+
+
+class MissingDataAcceptanceArtifact(ProvenancedModel):
+    artifact_id: str
+    overall_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    coverage_fraction: float = 0.0
+    named_estimate_fraction: float = 0.0
+    hidden_placeholder_count: int = 0
+    critical_unresolved_count: int = 0
+    issues: list[MissingDataValidationIssue] = Field(default_factory=list)
+    summary: str = ""
+    markdown: str = ""
+
+
 class ProcessOptionFact(ProvenancedModel):
     option_id: str
     label: str
@@ -3291,6 +3517,129 @@ class ProcessNarrativeArtifact(ProvenancedModel):
     markdown: str
 
 
+class DiagramStyleProfile(ProvenancedModel):
+    style_id: str
+    style_name: str
+    canvas_width_px: int = 1800
+    canvas_height_px: int = 920
+    body_font_family: str = "Calibri"
+    heading_font_family: str = "Calibri"
+    mono_font_family: str = "Courier New"
+    node_fill: str = "#f7f7f7"
+    node_stroke: str = "#222222"
+    recycle_stroke: str = "#5d6d7e"
+    utility_stroke: str = "#4a6fa5"
+    stream_stroke: str = "#111111"
+    markdown: str = ""
+
+
+class DiagramTargetProfile(ProvenancedModel):
+    target_id: str
+    target_product: str
+    required_bfd_sections: list[str] = Field(default_factory=list)
+    required_pfd_unit_families: list[str] = Field(default_factory=list)
+    major_stream_roles: list[str] = Field(default_factory=list)
+    recycle_notation: str = "Recycle"
+    purge_notation: str = "Purge"
+    vent_notation: str = "Vent"
+    waste_notation: str = "Waste"
+    main_body_max_pfd_nodes: int = 8
+    markdown: str = ""
+
+
+class DiagramLabel(BaseModel):
+    text: str
+    kind: Literal["primary", "secondary", "stream", "condition", "utility"] = "primary"
+
+
+class DiagramLayoutHints(BaseModel):
+    orientation: Literal["LR", "TB"] = "LR"
+    rank: int = 0
+    branch_level: int = 0
+    sheet_id: str = "sheet_1"
+    lane: str = "main"
+
+
+class DiagramNode(BaseModel):
+    node_id: str
+    label: str
+    node_family: str
+    section_id: str = ""
+    equipment_tag: str = ""
+    labels: list[DiagramLabel] = Field(default_factory=list)
+    layout: DiagramLayoutHints = Field(default_factory=DiagramLayoutHints)
+    x: float = 0.0
+    y: float = 0.0
+    width: float = 180.0
+    height: float = 72.0
+    notes: str = ""
+
+
+class DiagramEdge(BaseModel):
+    edge_id: str
+    source_node_id: str
+    target_node_id: str
+    edge_type: Literal["main", "product", "recycle", "purge", "vent", "waste", "side_draw", "utility"] = "main"
+    stream_id: str = ""
+    label: str = ""
+    condition_label: str = ""
+    sheet_id: str = "sheet_1"
+    notes: str = ""
+
+
+class DiagramSheet(BaseModel):
+    sheet_id: str
+    title: str
+    width_px: int = 1400
+    height_px: int = 520
+    orientation: Literal["portrait", "landscape"] = "landscape"
+    presentation_mode: Literal["inline", "sheet"] = "sheet"
+    preferred_scale: float = 1.0
+    full_page: bool = True
+    legend_mode: Literal["embedded", "suppressed"] = "embedded"
+    suppress_inline_wrapping: bool = True
+    node_ids: list[str] = Field(default_factory=list)
+    edge_ids: list[str] = Field(default_factory=list)
+    svg: str = ""
+
+
+class BlockFlowDiagramArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    nodes: list[DiagramNode] = Field(default_factory=list)
+    edges: list[DiagramEdge] = Field(default_factory=list)
+    sheets: list[DiagramSheet] = Field(default_factory=list)
+    mermaid_fallback: str = ""
+    markdown: str = ""
+
+
+class ProcessFlowDiagramArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    nodes: list[DiagramNode] = Field(default_factory=list)
+    edges: list[DiagramEdge] = Field(default_factory=list)
+    sheets: list[DiagramSheet] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class ControlSystemDiagramArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    sheets: list[DiagramSheet] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class DiagramAcceptanceArtifact(ProvenancedModel):
+    diagram_id: str
+    diagram_kind: Literal["bfd", "pfd"]
+    overall_status: Literal["complete", "conditional", "blocked"] = "conditional"
+    missing_required_nodes: list[str] = Field(default_factory=list)
+    missing_required_edges: list[str] = Field(default_factory=list)
+    mismatched_labels: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
 class ControlPlanArtifact(ProvenancedModel):
     control_loops: list[ControlLoop]
     markdown: str
@@ -3315,9 +3664,201 @@ class NarrativeArtifact(ProvenancedModel):
     summary: str
 
 
+class FormatterChapterGroup(BaseModel):
+    group_id: str
+    target_title: str
+    source_chapter_ids: list[str] = Field(default_factory=list)
+    numbered: bool = True
+
+
+class BenchmarkStyleProfile(ProvenancedModel):
+    style_id: str
+    style_name: str
+    benchmark_labels: list[str] = Field(default_factory=list)
+    body_font_family: str
+    heading_font_family: str
+    cover_font_family: str
+    chapter_title_pattern: str
+    front_matter_sections: list[str] = Field(default_factory=list)
+    preferred_margin_pt: float = 48.0
+    preferred_body_font_size_pt: float = 12.0
+    preferred_heading_sizes_pt: list[float] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class BenchmarkVoiceProfile(ProvenancedModel):
+    voice_id: str
+    voice_name: str
+    benchmark_labels: list[str] = Field(default_factory=list)
+    tone_summary: str = ""
+    preferred_sentence_patterns: list[str] = Field(default_factory=list)
+    preferred_transition_patterns: list[str] = Field(default_factory=list)
+    preferred_paragraph_traits: list[str] = Field(default_factory=list)
+    discouraged_phrases: list[str] = Field(default_factory=list)
+    discouraged_styles: list[str] = Field(default_factory=list)
+    chapter_voice_notes: dict[str, str] = Field(default_factory=dict)
+    markdown: str = ""
+
+
+class SentencePatternLibrary(ProvenancedModel):
+    library_id: str
+    voice_id: str
+    chapter_sentence_patterns: dict[str, list[str]] = Field(default_factory=dict)
+    transition_patterns: list[str] = Field(default_factory=list)
+    anti_pattern_replacements: dict[str, str] = Field(default_factory=dict)
+    markdown: str = ""
+
+
+class ToneStyleRules(ProvenancedModel):
+    rules_id: str
+    voice_id: str
+    rewrite_safe_block_roles: list[str] = Field(default_factory=list)
+    protected_content_types: list[str] = Field(default_factory=list)
+    chapter_template_expectations: dict[str, list[str]] = Field(default_factory=dict)
+    chapter_transition_templates: dict[str, list[str]] = Field(default_factory=dict)
+    chapter_table_discussion_templates: dict[str, list[str]] = Field(default_factory=dict)
+    anti_pattern_replacements: dict[str, str] = Field(default_factory=dict)
+    cadence_rules: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class FormatterTargetProfile(ProvenancedModel):
+    target_id: str
+    style_id: str
+    benchmark_id: str
+    chapter_groups: list[FormatterChapterGroup] = Field(default_factory=list)
+    appendix_heading_style: str = "Appendix {label}: {title}"
+    markdown: str = ""
+
+
+class SemanticBlock(BaseModel):
+    block_id: str
+    kind: Literal["heading", "paragraph", "table", "list", "figure", "code", "note"]
+    role: Literal[
+        "front_matter",
+        "narrative",
+        "summary_table",
+        "evidence_table",
+        "appendix_only",
+        "reference",
+        "annexure",
+        "equation_like",
+        "list",
+    ] = "narrative"
+    title: str = ""
+    heading_level: int = 0
+    markdown: str
+    citations: list[str] = Field(default_factory=list)
+
+
+class SemanticSection(BaseModel):
+    section_id: str
+    source_chapter_id: str
+    title: str
+    citations: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+    blocks: list[SemanticBlock] = Field(default_factory=list)
+
+
+class SemanticReportArtifact(ProvenancedModel):
+    report_id: str
+    style_id: str
+    target_id: str
+    raw_markdown_path: str
+    sections: list[SemanticSection] = Field(default_factory=list)
+    appendix_sections: list[SemanticSection] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class NarrativeRewriteBlock(BaseModel):
+    block_id: str
+    source_chapter_id: str
+    chapter_title: str
+    block_kind: str
+    block_role: str
+    rewrite_mode: Literal["aggressive", "light", "protect"] = "light"
+    protection_reasons: list[str] = Field(default_factory=list)
+    preserved_tokens: list[str] = Field(default_factory=list)
+    recommended_focus: list[str] = Field(default_factory=list)
+    original_markdown: str = ""
+
+
+class NarrativeRewriteArtifact(ProvenancedModel):
+    rewrite_id: str
+    voice_id: str
+    rules_id: str
+    block_plans: list[NarrativeRewriteBlock] = Field(default_factory=list)
+    aggressive_block_count: int = 0
+    light_block_count: int = 0
+    protected_block_count: int = 0
+    protected_content_summary: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class FormattedReportArtifact(ProvenancedModel):
+    formatter_id: str
+    target_id: str
+    formatted_markdown: str
+    formatted_html: str
+    chapter_titles: list[str] = Field(default_factory=list)
+    appendix_titles: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class FormatterDecisionArtifact(ProvenancedModel):
+    formatter_id: str
+    decisions: list[str] = Field(default_factory=list)
+    preserved_artifact_refs: list[str] = Field(default_factory=list)
+    moved_appendix_sections: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class FormatterParityArtifact(ProvenancedModel):
+    style_id: str
+    target_id: str
+    structure_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    tone_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    citation_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    numeric_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    chapter_coverage_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    appendix_placement_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    table_figure_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    chapter_specificity_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    typography_layout_status: ReportParityStatus = ReportParityStatus.PARTIAL
+    numeric_preservation_ratio: float = 0.0
+    citation_preservation_ratio: float = 0.0
+    structure_parity_score: float = 0.0
+    table_figure_parity_score: float = 0.0
+    chapter_specificity_score: float = 0.0
+    typography_layout_score: float = 0.0
+    overall_parity_score: float = 0.0
+    moved_appendix_block_count: int = 0
+    missing_chapter_ids: list[str] = Field(default_factory=list)
+    parity_notes: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class FormatterAcceptanceArtifact(ProvenancedModel):
+    overall_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    structure_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    citation_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    numeric_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    appendix_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    benchmark_parity_status: ReportAcceptanceStatus = ReportAcceptanceStatus.CONDITIONAL
+    overall_parity_score: float = 0.0
+    notes: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
 class FinalReport(BaseModel):
     project_id: str
     markdown_path: str
+    raw_markdown_path: Optional[str] = None
+    formatted_markdown_path: Optional[str] = None
+    formatted_html_path: Optional[str] = None
     pdf_path: Optional[str] = None
+    formatted_pdf_path: Optional[str] = None
+    style_profile_id: Optional[str] = None
+    formatter_target_id: Optional[str] = None
     references: list[str] = Field(default_factory=list)
     annexure_paths: list[str] = Field(default_factory=list)

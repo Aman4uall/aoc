@@ -87,7 +87,7 @@ def is_valid_property_identifier_name(name: str) -> bool:
 
 BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
     "water": {
-        "aliases": ["h2o"],
+        "aliases": ["h2o", "water (for final formulation)", "formulation water"],
         "formula": "H2O",
         "cas_number": "7732-18-5",
         "properties": {
@@ -101,6 +101,38 @@ BENCHMARK_PROPERTY_LIBRARY: dict[str, dict[str, object]] = {
             "thermal_conductivity": (0.598, "W/m-K"),
         },
         "antoine": {"A": 8.07131, "B": 1730.63, "C": 233.426, "temperature_min_c": 1.0, "temperature_max_c": 100.0},
+    },
+    "acetonitrile": {
+        "aliases": ["methyl cyanide", "ethanenitrile", "ch3cn"],
+        "formula": "C2H3N",
+        "cas_number": "75-05-8",
+        "properties": {
+            "molecular_weight": (41.05, "g/mol"),
+            "normal_boiling_point": (81.6, "C"),
+            "melting_point": (-45.7, "C"),
+            "liquid_density": (786.0, "kg/m3"),
+            "liquid_viscosity": (0.00037, "Pa.s"),
+            "liquid_heat_capacity": (2.17, "kJ/kg-K"),
+            "heat_of_vaporization": (730.0, "kJ/kg"),
+            "thermal_conductivity": (0.19, "W/m-K"),
+        },
+        "antoine": {"A": 7.1327, "B": 1216.0, "C": 222.0, "temperature_min_c": 5.0, "temperature_max_c": 95.0},
+    },
+    "butanone": {
+        "aliases": ["2-butanone", "methyl ethyl ketone", "mek", "butan-2-one"],
+        "formula": "C4H8O",
+        "cas_number": "78-93-3",
+        "properties": {
+            "molecular_weight": (72.11, "g/mol"),
+            "normal_boiling_point": (79.6, "C"),
+            "melting_point": (-86.3, "C"),
+            "liquid_density": (805.0, "kg/m3"),
+            "liquid_viscosity": (0.00041, "Pa.s"),
+            "liquid_heat_capacity": (2.28, "kJ/kg-K"),
+            "heat_of_vaporization": (480.0, "kJ/kg"),
+            "thermal_conductivity": (0.16, "W/m-K"),
+        },
+        "antoine": {"A": 7.02447, "B": 1161.0, "C": 224.0, "temperature_min_c": 0.0, "temperature_max_c": 90.0},
     },
     "ethylene_oxide": {
         "aliases": ["oxirane"],
