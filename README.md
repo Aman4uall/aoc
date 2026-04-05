@@ -1,4 +1,4 @@
-<![CDATA[# AoC — Automated Plant Design & Feasibility Engine
+# AoC — Automated Plant Design & Feasibility Engine
 
 > **Turn a compound name, capacity, and region into a 200+ table, 25-chapter Technical-Economic Feasibility Report (TEFR) — with zero manual engineering.**
 
@@ -401,4 +401,4 @@ See [docs/any_compound_tefr_backlog.md](docs/any_compound_tefr_backlog.md) for t
 ## License
 
 Private repository — not currently open-source.
-]]>
+
