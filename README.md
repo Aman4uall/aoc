@@ -30,6 +30,8 @@ AoC is a CLI-first engine that automates end-to-end chemical plant design: from 
 
 ### 📄 Report Generation
 - **25-Chapter TEFR** — Produces a structured Markdown + PDF report with 200+ tables, mermaid diagrams, calculation traces, and annexures.
+- **Deterministic Diagram Architecture** — Builds BFD, PFD, and control diagrams through a modular `semantics -> modules -> sheet composition -> render/export` pipeline rather than single-pass freeform drawing.
+- **Dual Diagram Outputs** — Publishes SVG as the source-of-truth render and Draw.io as an editable export generated from the same typed diagram artifacts.
 - **Benchmark Parity System** — Validates report completeness against a chapter/support contract framework to ensure nothing is missing.
 - **Report Formatting Pipeline** — Academic-style PDF rendering with styled typography, table numbering, and figure embedding.
 
@@ -136,6 +138,7 @@ The pipeline runs through 30 sequential stages, each producing typed artifacts t
 3. **Design Basis → Engineering** — The selected route drives flowsheet construction, material/energy balances, and equipment sizing through deterministic solvers.
 4. **Engineering → Economics** — Equipment costs, utility costs, and operating expenses feed a multi-year financial model with scenario analysis.
 5. **Economics → Report** — All artifacts are assembled into a 25-chapter Markdown report, validated for benchmark parity, and rendered to PDF.
+6. **Diagram Delivery Contract** — Diagram semantics, module layouts, SVG sheets, acceptance artifacts, and Draw.io exports are persisted as first-class outputs under the project artifact store.
 
 ---
 
@@ -401,4 +404,3 @@ See [docs/any_compound_tefr_backlog.md](docs/any_compound_tefr_backlog.md) for t
 ## License
 
 Private repository — not currently open-source.
-

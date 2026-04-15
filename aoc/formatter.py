@@ -35,6 +35,14 @@ TRACE_HEADING_PATTERNS = (
     "python code and reproducibility bundle",
 )
 
+REFERENCE_SOURCE_COMMENT_RE = re.compile(r"^\s*<!--\s*SOURCE_ID:\s*([A-Za-z0-9_:-]+)\s*-->\s*$", re.MULTILINE)
+BRACKETED_SOURCE_CITATION_RE = re.compile(r"\[([A-Za-z0-9_:-]+(?:\s*,\s*[A-Za-z0-9_:-]+)*)\]")
+LABELED_SOURCE_CITATION_RE = re.compile(
+    r"(?P<label>\b(?:citation|citations|reference|references)\s*:\s*)(?P<body>[A-Za-z0-9_:-]+(?:\s*,\s*[A-Za-z0-9_:-]+)*)",
+    flags=re.IGNORECASE,
+)
+VISIBLE_SOURCE_METADATA_RE = re.compile(r"\s*\[Source ID:[^\]]+\]")
+
 CHAPTER_PREFACES = {
     "introduction": "This chapter introduces the product, its commercial basis, and the demand-side rationale adopted for the proposed plant.",
     "literature survey": "This chapter reviews the literature and industrial references relevant to benzalkonium chloride manufacture and identifies the practical process routes available for detailed screening.",
@@ -79,16 +87,16 @@ SECTION_LEAD_INS = {
 }
 
 CHAPTER_CONTEXT_SENTENCES = {
-    "introduction": "In keeping with the style of a plant-design home paper, the discussion begins with the product identity, its commercial basis, and the market setting in which the proposed facility is expected to operate.",
-    "literature survey": "The survey is presented in the manner of a conventional design report, beginning with the routes reported in the literature and proceeding toward a practical industrial screening.",
-    "process selection": "The process-selection discussion is written to retain the engineering basis of the original report while presenting the decision in a more formal academic narrative.",
-    "site selection": "The site-selection discussion compares the alternatives on the basis of industrial infrastructure, logistics, regulatory practicality, and supporting utilities.",
-    "material balance": "The material-balance presentation follows the benchmark academic style by emphasizing the plant-wide basis first and then the important unit-wise implications.",
-    "energy balance": "The energy-balance presentation highlights the thermal duties of the major sections before drawing out the consequences for utilities and heat management.",
-    "process design of reactor system": "The reactor-design discussion records the basis of sizing, the governing design assumptions, and the principal operating envelope of the selected reactor train.",
-    "process design of separation system": "The separation-design discussion records the key process assumptions, operating basis, and sizing logic for the selected purification system.",
-    "financial analysis": "The financial discussion is presented as an engineering-economic reading of the solved cost basis rather than as a mere schedule of calculated figures.",
-    "process flow diagram": "The process flow diagram is presented in report style so that the solved equipment train and stream movement can be read together with the balance and design chapters.",
+    "introduction": "",
+    "literature survey": "",
+    "process selection": "",
+    "site selection": "",
+    "material balance": "",
+    "energy balance": "",
+    "process design of reactor system": "",
+    "process design of separation system": "",
+    "financial analysis": "",
+    "process flow diagram": "",
 }
 
 CHAPTER_ROLE_OPENERS = {
@@ -723,6 +731,119 @@ def build_formatted_report_package(
     return formatted, decisions, parity, acceptance
 
 
+def _extract_reference_number_map(references_md: str) -> dict[str, int]:
+    source_ids = REFERENCE_SOURCE_COMMENT_RE.findall(references_md)
+    return {source_id: index for index, source_id in enumerate(source_ids, start=1)}
+
+
+def _strip_reference_source_comments(text: str) -> str:
+    stripped = REFERENCE_SOURCE_COMMENT_RE.sub("", text)
+    stripped = re.sub(r"\n{3,}", "\n\n", stripped)
+    return stripped.strip()
+
+
+def _is_source_id_sequence(text: str, citation_map: dict[str, int]) -> bool:
+    tokens = [token.strip() for token in text.split(",") if token.strip()]
+    return bool(tokens) and all(token in citation_map for token in tokens)
+
+
+def _format_numeric_citation(tokens: list[str], citation_map: dict[str, int]) -> str:
+    return "[" + ", ".join(str(citation_map[token]) for token in tokens) + "]"
+
+
+def _normalize_citation_text(text: str, citation_map: dict[str, int]) -> str:
+    if not citation_map or not text:
+        return VISIBLE_SOURCE_METADATA_RE.sub("", text)
+
+    def replace_bracketed(match: re.Match[str]) -> str:
+        tokens = [token.strip() for token in match.group(1).split(",") if token.strip()]
+        if tokens and all(token in citation_map for token in tokens):
+            return _format_numeric_citation(tokens, citation_map)
+        return match.group(0)
+
+    def replace_labeled(match: re.Match[str]) -> str:
+        tokens = [token.strip() for token in match.group("body").split(",") if token.strip()]
+        if tokens and all(token in citation_map for token in tokens):
+            return match.group("label") + _format_numeric_citation(tokens, citation_map)
+        return match.group(0)
+
+    text = BRACKETED_SOURCE_CITATION_RE.sub(replace_bracketed, text)
+    text = LABELED_SOURCE_CITATION_RE.sub(replace_labeled, text)
+    text = VISIBLE_SOURCE_METADATA_RE.sub("", text)
+    return text
+
+
+def _normalize_citation_markdown_table(markdown: str, citation_map: dict[str, int]) -> str:
+    if not citation_map:
+        return markdown
+    headers, body_rows = _parse_markdown_table(markdown)
+    if len(headers) < 2:
+        return _normalize_citation_text(markdown, citation_map)
+    citation_columns = [
+        index
+        for index, header in enumerate(headers)
+        if header.strip().lower() in {"citation", "citations", "reference", "references"}
+    ]
+    normalized_rows: list[list[str]] = []
+    for row in body_rows:
+        padded = row + [""] * max(0, len(headers) - len(row))
+        updated = list(padded[: len(headers)])
+        for index, cell in enumerate(updated):
+            cell_text = _normalize_citation_text(cell, citation_map)
+            if index in citation_columns and _is_source_id_sequence(cell.strip(), citation_map):
+                tokens = [token.strip() for token in cell.split(",") if token.strip()]
+                cell_text = _format_numeric_citation(tokens, citation_map)
+            updated[index] = cell_text
+        normalized_rows.append(updated)
+    header_line = "| " + " | ".join(headers) + " |"
+    separator_line = "| " + " | ".join(["---"] * len(headers)) + " |"
+    body_lines = ["| " + " | ".join(row) + " |" for row in normalized_rows]
+    return "\n".join([header_line, separator_line, *body_lines])
+
+
+def _normalize_markdown_citations(markdown: str, citation_map: dict[str, int]) -> str:
+    stripped = markdown.lstrip()
+    if stripped.startswith("|"):
+        return _normalize_citation_markdown_table(markdown, citation_map)
+    return _normalize_citation_text(markdown, citation_map)
+
+
+def _manual_prose_cleanup(text: str) -> str:
+    replacements = {
+        "In the present study, special emphasis is placed on the commercial basis of the product because it governs the subsequent process design.":
+            "Particular emphasis is placed on the commercial basis of the product, since it governs the subsequent process design.",
+        "Accordingly, 50,000 TPA plant basis selected because it best balances the benchmark throughput, market basis, and integration leverage.":
+            "Accordingly, a plant capacity of 50,000 TPA is selected because it best balances the benchmark throughput, market basis, and integration leverage.",
+        "From the above literature survey, it is evident that the practical routes differ mainly in chemistry, purification burden, and commercial maturity.":
+            "The literature survey shows that the practical routes differ mainly in chemistry, purification burden, and commercial maturity.",
+        "In this connection, three industrially plausible routes for the synthesis of Benzalkonium Chloride (BKC) are presented, based on the quaternization of dodecyldimethylamine with benzyl chloride.":
+            "Three industrially plausible routes for the synthesis of benzalkonium chloride are identified on the basis of the quaternization of dodecyldimethylamine with benzyl chloride.",
+        "In this connection, **Route 1** is a high-temperature process in butanone, derived directly from a patent, offering high evidence but with significant energy costs for heating and cryogenic crystallization.":
+            "**Route 1** is a high-temperature process in butanone derived directly from the patent literature. It offers strong documentary support, but it also carries a significant energy burden because of heating and cryogenic crystallization.",
+        "In this connection, **Route 2** is a room-temperature process in acetonitrile, based on technical literature, which saves energy but is likely hampered by long reaction times and the use of a toxic, costly solvent.":
+            "**Route 2** is a room-temperature process in acetonitrile derived from technical literature. Although its thermal requirement is lower, it is disadvantaged by long reaction times and the use of a toxic and comparatively costly solvent.",
+        "In this connection, **Route 3** is a generated, solvent-free (neat) process that offers the best process efficiency through shorter reaction times and no solvent recovery steps. Its primary challenge is the management of the reaction exotherm, a standard chemical engineering problem.":
+            "**Route 3** is a solvent-free route that offers the best process efficiency because it avoids solvent recovery and shortens the reaction sequence. Its principal challenge is control of the reaction exotherm.",
+        "In this chapter, the tabulated literature review is used to compare the practical routes before narrowing the discussion to the routes relevant for detailed design.":
+            "The tabulated literature review is used to compare the practical routes before narrowing the discussion to those retained for detailed design.",
+        "From the above comparison it is evident that the preferred route must satisfy not only chemistry feasibility but also operability and purification practicality.":
+            "The comparison shows that the preferred route must satisfy not only chemistry feasibility but also operability and purification practicality.",
+        "On the basis of the results obtained, the project economics may be screened from the principal profitability indicators retained in this chapter.":
+            "The principal profitability indicators retained in this chapter provide the basis for screening the project economics.",
+        "From a financial standpoint, 70:30 debt-equity basis selected after lender-coverage reranking (min DSCR 25.534, LLCR 31.222, PLCR 56.334).":
+            "A 70:30 debt-equity basis is retained after reranking the financing options on lender-coverage criteria (minimum DSCR 25.534, LLCR 31.222, and PLCR 56.334).",
+        "From the foregoing chapters, it may be concluded that the proposed plant configuration is technically coherent at the present level of design.":
+            "The foregoing chapters show that the proposed plant configuration is technically coherent at the present level of design.",
+        "In the reactor-design chapter, the tabulated values are used to record the governing sizing basis and the principal operating assumptions of the selected reactor train.":
+            "",
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    text = text.replace("In this connection, no additional document-derived process options were identified.", "No additional document-derived process options were identified.")
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text
+
+
 def _semantic_section_from_chapter(chapter: ChapterArtifact) -> SemanticSection:
     blocks = _parse_markdown_blocks(chapter.rendered_markdown, chapter.chapter_id, chapter.citations)
     return SemanticSection(
@@ -886,12 +1007,13 @@ def _format_semantic_report(
     moved_sections: OrderedDict[str, list[SemanticBlock]] = OrderedDict()
     markdown_parts: list[str] = []
     html_parts: list[str] = []
+    citation_map = _extract_reference_number_map(references_md)
+    clean_references_md = _strip_reference_source_comments(references_md)
+    clean_annexures_md = _normalize_markdown_citations(annexures_md, citation_map)
     chapter_counter = 1
-    table_counter = 1
-    figure_counter = 1
     appendix_titles: list[str] = []
-    table_entries: list[tuple[int, str]] = []
-    figure_entries: list[tuple[int, str]] = []
+    table_entries: list[tuple[str, str]] = []
+    figure_entries: list[tuple[str, str]] = []
     chapter_kept_table_counts: dict[str, int] = {}
 
     toc_rows: list[tuple[str, str]] = []
@@ -943,6 +1065,9 @@ def _format_semantic_report(
             opening_transition = chapter_transition_templates[0]
             markdown_parts.extend([opening_transition, ""])
             html_parts.append(f"<p>{_paragraph_to_html(opening_transition)}</p>")
+        chapter_table_counter = 1
+        chapter_figure_counter = 1
+        last_table_lead = ""
 
         subsection_counter = 1
         appendix_note_written = False
@@ -972,7 +1097,7 @@ def _format_semantic_report(
                     if _should_move_heading_to_appendix(group.target_title, raw_heading_text):
                         moved_sections.setdefault(group.target_title, []).append(block)
                         append_current_subsection = True
-                        continue
+                    continue
                     append_current_subsection = False
                     heading_text = _rename_heading(group.target_title, raw_heading_text)
                     current_subsection_heading = heading_text
@@ -993,15 +1118,21 @@ def _format_semantic_report(
                         markdown_parts.extend([f"### {label}", ""])
                         html_parts.append(f"<h3>{html.escape(label)}</h3>")
                         if body:
-                            paragraph_text = _polish_paragraph(body, chapter_title=group.target_title)
+                            paragraph_text = _normalize_citation_text(
+                                _polish_paragraph(body, chapter_title=group.target_title),
+                                citation_map,
+                            )
                             markdown_parts.extend([paragraph_text, ""])
                             html_parts.append(f"<p>{_paragraph_to_html(paragraph_text)}</p>")
                         continue
                     rewrite_plan = rewrite_lookup.get(block.block_id)
-                    paragraph_text = _rewrite_paragraph(
-                        block.markdown,
-                        chapter_title=group.target_title,
-                        rewrite_plan=rewrite_plan,
+                    paragraph_text = _normalize_citation_text(
+                        _rewrite_paragraph(
+                            block.markdown,
+                            chapter_title=group.target_title,
+                            rewrite_plan=rewrite_plan,
+                        ),
+                        citation_map,
                     )
                     markdown_parts.extend([paragraph_text, ""])
                     html_parts.append(f"<p>{_paragraph_to_html(paragraph_text)}</p>")
@@ -1012,8 +1143,9 @@ def _format_semantic_report(
                         markdown_parts.extend([role_intro, ""])
                         html_parts.append(f"<p>{_paragraph_to_html(role_intro)}</p>")
                         chapter_list_intro_written = True
-                    markdown_parts.extend([block.markdown, ""])
-                    html_parts.append(_list_markdown_to_html(block.markdown))
+                    list_markdown = _normalize_markdown_citations(block.markdown, citation_map)
+                    markdown_parts.extend([list_markdown, ""])
+                    html_parts.append(_list_markdown_to_html(list_markdown))
                     continue
                 if block.kind == "table":
                     chapter_table_key = group.target_title.lower()
@@ -1036,27 +1168,31 @@ def _format_semantic_report(
                         markdown_parts.extend([role_intro, ""])
                         html_parts.append(f"<p>{_paragraph_to_html(role_intro)}</p>")
                         chapter_table_intro_written = True
-                    caption = f"Table {table_counter}: {_table_caption(block, group.target_title)}"
-                    table_entries.append((table_counter, _table_caption(block, group.target_title)))
+                    table_markdown = _normalize_citation_markdown_table(block.markdown, citation_map)
+                    table_number = f"{section_number_prefix}.{chapter_table_counter}" if section_number_prefix else str(chapter_table_counter)
+                    caption = f"Table {table_number}: {_table_caption(block, group.target_title)}"
+                    table_entries.append((table_number, _table_caption(block, group.target_title)))
                     table_lead = _table_lead_in(block, group.target_title)
-                    if table_lead:
+                    if table_lead and table_lead != last_table_lead:
                         markdown_parts.extend([table_lead, ""])
                         html_parts.append(f"<p>{_paragraph_to_html(table_lead)}</p>")
-                    markdown_parts.extend([f"**{caption}**", "", block.markdown, ""])
+                        last_table_lead = table_lead
+                    markdown_parts.extend([f"**{caption}**", "", table_markdown, ""])
                     html_parts.append(f"<div class='table-caption'>{html.escape(caption)}</div>")
-                    html_parts.append(_table_markdown_to_html(block.markdown))
+                    html_parts.append(_table_markdown_to_html(table_markdown))
                     table_comment = _table_afterword(block, group.target_title)
                     if table_comment:
                         markdown_parts.extend([f"_{table_comment}_", ""])
                     chapter_kept_table_counts[chapter_table_key] = kept_count + 1
-                    table_counter += 1
+                    chapter_table_counter += 1
                     continue
                 if block.kind in {"code", "figure"}:
                     if block.kind == "code" and _is_full_page_diagram_group(group.target_title):
                         moved_sections.setdefault(group.target_title, []).append(block)
                         continue
-                    figure_caption = f"Figure {figure_counter}: {_figure_caption(block, group.target_title)}"
-                    figure_entries.append((figure_counter, _figure_caption(block, group.target_title)))
+                    figure_number = f"{section_number_prefix}.{chapter_figure_counter}" if section_number_prefix else str(chapter_figure_counter)
+                    figure_caption = f"Figure {figure_number}: {_figure_caption(block, group.target_title)}"
+                    figure_entries.append((figure_number, _figure_caption(block, group.target_title)))
                     figure_lead = _figure_lead_in(block, group.target_title)
                     if block.markdown.lstrip().startswith("<svg"):
                         if figure_lead:
@@ -1080,11 +1216,11 @@ def _format_semantic_report(
                         html_parts.append(f"<div class='figure-caption'>{html.escape(figure_caption)}</div>")
                         html_parts.append(f"<pre>{html.escape(block.markdown)}</pre>")
                         markdown_parts.extend(["_The above figure is retained in text-rendered form in the formatted report for deterministic local PDF generation._", ""])
-                    figure_counter += 1
+                    chapter_figure_counter += 1
                     continue
         html_parts.append("</section>")
 
-    references_body = references_md.strip()
+    references_body = clean_references_md.strip()
     if references_body.startswith("## References"):
         references_body = references_body[len("## References"):].lstrip()
     markdown_parts.extend(["", "# References", "", references_body, ""])
@@ -1112,16 +1248,16 @@ def _format_semantic_report(
                 markdown_parts.extend([f"### {_clean_heading_title(block.title)}", ""])
                 html_parts.append(f"<h3>{html.escape(_clean_heading_title(block.title))}</h3>")
             elif block.kind == "table":
-                markdown_parts.extend([block.markdown, ""])
+                markdown_parts.extend([_normalize_citation_markdown_table(block.markdown, citation_map), ""])
             elif block.kind == "list":
-                markdown_parts.extend([block.markdown, ""])
+                markdown_parts.extend([_normalize_markdown_citations(block.markdown, citation_map), ""])
             else:
-                markdown_parts.extend([block.markdown, ""])
+                markdown_parts.extend([_normalize_markdown_citations(block.markdown, citation_map), ""])
         appendix_label_ord += 1
 
     annexure_heading = f"Appendix {chr(appendix_label_ord)}: Annexures and Reproducibility Bundle"
     appendix_titles.append(annexure_heading)
-    markdown_parts.extend([f"## {annexure_heading}", "", annexures_md.strip(), ""])
+    markdown_parts.extend([f"## {annexure_heading}", "", clean_annexures_md.strip(), ""])
     html_parts.append(f"<h2>{html.escape(annexure_heading)}</h2>")
     html_parts.append(
         "<p class='appendix-note'>"
@@ -1134,7 +1270,9 @@ def _format_semantic_report(
     markdown_text = "\n".join(markdown_parts).strip() + "\n"
     markdown_text = _replace_formatted_register(markdown_text, "List of Tables", table_entries, "Table")
     markdown_text = _replace_formatted_register(markdown_text, "List of Figures", figure_entries, "Figure")
-    return markdown_text, "".join(html_parts), appendix_titles, moved_sections
+    markdown_text = _manual_prose_cleanup(markdown_text)
+    html_text = _manual_prose_cleanup("".join(html_parts))
+    return markdown_text, html_text, appendix_titles, moved_sections
 
 
 def _build_formatter_parity(
@@ -1299,8 +1437,8 @@ def _score_table_figure_parity(formatted_markdown: str) -> float:
     markers = [
         "## List of Tables",
         "## List of Figures",
-        "**Table 1:",
-        "**Figure 1:",
+        "**Table 1.1:",
+        "**Figure 1.1:",
         "The foregoing table",
     ]
     hits = sum(1 for marker in markers if marker in formatted_markdown)
@@ -1537,6 +1675,58 @@ def _section_lead_in(chapter_title: str, heading_text: str) -> str:
 
 def _polish_paragraph(text: str, *, chapter_title: str = "") -> str:
     sentence_library = build_sentence_pattern_library()
+    text = re.sub(r"^\s*In this connection,\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^\s*In the present study,\s*", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"(^|(?<=[.!?])\s+)In this connection,\s*", r"\1", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"^\s*special emphasis is placed on the commercial basis of the product because it governs the subsequent process design\.\s*$",
+        "Particular emphasis is placed on the commercial basis of the product, since it governs the subsequent process design.",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*From the above literature survey, it is evident that ",
+        "The literature survey shows that ",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*From the above comparison it is evident that ",
+        "The comparison shows that ",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*On the basis of the results obtained, the project economics may be screened from the principal profitability indicators retained in this chapter\.\s*$",
+        "The principal profitability indicators retained in this chapter provide the basis for the financial assessment of the project.",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*From a financial standpoint,\s*70:30 debt-equity basis selected after lender-coverage reranking",
+        "A 70:30 debt-equity basis is retained after lender-coverage reranking",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*From the foregoing chapters, it may be concluded that ",
+        "The foregoing chapters show that ",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*Accordingly,\s*50,000 TPA plant basis selected because ",
+        "Accordingly, a plant capacity of 50,000 TPA is selected because ",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(
+        r"^\s*no document-derived process options\.\s*$",
+        "No additional document-derived process options were identified.",
+        text,
+        flags=re.IGNORECASE,
+    )
+    text = re.sub(r"^\s*Accordingly,\s*([0-9][0-9,]*(?:\.[0-9]+)?\s*TPA)\s+plant basis selected because\s*", r"Accordingly, a \1 plant basis is selected because ", text, flags=re.IGNORECASE)
     text = re.sub(r"\bSolver-derived\b", "The present design analysis", text)
     text = re.sub(r"\bsolver-derived\b", "the present design analysis", text)
     text = re.sub(r"\bSolver-backed\b", "The present engineering basis", text)
@@ -1583,16 +1773,7 @@ def _rewrite_paragraph(
     rewrite_plan: NarrativeRewriteBlock | None = None,
 ) -> str:
     polished = _polish_paragraph(text, chapter_title=chapter_title)
-    if rewrite_plan is None or rewrite_plan.rewrite_mode != "aggressive":
-        return polished
-    original = rewrite_plan.original_markdown.strip()
-    if original.startswith("**") or original.startswith("*"):
-        return polished
-    return _apply_aggressive_chapter_rewrite(
-        polished,
-        chapter_title=chapter_title,
-        recommended_focus=rewrite_plan.recommended_focus,
-    )
+    return polished
 
 
 def _apply_aggressive_chapter_rewrite(
@@ -1649,33 +1830,6 @@ def _apply_aggressive_chapter_rewrite(
 
 
 def _apply_sentence_pattern_library(text: str, chapter_title: str, sentence_library: SentencePatternLibrary) -> str:
-    chapter_key = chapter_title.lower()
-    if chapter_key == "process selection":
-        if "comparison" in text.lower() and "from the above comparison" not in text.lower() and len(text) < 260:
-            text = "From the above comparison, " + text[0].lower() + text[1:]
-        if "preferred route" in text.lower() and "hence" not in text.lower() and len(text) < 260:
-            text = "Hence, " + text[0].lower() + text[1:]
-    elif chapter_key == "literature survey":
-        if "route" in text.lower() and "from the above literature survey" not in text.lower() and len(text) < 260:
-            text = "From the above literature survey, " + text[0].lower() + text[1:]
-    elif chapter_key == "material balance":
-        if "values obtained" not in text.lower() and ("stream" in text.lower() or "recycle" in text.lower()) and len(text) < 260:
-            text = "The values obtained indicate that " + text[0].lower() + text[1:]
-    elif chapter_key == "energy balance":
-        if "duty" in text.lower() and "it is clear from the duty distribution" not in text.lower() and len(text) < 260:
-            text = "It is clear from the duty distribution that " + text[0].lower() + text[1:]
-    elif chapter_key == "process design of reactor system":
-        if "reactor" in text.lower() and "the reactor selected for the present process is" not in text.lower() and len(text) < 260:
-            text = "The reactor selected for the present process is discussed below, and " + text[0].lower() + text[1:]
-    elif chapter_key == "process design of separation system":
-        if "separation" in text.lower() and "the selected separation system is based on" not in text.lower() and len(text) < 260:
-            text = "The selected separation system is based on the requirements of the chosen process, and " + text[0].lower() + text[1:]
-    elif chapter_key == "financial analysis":
-        if ("irr" in text.lower() or "npv" in text.lower() or "payback" in text.lower()) and "on the basis of the above results" not in text.lower() and len(text) < 260:
-            text = "On the basis of the above results, " + text[0].lower() + text[1:]
-    elif chapter_key == "conclusion":
-        if "recommended" in text.lower() and "hence" not in text.lower() and len(text) < 260:
-            text = "Hence, " + text[0].lower() + text[1:]
     return text
 
 
@@ -1683,38 +1837,38 @@ def _table_lead_in(block: SemanticBlock, group_title: str) -> str:
     title = _table_caption(block, group_title).lower()
     chapter_key = group_title.lower()
     if "properties" in title:
-        return "The relevant physical-property data compiled for the present study are listed below."
+        return "The principal physical-property data retained for design are listed below."
     if "route" in title and "comparison" in title:
-        return "The comparative route data used for selection are presented in the following table."
+        return "The route-wise comparison retained for process selection is given below."
     if "screening" in title:
-        return "The route-screening criteria and their outcomes are presented below."
+        return "The route-screening criteria and their outcomes are summarized below."
     if "commercial product basis" in title:
-        return "The adopted commercial basis for the report is summarized in the following table."
+        return "The adopted commercial basis of the project is summarized below."
     if "site" in title and "comparative" in title:
-        return "The relative merits of the site alternatives are set out below so that logistics, utilities, and infrastructure may be judged together."
+        return "The site alternatives are compared below against logistics, utilities, and supporting infrastructure."
     if "material balance" in title:
-        return "The tabulated material-balance results below are used to trace the movement of reactants, product, recycle streams, and losses across the plant."
+        return "The material-balance results are summarized below."
     if "energy balance" in title:
-        return "The tabulated energy-balance results below indicate how the thermal duties are distributed among the principal process sections."
+        return "The energy-balance results are summarized below."
     if "equipment" in title:
-        return "The major equipment dimensions retained for the present study are collected below so that the overall plant scale can be appreciated directly."
+        return "The principal equipment dimensions retained for the present study are summarized below."
     if "financial" in title or "economic" in title:
-        return "The tabulated financial indicators below form the basis for judging the economic strength of the selected process configuration."
+        return "The principal financial indicators are summarized below."
     if chapter_key == "material balance":
-        return "The principal stream-wise material-balance results are presented below for direct engineering reference."
+        return "The principal stream-wise material-balance results are presented below."
     if chapter_key == "energy balance":
         return "The principal unit-wise duties and corresponding utility implications are presented below."
     if chapter_key == "process design of reactor system":
-        return "The reactor-design quantities retained for preliminary sizing are summarized in the following table."
+        return "The reactor-design quantities retained for preliminary sizing are summarized below."
     if chapter_key == "process design of separation system":
-        return "The separation-design quantities retained for preliminary sizing are summarized in the following table."
+        return "The separation-design quantities retained for preliminary sizing are summarized below."
     if chapter_key == "financial analysis":
-        return "The principal financial indicators derived from the solved economic basis are presented below."
+        return "The principal financial indicators derived from the adopted economic basis are presented below."
     if "cost" in title:
         return "The principal cost elements retained for the present case are summarized below."
     if "financial" in title:
         return "The key financial indicators obtained for the present case are summarized below."
-    return "The corresponding tabulated results are presented below for interpretation in the present discussion."
+    return ""
 
 
 def _chapter_role_intro(chapter_title: str, role: str) -> str:
@@ -1726,15 +1880,7 @@ def _table_afterword(block: SemanticBlock, chapter_title: str) -> str:
     specific = _table_specific_afterword(title, chapter_title)
     if specific:
         return specific
-    templates = _chapter_table_discussion_templates(chapter_title)
-    if templates:
-        return _deterministic_variant(templates, f"{chapter_title}:{title}")
-    mapping = {
-        "introduction": "The foregoing table fixes the commercial product basis used throughout the report.",
-        "process design of reactor system": "The foregoing table is used directly in the worked preliminary design basis of the selected reactor system.",
-        "process design of separation system": "The foregoing table is used directly in the worked preliminary design basis of the selected purification system.",
-    }
-    return mapping.get(chapter_title.lower(), "The foregoing table is retained in the main text to support the corresponding engineering discussion.")
+    return ""
 
 
 def _chapter_transition_templates(chapter_title: str) -> list[str]:
@@ -1759,21 +1905,21 @@ def _deterministic_variant(options: list[str], seed: str) -> str:
 def _table_specific_afterword(title: str, chapter_title: str) -> str:
     chapter_key = chapter_title.lower()
     if "commercial product basis" in title:
-        return "The foregoing table fixes the sold-solution basis, active-content basis, and commercial form used throughout the remainder of the report."
+        return "This table fixes the sold-solution basis, active-content basis, and commercial form used throughout the remainder of the report."
     if "route" in title and "comparison" in title:
-        return "From the foregoing comparison, the relative strengths and limitations of the candidate routes can be read directly before arriving at the preferred process choice."
+        return "The relative strengths and limitations of the candidate routes can be read directly from this comparison."
     if "screening" in title:
-        return "The foregoing screening table narrows the alternatives to those that remain practical after chemistry, purification, and operability are considered together."
+        return "This screening table narrows the alternatives to those that remain practical after chemistry, purification, and operability are considered together."
     if "site" in title and "comparative" in title:
-        return "From the foregoing site comparison, the preference for the recommended location follows from its combined logistical, utility, and regulatory advantages."
+        return "The preference for the recommended location follows from its combined logistical, utility, and regulatory advantages."
     if "material balance" in title or chapter_key == "material balance":
-        return "The foregoing material-balance table provides the basis for discussing stream distribution, recycle return, and product recovery through the selected plant."
+        return ""
     if "energy balance" in title or chapter_key == "energy balance":
-        return "The foregoing energy-balance table makes it possible to relate the utility requirement of the plant to the duties of the major process sections."
+        return ""
     if "equipment" in title:
-        return "The foregoing equipment table establishes the scale of the plant and provides the dimensional basis for the layout and cost discussions that follow."
+        return ""
     if "financial" in title or "economic" in title or chapter_key == "financial analysis":
-        return "From the foregoing financial table, the profitability and capital recovery behaviour of the project may be interpreted on a consistent engineering basis."
+        return ""
     return ""
 
 
@@ -2024,7 +2170,7 @@ def _render_full_page_diagram_sheet(svg: str, figure_caption: str, figure_lead: 
     )
 
 
-def _replace_formatted_register(markdown_text: str, heading: str, entries: list[tuple[int, str]], kind: str) -> str:
+def _replace_formatted_register(markdown_text: str, heading: str, entries: list[tuple[str, str]], kind: str) -> str:
     marker = f"## {heading}\n\n_To be updated from the formatted chapter body._"
     if marker not in markdown_text:
         return markdown_text

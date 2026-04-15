@@ -109,6 +109,71 @@ class ReportAcceptanceStatus(str, Enum):
     BLOCKED = "blocked"
 
 
+class DiagramLevel(str, Enum):
+    BFD = "bfd"
+    PFD = "pfd"
+    CONTROL = "control"
+    PID_LITE = "pid_lite"
+
+
+class DiagramSymbolPolicy(str, Enum):
+    BLOCK_ONLY = "block_only"
+    PROCESS_ONLY = "process_only"
+    CONTROL_ONLY = "control_only"
+    PID_LITE_ONLY = "pid_lite_only"
+
+
+class DiagramEntityKind(str, Enum):
+    SECTION = "section"
+    UNIT = "unit"
+    STREAM_TERMINAL = "stream_terminal"
+    UTILITY_NODE = "utility_node"
+    CONTROL_LOOP = "control_loop"
+    INSTRUMENT = "instrument"
+    VALVE = "valve"
+    ANNOTATION = "annotation"
+
+
+class DiagramEdgeRole(str, Enum):
+    PROCESS = "process"
+    PRODUCT = "product"
+    RECYCLE = "recycle"
+    PURGE = "purge"
+    VENT = "vent"
+    WASTE = "waste"
+    UTILITY = "utility"
+    CONTROL_SIGNAL = "control_signal"
+    SAFEGUARD = "safeguard"
+    CONTINUATION = "continuation"
+
+
+class DiagramPortSide(str, Enum):
+    LEFT = "left"
+    RIGHT = "right"
+    TOP = "top"
+    BOTTOM = "bottom"
+
+
+class DiagramSymbolShape(str, Enum):
+    RECT = "rect"
+    ROUNDED_RECT = "rounded_rect"
+    VESSEL = "vessel"
+    COLUMN = "column"
+    EXCHANGER = "exchanger"
+    PUMP = "pump"
+    TERMINAL = "terminal"
+    DIAMOND = "diamond"
+    INSTRUMENT_BUBBLE = "instrument_bubble"
+    VALVE = "valve"
+    CONNECTOR = "connector"
+
+
+class DiagramLinePattern(str, Enum):
+    SOLID = "solid"
+    DASHED = "dashed"
+    DOTTED = "dotted"
+
+
 class RunStatus(str, Enum):
     READY = "ready"
     RUNNING = "running"
@@ -3533,17 +3598,103 @@ class DiagramStyleProfile(ProvenancedModel):
     markdown: str = ""
 
 
+class DiagramSymbolDefinition(BaseModel):
+    symbol_key: str
+    label: str
+    diagram_level: DiagramLevel
+    entity_kind: DiagramEntityKind
+    pid_family: str = ""
+    shape: DiagramSymbolShape
+    width_px: int
+    height_px: int
+    stroke_color: str = "#222222"
+    fill_color: str = "#f7f7f7"
+    stroke_width_px: float = 1.5
+    line_pattern: DiagramLinePattern = DiagramLinePattern.SOLID
+    label_position: Literal["inside", "above", "below", "right"] = "inside"
+    equipment_tag_position: Literal["hidden", "above", "header"] = "above"
+    notes: list[str] = Field(default_factory=list)
+
+
+class DiagramEdgeStyleRule(BaseModel):
+    role: DiagramEdgeRole
+    diagram_level: DiagramLevel
+    stroke_color: str
+    stroke_width_px: float = 2.0
+    line_pattern: DiagramLinePattern = DiagramLinePattern.SOLID
+    arrow_marker: Literal["none", "forward", "bidirectional"] = "forward"
+    label_box_fill: str = "#ffffff"
+
+
+class DiagramLevelStylePolicy(BaseModel):
+    diagram_level: DiagramLevel
+    symbol_policy: DiagramSymbolPolicy
+    allowed_symbol_keys: list[str] = Field(default_factory=list)
+    forbidden_entity_kinds: list[DiagramEntityKind] = Field(default_factory=list)
+    allowed_edge_roles: list[DiagramEdgeRole] = Field(default_factory=list)
+    body_font_family: str = "Calibri"
+    heading_font_family: str = "Calibri"
+    mono_font_family: str = "Courier New"
+    title_font_size_px: int = 22
+    primary_label_font_size_px: int = 13
+    secondary_label_font_size_px: int = 10
+    minimum_text_size_px: int = 9
+    minimum_node_spacing_px: int = 44
+    minimum_label_clearance_px: int = 16
+    orthogonal_routing_only: bool = True
+    allow_diagonal_connectors: bool = False
+    notes: list[str] = Field(default_factory=list)
+
+
+class DiagramSymbolLibraryArtifact(ProvenancedModel):
+    library_id: str
+    library_name: str
+    symbols: list[DiagramSymbolDefinition] = Field(default_factory=list)
+    edge_styles: list[DiagramEdgeStyleRule] = Field(default_factory=list)
+    level_policies: list[DiagramLevelStylePolicy] = Field(default_factory=list)
+    markdown: str = ""
+
+
 class DiagramTargetProfile(ProvenancedModel):
     target_id: str
     target_product: str
+    domain_pack_id: str = "specialty_chemicals"
     required_bfd_sections: list[str] = Field(default_factory=list)
     required_pfd_unit_families: list[str] = Field(default_factory=list)
     major_stream_roles: list[str] = Field(default_factory=list)
+    preferred_template_families: list[str] = Field(default_factory=list)
+    allowed_pfd_symbol_keys: list[str] = Field(default_factory=list)
     recycle_notation: str = "Recycle"
     purge_notation: str = "Purge"
     vent_notation: str = "Vent"
     waste_notation: str = "Waste"
     main_body_max_pfd_nodes: int = 8
+    module_row_width_fraction: float = 0.72
+    connector_mid_x_spacing_px: int = 28
+    connector_lane_y_spacing_px: int = 18
+    markdown: str = ""
+
+
+class DiagramDomainPack(BaseModel):
+    pack_id: str
+    label: str
+    match_tokens: list[str] = Field(default_factory=list)
+    required_bfd_sections: list[str] = Field(default_factory=list)
+    required_pfd_unit_families: list[str] = Field(default_factory=list)
+    major_stream_roles: list[str] = Field(default_factory=list)
+    preferred_template_families: list[str] = Field(default_factory=list)
+    main_body_max_pfd_nodes: int = 8
+    module_row_width_fraction: float = 0.72
+    connector_mid_x_spacing_px: int = 28
+    connector_lane_y_spacing_px: int = 18
+    template_overrides: dict[str, DiagramEquipmentTemplate] = Field(default_factory=dict)
+    allowed_pfd_symbol_keys: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class DiagramDomainPackArtifact(ProvenancedModel):
+    artifact_id: str
+    packs: list[DiagramDomainPack] = Field(default_factory=list)
     markdown: str = ""
 
 
@@ -3579,7 +3730,19 @@ class DiagramEdge(BaseModel):
     edge_id: str
     source_node_id: str
     target_node_id: str
-    edge_type: Literal["main", "product", "recycle", "purge", "vent", "waste", "side_draw", "utility"] = "main"
+    edge_type: Literal[
+        "main",
+        "product",
+        "recycle",
+        "purge",
+        "vent",
+        "waste",
+        "side_draw",
+        "utility",
+        "control_signal",
+        "safeguard",
+        "continuation",
+    ] = "main"
     stream_id: str = ""
     label: str = ""
     condition_label: str = ""
@@ -3592,6 +3755,20 @@ class DiagramSheet(BaseModel):
     title: str
     width_px: int = 1400
     height_px: int = 520
+    stitch_panel_id: str = ""
+    stitch_panel_title: str = ""
+    stitch_prev_sheet_id: str = ""
+    stitch_next_sheet_id: str = ""
+    drawing_number: str = ""
+    sheet_number: str = ""
+    revision: str = "A"
+    revision_date: str = ""
+    issue_status: str = "For Review"
+    prepared_by: str = "AoC"
+    checked_by: str = ""
+    reviewed_by: str = ""
+    approved_by: str = ""
+    approved_date: str = ""
     orientation: Literal["portrait", "landscape"] = "landscape"
     presentation_mode: Literal["inline", "sheet"] = "sheet"
     preferred_scale: float = 1.0
@@ -3601,6 +3778,177 @@ class DiagramSheet(BaseModel):
     node_ids: list[str] = Field(default_factory=list)
     edge_ids: list[str] = Field(default_factory=list)
     svg: str = ""
+
+
+class PlantDiagramEntity(BaseModel):
+    entity_id: str
+    kind: DiagramEntityKind
+    label: str
+    diagram_level: DiagramLevel
+    section_id: str = ""
+    unit_id: str = ""
+    stream_id: str = ""
+    utility_id: str = ""
+    control_id: str = ""
+    instrument_id: str = ""
+    equipment_tag: str = ""
+    service: str = ""
+    symbol_key: str = ""
+    must_be_isolated: bool = False
+    preferred_module_id: str = ""
+    attached_to_entity_id: str = ""
+    attachment_role: str = ""
+    pid_function: str = ""
+    pid_loop_id: str = ""
+    line_class: str = ""
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class PlantDiagramConnection(BaseModel):
+    connection_id: str
+    role: DiagramEdgeRole
+    diagram_level: DiagramLevel
+    source_entity_id: str
+    target_entity_id: str
+    stream_id: str = ""
+    control_id: str = ""
+    label: str = ""
+    condition_label: str = ""
+    must_route_externally: bool = False
+    preferred_lane: str = "main"
+    line_class: str = ""
+    metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class PlantDiagramSemanticsArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    entities: list[PlantDiagramEntity] = Field(default_factory=list)
+    connections: list[PlantDiagramConnection] = Field(default_factory=list)
+    section_order: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class DiagramModulePort(BaseModel):
+    port_id: str
+    entity_id: str = ""
+    connection_role: DiagramEdgeRole = DiagramEdgeRole.PROCESS
+    template_port_role: str = ""
+    side: DiagramPortSide
+    order_index: int = 0
+    lane: str = "main"
+    label: str = ""
+
+
+class DiagramEquipmentPortTemplate(BaseModel):
+    port_role: str
+    side: DiagramPortSide
+    lane: str = "main"
+    order_index: int = 0
+
+
+class DiagramEquipmentTemplate(BaseModel):
+    template_id: str
+    family: str
+    match_tokens: list[str] = Field(default_factory=list)
+    node_family: str
+    pfd_symbol_key: str
+    pid_symbol_key: str = "pid_unit"
+    default_width_px: int = 180
+    default_height_px: int = 120
+    ports: list[DiagramEquipmentPortTemplate] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class DiagramEquipmentTemplateArtifact(ProvenancedModel):
+    artifact_id: str
+    templates: list[DiagramEquipmentTemplate] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class DiagramModuleConstraint(BaseModel):
+    key: Literal[
+        "min_node_spacing_px",
+        "min_label_clearance_px",
+        "max_nodes",
+        "max_edges",
+        "max_crossings",
+        "sheet_break_allowed",
+        "orthogonal_only",
+    ]
+    value: str
+
+
+class DiagramModuleSpec(BaseModel):
+    module_id: str
+    module_kind: DiagramLevel
+    title: str
+    symbol_policy: DiagramSymbolPolicy
+    section_id: str = ""
+    unit_ids: list[str] = Field(default_factory=list)
+    entity_ids: list[str] = Field(default_factory=list)
+    connection_ids: list[str] = Field(default_factory=list)
+    boundary_ports: list[DiagramModulePort] = Field(default_factory=list)
+    allowed_edge_roles: list[DiagramEdgeRole] = Field(default_factory=list)
+    forbidden_entity_kinds: list[DiagramEntityKind] = Field(default_factory=list)
+    preferred_orientation: Literal["LR", "TB"] = "LR"
+    sheet_break_allowed: bool = True
+    must_be_isolated: bool = False
+    constraints: list[DiagramModuleConstraint] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+
+
+class DiagramModuleArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    module_kind: DiagramLevel
+    modules: list[DiagramModuleSpec] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class DiagramModulePlacement(BaseModel):
+    module_id: str
+    sheet_id: str
+    x: float
+    y: float
+    width: float
+    height: float
+    z_index: int = 0
+
+
+class DiagramInterModuleConnector(BaseModel):
+    connector_id: str
+    role: DiagramEdgeRole
+    source_module_id: str
+    source_port_id: str
+    target_module_id: str
+    target_port_id: str
+    label: str = ""
+    continuation_marker: str = ""
+
+
+class DiagramSheetComposition(BaseModel):
+    sheet_id: str
+    title: str
+    diagram_level: DiagramLevel
+    width_px: int = 1600
+    height_px: int = 900
+    stitch_panel_id: str = ""
+    stitch_panel_title: str = ""
+    stitch_prev_sheet_id: str = ""
+    stitch_next_sheet_id: str = ""
+    module_placements: list[DiagramModulePlacement] = Field(default_factory=list)
+    connectors: list[DiagramInterModuleConnector] = Field(default_factory=list)
+    legend_mode: Literal["embedded", "suppressed"] = "suppressed"
+    title_block_mode: Literal["embedded", "suppressed"] = "embedded"
+
+
+class DiagramSheetCompositionArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    diagram_level: DiagramLevel
+    sheets: list[DiagramSheetComposition] = Field(default_factory=list)
+    markdown: str = ""
 
 
 class BlockFlowDiagramArtifact(ProvenancedModel):
@@ -3629,6 +3977,74 @@ class ControlSystemDiagramArtifact(ProvenancedModel):
     markdown: str = ""
 
 
+class ControlCauseEffectRow(ProvenancedModel):
+    control_id: str
+    unit_id: str = ""
+    controlled_variable: str = ""
+    cause_permissive: str = ""
+    action_shutdown: str = ""
+    override_logic: str = ""
+    safeguard_trip: str = ""
+    protected_final_action: str = ""
+    criticality: str = ""
+    safety_critical: bool = False
+
+
+class ControlCauseEffectArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str
+    rows: list[ControlCauseEffectRow] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class DiagramRoutePoint(BaseModel):
+    x: float
+    y: float
+
+
+class DiagramRouteHint(BaseModel):
+    edge_id: str
+    points: list[DiagramRoutePoint] = Field(default_factory=list)
+    label_x: float = 0.0
+    label_y: float = 0.0
+    condition_x: float = 0.0
+    condition_y: float = 0.0
+
+
+class DiagramContinuationMarker(BaseModel):
+    x: float
+    y: float
+    side: Literal["left", "right"] = "right"
+    label: str = ""
+    target_sheet: str = ""
+
+
+class DiagramRoutingSheet(BaseModel):
+    sheet_id: str
+    route_hints: list[DiagramRouteHint] = Field(default_factory=list)
+    continuation_markers: list[DiagramContinuationMarker] = Field(default_factory=list)
+    crossing_count: int = 0
+    congested_connector_count: int = 0
+    max_channel_load: int = 0
+
+
+class DiagramRoutingArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    diagram_level: DiagramLevel
+    sheets: list[DiagramRoutingSheet] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class PidLiteDiagramArtifact(ProvenancedModel):
+    diagram_id: str
+    route_id: str
+    nodes: list[DiagramNode] = Field(default_factory=list)
+    edges: list[DiagramEdge] = Field(default_factory=list)
+    sheets: list[DiagramSheet] = Field(default_factory=list)
+    markdown: str = ""
+
+
 class DiagramAcceptanceArtifact(ProvenancedModel):
     diagram_id: str
     diagram_kind: Literal["bfd", "pfd"]
@@ -3636,7 +4052,62 @@ class DiagramAcceptanceArtifact(ProvenancedModel):
     missing_required_nodes: list[str] = Field(default_factory=list)
     missing_required_edges: list[str] = Field(default_factory=list)
     mismatched_labels: list[str] = Field(default_factory=list)
+    benchmark_cleanliness_score: float = 1.0
+    node_overlap_count: int = 0
+    node_label_overlap_count: int = 0
+    crowded_sheet_count: int = 0
+    max_sheet_utilization_fraction: float = 0.0
+    missing_drafting_field_count: int = 0
+    duplicate_drawing_number_count: int = 0
+    duplicate_sheet_number_count: int = 0
+    missing_title_block_count: int = 0
+    title_block_overlap_count: int = 0
+    warning_issue_codes: list[str] = Field(default_factory=list)
+    blocking_issue_codes: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class BACDiagramBenchmarkRow(ProvenancedModel):
+    diagram_kind: Literal["bfd", "pfd", "pid", "drawio"]
+    status: Literal["pass", "warning", "fail"] = "warning"
+    checks_passed: list[str] = Field(default_factory=list)
+    warning_codes: list[str] = Field(default_factory=list)
+    blocking_codes: list[str] = Field(default_factory=list)
+    summary: str = ""
+
+
+class BACDiagramBenchmarkArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str
+    benchmark_profile: str = "benzalkonium_chloride"
+    overall_status: Literal["complete", "conditional", "blocked"] = "conditional"
+    rows: list[BACDiagramBenchmarkRow] = Field(default_factory=list)
+    benchmark_labels: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class BACRenderingAuditRow(ProvenancedModel):
+    diagram_kind: Literal["bfd", "pfd", "pid"]
+    status: Literal["pass", "warning", "fail"] = "warning"
+    sheet_count: int = 0
+    benchmark_cleanliness_score: float = 1.0
+    route_crossings: int = 0
+    route_congestion: int = 0
+    max_channel_load: int = 0
+    continuation_marker_count: int = 0
+    missing_title_block_count: int = 0
+    title_block_overlap_count: int = 0
+    findings: list[str] = Field(default_factory=list)
+    summary: str = ""
+
+
+class BACRenderingAuditArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str
+    overall_status: Literal["complete", "conditional", "blocked"] = "conditional"
+    rows: list[BACRenderingAuditRow] = Field(default_factory=list)
+    audit_scope: list[str] = Field(default_factory=list)
     markdown: str = ""
 
 
@@ -3862,3 +4333,53 @@ class FinalReport(BaseModel):
     formatter_target_id: Optional[str] = None
     references: list[str] = Field(default_factory=list)
     annexure_paths: list[str] = Field(default_factory=list)
+    diagram_svg_paths: list[str] = Field(default_factory=list)
+    diagram_drawio_paths: list[str] = Field(default_factory=list)
+
+
+class DiagramDeliveryManifestArtifact(ProvenancedModel):
+    manifest_id: str
+    project_id: str
+    architecture_status: Literal["modular_default"] = "modular_default"
+    svg_source_of_truth: bool = True
+    drawio_export_enabled: bool = True
+    bfd_svg_paths: list[str] = Field(default_factory=list)
+    pfd_svg_paths: list[str] = Field(default_factory=list)
+    control_svg_paths: list[str] = Field(default_factory=list)
+    pid_lite_svg_paths: list[str] = Field(default_factory=list)
+    drawio_paths: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    markdown: str = ""
+
+
+class BACDrawingRegisterRow(ProvenancedModel):
+    diagram_kind: Literal["bfd", "pfd", "pid", "control"]
+    sheet_id: str
+    title: str
+    drawing_number: str = ""
+    sheet_number: str = ""
+    issue_status: str = ""
+    checked_by: str = ""
+    reviewed_by: str = ""
+    approved_by: str = ""
+    approved_date: str = ""
+    svg_path: str = ""
+    drawio_path: str = ""
+
+
+class BACDrawingPackageArtifact(ProvenancedModel):
+    artifact_id: str
+    route_id: str
+    package_profile: str = "benzalkonium_chloride"
+    overall_status: Literal["complete", "conditional", "blocked"] = "conditional"
+    benchmark_status: str = ""
+    review_workflow_status: Literal["draft", "for_review", "approved", "as_built"] = "draft"
+    revision_history: list[str] = Field(default_factory=list)
+    checker: str = ""
+    reviewer: str = ""
+    approver: str = ""
+    svg_paths: list[str] = Field(default_factory=list)
+    drawio_paths: list[str] = Field(default_factory=list)
+    register_rows: list[BACDrawingRegisterRow] = Field(default_factory=list)
+    package_notes: list[str] = Field(default_factory=list)
+    markdown: str = ""

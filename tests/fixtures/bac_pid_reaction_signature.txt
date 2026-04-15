@@ -1,0 +1,6 @@
+title=BAC Reaction P&ID: Reactor
+has_bac_title=1
+has_bac_process_liquid=1
+has_bac_relief=1
+has_title_block=1
+has_pid_legend=1

@@ -1,11 +1,36 @@
 import unittest
 
+from aoc.diagrams import build_diagram_domain_packs, build_diagram_symbol_library, build_diagram_target_profile
 from aoc.models import (
+    BACDrawingPackageArtifact,
+    BACDrawingRegisterRow,
+    BACDiagramBenchmarkArtifact,
+    BACDiagramBenchmarkRow,
+    BACRenderingAuditArtifact,
+    BACRenderingAuditRow,
     ColumnDesign,
     CostModel,
     DecisionRecord,
+    DiagramEdgeRole,
+    DiagramEntityKind,
+    DiagramInterModuleConnector,
+    DiagramLabel,
+    DiagramLevel,
+    DiagramModuleArtifact,
+    DiagramNode,
+    DiagramModulePlacement,
+    DiagramModulePort,
+    DiagramModuleSpec,
+    DiagramSheet,
+    DiagramSymbolLibraryArtifact,
+    DiagramPortSide,
+    DiagramSheetComposition,
+    DiagramSheetCompositionArtifact,
+    DiagramSymbolPolicy,
     FinancialModel,
     GeographicScope,
+    FlowsheetGraph,
+    FlowsheetNode,
     HazopNode,
     HazopNodeRegister,
     HeatExchangerDesign,
@@ -15,6 +40,9 @@ from aoc.models import (
     MethodSelectionArtifact,
     OperationsPlanningArtifact,
     ProcessTemplate,
+    PlantDiagramConnection,
+    PlantDiagramEntity,
+    PlantDiagramSemanticsArtifact,
     ProjectBasis,
     ProjectConfig,
     RouteFamilyArtifact,
@@ -46,6 +74,20 @@ from aoc.properties.models import (
 )
 from aoc.validators import (
     validate_architecture_package_critics,
+    validate_diagram_module_artifact,
+    validate_diagram_module_symbols_against_library,
+    validate_diagram_target_profile_against_domain_packs,
+    validate_bac_pfd_process_purity,
+    validate_bac_bfd_structure,
+    validate_bac_diagram_benchmark_artifact,
+    validate_bac_drawing_package_artifact,
+    validate_bac_rendering_audit_artifact,
+    validate_bac_pid_cluster_coverage,
+    validate_diagram_drafting_sheets,
+    validate_diagram_sheet_composition_artifact,
+    validate_plant_diagram_semantics_against_target_profile,
+    validate_diagram_semantics_against_symbol_library,
+    validate_diagram_symbol_library,
     validate_equipment_applicability,
     validate_financial_model,
     validate_financing_decision_alignment,
@@ -60,6 +102,7 @@ from aoc.validators import (
     validate_separation_design_critics,
     validate_separation_thermo_artifact,
     validate_separation_thermo_critics,
+    validate_plant_diagram_semantics,
     validate_technical_economic_critics,
     validate_unit_family_property_coverage,
     validate_working_capital,
@@ -67,6 +110,46 @@ from aoc.validators import (
 
 
 class ValidatorTests(unittest.TestCase):
+    def _make_semantics(self, **overrides) -> PlantDiagramSemanticsArtifact:
+        data = {
+            "diagram_id": "demo_pfd",
+            "route_id": "route_1",
+            "entities": [
+                PlantDiagramEntity(
+                    entity_id="u_feed",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Feed Tank",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="TK-101",
+                    section_id="feed",
+                ),
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="R-101",
+                    section_id="reaction",
+                ),
+            ],
+            "connections": [
+                PlantDiagramConnection(
+                    connection_id="c_main",
+                    role=DiagramEdgeRole.PROCESS,
+                    diagram_level=DiagramLevel.PFD,
+                    source_entity_id="u_feed",
+                    target_entity_id="u_rxn",
+                    stream_id="S-101",
+                )
+            ],
+            "section_order": ["feed", "reaction"],
+            "markdown": "seed",
+            "citations": ["s1"],
+            "assumptions": ["seed"],
+        }
+        data.update(overrides)
+        return PlantDiagramSemanticsArtifact(**data)
+
     def test_hazop_validation_requires_safeguards_and_tracks_recommendations(self):
         register = HazopNodeRegister(
             nodes=[
@@ -404,6 +487,614 @@ class ValidatorTests(unittest.TestCase):
         self.assertFalse(issues)
         self.assertFalse(missing)
         self.assertFalse(stale)
+
+    def test_validate_plant_diagram_semantics_blocks_pid_content_in_pfd(self):
+        artifact = self._make_semantics(
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="R-101",
+                ),
+                PlantDiagramEntity(
+                    entity_id="v_1",
+                    kind=DiagramEntityKind.VALVE,
+                    label="Control Valve",
+                    diagram_level=DiagramLevel.PFD,
+                ),
+            ],
+            connections=[],
+        )
+
+        issues = validate_plant_diagram_semantics(artifact)
+
+        self.assertTrue(any(issue.code == "diagram_semantics_pid_content_in_pfd" for issue in issues))
+
+    def test_validate_plant_diagram_semantics_blocks_missing_connection_entities(self):
+        artifact = self._make_semantics(
+            connections=[
+                PlantDiagramConnection(
+                    connection_id="c_bad",
+                    role=DiagramEdgeRole.PROCESS,
+                    diagram_level=DiagramLevel.PFD,
+                    source_entity_id="u_feed",
+                    target_entity_id="missing_unit",
+                )
+            ]
+        )
+
+        issues = validate_plant_diagram_semantics(artifact)
+
+        self.assertTrue(any(issue.code == "diagram_semantics_connection_missing_entity" for issue in issues))
+
+    def test_validate_diagram_module_artifact_blocks_pfd_pid_mixing(self):
+        semantics = self._make_semantics(
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="R-101",
+                ),
+                PlantDiagramEntity(
+                    entity_id="i_tic",
+                    kind=DiagramEntityKind.INSTRUMENT,
+                    label="TIC",
+                    diagram_level=DiagramLevel.PFD,
+                    instrument_id="TIC-101",
+                ),
+            ],
+            connections=[],
+        )
+        modules = DiagramModuleArtifact(
+            diagram_id="demo_pfd",
+            route_id="route_1",
+            module_kind=DiagramLevel.PFD,
+            modules=[
+                DiagramModuleSpec(
+                    module_id="pfd_reaction",
+                    module_kind=DiagramLevel.PFD,
+                    title="Reaction",
+                    symbol_policy=DiagramSymbolPolicy.PROCESS_ONLY,
+                    entity_ids=["u_rxn", "i_tic"],
+                    allowed_edge_roles=[DiagramEdgeRole.PROCESS],
+                    boundary_ports=[],
+                )
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_diagram_module_artifact(modules, semantics)
+
+        self.assertTrue(any(issue.code == "diagram_module_pfd_contains_pid_content" for issue in issues))
+
+    def test_validate_diagram_sheet_composition_blocks_unknown_ports(self):
+        semantics = self._make_semantics()
+        modules = DiagramModuleArtifact(
+            diagram_id="demo_pfd",
+            route_id="route_1",
+            module_kind=DiagramLevel.PFD,
+            modules=[
+                DiagramModuleSpec(
+                    module_id="mod_a",
+                    module_kind=DiagramLevel.PFD,
+                    title="Feed",
+                    symbol_policy=DiagramSymbolPolicy.PROCESS_ONLY,
+                    entity_ids=["u_feed"],
+                    connection_ids=[],
+                    boundary_ports=[
+                        DiagramModulePort(
+                            port_id="port_a_out",
+                            entity_id="u_feed",
+                            connection_role=DiagramEdgeRole.PROCESS,
+                            side=DiagramPortSide.RIGHT,
+                        )
+                    ],
+                ),
+                DiagramModuleSpec(
+                    module_id="mod_b",
+                    module_kind=DiagramLevel.PFD,
+                    title="Reaction",
+                    symbol_policy=DiagramSymbolPolicy.PROCESS_ONLY,
+                    entity_ids=["u_rxn"],
+                    connection_ids=[],
+                    boundary_ports=[
+                        DiagramModulePort(
+                            port_id="port_b_in",
+                            entity_id="u_rxn",
+                            connection_role=DiagramEdgeRole.PROCESS,
+                            side=DiagramPortSide.LEFT,
+                        )
+                    ],
+                ),
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+        composition = DiagramSheetCompositionArtifact(
+            diagram_id="demo_pfd",
+            route_id="route_1",
+            diagram_level=DiagramLevel.PFD,
+            sheets=[
+                DiagramSheetComposition(
+                    sheet_id="sheet_1",
+                    title="PFD Sheet 1",
+                    diagram_level=DiagramLevel.PFD,
+                    module_placements=[
+                        DiagramModulePlacement(module_id="mod_a", sheet_id="sheet_1", x=0, y=0, width=200, height=120),
+                        DiagramModulePlacement(module_id="mod_b", sheet_id="sheet_1", x=250, y=0, width=200, height=120),
+                    ],
+                    connectors=[
+                        DiagramInterModuleConnector(
+                            connector_id="conn_1",
+                            role=DiagramEdgeRole.PROCESS,
+                            source_module_id="mod_a",
+                            source_port_id="missing_port",
+                            target_module_id="mod_b",
+                            target_port_id="port_b_in",
+                        )
+                    ],
+                )
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_diagram_sheet_composition_artifact(composition, modules)
+
+        self.assertTrue(any(issue.code == "diagram_sheet_connector_missing_port" for issue in issues))
+
+    def test_validate_diagram_drafting_sheets_blocks_missing_title_block_duplicates_and_overlap(self):
+        sheets = [
+            DiagramSheet(
+                sheet_id="sheet_1",
+                title="Process Flow Diagram",
+                width_px=900,
+                height_px=500,
+                drawing_number="PFD-001",
+                sheet_number="1 of 2",
+                revision_date="2026-04-12",
+                node_ids=["R-101"],
+                svg="<svg><text>No title block</text></svg>",
+            ),
+            DiagramSheet(
+                sheet_id="sheet_2",
+                title="Process Flow Diagram",
+                width_px=900,
+                height_px=500,
+                drawing_number="PFD-001",
+                sheet_number="1 of 2",
+                revision_date="",
+                svg="<svg><text>DRAFTING TITLE BLOCK</text></svg>",
+            ),
+        ]
+        nodes = [DiagramNode(node_id="R-101", label="Reactor", node_family="reactor", x=470, y=395, width=160, height=80)]
+
+        issues = validate_diagram_drafting_sheets(sheets, nodes=nodes)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("diagram_title_block_missing", issue_codes)
+        self.assertIn("diagram_duplicate_drawing_number", issue_codes)
+        self.assertIn("diagram_duplicate_sheet_number", issue_codes)
+        self.assertIn("diagram_drafting_metadata_missing", issue_codes)
+        self.assertIn("diagram_title_block_overlap", issue_codes)
+
+    def test_validate_bac_pfd_process_purity_blocks_control_and_utility_annotations(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Benzalkonium chloride", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        nodes = [
+            DiagramNode(
+                node_id="R-101",
+                label="Reactor",
+                node_family="reactor",
+                labels=[
+                    DiagramLabel(text="R-101", kind="primary"),
+                    DiagramLabel(text="Jacketed CSTR Reactor", kind="secondary"),
+                    DiagramLabel(text="TIC-101", kind="utility"),
+                    DiagramLabel(text="+250 kW heat", kind="utility"),
+                ],
+            ),
+            DiagramNode(node_id="CV-101", label="Control Valve", node_family="valve"),
+        ]
+
+        issues = validate_bac_pfd_process_purity(nodes, target)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("bac_pfd_contains_control_annotation", issue_codes)
+        self.assertIn("bac_pfd_contains_utility_duty_annotation", issue_codes)
+        self.assertIn("bac_pfd_contains_pid_symbol_family", issue_codes)
+
+    def test_validate_bac_bfd_structure_blocks_wrong_order_and_labels(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Benzalkonium chloride", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        artifact = PlantDiagramSemanticsArtifact(
+            diagram_id="bac_bfd_semantics",
+            route_id="bac_route",
+            entities=[
+                PlantDiagramEntity(entity_id="s1", kind=DiagramEntityKind.SECTION, label="Reaction", diagram_level=DiagramLevel.BFD, section_id="reaction"),
+                PlantDiagramEntity(entity_id="s2", kind=DiagramEntityKind.SECTION, label="Feed Prep", diagram_level=DiagramLevel.BFD, section_id="feed preparation"),
+                PlantDiagramEntity(entity_id="s3", kind=DiagramEntityKind.SECTION, label="Cleanup", diagram_level=DiagramLevel.BFD, section_id="cleanup"),
+            ],
+            connections=[],
+            section_order=["reaction", "feed preparation", "cleanup"],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_bac_bfd_structure(artifact, target)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("bac_bfd_section_order_mismatch", issue_codes)
+        self.assertIn("bac_bfd_missing_required_sections", issue_codes)
+        self.assertIn("bac_bfd_section_label_mismatch", issue_codes)
+
+    def test_validate_bac_pid_cluster_coverage_blocks_missing_storage_cluster(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Benzalkonium chloride", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        flowsheet_graph = FlowsheetGraph(
+            graph_id="fg_bac_pid_cov",
+            route_id="route_bac_pid_cov",
+            operating_mode="continuous",
+            nodes=[
+                FlowsheetNode(node_id="R-101", unit_type="cstr", label="Reactor", section_id="reaction"),
+                FlowsheetNode(node_id="PU-201", unit_type="distillation_column", label="Purification Column", section_id="purification"),
+                FlowsheetNode(node_id="TK-301", unit_type="tank", label="Product Storage Tank", section_id="storage"),
+            ],
+            unit_models=[],
+            section_ids=["reaction", "purification", "storage"],
+            stream_ids=[],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+        artifact = PlantDiagramSemanticsArtifact(
+            diagram_id="bac_pid_semantics",
+            route_id="route_bac_pid_cov",
+            entities=[
+                PlantDiagramEntity(entity_id="pid_unit_r101", kind=DiagramEntityKind.UNIT, label="Reactor", diagram_level=DiagramLevel.PID_LITE, section_id="reaction", unit_id="R-101"),
+                PlantDiagramEntity(entity_id="pid_unit_pu201", kind=DiagramEntityKind.UNIT, label="Purification Column", diagram_level=DiagramLevel.PID_LITE, section_id="purification", unit_id="PU-201"),
+            ],
+            connections=[],
+            section_order=["reaction", "purification"],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_bac_pid_cluster_coverage(artifact, flowsheet_graph, target)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("bac_pid_missing_required_clusters", issue_codes)
+        self.assertIn("bac_pid_missing_relief_coverage", issue_codes)
+
+    def test_validate_bac_diagram_benchmark_artifact_flags_failed_rows(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Benzalkonium chloride", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        artifact = BACDiagramBenchmarkArtifact(
+            artifact_id="bac_benchmark",
+            route_id="route_bac",
+            overall_status="blocked",
+            rows=[
+                BACDiagramBenchmarkRow(diagram_kind="bfd", status="pass", summary="ok"),
+                BACDiagramBenchmarkRow(diagram_kind="pfd", status="fail", summary="PFD drift"),
+                BACDiagramBenchmarkRow(diagram_kind="pid", status="pass", summary="ok"),
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_bac_diagram_benchmark_artifact(artifact, target)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("bac_diagram_benchmark_missing_rows", issue_codes)
+        self.assertIn("bac_diagram_benchmark_blocked", issue_codes)
+        self.assertIn("bac_diagram_benchmark_pfd_failed", issue_codes)
+
+    def test_validate_bac_drawing_package_artifact_flags_missing_approver(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Benzalkonium chloride", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        artifact = BACDrawingPackageArtifact(
+            artifact_id="bac_package",
+            route_id="route_bac",
+            overall_status="complete",
+            benchmark_status="complete",
+            review_workflow_status="approved",
+            register_rows=[
+                BACDrawingRegisterRow(diagram_kind="bfd", sheet_id="sheet_1", title="BFD", issue_status="For Review"),
+                BACDrawingRegisterRow(diagram_kind="pfd", sheet_id="sheet_2", title="PFD", issue_status="Approved"),
+                BACDrawingRegisterRow(diagram_kind="pid", sheet_id="sheet_3", title="PID", issue_status="Approved"),
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_bac_drawing_package_artifact(artifact, target)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("bac_drawing_package_missing_approver", issue_codes)
+        self.assertIn("bac_drawing_package_sheet_missing_approver", issue_codes)
+
+    def test_validate_bac_rendering_audit_artifact_flags_failed_rows(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Benzalkonium chloride", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        artifact = BACRenderingAuditArtifact(
+            artifact_id="bac_rendering_audit",
+            route_id="route_bac",
+            overall_status="blocked",
+            rows=[
+                BACRenderingAuditRow(diagram_kind="bfd", status="pass", summary="ok"),
+                BACRenderingAuditRow(diagram_kind="pfd", status="fail", summary="PFD routing failed"),
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_bac_rendering_audit_artifact(artifact, target)
+        issue_codes = {issue.code for issue in issues}
+
+        self.assertIn("bac_rendering_audit_missing_rows", issue_codes)
+        self.assertIn("bac_rendering_audit_blocked", issue_codes)
+        self.assertIn("bac_rendering_audit_pfd_failed", issue_codes)
+
+    def test_validate_diagram_symbol_library_accepts_canonical_library(self):
+        library = build_diagram_symbol_library()
+
+        issues = validate_diagram_symbol_library(library)
+
+        self.assertFalse(issues)
+
+    def test_phase11_symbol_library_includes_richer_pid_lite_symbols(self):
+        library = build_diagram_symbol_library()
+
+        pid_keys = {symbol.symbol_key for symbol in library.symbols if symbol.diagram_level == DiagramLevel.PID_LITE}
+
+        self.assertTrue(
+            {
+                "pid_unit",
+                "pid_indicator",
+                "pid_transmitter",
+                "pid_controller",
+                "pid_manual_valve",
+                "pid_control_valve",
+                "pid_relief_valve",
+            }.issubset(pid_keys)
+        )
+
+    def test_phase11_validate_pid_lite_semantics_requires_attachment_function_and_line_class(self):
+        artifact = PlantDiagramSemanticsArtifact(
+            diagram_id="demo_pid",
+            route_id="route_1",
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PID_LITE,
+                    unit_id="R-101",
+                    symbol_key="pid_unit",
+                ),
+                PlantDiagramEntity(
+                    entity_id="i_tit",
+                    kind=DiagramEntityKind.INSTRUMENT,
+                    label="TIT-101",
+                    diagram_level=DiagramLevel.PID_LITE,
+                    instrument_id="TIT-101",
+                    symbol_key="pid_transmitter",
+                ),
+            ],
+            connections=[
+                PlantDiagramConnection(
+                    connection_id="pid_line_1",
+                    role=DiagramEdgeRole.PROCESS,
+                    diagram_level=DiagramLevel.PID_LITE,
+                    source_entity_id="u_rxn",
+                    target_entity_id="i_tit",
+                )
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_plant_diagram_semantics(artifact)
+        codes = {issue.code for issue in issues}
+
+        self.assertIn("diagram_semantics_pid_entity_missing_attachment", codes)
+        self.assertIn("diagram_semantics_pid_instrument_missing_function", codes)
+        self.assertIn("diagram_semantics_pid_material_edge_to_instrument", codes)
+        self.assertIn("diagram_semantics_pid_line_missing_class", codes)
+
+    def test_phase11_validate_pid_lite_controller_requires_loop_id(self):
+        artifact = PlantDiagramSemanticsArtifact(
+            diagram_id="demo_pid",
+            route_id="route_1",
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_sep",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Separator",
+                    diagram_level=DiagramLevel.PID_LITE,
+                    unit_id="V-101",
+                    symbol_key="pid_unit",
+                ),
+                PlantDiagramEntity(
+                    entity_id="i_tic",
+                    kind=DiagramEntityKind.INSTRUMENT,
+                    label="TIC-101",
+                    diagram_level=DiagramLevel.PID_LITE,
+                    instrument_id="TIC-101",
+                    symbol_key="pid_controller",
+                    attached_to_entity_id="u_sep",
+                    pid_function="temperature_controller",
+                ),
+            ],
+            connections=[],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_plant_diagram_semantics(artifact)
+
+        self.assertTrue(any(issue.code == "diagram_semantics_pid_controller_missing_loop_id" for issue in issues))
+
+    def test_phase11_validate_pid_lite_module_requires_isolated_unit_cluster(self):
+        semantics = PlantDiagramSemanticsArtifact(
+            diagram_id="demo_pid",
+            route_id="route_1",
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PID_LITE,
+                    unit_id="R-101",
+                    symbol_key="pid_unit",
+                ),
+                PlantDiagramEntity(
+                    entity_id="v_fcv",
+                    kind=DiagramEntityKind.VALVE,
+                    label="FCV-101",
+                    diagram_level=DiagramLevel.PID_LITE,
+                    symbol_key="pid_control_valve",
+                    attached_to_entity_id="u_rxn",
+                    pid_function="flow_control_valve",
+                ),
+            ],
+            connections=[
+                PlantDiagramConnection(
+                    connection_id="c_pid",
+                    role=DiagramEdgeRole.PROCESS,
+                    diagram_level=DiagramLevel.PID_LITE,
+                    source_entity_id="u_rxn",
+                    target_entity_id="v_fcv",
+                    line_class="process_liquid",
+                )
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+        modules = DiagramModuleArtifact(
+            diagram_id="demo_pid",
+            route_id="route_1",
+            module_kind=DiagramLevel.PID_LITE,
+            modules=[
+                DiagramModuleSpec(
+                    module_id="pid_cluster_1",
+                    module_kind=DiagramLevel.PID_LITE,
+                    title="Reactor Cluster",
+                    symbol_policy=DiagramSymbolPolicy.PID_LITE_ONLY,
+                    entity_ids=["u_rxn", "v_fcv"],
+                    connection_ids=["c_pid"],
+                    must_be_isolated=False,
+                )
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_diagram_module_artifact(modules, semantics)
+
+        self.assertTrue(any(issue.code == "diagram_module_pid_not_isolated" for issue in issues))
+
+    def test_validate_diagram_semantics_against_symbol_library_blocks_wrong_level_symbol(self):
+        library = build_diagram_symbol_library()
+        artifact = self._make_semantics(
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="R-101",
+                    symbol_key="control_unit_ref",
+                )
+            ],
+            connections=[],
+        )
+
+        issues = validate_diagram_semantics_against_symbol_library(artifact, library)
+
+        self.assertTrue(any(issue.code == "diagram_semantics_symbol_level_mismatch" for issue in issues))
+
+    def test_validate_diagram_semantics_against_symbol_library_blocks_edge_role_without_policy(self):
+        library = build_diagram_symbol_library()
+        artifact = self._make_semantics(
+            connections=[
+                PlantDiagramConnection(
+                    connection_id="c_bad_signal",
+                    role=DiagramEdgeRole.CONTROL_SIGNAL,
+                    diagram_level=DiagramLevel.PFD,
+                    source_entity_id="u_feed",
+                    target_entity_id="u_rxn",
+                )
+            ]
+        )
+
+        issues = validate_diagram_semantics_against_symbol_library(artifact, library)
+
+        self.assertTrue(any(issue.code == "diagram_semantics_edge_role_not_allowed_by_policy" for issue in issues))
+
+    def test_validate_diagram_module_symbols_against_library_blocks_disallowed_symbol(self):
+        library = build_diagram_symbol_library()
+        semantics = self._make_semantics(
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="u_rxn",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Reactor",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="R-101",
+                    symbol_key="control_unit_ref",
+                )
+            ],
+            connections=[],
+        )
+        modules = DiagramModuleArtifact(
+            diagram_id="demo_pfd",
+            route_id="route_1",
+            module_kind=DiagramLevel.PFD,
+            modules=[
+                DiagramModuleSpec(
+                    module_id="pfd_reaction",
+                    module_kind=DiagramLevel.PFD,
+                    title="Reaction",
+                    symbol_policy=DiagramSymbolPolicy.PROCESS_ONLY,
+                    entity_ids=["u_rxn"],
+                )
+            ],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_diagram_module_symbols_against_library(modules, semantics, library)
+
+        self.assertTrue(any(issue.code == "diagram_module_symbol_not_allowed_by_library" for issue in issues))
+
+    def test_validate_diagram_symbol_library_blocks_missing_level_policy(self):
+        library = build_diagram_symbol_library()
+        broken = DiagramSymbolLibraryArtifact(
+            library_id=library.library_id,
+            library_name=library.library_name,
+            symbols=library.symbols,
+            edge_styles=library.edge_styles,
+            level_policies=[policy for policy in library.level_policies if policy.diagram_level != DiagramLevel.CONTROL],
+            markdown=library.markdown,
+            citations=library.citations,
+            assumptions=library.assumptions,
+        )
+
+        issues = validate_diagram_symbol_library(broken)
+
+        self.assertTrue(any(issue.code == "diagram_symbol_library_missing_level_policy" for issue in issues))
 
     def test_mechanical_design_validation_requires_foundation_and_load_basis(self):
         artifact = MechanicalDesignArtifact(
@@ -1223,3 +1914,46 @@ class ValidatorTests(unittest.TestCase):
 
         self.assertIn("architecture_package_fallback_thermo", codes)
         self.assertIn("architecture_package_weak_kinetics_basis", codes)
+
+    def test_validate_diagram_target_profile_against_domain_packs_accepts_selected_pack(self):
+        domain_packs = build_diagram_domain_packs()
+        target = build_diagram_target_profile(ProjectBasis(target_product="Ethylene Oxide", capacity_tpa=1000, target_purity_wt_pct=99.0))
+
+        issues = validate_diagram_target_profile_against_domain_packs(target, domain_packs)
+
+        self.assertFalse(issues)
+
+    def test_validate_diagram_target_profile_against_domain_packs_warns_for_symbol_policy_drift(self):
+        domain_packs = build_diagram_domain_packs()
+        target = build_diagram_target_profile(ProjectBasis(target_product="Utility Steam Recovery System", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        target.allowed_pfd_symbol_keys = target.allowed_pfd_symbol_keys + ["pfd_column"]
+
+        issues = validate_diagram_target_profile_against_domain_packs(target, domain_packs)
+
+        self.assertTrue(any(issue.code == "diagram_target_domain_pack_symbol_policy_mismatch" for issue in issues))
+
+    def test_validate_plant_diagram_semantics_against_target_profile_warns_for_domain_pack_mismatch(self):
+        target = build_diagram_target_profile(ProjectBasis(target_product="Utility Steam Recovery System", capacity_tpa=1000, target_purity_wt_pct=99.0))
+        artifact = PlantDiagramSemanticsArtifact(
+            diagram_id="utility_pack_semantics",
+            route_id="route_utility_pack",
+            entities=[
+                PlantDiagramEntity(
+                    entity_id="c1",
+                    kind=DiagramEntityKind.UNIT,
+                    label="Main Column",
+                    diagram_level=DiagramLevel.PFD,
+                    unit_id="C-101",
+                    metadata={"template_family": "column"},
+                )
+            ],
+            connections=[],
+            markdown="seed",
+            citations=["s1"],
+            assumptions=["seed"],
+        )
+
+        issues = validate_plant_diagram_semantics_against_target_profile(artifact, target)
+
+        self.assertTrue(any(issue.code == "diagram_target_missing_required_pfd_family" for issue in issues))
+        self.assertTrue(any(issue.code == "diagram_target_unexpected_pfd_family_for_domain_pack" for issue in issues))

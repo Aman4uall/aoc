@@ -1,0 +1,10 @@
+page_count=2
+has_equipment_layer=1
+has_streams_layer=1
+has_annotations_layer=1
+has_bac_panel_1=1
+has_bac_panel_2=1
+has_stitch_to_sheet2=1
+has_stitch_from_sheet1=1
+has_stable_node_id=1
+has_stable_edge_id=1

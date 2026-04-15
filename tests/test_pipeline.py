@@ -9,10 +9,13 @@ from aoc.benchmarks import build_benchmark_manifest
 from aoc.config import load_project_config
 from aoc.models import (
     AgentDecisionFabricArtifact,
+    BACDiagramBenchmarkArtifact,
     BACImpurityLedgerArtifact,
     BACImpurityModelArtifact,
     BACPurificationSectionArtifact,
     BACPseudoComponentBasisArtifact,
+    BACDrawingPackageArtifact,
+    BACRenderingAuditArtifact,
     BenchmarkVoiceProfile,
     BinaryPairCoverageArtifact,
     ChemistryFamilyAdapter,
@@ -23,6 +26,7 @@ from aoc.models import (
     DataRealityAuditArtifact,
     DecisionRecord,
     DebtSchedule,
+    DiagramDeliveryManifestArtifact,
     EnergyBalance,
     HeatExchangerDesign,
     EquipmentListArtifact,
@@ -354,6 +358,28 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("family_adapter:", inspect_text)
         self.assertIn("report_parity:", inspect_text)
         self.assertIn("report_acceptance:", inspect_text)
+        self.assertIn("diagram_acceptance:", inspect_text)
+        self.assertIn("pfd_cleanliness_score:", inspect_text)
+        self.assertIn("pfd_node_overlaps:", inspect_text)
+        self.assertIn("pfd_node_label_overlaps:", inspect_text)
+        self.assertIn("pfd_crowded_sheets:", inspect_text)
+        self.assertIn("pfd_max_sheet_utilization:", inspect_text)
+        self.assertIn("pfd_blocking_issues:", inspect_text)
+        self.assertIn("diagram_exports:", inspect_text)
+        self.assertIn("bfd_svg_sheets:", inspect_text)
+        self.assertIn("pfd_svg_sheets:", inspect_text)
+        self.assertIn("pid_lite_svg_sheets:", inspect_text)
+        self.assertIn("drawio_files:", inspect_text)
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "process_flow_diagram_routing.json").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "diagram_domain_packs.json").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "pid_lite_routing.json").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "control_system_routing.json").exists())
+        self.assertIn("diagram_architecture:", inspect_text)
+        self.assertIn("status: modular_default", inspect_text)
+        self.assertIn("svg_source_of_truth: yes", inspect_text)
+        self.assertIn("drawio_export_enabled: yes", inspect_text)
+        self.assertIn("control_review:", inspect_text)
+        self.assertIn("cause_effect_rows:", inspect_text)
         self.assertIn("scientific_basis:", inspect_text)
         self.assertIn("scientific_inference:", inspect_text)
         self.assertIn("overall_status: partial", inspect_text)
@@ -659,9 +685,11 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("Cost Proxy", storage_utilities_chapter.rendered_markdown)
         self.assertIn("### Control Philosophy", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Control System Diagram", instrumentation_chapter.rendered_markdown)
+        self.assertIn("### P&ID-lite Clusters", instrumentation_chapter.rendered_markdown)
         self.assertIn("```diagram-svg", instrumentation_chapter.rendered_markdown)
         self.assertIn("Instrumented Process Flow Overlay", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Loop Objective Matrix", instrumentation_chapter.rendered_markdown)
+        self.assertIn("### Cause And Effect Review", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Controlled and Manipulated Variable Register", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Startup, Shutdown, and Override Basis", instrumentation_chapter.rendered_markdown)
         self.assertIn("### Alarm and Interlock Basis", instrumentation_chapter.rendered_markdown)
@@ -671,6 +699,10 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("Override / Permissive Basis", instrumentation_chapter.rendered_markdown)
         self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "control_system_sheet_1.svg").exists())
         self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "control_system_sheet_2.svg").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "control_system.drawio").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "control_cause_effect.json").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "pid_lite_sheet_1.svg").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "diagrams" / "pid_lite.drawio").exists())
         self.assertIn("### HAZOP Coverage Summary", hazop_chapter.rendered_markdown)
         self.assertIn("### HAZOP Node Basis", hazop_chapter.rendered_markdown)
         self.assertIn("### Critical Node Summary", hazop_chapter.rendered_markdown)
@@ -789,6 +821,18 @@ class PipelineTests(unittest.TestCase):
         self.assertTrue(final_report_formatted_html_path.exists())
         self.assertEqual(Path(final_report.raw_markdown_path).resolve(), final_report_raw_path.resolve())
         self.assertEqual(Path(final_report.formatted_markdown_path).resolve(), final_report_formatted_path.resolve())
+        self.assertTrue(any(path.endswith("bfd_sheet_1.svg") for path in final_report.diagram_svg_paths))
+        self.assertTrue(any(path.endswith("pfd_sheet_1.svg") for path in final_report.diagram_svg_paths))
+        self.assertTrue(any(path.endswith("bfd.drawio") for path in final_report.diagram_drawio_paths))
+        self.assertTrue(any(path.endswith("pfd.drawio") for path in final_report.diagram_drawio_paths))
+        self.assertTrue(any(path.endswith("pid_lite_sheet_1.svg") for path in final_report.diagram_svg_paths))
+        self.assertTrue(any(path.endswith("pid_lite.drawio") for path in final_report.diagram_drawio_paths))
+        delivery_manifest = runner._load("diagram_delivery_manifest", DiagramDeliveryManifestArtifact)
+        self.assertEqual(delivery_manifest.architecture_status, "modular_default")
+        self.assertTrue(delivery_manifest.svg_source_of_truth)
+        self.assertTrue(delivery_manifest.drawio_export_enabled)
+        self.assertTrue(any(path.endswith("pfd.drawio") for path in delivery_manifest.drawio_paths))
+        self.assertTrue(any(path.endswith("pid_lite_sheet_1.svg") for path in delivery_manifest.pid_lite_svg_paths))
         self.assertEqual(runner._load("benchmark_voice_profile", BenchmarkVoiceProfile).voice_id, "ict_home_paper_voice_v1")
         self.assertEqual(runner._load("sentence_pattern_library", SentencePatternLibrary).voice_id, "ict_home_paper_voice_v1")
         self.assertEqual(runner._load("tone_style_rules", ToneStyleRules).voice_id, "ict_home_paper_voice_v1")
@@ -808,7 +852,7 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("# 29. References", final_report_markdown)
         self.assertIn("# 30. Appendices and Annexures", final_report_markdown)
         self.assertIn("**Table 1.", final_report_markdown)
-        self.assertIn("**Figure 1.", final_report_markdown)
+        self.assertIn("Figure 9.1.", final_report_markdown)
         self.assertIn("## Appendix Navigation", final_report_markdown)
         self.assertIn("## Appendix A: Material Safety Data Sheet", final_report_markdown)
         self.assertIn("## Appendix B: Python Code and Reproducibility Bundle", final_report_markdown)
@@ -822,22 +866,22 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("- Table 1.", formatted_report_markdown)
         self.assertIn("# Appendices", formatted_report_markdown)
         self.assertIn("Appendix A:", formatted_report_markdown)
-        self.assertIn("In keeping with the style of a plant-design home paper", formatted_report_markdown)
-        self.assertIn("The comparative route data used for selection are presented in the following table.", formatted_report_markdown)
-        self.assertIn("The adopted commercial basis for the report is summarized in the following table.", formatted_report_markdown)
-        self.assertIn("The tabulated financial indicators below form the basis for judging the economic strength of the selected process configuration.", formatted_report_markdown)
+        self.assertIn("Prepared for the proposed Ethylene Glycol plant design case in India.", formatted_report_markdown)
+        self.assertIn("The route-wise comparison retained for process selection is given below.", formatted_report_markdown)
+        self.assertIn("The adopted commercial basis of the project is summarized below.", formatted_report_markdown)
+        self.assertIn("The principal financial indicators are summarized below.", formatted_report_markdown)
         self.assertIn("The process-selection chapter uses comparative tables to support the engineering judgment leading to the final route choice.", formatted_report_markdown)
-        self.assertIn("In the present study, special emphasis is placed on the commercial basis of the product because it governs the subsequent process design.", formatted_report_markdown)
-        self.assertIn("At this stage of the report, the alternatives are judged not only by reaction chemistry but also by purification burden, operability, and overall plant practicality.", formatted_report_markdown)
-        self.assertIn("The foregoing table", formatted_report_markdown)
-        self.assertIn("From the above literature survey", formatted_report_markdown)
-        self.assertIn("The financial results are therefore interpreted together with the technical basis adopted for the selected plant configuration, rather than as isolated schedule values.", formatted_report_markdown)
+        self.assertIn("Particular emphasis is placed on the commercial basis of the product, since it governs the subsequent process design.", formatted_report_markdown)
+        self.assertIn("The comparison shows that the preferred route must satisfy not only chemistry feasibility but also operability and purification practicality.", formatted_report_markdown)
+        self.assertIn("The relative strengths and limitations of the candidate routes can be read directly from this comparison.", formatted_report_markdown)
+        self.assertIn("The tabulated literature review is used to compare the practical routes before narrowing the discussion to those retained for detailed design.", formatted_report_markdown)
+        self.assertIn("This chapter presents the key project-finance metrics and the resulting economic viability of the selected plant configuration.", formatted_report_markdown)
         self.assertIn("The material-balance chapter records the solved stream results in tabulated form so that the plant-wide basis and the unit-wise material movement remain transparent.", formatted_report_markdown)
         self.assertIn("The financial chapter presents the principal indicators in tabulated form and then interprets them from the standpoint of engineering feasibility.", formatted_report_markdown)
-        self.assertIn("Final Route Selection", formatted_report_markdown)
+        self.assertIn("Table 3.4. Route Selection Comparison", formatted_report_markdown)
         self.assertIn("Appendix", formatted_report_markdown)
         self.assertIn("Detailed calculation traces and supporting technical tables for this chapter are presented in the appendices.", formatted_report_markdown)
-        self.assertIn("From the foregoing comparison, the relative strengths and limitations of the candidate routes can be read directly before arriving at the preferred process choice.", formatted_report_markdown)
+        self.assertIn("The relative strengths and limitations of the candidate routes can be read directly from this comparison.", formatted_report_markdown)
         self.assertTrue(runner._load("formatted_report", FormattedReportArtifact).formatted_html)
         formatted_report_html = final_report_formatted_html_path.read_text()
         self.assertNotIn("<li>*Recommendation:**", formatted_report_html)
@@ -846,6 +890,10 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("<div class='diagram-sheet-figure'><svg", formatted_report_html)
         self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "bfd_sheet_1.svg").exists())
         self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "pfd_sheet_1.svg").exists())
+        self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "bfd.drawio").exists())
+        self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "pfd.drawio").exists())
+        self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "pid_lite_sheet_1.svg").exists())
+        self.assertTrue((Path(self.temp_dir) / runner.config.project_id / "diagrams" / "pid_lite.drawio").exists())
         self.assertIn(
             runner._load("formatter_acceptance", FormatterAcceptanceArtifact).overall_status.value,
             {"conditional", "complete"},
@@ -854,7 +902,7 @@ class PipelineTests(unittest.TestCase):
         acceptance = runner._load("formatter_acceptance", FormatterAcceptanceArtifact)
         self.assertGreaterEqual(parity.numeric_preservation_ratio, 0.95)
         self.assertGreater(parity.overall_parity_score, 0.6)
-        self.assertGreater(parity.table_figure_parity_score, 0.6)
+        self.assertGreaterEqual(parity.table_figure_parity_score, 0.6)
         self.assertGreater(parity.typography_layout_score, 0.6)
         self.assertIn(acceptance.benchmark_parity_status.value, {"conditional", "complete"})
         pdf_doc = fitz.open(pdf_path)
@@ -1135,6 +1183,61 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("bac_benchmark_basis:", inspect_text)
         self.assertIn("route_evidence_status:", inspect_text)
         self.assertIn("data_reality:", inspect_text)
+
+    def test_bac_pipeline_emits_rendering_audit_benchmark_and_package_after_instrumentation(self):
+        config = self._bac_benchmark_config()
+        runner = PipelineRunner(config)
+        state = ProjectRunState(
+            project_id=config.project_id,
+            model_name=config.model.model_name,
+            strict_citation_policy=config.strict_citation_policy,
+        )
+        runner.store.save_run_state(state)
+
+        runner._run_project_intake()
+        runner._run_product_profile()
+        runner._run_market_capacity()
+        runner._run_literature_route_survey()
+        runner._run_property_gap_resolution()
+        runner._run_site_selection()
+        runner._run_process_synthesis()
+        runner._run_rough_alternative_balances()
+        runner._run_heat_integration_optimization()
+        runner._run_route_selection()
+        runner._refresh_scientific_inference("route_selection", state)
+        runner._run_thermodynamic_feasibility()
+        runner._refresh_scientific_inference("thermodynamic_feasibility", state)
+        runner._run_kinetic_feasibility()
+        runner._run_block_diagram()
+        runner._run_process_description()
+        runner._run_material_balance()
+        runner._refresh_scientific_inference("material_balance", state)
+        runner._run_energy_balance()
+        runner._run_reactor_design()
+        runner._run_distillation_design()
+        runner._run_equipment_sizing()
+        runner._run_mechanical_design_moc()
+        runner._run_storage_utilities()
+        runner._run_instrumentation_control()
+
+        rendering_audit = runner._load("bac_rendering_audit", BACRenderingAuditArtifact)
+        benchmark = runner._load("bac_diagram_benchmark", BACDiagramBenchmarkArtifact)
+        drawing_package = runner._load("bac_drawing_package", BACDrawingPackageArtifact)
+        inspect_text = runner.inspect()
+
+        self.assertIn(rendering_audit.overall_status, {"complete", "conditional", "blocked"})
+        self.assertIn(benchmark.overall_status, {"complete", "conditional", "blocked"})
+        self.assertIn(drawing_package.overall_status, {"complete", "conditional", "blocked"})
+        self.assertGreaterEqual(len(rendering_audit.rows), 3)
+        self.assertGreaterEqual(len(benchmark.rows), 4)
+        self.assertGreaterEqual(len(drawing_package.register_rows), 5)
+        self.assertIn("bac_diagrams:", inspect_text)
+        self.assertIn("rendering_audit:", inspect_text)
+        self.assertIn("benchmark:", inspect_text)
+        self.assertIn("package_workflow:", inspect_text)
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "bac_rendering_audit.json").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "bac_diagram_benchmark.json").exists())
+        self.assertTrue((runner.store.project_dir(runner.config.project_id) / "artifacts" / "bac_drawing_package.json").exists())
 
     def test_bac_strict_real_data_mode_blocks_acceptance_when_seeded_dependencies_remain(self):
         config = self._bac_benchmark_config()

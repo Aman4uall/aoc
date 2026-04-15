@@ -1345,7 +1345,7 @@ def _unit_alias_map(flowsheet_blueprint: FlowsheetBlueprintArtifact) -> dict[str
         "filtration": ["filtration", "FILT-201"],
         "drying": ["drying", "DRY-301"],
         "storage": ["storage", "T-101", "TK-101", "TK-301"],
-        "waste_treatment": ["waste_treatment", "WW-101"],
+        "waste_treatment": ["waste_treatment", "WW-101", "WT-401", "ETP-401", "HW-401", "SC-101"],
     }
     for step in flowsheet_blueprint.steps:
         alias_map[step.unit_id] = list(dict.fromkeys([step.unit_id, step.solver_anchor_unit_id, *(defaults.get(step.unit_id, []))] + ([step.unit_tag] if step.unit_tag else [])))

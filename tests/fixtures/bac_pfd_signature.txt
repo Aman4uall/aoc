@@ -1,0 +1,13 @@
+sheet_count=2
+titles=BAC PFD Panel 1: Feed, Reaction, and Cleanup | BAC PFD Panel 2: Purification, Storage, and Offsites
+has_panel1_title=1
+has_panel2_title=1
+has_reactor=1
+has_purification=1
+has_storage=1
+has_s150=1
+has_s201=1
+has_s402=1
+has_panel_marker=1
+has_title_block=2
+has_pfd_legend=2

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import re
+
 from aoc.calculators import operating_hours_per_year, reaction_balance_delta, reaction_is_balanced
 from aoc.models import (
+    BACDrawingPackageArtifact,
+    BACDiagramBenchmarkArtifact,
     BACImpurityLedgerArtifact,
     BACImpurityModelArtifact,
     BACPurificationSectionArtifact,
+    BACRenderingAuditArtifact,
     BenchmarkManifest,
     ChemistryFamilyAdapter,
     ChemistryDecisionArtifact,
@@ -24,6 +29,18 @@ from aoc.models import (
     ControlArchitectureDecision,
     CostModel,
     DecisionRecord,
+    DiagramEdgeRole,
+    DiagramEntityKind,
+    DiagramLevel,
+    DiagramDomainPackArtifact,
+    DiagramModuleArtifact,
+    DiagramLabel,
+    DiagramNode,
+    DiagramSheet,
+    DiagramSheetCompositionArtifact,
+    DiagramSymbolLibraryArtifact,
+    DiagramSymbolPolicy,
+    DiagramTargetProfile,
     EnergyBalance,
     FinancialModel,
     FlowsheetBlueprintArtifact,
@@ -42,6 +59,7 @@ from aoc.models import (
     OperationsPlanningArtifact,
     MissingDataAcceptanceArtifact,
     ProcessArchetype,
+    PlantDiagramSemanticsArtifact,
     PropertyGapArtifact,
     PropertyDemandPlan,
     ProvenanceTag,
@@ -1612,6 +1630,41 @@ def validate_stream_table(stream_table: StreamTable, tolerance_pct: float = 2.0)
                     code="composition_closure_estimated",
                     severity=Severity.WARNING,
                     message=f"Unit '{closure.unit_id}' retains estimated composition closure.",
+                    artifact_ref="stream_table",
+                )
+            )
+    waste_sink_streams = [
+        stream
+        for stream in stream_table.streams
+        if stream.destination_unit_id == "waste_treatment"
+        or stream.stream_role in {"waste", "vent", "purge"}
+    ]
+    if waste_sink_streams:
+        generic_sink_ids = sorted({stream.stream_id for stream in waste_sink_streams if stream.destination_unit_id == "waste_treatment"})
+        if generic_sink_ids:
+            issues.append(
+                ValidationIssue(
+                    code="generic_waste_sink_active",
+                    severity=Severity.WARNING,
+                    message=(
+                        "Waste-routing still terminates in a generic 'waste_treatment' sink for streams "
+                        + ", ".join(generic_sink_ids[:6])
+                        + ". Explicit downstream closure should name the final handling path such as scrubber, ETP, hazardous-organic tank, incineration, or offsite disposal."
+                    ),
+                    artifact_ref="stream_table",
+                )
+            )
+        waste_roles = {stream.stream_role for stream in waste_sink_streams if stream.destination_unit_id == "waste_treatment"}
+        if len(waste_roles) > 1:
+            issues.append(
+                ValidationIssue(
+                    code="mixed_waste_sink_requires_segregation",
+                    severity=Severity.WARNING,
+                    message=(
+                        "Multiple waste roles share the same generic waste sink ("
+                        + ", ".join(sorted(waste_roles))
+                        + "). The design should segregate vent handling, aqueous effluent, and hazardous-organic waste explicitly."
+                    ),
                     artifact_ref="stream_table",
                 )
             )
@@ -4489,6 +4542,1545 @@ def validate_control_plan(control_plan: ControlPlanArtifact) -> list[ValidationI
             )
         )
     return issues
+
+
+def validate_plant_diagram_semantics(artifact: PlantDiagramSemanticsArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    entity_ids = {entity.entity_id for entity in artifact.entities}
+    entity_map = {entity.entity_id: entity for entity in artifact.entities}
+    seen_entity_ids: set[str] = set()
+    for entity in artifact.entities:
+        if entity.entity_id in seen_entity_ids:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_duplicate_entity_id",
+                    severity=Severity.BLOCKED,
+                    message=f"Plant diagram semantics contains duplicate entity id '{entity.entity_id}'.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        seen_entity_ids.add(entity.entity_id)
+        if entity.kind == DiagramEntityKind.UNIT and not entity.unit_id:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_unit_missing_unit_id",
+                    severity=Severity.BLOCKED,
+                    message=f"Unit entity '{entity.entity_id}' is missing a unit_id.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if entity.kind == DiagramEntityKind.CONTROL_LOOP and entity.diagram_level != DiagramLevel.CONTROL:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_control_loop_wrong_level",
+                    severity=Severity.BLOCKED,
+                    message=f"Control loop entity '{entity.entity_id}' must belong to the control diagram level.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if entity.kind in {DiagramEntityKind.INSTRUMENT, DiagramEntityKind.VALVE} and entity.diagram_level == DiagramLevel.PFD:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_pid_content_in_pfd",
+                    severity=Severity.BLOCKED,
+                    message=f"{entity.kind.value.replace('_', ' ').title()} entity '{entity.entity_id}' is assigned to the PFD level.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if entity.diagram_level == DiagramLevel.PID_LITE:
+            if entity.kind in {DiagramEntityKind.INSTRUMENT, DiagramEntityKind.VALVE} and not entity.attached_to_entity_id:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_pid_entity_missing_attachment",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"P&ID-lite {entity.kind.value} entity '{entity.entity_id}' must declare an attached_to_entity_id."
+                        ),
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+            if entity.attached_to_entity_id and entity.attached_to_entity_id not in entity_ids:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_pid_attachment_missing_entity",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"P&ID-lite entity '{entity.entity_id}' attaches to unknown entity '{entity.attached_to_entity_id}'."
+                        ),
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+            if entity.kind == DiagramEntityKind.INSTRUMENT and not entity.pid_function:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_pid_instrument_missing_function",
+                        severity=Severity.BLOCKED,
+                        message=f"P&ID-lite instrument entity '{entity.entity_id}' must declare a pid_function.",
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+            if entity.kind == DiagramEntityKind.VALVE and not entity.pid_function:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_pid_valve_missing_function",
+                        severity=Severity.BLOCKED,
+                        message=f"P&ID-lite valve entity '{entity.entity_id}' must declare a pid_function.",
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+            if entity.kind == DiagramEntityKind.INSTRUMENT and entity.symbol_key == "pid_controller" and not entity.pid_loop_id:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_pid_controller_missing_loop_id",
+                        severity=Severity.BLOCKED,
+                        message=f"P&ID-lite controller entity '{entity.entity_id}' must declare a pid_loop_id.",
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+
+    seen_connection_ids: set[str] = set()
+    for connection in artifact.connections:
+        if connection.connection_id in seen_connection_ids:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_duplicate_connection_id",
+                    severity=Severity.BLOCKED,
+                    message=f"Plant diagram semantics contains duplicate connection id '{connection.connection_id}'.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        seen_connection_ids.add(connection.connection_id)
+        if connection.source_entity_id not in entity_ids or connection.target_entity_id not in entity_ids:
+            missing_refs = [
+                ref
+                for ref in (connection.source_entity_id, connection.target_entity_id)
+                if ref not in entity_ids
+            ]
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_connection_missing_entity",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Connection '{connection.connection_id}' references unknown entities: {', '.join(missing_refs)}."
+                    ),
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if connection.role == DiagramEdgeRole.CONTROL_SIGNAL and connection.diagram_level not in {
+            DiagramLevel.CONTROL,
+            DiagramLevel.PID_LITE,
+        }:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_control_signal_wrong_level",
+                    severity=Severity.BLOCKED,
+                    message=f"Control-signal connection '{connection.connection_id}' must belong to the control level.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if connection.role in {DiagramEdgeRole.PROCESS, DiagramEdgeRole.PRODUCT, DiagramEdgeRole.RECYCLE} and connection.diagram_level == DiagramLevel.CONTROL:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_process_edge_in_control",
+                    severity=Severity.BLOCKED,
+                    message=f"Process connection '{connection.connection_id}' is illegally assigned to the control level.",
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if connection.diagram_level == DiagramLevel.PID_LITE:
+            source = entity_map.get(connection.source_entity_id)
+            target = entity_map.get(connection.target_entity_id)
+            if source is not None and target is not None:
+                if connection.role in {DiagramEdgeRole.PROCESS, DiagramEdgeRole.PRODUCT, DiagramEdgeRole.UTILITY} and (
+                    source.kind == DiagramEntityKind.INSTRUMENT or target.kind == DiagramEntityKind.INSTRUMENT
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            code="diagram_semantics_pid_material_edge_to_instrument",
+                            severity=Severity.BLOCKED,
+                            message=(
+                                f"P&ID-lite connection '{connection.connection_id}' uses a material or utility role directly to an instrument."
+                            ),
+                            artifact_ref="diagram_semantics",
+                        )
+                    )
+                if connection.role == DiagramEdgeRole.CONTROL_SIGNAL and (
+                    source.kind not in {DiagramEntityKind.INSTRUMENT, DiagramEntityKind.VALVE}
+                    or target.kind not in {DiagramEntityKind.INSTRUMENT, DiagramEntityKind.VALVE, DiagramEntityKind.UNIT}
+                ):
+                    issues.append(
+                        ValidationIssue(
+                            code="diagram_semantics_pid_invalid_control_signal_endpoints",
+                            severity=Severity.BLOCKED,
+                            message=(
+                                f"P&ID-lite control-signal connection '{connection.connection_id}' has invalid endpoints."
+                            ),
+                            artifact_ref="diagram_semantics",
+                        )
+                    )
+            if connection.role in {DiagramEdgeRole.PROCESS, DiagramEdgeRole.PRODUCT, DiagramEdgeRole.UTILITY} and not connection.line_class:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_pid_line_missing_class",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"P&ID-lite line connection '{connection.connection_id}' must declare a line_class."
+                        ),
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+
+    if not artifact.entities:
+        issues.append(
+            ValidationIssue(
+                code="diagram_semantics_empty",
+                severity=Severity.BLOCKED,
+                message="Plant diagram semantics artifact has no entities.",
+                artifact_ref="diagram_semantics",
+            )
+        )
+    return issues
+
+
+def _infer_diagram_unit_family(entity: PlantDiagramEntity) -> str:
+    template_family = entity.metadata.get("template_family", "").strip().lower()
+    if template_family:
+        if template_family == "heat_exchanger":
+            return "heat exchanger"
+        return template_family
+    text = f"{entity.metadata.get('unit_type', '')} {entity.label}".lower()
+    if any(token in text for token in {"column", "distillation"}):
+        return "column"
+    if any(token in text for token in {"reactor", "cstr", "pfr"}):
+        return "reactor"
+    if any(token in text for token in {"separator", "flash", "drum"}):
+        return "separator"
+    if any(token in text for token in {"exchanger", "heater", "cooler", "condenser", "reboiler"}):
+        return "heat exchanger"
+    if any(token in text for token in {"tank", "storage"}):
+        return "tank"
+    if any(token in text for token in {"pump", "compressor", "blower"}):
+        return "pump"
+    if any(token in text for token in {"vessel"}):
+        return "vessel"
+    return ""
+
+
+def validate_diagram_target_profile_against_domain_packs(
+    target: DiagramTargetProfile,
+    domain_packs: DiagramDomainPackArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    selected_pack = next((pack for pack in domain_packs.packs if pack.pack_id == target.domain_pack_id), None)
+    if selected_pack is None:
+        issues.append(
+            ValidationIssue(
+                code="diagram_target_unknown_domain_pack",
+                severity=Severity.BLOCKED,
+                message=f"Diagram target profile references unknown domain pack '{target.domain_pack_id}'.",
+                artifact_ref="diagram_target_profile",
+            )
+        )
+        return issues
+    if set(target.required_bfd_sections) != set(selected_pack.required_bfd_sections):
+        issues.append(
+            ValidationIssue(
+                code="diagram_target_domain_pack_section_mismatch",
+                severity=Severity.WARNING,
+                message=f"Diagram target profile sections do not match the selected domain pack '{target.domain_pack_id}'.",
+                artifact_ref="diagram_target_profile",
+            )
+        )
+    if set(target.major_stream_roles) != set(selected_pack.major_stream_roles):
+        issues.append(
+            ValidationIssue(
+                code="diagram_target_domain_pack_stream_role_mismatch",
+                severity=Severity.WARNING,
+                message=f"Diagram target profile stream roles do not match the selected domain pack '{target.domain_pack_id}'.",
+                artifact_ref="diagram_target_profile",
+            )
+        )
+    if set(target.allowed_pfd_symbol_keys) != set(selected_pack.allowed_pfd_symbol_keys):
+        issues.append(
+            ValidationIssue(
+                code="diagram_target_domain_pack_symbol_policy_mismatch",
+                severity=Severity.WARNING,
+                message=f"Diagram target profile PFD symbol policy does not match the selected domain pack '{target.domain_pack_id}'.",
+                artifact_ref="diagram_target_profile",
+            )
+        )
+    return issues
+
+
+def validate_plant_diagram_semantics_against_target_profile(
+    artifact: PlantDiagramSemanticsArtifact,
+    target: DiagramTargetProfile,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    pfd_unit_entities = [
+        entity
+        for entity in artifact.entities
+        if entity.diagram_level == DiagramLevel.PFD and entity.kind == DiagramEntityKind.UNIT
+    ]
+    present_families = {family for family in (_infer_diagram_unit_family(entity) for entity in pfd_unit_entities) if family}
+    missing_families = [family for family in target.required_pfd_unit_families if family not in present_families]
+    if missing_families:
+        issues.append(
+            ValidationIssue(
+                code="diagram_target_missing_required_pfd_family",
+                severity=Severity.WARNING,
+                message=(
+                    f"PFD semantics for domain pack '{target.domain_pack_id}' are missing expected unit families: "
+                    f"{', '.join(missing_families[:6])}."
+                ),
+                artifact_ref="diagram_semantics",
+            )
+        )
+    if target.preferred_template_families:
+        unexpected = [
+            family
+            for family in present_families
+            if family not in set(target.required_pfd_unit_families) and family not in set(target.preferred_template_families)
+        ]
+        if unexpected:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_target_unexpected_pfd_family_for_domain_pack",
+                    severity=Severity.WARNING,
+                    message=(
+                        f"PFD semantics include unit families outside the expected domain-pack envelope "
+                        f"'{target.domain_pack_id}': {', '.join(sorted(unexpected)[:6])}."
+                    ),
+                    artifact_ref="diagram_semantics",
+                )
+            )
+    return issues
+
+
+def validate_diagram_symbol_library(library: DiagramSymbolLibraryArtifact) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    seen_symbol_keys: set[str] = set()
+    for symbol in library.symbols:
+        if symbol.symbol_key in seen_symbol_keys:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_symbol_library_duplicate_symbol_key",
+                    severity=Severity.BLOCKED,
+                    message=f"Diagram symbol library contains duplicate symbol key '{symbol.symbol_key}'.",
+                    artifact_ref="diagram_symbol_library",
+                )
+            )
+        seen_symbol_keys.add(symbol.symbol_key)
+        if symbol.width_px <= 0 or symbol.height_px <= 0:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_symbol_library_invalid_symbol_size",
+                    severity=Severity.BLOCKED,
+                    message=f"Symbol '{symbol.symbol_key}' has invalid dimensions.",
+                    artifact_ref="diagram_symbol_library",
+                )
+            )
+        if symbol.diagram_level == DiagramLevel.PID_LITE and symbol.entity_kind in {
+            DiagramEntityKind.INSTRUMENT,
+            DiagramEntityKind.VALVE,
+        } and not symbol.pid_family:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_symbol_library_pid_symbol_missing_family",
+                    severity=Severity.BLOCKED,
+                    message=f"P&ID-lite symbol '{symbol.symbol_key}' must declare a pid_family.",
+                    artifact_ref="diagram_symbol_library",
+                )
+            )
+
+    level_policy_map = {policy.diagram_level: policy for policy in library.level_policies}
+    if len(level_policy_map) != len(library.level_policies):
+        issues.append(
+            ValidationIssue(
+                code="diagram_symbol_library_duplicate_level_policy",
+                severity=Severity.BLOCKED,
+                message="Diagram symbol library contains duplicate level policies.",
+                artifact_ref="diagram_symbol_library",
+            )
+        )
+
+    symbol_map = {symbol.symbol_key: symbol for symbol in library.symbols}
+    edge_style_pairs: set[tuple[DiagramLevel, DiagramEdgeRole]] = set()
+    for edge_style in library.edge_styles:
+        pair = (edge_style.diagram_level, edge_style.role)
+        if pair in edge_style_pairs:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_symbol_library_duplicate_edge_style",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Diagram symbol library contains duplicate edge style for level '{edge_style.diagram_level.value}' "
+                        f"and role '{edge_style.role.value}'."
+                    ),
+                    artifact_ref="diagram_symbol_library",
+                )
+            )
+        edge_style_pairs.add(pair)
+
+    required_levels = {DiagramLevel.BFD, DiagramLevel.PFD, DiagramLevel.CONTROL, DiagramLevel.PID_LITE}
+    missing_levels = sorted(level.value for level in required_levels - set(level_policy_map))
+    if missing_levels:
+        issues.append(
+            ValidationIssue(
+                code="diagram_symbol_library_missing_level_policy",
+                severity=Severity.BLOCKED,
+                message=f"Diagram symbol library is missing level policies for: {', '.join(missing_levels)}.",
+                artifact_ref="diagram_symbol_library",
+            )
+        )
+
+    for policy in library.level_policies:
+        for symbol_key in policy.allowed_symbol_keys:
+            symbol = symbol_map.get(symbol_key)
+            if symbol is None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_symbol_library_unknown_allowed_symbol",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Level policy '{policy.diagram_level.value}' references unknown symbol key '{symbol_key}'."
+                        ),
+                        artifact_ref="diagram_symbol_library",
+                    )
+                )
+                continue
+            if symbol.diagram_level != policy.diagram_level:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_symbol_library_symbol_level_mismatch",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Level policy '{policy.diagram_level.value}' allows symbol '{symbol_key}' "
+                            f"from level '{symbol.diagram_level.value}'."
+                        ),
+                        artifact_ref="diagram_symbol_library",
+                    )
+                )
+        for role in policy.allowed_edge_roles:
+            if (policy.diagram_level, role) not in edge_style_pairs:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_symbol_library_missing_edge_style",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Level policy '{policy.diagram_level.value}' allows edge role '{role.value}' "
+                            "without a matching edge-style rule."
+                        ),
+                        artifact_ref="diagram_symbol_library",
+                    )
+                )
+    return issues
+
+
+def validate_diagram_semantics_against_symbol_library(
+    artifact: PlantDiagramSemanticsArtifact,
+    library: DiagramSymbolLibraryArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    symbol_map = {symbol.symbol_key: symbol for symbol in library.symbols}
+    level_policy_map = {policy.diagram_level: policy for policy in library.level_policies}
+    edge_style_pairs = {(edge_style.diagram_level, edge_style.role) for edge_style in library.edge_styles}
+
+    for entity in artifact.entities:
+        policy = level_policy_map.get(entity.diagram_level)
+        if policy is None:
+            continue
+        if entity.kind in set(policy.forbidden_entity_kinds):
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_forbidden_entity_kind_by_policy",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Entity '{entity.entity_id}' of kind '{entity.kind.value}' is forbidden by the "
+                        f"'{entity.diagram_level.value}' style policy."
+                    ),
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if entity.symbol_key:
+            symbol = symbol_map.get(entity.symbol_key)
+            if symbol is None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_unknown_symbol_key",
+                        severity=Severity.BLOCKED,
+                        message=f"Entity '{entity.entity_id}' references unknown symbol key '{entity.symbol_key}'.",
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+                continue
+            if symbol.diagram_level != entity.diagram_level:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_symbol_level_mismatch",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Entity '{entity.entity_id}' uses symbol '{entity.symbol_key}' from level "
+                            f"'{symbol.diagram_level.value}' but belongs to '{entity.diagram_level.value}'."
+                        ),
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+            if symbol.entity_kind != entity.kind:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_symbol_kind_mismatch",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Entity '{entity.entity_id}' of kind '{entity.kind.value}' uses symbol '{entity.symbol_key}' "
+                            f"for kind '{symbol.entity_kind.value}'."
+                        ),
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+            if entity.symbol_key not in set(policy.allowed_symbol_keys):
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_semantics_symbol_not_allowed_by_policy",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Entity '{entity.entity_id}' uses symbol '{entity.symbol_key}' which is not allowed "
+                            f"by the '{entity.diagram_level.value}' style policy."
+                        ),
+                        artifact_ref="diagram_semantics",
+                    )
+                )
+
+    for connection in artifact.connections:
+        policy = level_policy_map.get(connection.diagram_level)
+        if policy is None:
+            continue
+        if connection.role not in set(policy.allowed_edge_roles):
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_edge_role_not_allowed_by_policy",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Connection '{connection.connection_id}' uses edge role '{connection.role.value}' which is not allowed "
+                        f"by the '{connection.diagram_level.value}' style policy."
+                    ),
+                    artifact_ref="diagram_semantics",
+                )
+            )
+        if (connection.diagram_level, connection.role) not in edge_style_pairs:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_semantics_missing_edge_style",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Connection '{connection.connection_id}' uses edge role '{connection.role.value}' without a matching "
+                        f"edge style for level '{connection.diagram_level.value}'."
+                    ),
+                    artifact_ref="diagram_semantics",
+                )
+            )
+    return issues
+
+
+def validate_diagram_module_artifact(
+    artifact: DiagramModuleArtifact,
+    semantics: PlantDiagramSemanticsArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    entity_map = {entity.entity_id: entity for entity in semantics.entities}
+    connection_map = {connection.connection_id: connection for connection in semantics.connections}
+    seen_module_ids: set[str] = set()
+
+    for module in artifact.modules:
+        if module.module_id in seen_module_ids:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_duplicate_module_id",
+                    severity=Severity.BLOCKED,
+                    message=f"Diagram module artifact contains duplicate module id '{module.module_id}'.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+        seen_module_ids.add(module.module_id)
+
+        if module.module_kind != artifact.module_kind:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_kind_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=f"Module '{module.module_id}' has kind '{module.module_kind.value}' but artifact kind is '{artifact.module_kind.value}'.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+
+        if module.module_kind == DiagramLevel.BFD and module.symbol_policy != DiagramSymbolPolicy.BLOCK_ONLY:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_bfd_symbol_policy_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=f"BFD module '{module.module_id}' must use block-only symbol policy.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+        if module.module_kind == DiagramLevel.PFD and module.symbol_policy != DiagramSymbolPolicy.PROCESS_ONLY:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_pfd_symbol_policy_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=f"PFD module '{module.module_id}' must use process-only symbol policy.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+        if module.module_kind == DiagramLevel.CONTROL and module.symbol_policy != DiagramSymbolPolicy.CONTROL_ONLY:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_control_symbol_policy_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=f"Control module '{module.module_id}' must use control-only symbol policy.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+        if module.module_kind == DiagramLevel.PID_LITE and module.symbol_policy != DiagramSymbolPolicy.PID_LITE_ONLY:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_pid_symbol_policy_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=f"P&ID-lite module '{module.module_id}' must use pid-lite-only symbol policy.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+        if module.module_kind == DiagramLevel.PID_LITE and not module.must_be_isolated:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_pid_not_isolated",
+                    severity=Severity.BLOCKED,
+                    message=f"P&ID-lite module '{module.module_id}' must be isolated as a local unit cluster.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+
+        module_entity_ids = set(module.entity_ids)
+        module_connection_ids = set(module.connection_ids)
+        unit_entity_count = 0
+        for entity_id in module.entity_ids:
+            entity = entity_map.get(entity_id)
+            if entity is None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_missing_entity",
+                        severity=Severity.BLOCKED,
+                        message=f"Module '{module.module_id}' references unknown entity '{entity_id}'.",
+                        artifact_ref="diagram_modules",
+                    )
+                )
+                continue
+            if entity.diagram_level != module.module_kind:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_entity_level_mismatch",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Entity '{entity_id}' belongs to diagram level '{entity.diagram_level.value}' "
+                            f"but is included in module '{module.module_id}' of kind '{module.module_kind.value}'."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+            if entity.kind in set(module.forbidden_entity_kinds):
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_forbidden_entity_kind",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Module '{module.module_id}' contains forbidden entity kind '{entity.kind.value}' via entity '{entity_id}'."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+            if module.module_kind == DiagramLevel.PFD and entity.kind in {
+                DiagramEntityKind.INSTRUMENT,
+                DiagramEntityKind.VALVE,
+                DiagramEntityKind.CONTROL_LOOP,
+            }:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_pfd_contains_pid_content",
+                        severity=Severity.BLOCKED,
+                        message=f"PFD module '{module.module_id}' illegally contains '{entity.kind.value}' entity '{entity_id}'.",
+                        artifact_ref="diagram_modules",
+                    )
+                )
+            if module.module_kind == DiagramLevel.PID_LITE and entity.kind == DiagramEntityKind.UNIT:
+                unit_entity_count += 1
+            if module.module_kind == DiagramLevel.PID_LITE and entity.attached_to_entity_id:
+                if entity.attached_to_entity_id not in module_entity_ids:
+                    issues.append(
+                        ValidationIssue(
+                            code="diagram_module_pid_attachment_outside_module",
+                            severity=Severity.BLOCKED,
+                            message=(
+                                f"P&ID-lite entity '{entity_id}' in module '{module.module_id}' attaches outside the local module."
+                            ),
+                            artifact_ref="diagram_modules",
+                        )
+                    )
+                elif entity.attached_to_entity_id == entity_id:
+                    issues.append(
+                        ValidationIssue(
+                            code="diagram_module_pid_self_attachment",
+                            severity=Severity.BLOCKED,
+                            message=f"P&ID-lite entity '{entity_id}' in module '{module.module_id}' may not attach to itself.",
+                            artifact_ref="diagram_modules",
+                        )
+                    )
+
+        for connection_id in module.connection_ids:
+            connection = connection_map.get(connection_id)
+            if connection is None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_missing_connection",
+                        severity=Severity.BLOCKED,
+                        message=f"Module '{module.module_id}' references unknown connection '{connection_id}'.",
+                        artifact_ref="diagram_modules",
+                    )
+                )
+                continue
+            if connection.diagram_level != module.module_kind:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_connection_level_mismatch",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Connection '{connection_id}' belongs to diagram level '{connection.diagram_level.value}' "
+                            f"but is included in module '{module.module_id}' of kind '{module.module_kind.value}'."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+            if module.allowed_edge_roles and connection.role not in set(module.allowed_edge_roles):
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_forbidden_edge_role",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Module '{module.module_id}' contains disallowed edge role '{connection.role.value}' "
+                            f"via connection '{connection_id}'."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+            if module.module_kind == DiagramLevel.PID_LITE and connection.role in {
+                DiagramEdgeRole.PROCESS,
+                DiagramEdgeRole.PRODUCT,
+                DiagramEdgeRole.UTILITY,
+            }:
+                if connection.source_entity_id not in module_entity_ids or connection.target_entity_id not in module_entity_ids:
+                    issues.append(
+                        ValidationIssue(
+                            code="diagram_module_pid_material_connection_external",
+                            severity=Severity.BLOCKED,
+                            message=(
+                                f"P&ID-lite material/utility connection '{connection_id}' in module '{module.module_id}' must stay inside the local cluster."
+                            ),
+                            artifact_ref="diagram_modules",
+                        )
+                    )
+                if not connection.line_class:
+                    issues.append(
+                        ValidationIssue(
+                            code="diagram_module_pid_line_missing_class",
+                            severity=Severity.BLOCKED,
+                            message=(
+                                f"P&ID-lite connection '{connection_id}' in module '{module.module_id}' must declare a line_class."
+                            ),
+                            artifact_ref="diagram_modules",
+                        )
+                    )
+            internal_refs = {connection.source_entity_id, connection.target_entity_id} & module_entity_ids
+            if not internal_refs and not connection.must_route_externally:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_disconnected_connection",
+                        severity=Severity.WARNING,
+                        message=(
+                            f"Connection '{connection_id}' in module '{module.module_id}' does not touch any module entity "
+                            "and is not marked for external routing."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+        if module.module_kind == DiagramLevel.PID_LITE and unit_entity_count == 0:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_pid_missing_unit_anchor",
+                    severity=Severity.BLOCKED,
+                    message=f"P&ID-lite module '{module.module_id}' must include at least one unit anchor entity.",
+                    artifact_ref="diagram_modules",
+                )
+            )
+
+        declared_port_entity_ids = {port.entity_id for port in module.boundary_ports if port.entity_id}
+        if not declared_port_entity_ids.issubset(module_entity_ids):
+            missing_port_entities = sorted(declared_port_entity_ids - module_entity_ids)
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_port_missing_entity",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Module '{module.module_id}' declares boundary ports for entities not in the module: "
+                        f"{', '.join(missing_port_entities)}."
+                    ),
+                    artifact_ref="diagram_modules",
+                )
+            )
+
+    if not artifact.modules:
+        issues.append(
+            ValidationIssue(
+                code="diagram_module_empty",
+                severity=Severity.BLOCKED,
+                message="Diagram module artifact has no modules.",
+                artifact_ref="diagram_modules",
+            )
+        )
+    return issues
+
+
+def validate_diagram_module_symbols_against_library(
+    artifact: DiagramModuleArtifact,
+    semantics: PlantDiagramSemanticsArtifact,
+    library: DiagramSymbolLibraryArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    entity_map = {entity.entity_id: entity for entity in semantics.entities}
+    connection_map = {connection.connection_id: connection for connection in semantics.connections}
+    level_policy_map = {policy.diagram_level: policy for policy in library.level_policies}
+    edge_style_pairs = {(edge_style.diagram_level, edge_style.role) for edge_style in library.edge_styles}
+
+    for module in artifact.modules:
+        policy = level_policy_map.get(module.module_kind)
+        if policy is None:
+            continue
+        if module.symbol_policy != policy.symbol_policy:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_module_symbol_policy_library_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"Module '{module.module_id}' uses symbol policy '{module.symbol_policy.value}' but the "
+                        f"library requires '{policy.symbol_policy.value}' for level '{module.module_kind.value}'."
+                    ),
+                    artifact_ref="diagram_modules",
+                )
+            )
+        for entity_id in module.entity_ids:
+            entity = entity_map.get(entity_id)
+            if entity is None or not entity.symbol_key:
+                continue
+            if entity.symbol_key not in set(policy.allowed_symbol_keys):
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_symbol_not_allowed_by_library",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Module '{module.module_id}' includes entity '{entity_id}' with symbol '{entity.symbol_key}' "
+                            f"which is not allowed for level '{module.module_kind.value}'."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+        for connection_id in module.connection_ids:
+            connection = connection_map.get(connection_id)
+            if connection is None:
+                continue
+            if connection.role not in set(policy.allowed_edge_roles):
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_edge_role_not_allowed_by_library",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Module '{module.module_id}' includes connection '{connection_id}' with edge role "
+                            f"'{connection.role.value}' which is not allowed for level '{module.module_kind.value}'."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+            if (module.module_kind, connection.role) not in edge_style_pairs:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_module_missing_edge_style_in_library",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Module '{module.module_id}' includes connection '{connection_id}' with no matching "
+                            f"edge style in the symbol library."
+                        ),
+                        artifact_ref="diagram_modules",
+                    )
+                )
+    return issues
+
+
+def validate_diagram_sheet_composition_artifact(
+    artifact: DiagramSheetCompositionArtifact,
+    modules: DiagramModuleArtifact,
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    module_map = {module.module_id: module for module in modules.modules}
+
+    for sheet in artifact.sheets:
+        seen_placements: set[str] = set()
+        placed_module_ids = {placement.module_id for placement in sheet.module_placements}
+        for placement in sheet.module_placements:
+            if placement.module_id in seen_placements:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_duplicate_module_placement",
+                        severity=Severity.BLOCKED,
+                        message=f"Sheet '{sheet.sheet_id}' places module '{placement.module_id}' more than once.",
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+            seen_placements.add(placement.module_id)
+            module = module_map.get(placement.module_id)
+            if module is None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_unknown_module",
+                        severity=Severity.BLOCKED,
+                        message=f"Sheet '{sheet.sheet_id}' references unknown module '{placement.module_id}'.",
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+                continue
+            if module.module_kind != artifact.diagram_level:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_module_level_mismatch",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Sheet '{sheet.sheet_id}' of level '{artifact.diagram_level.value}' includes module "
+                            f"'{placement.module_id}' of level '{module.module_kind.value}'."
+                        ),
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+            if placement.x < 0 or placement.y < 0 or placement.width <= 0 or placement.height <= 0:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_invalid_placement_geometry",
+                        severity=Severity.BLOCKED,
+                        message=f"Sheet '{sheet.sheet_id}' contains invalid geometry for module '{placement.module_id}'.",
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+            if placement.x + placement.width > sheet.width_px or placement.y + placement.height > sheet.height_px:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_module_out_of_bounds",
+                        severity=Severity.BLOCKED,
+                        message=f"Module '{placement.module_id}' exceeds the bounds of sheet '{sheet.sheet_id}'.",
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+        for connector in sheet.connectors:
+            if connector.source_module_id not in placed_module_ids or connector.target_module_id not in placed_module_ids:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_connector_missing_module",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Connector '{connector.connector_id}' references modules that are not both placed on sheet '{sheet.sheet_id}'."
+                        ),
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+                continue
+            source_module = module_map.get(connector.source_module_id)
+            target_module = module_map.get(connector.target_module_id)
+            if source_module is None or target_module is None:
+                continue
+            source_port_ids = {port.port_id for port in source_module.boundary_ports}
+            target_port_ids = {port.port_id for port in target_module.boundary_ports}
+            if connector.source_port_id not in source_port_ids or connector.target_port_id not in target_port_ids:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_sheet_connector_missing_port",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Connector '{connector.connector_id}' uses undeclared boundary ports between "
+                            f"'{connector.source_module_id}' and '{connector.target_module_id}'."
+                        ),
+                        artifact_ref="diagram_sheet_composition",
+                    )
+                )
+        if not sheet.module_placements:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_sheet_empty",
+                    severity=Severity.BLOCKED,
+                    message=f"Sheet '{sheet.sheet_id}' contains no module placements.",
+                    artifact_ref="diagram_sheet_composition",
+                )
+            )
+    if not artifact.sheets:
+        issues.append(
+            ValidationIssue(
+                code="diagram_sheet_composition_empty",
+                severity=Severity.BLOCKED,
+                message="Diagram sheet composition artifact has no sheets.",
+                artifact_ref="diagram_sheet_composition",
+            )
+        )
+    return issues
+
+
+def validate_diagram_drafting_sheets(
+    sheets: list[DiagramSheet],
+    *,
+    nodes: list[DiagramNode] | None = None,
+    artifact_ref: str = "diagram_sheets",
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    node_lookup = {node.node_id: node for node in (nodes or [])}
+    drawing_numbers: dict[str, str] = {}
+    sheet_numbers: dict[str, str] = {}
+
+    for sheet in sheets:
+        required_fields = {
+            "drawing_number": sheet.drawing_number,
+            "sheet_number": sheet.sheet_number,
+            "revision": sheet.revision,
+            "revision_date": sheet.revision_date,
+            "issue_status": sheet.issue_status,
+            "prepared_by": sheet.prepared_by,
+        }
+        missing_fields = [field for field, value in required_fields.items() if not str(value).strip()]
+        if missing_fields:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_drafting_metadata_missing",
+                    severity=Severity.WARNING,
+                    message=f"Sheet '{sheet.sheet_id}' is missing drafting metadata fields: {', '.join(missing_fields)}.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+
+        normalized_drawing = sheet.drawing_number.strip().upper()
+        if normalized_drawing:
+            first_sheet_id = drawing_numbers.get(normalized_drawing)
+            if first_sheet_id is not None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_duplicate_drawing_number",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Sheet '{sheet.sheet_id}' reuses drawing number '{sheet.drawing_number}' "
+                            f"already assigned to sheet '{first_sheet_id}'."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+            drawing_numbers.setdefault(normalized_drawing, sheet.sheet_id)
+
+        normalized_sheet_number = sheet.sheet_number.strip().upper()
+        if normalized_sheet_number:
+            first_sheet_id = sheet_numbers.get(normalized_sheet_number)
+            if first_sheet_id is not None:
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_duplicate_sheet_number",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Sheet '{sheet.sheet_id}' reuses sheet number '{sheet.sheet_number}' "
+                            f"already assigned to sheet '{first_sheet_id}'."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+            sheet_numbers.setdefault(normalized_sheet_number, sheet.sheet_id)
+
+        if sheet.svg.strip() and "DRAFTING TITLE BLOCK" not in sheet.svg:
+            issues.append(
+                ValidationIssue(
+                    code="diagram_title_block_missing",
+                    severity=Severity.BLOCKED,
+                    message=f"Rendered SVG for sheet '{sheet.sheet_id}' is missing the drafting title block.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+
+        title_block_rect = _drafting_title_block_rect(sheet)
+        for node_id in sheet.node_ids:
+            node = node_lookup.get(node_id)
+            if node is None:
+                continue
+            if _rectangles_overlap(title_block_rect, (node.x, node.y, node.width, node.height), padding=8.0):
+                issues.append(
+                    ValidationIssue(
+                        code="diagram_title_block_overlap",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"Sheet '{sheet.sheet_id}' places node '{node.node_id}' inside the reserved drafting title-block area."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+
+    if not sheets:
+        issues.append(
+            ValidationIssue(
+                code="diagram_drafting_sheets_empty",
+                severity=Severity.BLOCKED,
+                message="No diagram sheets were provided for drafting validation.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    return issues
+
+
+def validate_bac_pfd_process_purity(
+    nodes: list[DiagramNode],
+    target: DiagramTargetProfile,
+    *,
+    artifact_ref: str = "process_flow_diagram",
+) -> list[ValidationIssue]:
+    if not _is_bac_target(target):
+        return []
+    issues: list[ValidationIssue] = []
+    control_pattern = re.compile(r"\b(?:AIC|FIC|LIC|PIC|TIC|FC|LC|PC|TC)-?\d+\b", re.IGNORECASE)
+    utility_pattern = re.compile(r"\b\d+(?:\.\d+)?\s*kW\s+(?:heat|cool)\b", re.IGNORECASE)
+
+    for node in nodes:
+        if node.node_family in {"instrument", "controller", "valve", "relief_valve"}:
+            issues.append(
+                ValidationIssue(
+                    code="bac_pfd_contains_pid_symbol_family",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"BAC PFD node '{node.node_id}' uses local instrumentation/valve family '{node.node_family}', "
+                        "which belongs in P&ID-lite or control diagrams."
+                    ),
+                    artifact_ref=artifact_ref,
+                )
+            )
+        for label in node.labels:
+            text = label.text.strip()
+            if not text:
+                continue
+            if label.kind == "utility" and control_pattern.search(text):
+                issues.append(
+                    ValidationIssue(
+                        code="bac_pfd_contains_control_annotation",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"BAC PFD node '{node.node_id}' exposes control-loop annotation '{text}' in visible labels."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+            if label.kind == "utility" and utility_pattern.search(text):
+                issues.append(
+                    ValidationIssue(
+                        code="bac_pfd_contains_utility_duty_annotation",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"BAC PFD node '{node.node_id}' exposes utility-duty annotation '{text}' in visible labels."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+            if label.kind != "primary" and control_pattern.search(text):
+                issues.append(
+                    ValidationIssue(
+                        code="bac_pfd_contains_control_annotation",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"BAC PFD node '{node.node_id}' includes control-style text '{text}' outside the control/P&ID views."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+            if label.kind == "utility" and "loop" in text.lower():
+                issues.append(
+                    ValidationIssue(
+                        code="bac_pfd_contains_control_annotation",
+                        severity=Severity.BLOCKED,
+                        message=(
+                            f"BAC PFD node '{node.node_id}' includes loop annotation '{text}' in visible labels."
+                        ),
+                        artifact_ref=artifact_ref,
+                    )
+                )
+    return issues
+
+
+def validate_bac_bfd_structure(
+    artifact: PlantDiagramSemanticsArtifact,
+    target: DiagramTargetProfile,
+    *,
+    artifact_ref: str = "block_flow_diagram",
+) -> list[ValidationIssue]:
+    if not _is_bac_target(target):
+        return []
+    bfd_sections = [
+        entity.section_id
+        for entity in artifact.entities
+        if entity.diagram_level == DiagramLevel.BFD and entity.kind == DiagramEntityKind.SECTION and entity.section_id
+    ]
+    expected_order = _bac_bfd_section_order()
+    issues: list[ValidationIssue] = []
+    if artifact.section_order[: len(expected_order)] != expected_order:
+        issues.append(
+            ValidationIssue(
+                code="bac_bfd_section_order_mismatch",
+                severity=Severity.BLOCKED,
+                message="BAC BFD section order does not match the locked canonical BAC section spine.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    missing_sections = [section for section in expected_order if section not in set(bfd_sections)]
+    if missing_sections:
+        issues.append(
+            ValidationIssue(
+                code="bac_bfd_missing_required_sections",
+                severity=Severity.BLOCKED,
+                message=f"BAC BFD is missing required sections: {', '.join(missing_sections)}.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    expected_labels = _bac_bfd_display_label_map()
+    for entity in artifact.entities:
+        if entity.diagram_level != DiagramLevel.BFD or entity.kind != DiagramEntityKind.SECTION:
+            continue
+        expected_label = expected_labels.get(entity.section_id)
+        if expected_label and entity.label != expected_label:
+            issues.append(
+                ValidationIssue(
+                    code="bac_bfd_section_label_mismatch",
+                    severity=Severity.BLOCKED,
+                    message=(
+                        f"BAC BFD section '{entity.section_id}' uses label '{entity.label}' instead of '{expected_label}'."
+                    ),
+                    artifact_ref=artifact_ref,
+                )
+            )
+    return issues
+
+
+def validate_bac_pid_cluster_coverage(
+    artifact: PlantDiagramSemanticsArtifact,
+    flowsheet_graph: FlowsheetGraph,
+    target: DiagramTargetProfile,
+    *,
+    artifact_ref: str = "pid_lite_semantics",
+) -> list[ValidationIssue]:
+    if not _is_bac_target(target):
+        return []
+    unit_entities = {
+        entity.unit_id: entity
+        for entity in artifact.entities
+        if entity.diagram_level == DiagramLevel.PID_LITE and entity.kind == DiagramEntityKind.UNIT and entity.unit_id
+    }
+    required_unit_ids = _bac_pid_required_unit_ids(flowsheet_graph)
+    issues: list[ValidationIssue] = []
+    missing_units = [unit_id for unit_id in required_unit_ids if unit_id not in unit_entities]
+    if missing_units:
+        issues.append(
+            ValidationIssue(
+                code="bac_pid_missing_required_clusters",
+                severity=Severity.BLOCKED,
+                message=f"BAC P&ID-lite semantics are missing required unit clusters: {', '.join(missing_units)}.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    required_relief_units = {
+        unit_id
+        for unit_id in required_unit_ids
+        if _bac_pid_requires_relief(next((node for node in flowsheet_graph.nodes if node.node_id == unit_id), None))
+    }
+    relief_anchors = {
+        entity.attached_to_entity_id
+        for entity in artifact.entities
+        if entity.diagram_level == DiagramLevel.PID_LITE and entity.symbol_key == "pid_relief_valve" and entity.attached_to_entity_id
+    }
+    missing_relief_units = sorted(required_relief_units - relief_anchors)
+    if missing_relief_units:
+        issues.append(
+            ValidationIssue(
+                code="bac_pid_missing_relief_coverage",
+                severity=Severity.WARNING,
+                message=f"BAC P&ID-lite semantics are missing relief/safeguard coverage for: {', '.join(missing_relief_units)}.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    return issues
+
+
+def validate_bac_diagram_benchmark_artifact(
+    artifact: BACDiagramBenchmarkArtifact,
+    target: DiagramTargetProfile,
+    *,
+    artifact_ref: str = "bac_diagram_benchmark",
+) -> list[ValidationIssue]:
+    if not _is_bac_target(target):
+        return []
+    issues: list[ValidationIssue] = []
+    required_rows = {"bfd", "pfd", "pid", "drawio"}
+    row_kinds = {row.diagram_kind for row in artifact.rows}
+    missing_rows = sorted(required_rows - row_kinds)
+    if missing_rows:
+        issues.append(
+            ValidationIssue(
+                code="bac_diagram_benchmark_missing_rows",
+                severity=Severity.BLOCKED,
+                message=f"BAC diagram benchmark is missing required rows: {', '.join(missing_rows)}.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    if artifact.overall_status == "blocked":
+        issues.append(
+            ValidationIssue(
+                code="bac_diagram_benchmark_blocked",
+                severity=Severity.BLOCKED,
+                message="BAC diagram benchmark is blocked and the drawing package is not benchmark-ready.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    elif artifact.overall_status == "conditional":
+        issues.append(
+            ValidationIssue(
+                code="bac_diagram_benchmark_conditional",
+                severity=Severity.WARNING,
+                message="BAC diagram benchmark is conditional and still has benchmark warnings.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    for row in artifact.rows:
+        if row.status == "fail":
+            issues.append(
+                ValidationIssue(
+                    code=f"bac_diagram_benchmark_{row.diagram_kind}_failed",
+                    severity=Severity.BLOCKED,
+                    message=row.summary or f"BAC {row.diagram_kind.upper()} benchmark row failed.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+        elif row.status == "warning":
+            issues.append(
+                ValidationIssue(
+                    code=f"bac_diagram_benchmark_{row.diagram_kind}_warning",
+                    severity=Severity.WARNING,
+                    message=row.summary or f"BAC {row.diagram_kind.upper()} benchmark row is conditional.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+    return issues
+
+
+def validate_bac_drawing_package_artifact(
+    artifact: BACDrawingPackageArtifact,
+    target: DiagramTargetProfile,
+    *,
+    artifact_ref: str = "bac_drawing_package",
+) -> list[ValidationIssue]:
+    if not _is_bac_target(target):
+        return []
+    issues: list[ValidationIssue] = []
+    required_kinds = {"bfd", "pfd", "pid"}
+    row_kinds = {row.diagram_kind for row in artifact.register_rows}
+    missing_kinds = sorted(required_kinds - row_kinds)
+    if missing_kinds:
+        issues.append(
+            ValidationIssue(
+                code="bac_drawing_package_missing_register_kinds",
+                severity=Severity.BLOCKED,
+                message=f"BAC drawing package is missing register coverage for: {', '.join(missing_kinds)}.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    if artifact.review_workflow_status in {"approved", "as_built"} and not artifact.approver:
+        issues.append(
+            ValidationIssue(
+                code="bac_drawing_package_missing_approver",
+                severity=Severity.BLOCKED,
+                message="BAC drawing package is marked approved/as-built without an approver.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    if artifact.review_workflow_status == "as_built":
+        missing_dates = [row.sheet_id for row in artifact.register_rows if row.issue_status.lower() == "as built" and not row.approved_date]
+        if missing_dates:
+            issues.append(
+                ValidationIssue(
+                    code="bac_drawing_package_missing_as_built_dates",
+                    severity=Severity.BLOCKED,
+                    message=f"BAC drawing package has as-built sheets without approval dates: {', '.join(missing_dates)}.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+    for row in artifact.register_rows:
+        lowered_status = row.issue_status.lower()
+        if lowered_status in {"approved", "as built"} and not row.approved_by:
+            issues.append(
+                ValidationIssue(
+                    code="bac_drawing_package_sheet_missing_approver",
+                    severity=Severity.BLOCKED,
+                    message=f"BAC drawing sheet '{row.sheet_id}' is {row.issue_status} without an approver.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+        if lowered_status == "for review" and not (row.checked_by or row.reviewed_by):
+            issues.append(
+                ValidationIssue(
+                    code="bac_drawing_package_sheet_missing_review_chain",
+                    severity=Severity.WARNING,
+                    message=f"BAC drawing sheet '{row.sheet_id}' is for review without checker/reviewer assignment.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+    return issues
+
+
+def validate_bac_rendering_audit_artifact(
+    artifact: BACRenderingAuditArtifact,
+    target: DiagramTargetProfile,
+    *,
+    artifact_ref: str = "bac_rendering_audit",
+) -> list[ValidationIssue]:
+    if not _is_bac_target(target):
+        return []
+    issues: list[ValidationIssue] = []
+    required_rows = {"bfd", "pfd", "pid"}
+    row_kinds = {row.diagram_kind for row in artifact.rows}
+    missing_rows = sorted(required_rows - row_kinds)
+    if missing_rows:
+        issues.append(
+            ValidationIssue(
+                code="bac_rendering_audit_missing_rows",
+                severity=Severity.BLOCKED,
+                message=f"BAC rendering audit is missing rows for: {', '.join(missing_rows)}.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    if artifact.overall_status == "blocked":
+        issues.append(
+            ValidationIssue(
+                code="bac_rendering_audit_blocked",
+                severity=Severity.BLOCKED,
+                message="BAC rendering audit found blocked rendering issues in the current BAC diagrams.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    elif artifact.overall_status == "conditional":
+        issues.append(
+            ValidationIssue(
+                code="bac_rendering_audit_conditional",
+                severity=Severity.WARNING,
+                message="BAC rendering audit found rendering warnings that should be reviewed before wider integration.",
+                artifact_ref=artifact_ref,
+            )
+        )
+    for row in artifact.rows:
+        if row.status == "fail":
+            issues.append(
+                ValidationIssue(
+                    code=f"bac_rendering_audit_{row.diagram_kind}_failed",
+                    severity=Severity.BLOCKED,
+                    message=row.summary or f"BAC {row.diagram_kind.upper()} rendering audit failed.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+        elif row.status == "warning":
+            issues.append(
+                ValidationIssue(
+                    code=f"bac_rendering_audit_{row.diagram_kind}_warning",
+                    severity=Severity.WARNING,
+                    message=row.summary or f"BAC {row.diagram_kind.upper()} rendering audit has warnings.",
+                    artifact_ref=artifact_ref,
+                )
+            )
+    return issues
+
+
+def _drafting_title_block_rect(sheet: DiagramSheet) -> tuple[float, float, float, float]:
+    width = 430.0
+    height = 86.0
+    return (
+        max(8.0, sheet.width_px - width - 16.0),
+        max(8.0, sheet.height_px - height - 14.0),
+        width,
+        height,
+    )
+
+
+def _rectangles_overlap(
+    left: tuple[float, float, float, float],
+    right: tuple[float, float, float, float],
+    *,
+    padding: float = 0.0,
+) -> bool:
+    lx, ly, lw, lh = left
+    rx, ry, rw, rh = right
+    return not (
+        lx + lw + padding <= rx
+        or rx + rw + padding <= lx
+        or ly + lh + padding <= ry
+        or ry + rh + padding <= ly
+    )
+
+
+def _is_bac_target(target: DiagramTargetProfile) -> bool:
+    lowered = target.target_product.lower()
+    return "benzalkonium" in lowered or lowered.strip() == "bac"
+
+
+def _bac_bfd_section_order() -> list[str]:
+    return [
+        "feed preparation",
+        "reaction",
+        "cleanup",
+        "concentration",
+        "purification",
+        "storage",
+        "waste handling",
+    ]
+
+
+def _bac_bfd_display_label_map() -> dict[str, str]:
+    return {
+        "feed preparation": "Feed Preparation",
+        "reaction": "Quaternization Reaction",
+        "cleanup": "Primary Cleanup",
+        "concentration": "Concentration",
+        "purification": "Purification",
+        "storage": "Product Storage",
+        "waste handling": "Waste Handling",
+    }
+
+
+def _bac_pid_required_unit_ids(flowsheet_graph: FlowsheetGraph) -> list[str]:
+    priority_sections = ["reaction", "cleanup", "purification", "storage", "waste_treatment"]
+    preferred: list[str] = []
+    for section_id in priority_sections:
+        for node in flowsheet_graph.nodes:
+            if node.section_id == section_id and node.node_id not in preferred:
+                preferred.append(node.node_id)
+    for node in flowsheet_graph.nodes:
+        lowered = f"{node.label} {node.unit_type} {node.section_id}".lower()
+        if (
+            any(token in lowered for token in {"reactor", "quaternization", "column", "purification", "storage", "tank", "waste", "etp"})
+            and node.node_id not in preferred
+        ):
+            preferred.append(node.node_id)
+    return preferred
+
+
+def _bac_pid_requires_relief(node) -> bool:
+    if node is None:
+        return False
+    lowered = f"{node.label} {node.unit_type} {node.section_id}".lower()
+    return any(token in lowered for token in {"reaction", "reactor", "purification", "column", "storage", "tank"})
 
 
 def validate_hazop_node_register(register: HazopNodeRegister) -> list[ValidationIssue]:

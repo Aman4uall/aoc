@@ -1,0 +1,8 @@
+title=Block Flow Diagram
+section_count=7
+main_flow_count=6
+recycle_count=0
+has_title_block=1
+has_quaternization=1
+has_product_storage=1
+section_labels=Feed Preparation | Quaternization Reaction | Primary Cleanup | Concentration | Purification | Product Storage | Waste Handling

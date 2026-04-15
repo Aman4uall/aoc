@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 import math
+from pathlib import Path
 import re
 
 from aoc.archetypes import build_alternative_sets, classify_process_archetype
@@ -39,10 +40,34 @@ from aoc.decision_engine import (
 )
 from aoc.diagrams import (
     build_block_flow_diagram,
+    build_block_flow_diagram_modules,
+    build_block_flow_diagram_semantics,
+    build_block_flow_diagram_sheet_composition,
+    build_bac_diagram_benchmark_artifact,
+    build_bac_drawing_package_artifact,
+    build_bac_rendering_audit_artifact,
+    build_control_cause_effect_artifact,
+    build_control_system_modules,
+    build_control_system_semantics,
+    build_control_system_sheet_composition,
     build_control_system_diagram,
+    build_control_system_routing_artifact,
     build_diagram_acceptance,
+    build_diagram_domain_packs,
+    build_diagram_symbol_library,
     build_diagram_style_profile,
     build_diagram_target_profile,
+    build_domain_equipment_templates,
+    build_drawio_document,
+    build_pid_lite_diagram,
+    build_pid_lite_modules,
+    build_pid_lite_routing_artifact,
+    build_pid_lite_semantics,
+    build_pid_lite_sheet_composition,
+    build_process_flow_diagram_modules,
+    build_process_flow_diagram_routing_artifact,
+    build_process_flow_diagram_semantics,
+    build_process_flow_diagram_sheet_composition,
     build_process_flow_diagram,
     diagram_svg_fence,
 )
@@ -124,10 +149,13 @@ from aoc.scientific_inference import (
 )
 from aoc.models import (
     AgentDecisionFabricArtifact,
+    BACDiagramBenchmarkArtifact,
     BACImpurityLedgerArtifact,
     BACImpurityModelArtifact,
     BACPurificationSectionArtifact,
     BACPseudoComponentBasisArtifact,
+    BACDrawingPackageArtifact,
+    BACRenderingAuditArtifact,
     BenchmarkManifest,
     BlockFlowDiagramArtifact,
     ChapterArtifact,
@@ -139,6 +167,7 @@ from aoc.models import (
     ColumnDesign,
     ColumnHydraulics,
     ControlArchitectureDecision,
+    ControlCauseEffectArtifact,
     ControlPlanArtifact,
     ControlSystemDiagramArtifact,
     CostModel,
@@ -147,6 +176,8 @@ from aoc.models import (
     DataRealityAuditArtifact,
     DebtSchedule,
     DecisionRecord,
+    DiagramDeliveryManifestArtifact,
+    DiagramRoutingArtifact,
     DocumentFactCollectionArtifact,
     DocumentProcessOptionsArtifact,
     EconomicCoverageDecision,
@@ -187,6 +218,7 @@ from aoc.models import (
     NarrativeArtifact,
     OperationsPlanningArtifact,
     PlantCostSummary,
+    PidLiteDiagramArtifact,
     PumpDesign,
     ProcessArchetype,
     ProcessSelectionComparisonArtifact,
@@ -305,14 +337,22 @@ from aoc.utility_architecture import build_utility_architecture_decision
 from aoc.validators import (
     apply_state_issues,
     validate_architecture_package_critics,
+    validate_bac_diagram_benchmark_artifact,
+    validate_bac_drawing_package_artifact,
     validate_bac_impurity_model_artifact,
     validate_bac_purification_section_artifact,
+    validate_bac_rendering_audit_artifact,
     validate_chapter,
     validate_chemistry_family_adapter,
     validate_column_design,
     validate_cost_model,
     validate_cross_chapter_consistency,
     validate_decision_record,
+    validate_diagram_module_artifact,
+    validate_diagram_module_symbols_against_library,
+    validate_diagram_semantics_against_symbol_library,
+    validate_diagram_sheet_composition_artifact,
+    validate_diagram_symbol_library,
     validate_document_fact_collection,
     validate_energy_balance,
     validate_equipment_applicability,
@@ -334,6 +374,7 @@ from aoc.validators import (
     validate_mechanical_design_artifact,
     validate_missing_data_acceptance_artifact,
     validate_phase_feasibility,
+    validate_plant_diagram_semantics,
     validate_property_method_decision,
     validate_property_package_artifact,
     validate_report_parity,
@@ -610,6 +651,8 @@ class PipelineRunner:
         if not gate or gate.status != GateStatus.APPROVED:
             raise RuntimeError("Final signoff is required before PDF rendering.")
         final_report = self.store.maybe_load_model(self.config.project_id, "artifacts/final_report.json", FinalReport)
+        diagram_delivery_manifest = self.store.maybe_load_model(self.config.project_id, "artifacts/diagram_delivery_manifest.json", DiagramDeliveryManifestArtifact)
+        control_cause_effect = self.store.maybe_load_model(self.config.project_id, "artifacts/control_cause_effect.json", ControlCauseEffectArtifact)
         markdown_path = self.store.project_dir(self.config.project_id) / "final_report.md"
         if not markdown_path.exists():
             raise RuntimeError("Final markdown report does not exist yet.")
@@ -618,12 +661,22 @@ class PipelineRunner:
         pdf_path = self.store.project_dir(self.config.project_id) / "final_report.pdf"
         formatted_pdf_path = self.store.project_dir(self.config.project_id) / "final_report_formatted.pdf"
         if formatted_html_path.exists():
-            render_styled_pdf(
-                formatted_html_path.read_text(encoding="utf-8"),
-                str(formatted_pdf_path),
-                f"{self.config.basis.target_product} Plant Design Report",
-                header_text=f"{self.config.basis.target_product} Academic Report",
-            )
+            try:
+                render_styled_pdf(
+                    formatted_html_path.read_text(encoding="utf-8"),
+                    str(formatted_pdf_path),
+                    f"{self.config.basis.target_product} Plant Design Report",
+                    header_text=f"{self.config.basis.target_product} Academic Report",
+                )
+            except RuntimeError:
+                if not formatted_markdown_path.exists():
+                    raise
+                render_academic_pdf(
+                    formatted_markdown_path.read_text(encoding="utf-8"),
+                    str(formatted_pdf_path),
+                    f"{self.config.basis.target_product} Plant Design Report",
+                    header_text=f"{self.config.basis.target_product} Academic Report",
+                )
             self.store.save_text(
                 self.config.project_id,
                 "final_report_render_source.md",
@@ -698,6 +751,19 @@ class PipelineRunner:
         report_parity_framework = self.store.maybe_load_model(self.config.project_id, "artifacts/report_parity_framework.json", ReportParityFrameworkArtifact)
         report_parity = self.store.maybe_load_model(self.config.project_id, "artifacts/report_parity.json", ReportParityArtifact)
         report_acceptance = self.store.maybe_load_model(self.config.project_id, "artifacts/report_acceptance.json", ReportAcceptanceArtifact)
+        block_flow_diagram_acceptance = self.store.maybe_load_model(self.config.project_id, "artifacts/block_flow_diagram_acceptance.json", DiagramAcceptanceArtifact)
+        process_flow_diagram_acceptance = self.store.maybe_load_model(self.config.project_id, "artifacts/process_flow_diagram_acceptance.json", DiagramAcceptanceArtifact)
+        diagram_delivery_manifest = self.store.maybe_load_model(self.config.project_id, "artifacts/diagram_delivery_manifest.json", DiagramDeliveryManifestArtifact)
+        bac_rendering_audit = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_rendering_audit.json", BACRenderingAuditArtifact)
+        bac_diagram_benchmark = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_diagram_benchmark.json", BACDiagramBenchmarkArtifact)
+        bac_drawing_package = self.store.maybe_load_model(self.config.project_id, "artifacts/bac_drawing_package.json", BACDrawingPackageArtifact)
+        control_cause_effect = self.store.maybe_load_model(self.config.project_id, "artifacts/control_cause_effect.json", ControlCauseEffectArtifact)
+        diagrams_dir = self.store.project_dir(self.config.project_id) / "diagrams"
+        bfd_svg_paths = sorted(str(path) for path in diagrams_dir.glob("bfd_sheet_*.svg"))
+        pfd_svg_paths = sorted(str(path) for path in diagrams_dir.glob("pfd_sheet_*.svg"))
+        control_svg_paths = sorted(str(path) for path in diagrams_dir.glob("control_system_sheet_*.svg"))
+        pid_lite_svg_paths = sorted(str(path) for path in diagrams_dir.glob("pid_lite_sheet_*.svg"))
+        drawio_paths = sorted(str(path) for path in diagrams_dir.glob("*.drawio"))
         data_reality_audit = self.store.maybe_load_model(self.config.project_id, "artifacts/data_reality_audit.json", DataRealityAuditArtifact)
         document_facts = self.store.maybe_load_model(self.config.project_id, "artifacts/user_document_facts.json", DocumentFactCollectionArtifact)
         document_process_options = self.store.maybe_load_model(self.config.project_id, "artifacts/document_process_options.json", DocumentProcessOptionsArtifact)
@@ -816,6 +882,56 @@ class PipelineRunner:
             lines.append(f"- real_data_status: {report_acceptance.real_data_status}")
             lines.append(f"- real_data_coverage: {report_acceptance.real_data_coverage_fraction:.1%}")
             lines.append(f"- critical_seeded_dependencies: {', '.join(report_acceptance.critical_seeded_dependencies) or 'none'}")
+        if block_flow_diagram_acceptance or process_flow_diagram_acceptance:
+            lines.append("")
+            lines.append("diagram_acceptance:")
+            if block_flow_diagram_acceptance:
+                lines.append(f"- bfd_status: {block_flow_diagram_acceptance.overall_status}")
+                lines.append(f"- bfd_missing_nodes: {', '.join(block_flow_diagram_acceptance.missing_required_nodes) or 'none'}")
+                lines.append(f"- bfd_missing_edges: {', '.join(block_flow_diagram_acceptance.missing_required_edges) or 'none'}")
+                lines.append(f"- bfd_blocking_issues: {', '.join(block_flow_diagram_acceptance.blocking_issue_codes) or 'none'}")
+            if process_flow_diagram_acceptance:
+                lines.append(f"- pfd_status: {process_flow_diagram_acceptance.overall_status}")
+                lines.append(f"- pfd_cleanliness_score: {process_flow_diagram_acceptance.benchmark_cleanliness_score:.2f}")
+                lines.append(f"- pfd_node_overlaps: {process_flow_diagram_acceptance.node_overlap_count}")
+                lines.append(f"- pfd_node_label_overlaps: {process_flow_diagram_acceptance.node_label_overlap_count}")
+                lines.append(f"- pfd_crowded_sheets: {process_flow_diagram_acceptance.crowded_sheet_count}")
+                lines.append(f"- pfd_max_sheet_utilization: {process_flow_diagram_acceptance.max_sheet_utilization_fraction:.0%}")
+                lines.append(f"- pfd_missing_nodes: {', '.join(process_flow_diagram_acceptance.missing_required_nodes) or 'none'}")
+                lines.append(f"- pfd_missing_edges: {', '.join(process_flow_diagram_acceptance.missing_required_edges) or 'none'}")
+                lines.append(f"- pfd_blocking_issues: {', '.join(process_flow_diagram_acceptance.blocking_issue_codes) or 'none'}")
+        if bfd_svg_paths or pfd_svg_paths or control_svg_paths or pid_lite_svg_paths or drawio_paths:
+            lines.append("")
+            lines.append("diagram_exports:")
+            lines.append(f"- bfd_svg_sheets: {len(bfd_svg_paths)}")
+            lines.append(f"- pfd_svg_sheets: {len(pfd_svg_paths)}")
+            lines.append(f"- control_svg_sheets: {len(control_svg_paths)}")
+            lines.append(f"- pid_lite_svg_sheets: {len(pid_lite_svg_paths)}")
+            lines.append(f"- drawio_files: {', '.join(Path(path).name for path in drawio_paths) or 'none'}")
+        if diagram_delivery_manifest is not None:
+            lines.append("")
+            lines.append("diagram_architecture:")
+            lines.append(f"- status: {diagram_delivery_manifest.architecture_status}")
+            lines.append(f"- svg_source_of_truth: {'yes' if diagram_delivery_manifest.svg_source_of_truth else 'no'}")
+            lines.append(f"- drawio_export_enabled: {'yes' if diagram_delivery_manifest.drawio_export_enabled else 'no'}")
+        if bac_rendering_audit is not None or bac_diagram_benchmark is not None or bac_drawing_package is not None:
+            lines.append("")
+            lines.append("bac_diagrams:")
+            if bac_rendering_audit is not None:
+                lines.append(f"- rendering_audit: {bac_rendering_audit.overall_status}")
+                lines.append(f"- rendering_rows: {len(bac_rendering_audit.rows)}")
+            if bac_diagram_benchmark is not None:
+                lines.append(f"- benchmark: {bac_diagram_benchmark.overall_status}")
+                lines.append(f"- benchmark_rows: {len(bac_diagram_benchmark.rows)}")
+            if bac_drawing_package is not None:
+                lines.append(f"- package: {bac_drawing_package.overall_status}")
+                lines.append(f"- package_workflow: {bac_drawing_package.review_workflow_status}")
+                lines.append(f"- package_register_rows: {len(bac_drawing_package.register_rows)}")
+        if control_cause_effect is not None:
+            lines.append("")
+            lines.append("control_review:")
+            lines.append(f"- cause_effect_rows: {len(control_cause_effect.rows)}")
+            lines.append(f"- safety_critical_rows: {sum(1 for row in control_cause_effect.rows if row.safety_critical)}")
         if data_reality_audit:
             lines.append("")
             lines.append("data_reality:")
@@ -1234,6 +1350,60 @@ class PipelineRunner:
 
     def _maybe_load(self, name: str, model_type):
         return self.store.maybe_load_model(self.config.project_id, f"artifacts/{name}.json", model_type)
+
+    def _refresh_bac_diagram_package_artifacts(self) -> list[ValidationIssue]:
+        if (self.config.benchmark_profile or "").strip().lower() != "benzalkonium_chloride":
+            return []
+        diagram_target = self._maybe_load("diagram_target_profile", DiagramTargetProfile)
+        bfd = self._maybe_load("block_flow_diagram_artifact", BlockFlowDiagramArtifact)
+        pfd = self._maybe_load("process_flow_diagram_artifact", ProcessFlowDiagramArtifact)
+        pfd_acceptance = self._maybe_load("process_flow_diagram_acceptance", DiagramAcceptanceArtifact)
+        pid = self._maybe_load("pid_lite_diagram_artifact", PidLiteDiagramArtifact)
+        if not all([diagram_target, bfd, pfd, pfd_acceptance, pid]):
+            return []
+
+        pfd_routing = self._maybe_load("process_flow_diagram_routing", DiagramRoutingArtifact)
+        pid_routing = self._maybe_load("pid_lite_routing", DiagramRoutingArtifact)
+        control_diagram = self._maybe_load("control_system_diagram_artifact", ControlSystemDiagramArtifact)
+        pfd_drawio_path = self.store.project_dir(self.config.project_id) / "diagrams" / "pfd.drawio"
+        pfd_drawio_document = pfd_drawio_path.read_text(encoding="utf-8") if pfd_drawio_path.exists() else ""
+
+        rendering_audit = build_bac_rendering_audit_artifact(
+            route_id=pfd.diagram_id,
+            target=diagram_target,
+            bfd=bfd,
+            pfd=pfd,
+            pfd_acceptance=pfd_acceptance,
+            pfd_routing=pfd_routing,
+            pid=pid,
+            pid_routing=pid_routing,
+        )
+        benchmark = build_bac_diagram_benchmark_artifact(
+            route_id=pfd.diagram_id,
+            target=diagram_target,
+            bfd=bfd,
+            pfd=pfd,
+            pfd_acceptance=pfd_acceptance,
+            pid=pid,
+            drawio_document=pfd_drawio_document,
+        )
+        drawing_package = build_bac_drawing_package_artifact(
+            route_id=pfd.diagram_id,
+            target=diagram_target,
+            bfd=bfd,
+            pfd=pfd,
+            pid=pid,
+            benchmark=benchmark,
+            control=control_diagram,
+        )
+        self._save("bac_rendering_audit", rendering_audit)
+        self._save("bac_diagram_benchmark", benchmark)
+        self._save("bac_drawing_package", drawing_package)
+        return (
+            validate_bac_rendering_audit_artifact(rendering_audit, diagram_target)
+            + validate_bac_diagram_benchmark_artifact(benchmark, diagram_target)
+            + validate_bac_drawing_package_artifact(drawing_package, diagram_target)
+        )
 
     def _stage_index(self, stage_id: str) -> int:
         for index, stage in enumerate(STAGES):
@@ -2374,6 +2544,24 @@ class PipelineRunner:
 
     def _chapter_issues(self, chapter: ChapterArtifact) -> list[ValidationIssue]:
         return validate_chapter(chapter, self._source_ids(), self.config.strict_citation_policy)
+
+    def _diagram_acceptance_issues(self, artifact_ref: str, acceptance: DiagramAcceptanceArtifact) -> list[ValidationIssue]:
+        if acceptance.overall_status == "complete":
+            return []
+        issue_codes = acceptance.blocking_issue_codes if acceptance.overall_status == "blocked" else acceptance.warning_issue_codes
+        severity = Severity.BLOCKED if acceptance.overall_status == "blocked" else Severity.WARNING
+        quality_summary = "; ".join(acceptance.notes[:3]) or "Diagram acceptance thresholds were not satisfied."
+        return [
+            ValidationIssue(
+                code=f"{acceptance.diagram_kind}_diagram_acceptance_{acceptance.overall_status}",
+                severity=severity,
+                message=(
+                    f"{acceptance.diagram_kind.upper()} diagram acceptance is {acceptance.overall_status}: "
+                    f"{', '.join(issue_codes) or 'diagram_quality_thresholds_not_met'}. {quality_summary}"
+                ),
+                artifact_ref=artifact_ref,
+            )
+        ]
 
     def _run_project_intake(self) -> StageResult:
         bundle = self.research_manager.build_bundle(self.config)
@@ -5092,8 +5280,14 @@ class PipelineRunner:
         route = self._selected_route()
         route_selection = self._load("route_selection", RouteSelectionArtifact)
         flowsheet_blueprint = self._load("flowsheet_blueprint", FlowsheetBlueprintArtifact)
+        symbol_library = build_diagram_symbol_library()
+        domain_packs = build_diagram_domain_packs()
         diagram_style = build_diagram_style_profile()
         diagram_target = build_diagram_target_profile(self.config.basis)
+        equipment_templates = build_domain_equipment_templates(diagram_target.domain_pack_id)
+        bfd_semantics = build_block_flow_diagram_semantics(flowsheet_blueprint, diagram_target, symbol_library)
+        bfd_modules = build_block_flow_diagram_modules(bfd_semantics, symbol_library)
+        bfd_sheet_composition = build_block_flow_diagram_sheet_composition(bfd_modules, bfd_semantics, diagram_style, symbol_library)
         bfd = build_block_flow_diagram(flowsheet_blueprint, diagram_style, diagram_target)
         bfd_acceptance = build_diagram_acceptance(
             diagram_kind="bfd",
@@ -5103,12 +5297,31 @@ class PipelineRunner:
             target=diagram_target,
             blueprint=flowsheet_blueprint,
         )
+        self._save("diagram_symbol_library", symbol_library)
+        self._save("diagram_domain_packs", domain_packs)
+        self._save("diagram_equipment_templates", equipment_templates)
         self._save("diagram_style_profile", diagram_style)
         self._save("diagram_target_profile", diagram_target)
+        self._save("block_flow_diagram_semantics", bfd_semantics)
+        self._save("block_flow_diagram_modules", bfd_modules)
+        self._save("block_flow_diagram_sheet_composition", bfd_sheet_composition)
         self._save("block_flow_diagram_artifact", bfd)
         self._save("block_flow_diagram_acceptance", bfd_acceptance)
         for index, sheet in enumerate(bfd.sheets, start=1):
             self.store.save_text(self.config.project_id, f"diagrams/bfd_sheet_{index}.svg", sheet.svg)
+        self.store.save_text(
+            self.config.project_id,
+            "diagrams/bfd.drawio",
+            build_drawio_document(
+                diagram_id=bfd.diagram_id,
+                title="Block Flow Diagram",
+                sheets=bfd.sheets,
+                nodes=bfd.nodes,
+                edges=bfd.edges,
+                modules=bfd_modules,
+                sheet_composition=bfd_sheet_composition,
+            ),
+        )
         chapter_citations = sorted(set(bfd.citations or artifact.citations or route.citations or route_selection.citations))
         markdown = "\n\n".join(
             [
@@ -5128,7 +5341,17 @@ class PipelineRunner:
             ["process_narrative", "block_flow_diagram_artifact", "block_flow_diagram_acceptance"],
             required_inputs=["route_selection", "route_survey", "research_bundle"],
         )
-        issues = self._chapter_issues(bfd_chapter)
+        issues = (
+            validate_diagram_symbol_library(symbol_library)
+            + validate_plant_diagram_semantics(bfd_semantics)
+            + validate_diagram_semantics_against_symbol_library(bfd_semantics, symbol_library)
+            + validate_diagram_module_artifact(bfd_modules, bfd_semantics)
+            + validate_diagram_module_symbols_against_library(bfd_modules, bfd_semantics, symbol_library)
+            + validate_diagram_sheet_composition_artifact(bfd_sheet_composition, bfd_modules)
+            + self._diagram_acceptance_issues("block_flow_diagram_acceptance", bfd_acceptance)
+            + self._refresh_bac_diagram_package_artifacts()
+            + self._chapter_issues(bfd_chapter)
+        )
         return StageResult(chapters=[bfd_chapter], issues=issues)
 
     def _run_process_description(self) -> StageResult:
@@ -5200,9 +5423,29 @@ class PipelineRunner:
         self._save("flowsheet_case", flowsheet_case)
         if bac_impurity_model is not None:
             self._save("bac_impurity_model", bac_impurity_model)
+        symbol_library = build_diagram_symbol_library()
+        domain_packs = build_diagram_domain_packs()
         diagram_style = build_diagram_style_profile()
         diagram_target = build_diagram_target_profile(self.config.basis)
+        equipment_templates = build_domain_equipment_templates(diagram_target.domain_pack_id)
+        pfd_semantics = build_process_flow_diagram_semantics(flowsheet_graph, flowsheet_case, stream_table, diagram_target, symbol_library)
+        pfd_modules = build_process_flow_diagram_modules(pfd_semantics, symbol_library)
+        pfd_sheet_composition = build_process_flow_diagram_sheet_composition(pfd_modules, pfd_semantics, diagram_style, diagram_target)
         equipment_for_pfd = self._maybe_load("equipment_list", EquipmentListArtifact)
+        pfd_seed = build_process_flow_diagram(
+            flowsheet_graph,
+            flowsheet_case,
+            stream_table,
+            equipment_for_pfd,
+            None,
+            diagram_style,
+            diagram_target,
+            self._maybe_load("control_plan", ControlPlanArtifact),
+            pfd_semantics,
+            pfd_modules,
+            pfd_sheet_composition,
+        )
+        pfd_routing = build_process_flow_diagram_routing_artifact(pfd_semantics, pfd_modules, pfd_sheet_composition, pfd_seed, diagram_target)
         pfd = build_process_flow_diagram(
             flowsheet_graph,
             flowsheet_case,
@@ -5212,6 +5455,10 @@ class PipelineRunner:
             diagram_style,
             diagram_target,
             self._maybe_load("control_plan", ControlPlanArtifact),
+            pfd_semantics,
+            pfd_modules,
+            pfd_sheet_composition,
+            pfd_routing,
         )
         pfd_acceptance = build_diagram_acceptance(
             diagram_kind="pfd",
@@ -5219,15 +5466,40 @@ class PipelineRunner:
             nodes=pfd.nodes,
             edges=pfd.edges,
             target=diagram_target,
+            sheets=pfd.sheets,
+            modules=pfd_modules,
+            sheet_composition=pfd_sheet_composition,
+            routing=pfd_routing,
             flowsheet_graph=flowsheet_graph,
             flowsheet_case=flowsheet_case,
         )
+        self._save("diagram_symbol_library", symbol_library)
+        self._save("diagram_domain_packs", domain_packs)
+        self._save("diagram_equipment_templates", equipment_templates)
         self._save("diagram_style_profile", diagram_style)
         self._save("diagram_target_profile", diagram_target)
+        self._save("process_flow_diagram_semantics", pfd_semantics)
+        self._save("process_flow_diagram_modules", pfd_modules)
+        self._save("process_flow_diagram_sheet_composition", pfd_sheet_composition)
+        self._save("process_flow_diagram_routing", pfd_routing)
         self._save("process_flow_diagram_artifact", pfd)
         self._save("process_flow_diagram_acceptance", pfd_acceptance)
         for index, sheet in enumerate(pfd.sheets, start=1):
             self.store.save_text(self.config.project_id, f"diagrams/pfd_sheet_{index}.svg", sheet.svg)
+        self.store.save_text(
+            self.config.project_id,
+            "diagrams/pfd.drawio",
+            build_drawio_document(
+                diagram_id=pfd.diagram_id,
+                title="Process Flow Diagram",
+                sheets=pfd.sheets,
+                nodes=pfd.nodes,
+                edges=pfd.edges,
+                modules=pfd_modules,
+                sheet_composition=pfd_sheet_composition,
+                routing=pfd_routing,
+            ),
+        )
         resolved_values = self._load("resolved_values", ResolvedValueArtifact)
         resolved_sources = self._load("resolved_sources", ResolvedSourceSet)
         resolved_values = extend_resolved_value_artifact(resolved_values, reaction_system.value_records, resolved_sources, self.config, "material_balance_reaction_system")
@@ -5278,6 +5550,14 @@ class PipelineRunner:
             + validate_stream_table(stream_table)
             + validate_flowsheet_graph(flowsheet_graph)
             + validate_flowsheet_case(flowsheet_case)
+            + validate_diagram_symbol_library(symbol_library)
+            + validate_plant_diagram_semantics(pfd_semantics)
+            + validate_diagram_semantics_against_symbol_library(pfd_semantics, symbol_library)
+            + validate_diagram_module_artifact(pfd_modules, pfd_semantics)
+            + validate_diagram_module_symbols_against_library(pfd_modules, pfd_semantics, symbol_library)
+            + validate_diagram_sheet_composition_artifact(pfd_sheet_composition, pfd_modules)
+            + self._diagram_acceptance_issues("process_flow_diagram_acceptance", pfd_acceptance)
+            + self._refresh_bac_diagram_package_artifacts()
             + (validate_bac_impurity_model_artifact(bac_impurity_model) if bac_impurity_model is not None else [])
             + self._value_issues(reaction_system, "reaction_system")
             + self._value_issues(stream_table, "stream_table")
@@ -6731,7 +7011,11 @@ class PipelineRunner:
         utilities = self._load("utility_summary", UtilitySummaryArtifact)
         flowsheet_graph = self._load("flowsheet_graph", FlowsheetGraph)
         flowsheet_case = self._maybe_load("flowsheet_case", FlowsheetCase)
+        stream_table = self._load("stream_table", StreamTable)
         route = self._selected_route()
+        symbol_library = build_diagram_symbol_library()
+        diagram_target = build_diagram_target_profile(self.config.basis)
+        equipment_templates = build_domain_equipment_templates(diagram_target.domain_pack_id)
         diagram_style = build_diagram_style_profile()
         artifact = build_control_plan_from_flowsheet(route, equipment, utilities, flowsheet_graph)
         control_architecture = build_control_architecture_decision(
@@ -6741,12 +7025,112 @@ class PipelineRunner:
             artifact,
             flowsheet_graph,
         )
-        control_diagram = build_control_system_diagram(artifact, control_architecture, flowsheet_graph, diagram_style, flowsheet_case)
+        control_cause_effect = build_control_cause_effect_artifact(artifact, control_architecture, flowsheet_graph)
+        control_semantics = build_control_system_semantics(artifact, control_architecture, flowsheet_graph, symbol_library)
+        control_modules = build_control_system_modules(control_semantics, symbol_library)
+        control_sheet_composition = build_control_system_sheet_composition(control_modules, diagram_style)
+        control_diagram = build_control_system_diagram(
+            artifact,
+            control_architecture,
+            flowsheet_graph,
+            diagram_style,
+            flowsheet_case,
+            control_semantics,
+            control_modules,
+            control_sheet_composition,
+        )
+        control_routing = build_control_system_routing_artifact(
+            artifact,
+            control_architecture,
+            flowsheet_graph,
+            diagram_style,
+            control_modules,
+            control_sheet_composition,
+            control_diagram,
+        )
+        control_diagram = build_control_system_diagram(
+            artifact,
+            control_architecture,
+            flowsheet_graph,
+            diagram_style,
+            flowsheet_case,
+            control_semantics,
+            control_modules,
+            control_sheet_composition,
+            control_routing,
+        )
+        pid_lite_semantics = build_pid_lite_semantics(flowsheet_graph, stream_table, artifact, symbol_library, diagram_target)
+        pid_lite_modules = build_pid_lite_modules(pid_lite_semantics, symbol_library)
+        pid_lite_sheet_composition = build_pid_lite_sheet_composition(pid_lite_modules, diagram_style)
+        pid_lite_seed = build_pid_lite_diagram(
+            flowsheet_graph,
+            stream_table,
+            artifact,
+            diagram_style,
+            pid_lite_semantics,
+            pid_lite_modules,
+            pid_lite_sheet_composition,
+            target=diagram_target,
+        )
+        pid_lite_routing = build_pid_lite_routing_artifact(pid_lite_semantics, pid_lite_modules, pid_lite_sheet_composition, pid_lite_seed)
+        pid_lite_diagram = build_pid_lite_diagram(
+            flowsheet_graph,
+            stream_table,
+            artifact,
+            diagram_style,
+            pid_lite_semantics,
+            pid_lite_modules,
+            pid_lite_sheet_composition,
+            pid_lite_routing,
+            target=diagram_target,
+        )
         self._save("control_plan", artifact)
         self._save("control_architecture", control_architecture)
+        self._save("control_cause_effect", control_cause_effect)
+        self._save("diagram_symbol_library", symbol_library)
+        self._save("diagram_equipment_templates", equipment_templates)
+        self._save("control_system_semantics", control_semantics)
+        self._save("control_system_modules", control_modules)
+        self._save("control_system_sheet_composition", control_sheet_composition)
+        self._save("control_system_routing", control_routing)
         self._save("control_system_diagram_artifact", control_diagram)
+        self._save("pid_lite_semantics", pid_lite_semantics)
+        self._save("pid_lite_modules", pid_lite_modules)
+        self._save("pid_lite_sheet_composition", pid_lite_sheet_composition)
+        self._save("pid_lite_routing", pid_lite_routing)
+        self._save("pid_lite_diagram_artifact", pid_lite_diagram)
         for index, sheet in enumerate(control_diagram.sheets, start=1):
             self.store.save_text(self.config.project_id, f"diagrams/control_system_sheet_{index}.svg", sheet.svg)
+        for index, sheet in enumerate(pid_lite_diagram.sheets, start=1):
+            self.store.save_text(self.config.project_id, f"diagrams/pid_lite_sheet_{index}.svg", sheet.svg)
+        self.store.save_text(
+            self.config.project_id,
+            "diagrams/control_system.drawio",
+            build_drawio_document(
+                diagram_id=control_diagram.diagram_id,
+                title="Control System Diagram",
+                sheets=control_diagram.sheets,
+                modules=control_modules,
+                sheet_composition=control_sheet_composition,
+                routing=control_routing,
+                control_plan=artifact,
+                control_review=control_cause_effect,
+            ),
+        )
+        self.store.save_text(
+            self.config.project_id,
+            "diagrams/pid_lite.drawio",
+            build_drawio_document(
+                diagram_id=pid_lite_diagram.diagram_id,
+                title="P&ID-lite Diagram",
+                sheets=pid_lite_diagram.sheets,
+                nodes=pid_lite_diagram.nodes,
+                edges=pid_lite_diagram.edges,
+                modules=pid_lite_modules,
+                sheet_composition=pid_lite_sheet_composition,
+                routing=pid_lite_routing,
+            ),
+        )
         self._refresh_agent_fabric()
         rows = [
             [
@@ -6820,6 +7204,8 @@ class PipelineRunner:
             artifact.markdown
             + "\n\n### Control System Diagram\n\n"
             + "\n\n".join(diagram_svg_fence(sheet.svg) for sheet in control_diagram.sheets)
+            + "\n\n### P&ID-lite Clusters\n\n"
+            + "\n\n".join(diagram_svg_fence(sheet.svg) for sheet in pid_lite_diagram.sheets)
             + "\n\n### Control Philosophy\n\n"
             + markdown_table(
                 ["Parameter", "Value"],
@@ -6833,6 +7219,8 @@ class PipelineRunner:
             )
             + "\n\n### Control Architecture Decision\n\n"
             + control_architecture.markdown
+            + "\n\n### Cause And Effect Review\n\n"
+            + control_cause_effect.markdown
             + "\n\n### Loop Objective Matrix\n\n"
             + markdown_table(
                 ["Loop", "Unit", "Controlled Variable", "Manipulated Variable", "Objective", "Disturbance Basis", "Criticality"],
@@ -6870,11 +7258,26 @@ class PipelineRunner:
             "instrumentation_control",
             markdown,
             artifact.citations or control_architecture.citations or equipment.citations or utilities.citations,
-            artifact.assumptions + control_architecture.assumptions + control_diagram.assumptions,
-            ["control_plan", "control_architecture", "control_system_diagram_artifact"],
+            artifact.assumptions + control_architecture.assumptions + control_diagram.assumptions + pid_lite_diagram.assumptions,
+            ["control_plan", "control_architecture", "control_system_diagram_artifact", "pid_lite_diagram_artifact"],
             required_inputs=["equipment_list", "utility_summary", "flowsheet_graph"],
         )
         issues = validate_control_plan(artifact) + validate_control_architecture(control_architecture) + self._chapter_issues(chapter)
+        issues = (
+            validate_diagram_symbol_library(symbol_library)
+            + validate_plant_diagram_semantics(control_semantics)
+            + validate_diagram_semantics_against_symbol_library(control_semantics, symbol_library)
+            + validate_diagram_module_artifact(control_modules, control_semantics)
+            + validate_diagram_module_symbols_against_library(control_modules, control_semantics, symbol_library)
+            + validate_diagram_sheet_composition_artifact(control_sheet_composition, control_modules)
+            + validate_plant_diagram_semantics(pid_lite_semantics)
+            + validate_diagram_semantics_against_symbol_library(pid_lite_semantics, symbol_library)
+            + validate_diagram_module_artifact(pid_lite_modules, pid_lite_semantics)
+            + validate_diagram_module_symbols_against_library(pid_lite_modules, pid_lite_semantics, symbol_library)
+            + validate_diagram_sheet_composition_artifact(pid_lite_sheet_composition, pid_lite_modules)
+            + self._refresh_bac_diagram_package_artifacts()
+            + issues
+        )
         return StageResult(chapters=[chapter], issues=issues)
 
     def _run_hazop_she(self) -> StageResult:
@@ -8689,6 +9092,49 @@ class PipelineRunner:
         report_parity = evaluate_report_parity(report_parity_framework, full_chapters, references_md, annexures_md)
         self._save("report_parity", report_parity)
         report_acceptance = self._save_report_acceptance(RunStatus.AWAITING_APPROVAL, report_parity=report_parity)
+        self._refresh_bac_diagram_package_artifacts()
+        diagrams_dir = self.store.project_dir(self.config.project_id) / "diagrams"
+        diagram_svg_paths = sorted(str(path) for path in diagrams_dir.glob("*.svg"))
+        diagram_drawio_paths = sorted(str(path) for path in diagrams_dir.glob("*.drawio"))
+        bfd_svg_paths = sorted(str(path) for path in diagrams_dir.glob("bfd_sheet_*.svg"))
+        pfd_svg_paths = sorted(str(path) for path in diagrams_dir.glob("pfd_sheet_*.svg"))
+        control_svg_paths = sorted(str(path) for path in diagrams_dir.glob("control_system_sheet_*.svg"))
+        pid_lite_svg_paths = sorted(str(path) for path in diagrams_dir.glob("pid_lite_sheet_*.svg"))
+        bac_rendering_audit = self._maybe_load("bac_rendering_audit", BACRenderingAuditArtifact)
+        bac_diagram_benchmark = self._maybe_load("bac_diagram_benchmark", BACDiagramBenchmarkArtifact)
+        bac_drawing_package = self._maybe_load("bac_drawing_package", BACDrawingPackageArtifact)
+        diagram_delivery_manifest = DiagramDeliveryManifestArtifact(
+            manifest_id=f"{self.config.project_id}_diagram_delivery_manifest",
+            project_id=self.config.project_id,
+            bfd_svg_paths=bfd_svg_paths,
+            pfd_svg_paths=pfd_svg_paths,
+            control_svg_paths=control_svg_paths,
+            pid_lite_svg_paths=pid_lite_svg_paths,
+            drawio_paths=diagram_drawio_paths,
+            notes=[
+                "The modular diagram architecture is the default delivery contract.",
+                "SVG remains the source-of-truth rendered output.",
+                "Draw.io files are editable exports generated from the same modular artifacts.",
+                *([f"BAC rendering audit status: {bac_rendering_audit.overall_status}."] if bac_rendering_audit is not None else []),
+                *([f"BAC diagram benchmark status: {bac_diagram_benchmark.overall_status}."] if bac_diagram_benchmark is not None else []),
+                *([f"BAC drawing package workflow: {bac_drawing_package.review_workflow_status}."] if bac_drawing_package is not None else []),
+            ],
+            markdown=(
+                "### Diagram Delivery Manifest\n\n"
+                "- Architecture status: modular_default\n"
+                "- SVG source of truth: yes\n"
+                "- Draw.io export enabled: yes\n"
+                f"- BFD SVG sheets: {len(bfd_svg_paths)}\n"
+                f"- PFD SVG sheets: {len(pfd_svg_paths)}\n"
+                f"- Control SVG sheets: {len(control_svg_paths)}\n"
+                f"- P&ID-lite SVG sheets: {len(pid_lite_svg_paths)}\n"
+                f"- Draw.io files: {', '.join(Path(path).name for path in diagram_drawio_paths) or 'none'}\n"
+                + (f"- BAC rendering audit: {bac_rendering_audit.overall_status}\n" if bac_rendering_audit is not None else "")
+                + (f"- BAC diagram benchmark: {bac_diagram_benchmark.overall_status}\n" if bac_diagram_benchmark is not None else "")
+                + (f"- BAC drawing package: {bac_drawing_package.overall_status} ({bac_drawing_package.review_workflow_status})\n" if bac_drawing_package is not None else "")
+            ),
+        )
+        self._save("diagram_delivery_manifest", diagram_delivery_manifest)
         final_report = FinalReport(
             project_id=self.config.project_id,
             markdown_path=str(markdown_path),
@@ -8699,6 +9145,8 @@ class PipelineRunner:
             formatter_target_id=formatter_target_profile.target_id,
             references=list(source_index.keys()),
             annexure_paths=[str(self.store.project_dir(self.config.project_id) / "annexures")],
+            diagram_svg_paths=diagram_svg_paths,
+            diagram_drawio_paths=diagram_drawio_paths,
         )
         self._save("final_report", final_report)
         issues = self._chapter_issues(executive_chapter) + self._chapter_issues(conclusion_chapter)

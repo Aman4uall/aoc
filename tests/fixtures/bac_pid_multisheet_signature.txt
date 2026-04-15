@@ -1,0 +1,10 @@
+sheet_count=3
+titles=BAC Purification P&ID: Purification Column | BAC Reaction P&ID: Reactor | BAC Storage P&ID: Product Storage
+panel_titles=BAC P&ID Panel 1: BAC Purification P&ID: Purification Column | BAC P&ID Panel 2: BAC Reaction P&ID: Reactor | BAC P&ID Panel 3: BAC Storage P&ID: Product Storage
+has_purification_title=1
+has_storage_title=1
+has_reactor_title=1
+has_relief_wording=1
+has_psv_tag=1
+has_bac_product_transfer=1
+has_panel_marker=1

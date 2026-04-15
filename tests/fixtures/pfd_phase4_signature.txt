@@ -1,0 +1,13 @@
+sheet_count=1
+sheet_width=1800
+sheet_height=920
+module_boundary_count=3
+label_callout_count=4
+main_arrow_count=2
+has_feed_handling=1
+has_reaction=1
+has_purification=1
+has_s2_label=1
+has_s3_label=1
+has_s2_condition=1
+has_s3_condition=1

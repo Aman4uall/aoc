@@ -1,0 +1,9 @@
+page_count=1
+module_box_count=3
+edge_count=2
+node_count=3
+has_feed_handling=1
+has_reaction=1
+has_purification=1
+has_to_reactor=1
+has_to_column=1

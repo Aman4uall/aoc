@@ -85,6 +85,7 @@ EG_CHAPTER_ORDER = [
     "instrumentation_control",
     "hazop",
     "safety_health_environment_waste",
+    "etp_design",
     "layout",
     "project_cost",
     "cost_of_production",
@@ -116,6 +117,7 @@ GENERIC_CHAPTER_ORDER = [
     "instrumentation_control",
     "hazop",
     "safety_health_environment_waste",
+    "etp_design",
     "layout",
     "project_cost",
     "cost_of_production",
@@ -182,27 +184,43 @@ def _apply_caption_numbering(markdown_text: str) -> str:
     lines = markdown_text.splitlines()
     output: list[str] = []
     current_heading = "Report Section"
-    table_counter = 0
-    figure_counter = 0
+    chapter_prefix = ""
+    chapter_table_counter = 0
+    chapter_figure_counter = 0
 
     for index, line in enumerate(lines):
         stripped = line.strip()
         if stripped.startswith("#"):
             current_heading = _normalized_heading_label(stripped)
+            chapter_match = re.match(r"^#\s+(?:Chapter\s+)?(\d+)(?:[.:]|\s)", stripped, flags=re.I)
+            if chapter_match:
+                chapter_prefix = chapter_match.group(1)
+                chapter_table_counter = 0
+                chapter_figure_counter = 0
             output.append(line)
             continue
         if _is_markdown_table_start(lines, index):
             previous = _last_non_empty_line(output)
             if not previous.startswith("**Table "):
-                table_counter += 1
-                output.extend([f"**Table {table_counter}. {current_heading}**", ""])
+                chapter_table_counter += 1
+                table_number = (
+                    f"{chapter_prefix}.{chapter_table_counter}"
+                    if chapter_prefix
+                    else str(chapter_table_counter)
+                )
+                output.extend([f"**Table {table_number}. {current_heading}**", ""])
             output.append(line)
             continue
         if stripped.startswith("```mermaid") or stripped.startswith("```diagram-svg"):
             previous = _last_non_empty_line(output)
             if not previous.startswith("**Figure "):
-                figure_counter += 1
-                output.extend([f"**Figure {figure_counter}. {current_heading}**", ""])
+                chapter_figure_counter += 1
+                figure_number = (
+                    f"{chapter_prefix}.{chapter_figure_counter}"
+                    if chapter_prefix
+                    else str(chapter_figure_counter)
+                )
+                output.extend([f"**Figure {figure_number}. {current_heading}**", ""])
             output.append(line)
             continue
         output.append(line)
@@ -284,12 +302,10 @@ def references_markdown(source_index: dict[str, SourceRecord]) -> str:
         title = source.title.strip().rstrip(".")
         year = str(source.reference_year) if source.reference_year else "n.d."
         location = source.url_or_doi or source.local_path or "Local source"
-        geo = source.geographic_label or source.geographic_scope.value
-        domain = source.source_domain.value.replace("_", " ")
+        lines.append(f"<!-- SOURCE_ID: {source.source_id} -->")
         lines.append(
             f"{index}. {organization}. *{title}*. {year}. "
-            f"Available at: {location}. "
-            f"[Source ID: {source.source_id}; Domain: {domain}; Geography: {geo}]"
+            f"Available at: {location}."
         )
     return "\n".join(lines)
 
@@ -1914,7 +1930,7 @@ def render_pdf(markdown_text: str, output_path: str, title: str) -> str:
         paragraph = clean_lines[index]
         stripped = paragraph.strip()
         if not stripped:
-            y += 8
+            y += 5
             index += 1
             continue
         if stripped == "---":
@@ -2047,6 +2063,8 @@ def _wrap_html_fragment(head_html: str, body_fragment: str) -> str:
 def _normalize_story_fragment(fragment_html: str) -> str:
     fragment_html = re.sub(r"<diagram-sheet\b([^>]*)>", r"<div class='diagram-sheet'\1>", fragment_html, flags=re.I)
     fragment_html = re.sub(r"</diagram-sheet>", "</div>", fragment_html, flags=re.I)
+    fragment_html = re.sub(r"<section\b([^>]*)>", r"<div\1>", fragment_html, flags=re.I)
+    fragment_html = re.sub(r"</section>", "</div>", fragment_html, flags=re.I)
     return fragment_html
 
 
@@ -2066,25 +2084,111 @@ def _styled_pdf_fragments(body_html: str) -> list[tuple[str, str]]:
 
 
 def _split_portrait_fragment(fragment_html: str) -> list[str]:
-    chapter_pattern = re.compile(r"(<section class='chapter'>.*?</section>)", flags=re.S)
+    chapter_pattern = re.compile(
+        r"(<section\b[^>]*class=['\"][^'\"]*\bchapter\b[^'\"]*['\"][^>]*>.*?</section>)",
+        flags=re.S | re.I,
+    )
     parts = re.split(chapter_pattern, fragment_html)
     chunks: list[str] = []
     for part in parts:
         if not part or not part.strip():
             continue
         stripped = part.strip()
-        if stripped.startswith("<section class='chapter'>"):
-            chunks.append(part)
+        if re.match(r"<section\b[^>]*class=['\"][^'\"]*\bchapter\b", stripped, flags=re.I):
+            chunks.extend(_split_large_chapter_fragment(part))
             continue
         chunks.extend(_split_portrait_supporting_block(part))
+    return chunks or [fragment_html]
+
+
+def _split_large_chapter_fragment(fragment_html: str, target_chars: int = 2600) -> list[str]:
+    if len(fragment_html) <= target_chars:
+        return [fragment_html]
+
+    open_match = re.match(r"\s*(<section\b[^>]*>)", fragment_html, flags=re.S | re.I)
+    close_match = re.search(r"(</section>)\s*$", fragment_html, flags=re.S | re.I)
+    if not open_match or not close_match:
+        return [fragment_html]
+
+    open_tag = open_match.group(1)
+    close_tag = close_match.group(1)
+    inner_html = fragment_html[open_match.end() : close_match.start()]
+
+    block_pattern = re.compile(
+        r"(?=<h1\b)|(?=<h2\b)|(?=<h3\b)|(?=<p\b)|(?=<div\b)|(?=<table\b)|(?=<ul\b)|(?=<ol\b)|(?=<pre\b)|(?=<blockquote\b)",
+        flags=re.I,
+    )
+    blocks = [block for block in re.split(block_pattern, inner_html) if block.strip()]
+    if len(blocks) <= 1:
+        return [fragment_html]
+
+    chunks: list[str] = []
+    current = ""
+    for block in blocks:
+        proposed = current + block
+        if current and (len(proposed) > target_chars or re.match(r"\s*<h1\b", block, flags=re.I)):
+            chunks.append(open_tag + current + close_tag)
+            current = block
+        else:
+            current = proposed
+    if current.strip():
+        chunks.append(open_tag + current + close_tag)
     return chunks or [fragment_html]
 
 
 def _split_portrait_supporting_block(fragment_html: str) -> list[str]:
     heading_pattern = re.compile(r"(?=<h1\b)|(?=<h2\b)")
     parts = re.split(heading_pattern, fragment_html)
-    chunks = [part for part in parts if part.strip()]
+    chunks: list[str] = []
+    for part in parts:
+        if not part.strip():
+            continue
+        chunks.extend(_split_supporting_tables(part))
     return chunks or [fragment_html]
+
+
+def _split_supporting_tables(fragment_html: str, max_rows: int = 12) -> list[str]:
+    table_pattern = re.compile(r"(<table\b[^>]*>.*?</table>)", flags=re.S | re.I)
+    segments = re.split(table_pattern, fragment_html)
+    chunks: list[str] = []
+    for segment in segments:
+        if not segment or not segment.strip():
+            continue
+        if segment.lstrip().lower().startswith("<table"):
+            chunks.extend(_chunk_html_table_rows(segment, max_rows=max_rows))
+        else:
+            chunks.append(segment)
+    return chunks or [fragment_html]
+
+
+def _chunk_html_table_rows(table_html: str, max_rows: int = 12) -> list[str]:
+    row_pattern = re.compile(r"(<tr\b[^>]*>.*?</tr>)", flags=re.S | re.I)
+    rows = row_pattern.findall(table_html)
+    if len(rows) <= max_rows:
+        return [table_html]
+
+    open_match = re.match(r"\s*(<table\b[^>]*>)", table_html, flags=re.S | re.I)
+    close_match = re.search(r"(</table>)\s*$", table_html, flags=re.S | re.I)
+    if not open_match or not close_match:
+        return [table_html]
+
+    open_tag = open_match.group(1)
+    close_tag = close_match.group(1)
+
+    header_rows: list[str] = []
+    body_rows = rows
+    if rows and re.search(r"<th\b", rows[0], flags=re.I):
+        header_rows = [rows[0]]
+        body_rows = rows[1:]
+
+    if not body_rows:
+        return [table_html]
+
+    chunked_tables: list[str] = []
+    for start in range(0, len(body_rows), max_rows):
+        table_rows = header_rows + body_rows[start : start + max_rows]
+        chunked_tables.append(open_tag + "".join(table_rows) + close_tag)
+    return chunked_tables
 
 
 def render_academic_pdf(markdown_text: str, output_path: str, title: str, header_text: str | None = None) -> str:
@@ -2097,10 +2201,21 @@ def render_academic_pdf(markdown_text: str, output_path: str, title: str, header
     clean_lines = clean_text.splitlines()
     current_header: str | None = None
     cover_mode = True
+    pending_chapter_lead = False
+    pending_chapter_body_heading: tuple[str, str] | None = None
     left_margin = 62
     right_margin = 533
+    cover_left_margin = 82
     page_top = 92
     page_bottom = 778
+    benchmark_title = re.sub(r"\s+Plant Design Report$", "", title, flags=re.I).strip()
+    benchmark_title_line = f"Design a plant to manufacture {benchmark_title}"
+    benchmark_subtitle = "Home Paper Report"
+
+    def _normalize_lookup(text: str) -> str:
+        text = re.sub(r"\s+", " ", text.strip().lower())
+        text = re.sub(r"[:*`]", "", text)
+        return text
 
     def create_page(header_text_value: str | None = None, top_y: float | None = None) -> None:
         nonlocal page, y
@@ -2120,6 +2235,215 @@ def render_academic_pdf(markdown_text: str, output_path: str, title: str, header
         nonlocal y
         if y > required_bottom:
             create_page(current_header, top_y=page_top)
+
+    def _clean_inline_markup(text: str) -> str:
+        cleaned = text.replace("**", "")
+        cleaned = cleaned.replace("__", "")
+        cleaned = re.sub(r"(?<!\*)\*(?!\*)", "", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned)
+        return cleaned.strip()
+
+    def _estimate_wrap_width(width_pt: float, fontsize: float, fontname: str) -> int:
+        sample = fitz.get_text_length("ABCDEFGHIJKLMNOPQRSTUVWXYZ", fontname=fontname, fontsize=fontsize) / 26.0
+        if sample <= 0:
+            sample = fontsize * 0.52
+        return max(4, int((width_pt - 6) / sample))
+
+    def _table_layout(headers: list[str], rows: list[list[str]]) -> tuple[list[float], float, float, float]:
+        column_count = max(1, len(headers))
+        available = right_margin - left_margin
+        sample_rows = rows[: min(len(rows), 14)]
+        weights: list[float] = []
+        for idx, header in enumerate(headers):
+            max_len = len(header.strip())
+            for row in sample_rows:
+                if idx < len(row):
+                    max_len = max(max_len, len(row[idx].strip()))
+            weights.append(max(0.9, min(3.2, 0.85 + min(max_len, 28) / 12.0)))
+        total = sum(weights) or float(column_count)
+        widths = [available * weight / total for weight in weights]
+        min_width = 54 if column_count <= 4 else 48 if column_count <= 6 else 36
+        widths = [max(min_width, width) for width in widths]
+        scale = available / sum(widths)
+        widths = [width * scale for width in widths]
+        if column_count <= 4:
+            return widths, 9.8, 11.4, 4.8
+        if column_count <= 6:
+            return widths, 8.9, 10.4, 4.1
+        if column_count <= 8:
+            return widths, 8.2, 9.8, 3.4
+        return widths, 7.6, 9.0, 3.0
+
+    def _looks_numeric_cell(text: str) -> bool:
+        candidate = (text or "").strip()
+        if not candidate or candidate == "-":
+            return False
+        candidate = candidate.replace(",", "")
+        candidate = candidate.replace("%", "")
+        candidate = candidate.replace("°C", "")
+        candidate = candidate.replace("bar", "")
+        candidate = candidate.replace("kg/h", "")
+        candidate = candidate.replace("kW", "")
+        candidate = candidate.replace("m3/h", "")
+        candidate = candidate.replace("m2", "")
+        candidate = candidate.replace("m3", "")
+        candidate = candidate.replace("m", "")
+        candidate = candidate.replace("mm", "")
+        candidate = candidate.replace("NB", "")
+        candidate = candidate.strip()
+        return bool(re.fullmatch(r"[<>~]?-?\d+(?:\.\d+)?", candidate))
+
+    def _sanitize_table_cell(text: str) -> str:
+        candidate = (text or "").strip()
+        if not candidate:
+            return "-"
+        exact_map = {
+            "document": "Literature",
+            "hybrid": "Literature + screening",
+            "reviewed": "Reviewed",
+            "stable": "Stable",
+            "discovered": "Identified",
+            "yes": "Yes",
+            "no": "No",
+            "screening_feasible": "Screening feasible",
+            "screening_only": "Screening basis",
+            "quaternization_liquid_train": "Liquid quaternization train",
+            "route_1": "Route 1",
+            "route_2": "Route 2",
+            "route_3": "Route 3",
+            "route_1_no_recovery": "No recovery",
+            "route_2_no_recovery": "No recovery",
+            "route_3_no_recovery": "No recovery",
+            "fallback": "Fallback",
+            "preferred": "Preferred",
+            "blocked": "Not selected",
+            "generic": "Preliminary",
+            "base": "Base case",
+            "complete": "Complete",
+            "partial": "Partial",
+            "converged": "Converged",
+            "estimated": "Estimated",
+            "modeled": "Modeled",
+            "solver_derived": "Calculated",
+            "model_derived": "Modeled",
+            "pressure_vessel_package": "Pressure-vessel package",
+            "thermal_exchange_package": "Heat-exchanger package",
+            "tankage_and_balance_of_plant": "Tankage and balance of plant",
+            "debt_equity_70_30": "70:30 debt-equity",
+            "feed_prep": "Feed preparation",
+            "feed_preparation": "Feed preparation",
+            "feed_handling": "Feed handling",
+            "purification_train": "Purification train",
+            "waste_treatment": "Waste treatment",
+            "waste_handling": "Waste handling",
+            "primary_flash": "Primary flash",
+            "primary_recovery": "Primary recovery",
+            "battery_limits": "Battery limits",
+            "side_draw": "Side draw",
+            "concentration_recycle_loop": "Concentration recycle loop",
+            "purification_recycle_loop": "Purification recycle loop",
+            "liquid_phase_organic": "Organic liquid phase",
+            "sis_augmented": "SIS-augmented",
+            "temperature_cascade": "Temperature cascade",
+            "pressure_override": "Pressure override",
+            "feed_ratio": "Feed ratio control",
+            "inventory_level": "Inventory level",
+            "pressure_regulatory": "Pressure regulation",
+            "quality_reflux_or_solvent": "Reflux / solvent quality control",
+            "blanketing_pressure": "Blanketing pressure",
+            "column_or_main_separation": "Column or main separation",
+        }
+        if candidate in exact_map:
+            return exact_map[candidate]
+        candidate = candidate.replace("_", " ")
+        candidate = re.sub(r"\s*;\s*", "; ", candidate)
+        candidate = candidate.replace("=0.", " = 0.")
+        candidate = candidate.replace("=1.", " = 1.")
+        candidate = re.sub(r"\b([A-Za-z]+)\s*=\s*([0-9.]+)", lambda m: f"{m.group(1).replace('_', ' ')} = {m.group(2)}", candidate)
+        candidate = re.sub(r"\broute (\d+)\b", r"Route \1", candidate, flags=re.IGNORECASE)
+        candidate = candidate.replace("screening feasible", "Screening feasible")
+        candidate = candidate.replace("screening only", "Screening basis")
+        candidate = candidate.replace("primary flash", "Primary flash")
+        candidate = candidate.replace("feed prep", "Feed preparation")
+        candidate = candidate.replace("feed preparationaration", "Feed preparation")
+        candidate = candidate.replace("waste treatment", "Waste treatment")
+        return candidate
+
+    def render_table(headers: list[str], rows: list[list[str]]) -> None:
+        nonlocal y
+        widths, fontsize, line_spacing, cell_pad = _table_layout(headers, rows)
+        x_positions = [left_margin]
+        for width in widths[:-1]:
+            x_positions.append(x_positions[-1] + width)
+        header_fontsize = fontsize + 0.2
+        header_line_spacing = line_spacing + 0.2
+
+        column_alignments: list[int] = []
+        for idx, header in enumerate(headers):
+            samples = [(row[idx] if idx < len(row) else "").strip() for row in rows[: min(18, len(rows))]]
+            numeric_count = sum(1 for value in samples if _looks_numeric_cell(value))
+            textual_count = sum(1 for value in samples if value and not _looks_numeric_cell(value))
+            header_is_numeric = any(token in header.lower() for token in {"value", "cost", "load", "rate", "flow", "duty", "temp", "pressure", "mass", "energy"})
+            if numeric_count >= max(2, textual_count) or (header_is_numeric and numeric_count > 0):
+                column_alignments.append(fitz.TEXT_ALIGN_RIGHT)
+            else:
+                column_alignments.append(fitz.TEXT_ALIGN_LEFT)
+
+        def row_height(values: list[str], *, is_header: bool = False) -> float:
+            font = "Helvetica-Bold" if is_header else "Times-Roman"
+            active_fontsize = header_fontsize if is_header else fontsize
+            active_line_spacing = header_line_spacing if is_header else line_spacing
+            heights: list[float] = []
+            for idx, value in enumerate(values[: len(headers)]):
+                wrap_chars = _estimate_wrap_width(widths[idx] - 2 * cell_pad, active_fontsize, font)
+                wrapped = textwrap.wrap(value or "-", width=wrap_chars) or [value or "-"]
+                heights.append(len(wrapped) * active_line_spacing + 2 * cell_pad + (1.5 if is_header else 0))
+            return max(heights) if heights else active_line_spacing + 2 * cell_pad
+
+        def draw_row(values: list[str], *, is_header: bool = False, row_index: int = 0) -> None:
+            nonlocal y
+            height = row_height(values, is_header=is_header)
+            if y + height > page_bottom:
+                create_page(current_header, top_y=page_top)
+                if not is_header:
+                    draw_row(headers, is_header=True)
+                    height = row_height(values, is_header=is_header)
+            font = "Helvetica-Bold" if is_header else "Times-Roman"
+            active_fontsize = header_fontsize if is_header else fontsize
+            active_line_spacing = header_line_spacing if is_header else line_spacing
+            fill = (0.90, 0.90, 0.90) if is_header else ((0.975, 0.975, 0.975) if row_index % 2 == 1 else None)
+            normalized = [_sanitize_table_cell((values[idx] if idx < len(values) else "-").strip() or "-") for idx in range(len(headers))]
+            for idx, text in enumerate(normalized):
+                x0 = x_positions[idx]
+                x1 = x0 + widths[idx]
+                rect = fitz.Rect(x0, y, x1, y + height)
+                if fill is not None:
+                    page.draw_rect(rect, color=(0.25, 0.25, 0.25), fill=fill, width=0.4)
+                else:
+                    page.draw_rect(rect, color=(0.35, 0.35, 0.35), width=0.3)
+                wrap_chars = _estimate_wrap_width(widths[idx] - 2 * cell_pad, active_fontsize, font)
+                wrapped = textwrap.wrap(text or "-", width=wrap_chars) or [text or "-"]
+                text_y = y + cell_pad + active_fontsize
+                for line in wrapped:
+                    if is_header or column_alignments[idx] == fitz.TEXT_ALIGN_LEFT:
+                        text_x = x0 + cell_pad
+                    else:
+                        text_width = fitz.get_text_length(line, fontname=font, fontsize=active_fontsize)
+                        text_x = max(x0 + cell_pad, x1 - cell_pad - text_width)
+                    page.insert_text(
+                        (text_x, text_y),
+                        line,
+                        fontsize=active_fontsize,
+                        fontname=font,
+                    )
+                    text_y += active_line_spacing
+            y += height
+
+        y += 2
+        draw_row(headers, is_header=True)
+        for row_index, row in enumerate(rows):
+            draw_row(row, is_header=False, row_index=row_index)
+        y += 6
 
     def render_wrapped(
         text: str,
@@ -2143,26 +2467,248 @@ def render_academic_pdf(markdown_text: str, output_path: str, title: str, header
             page.insert_text((x, y), line, fontsize=fontsize, fontname=fontname)
             y += line_spacing
 
-    def render_chapter_opening(text: str) -> None:
+    def render_paragraph(
+        text: str,
+        *,
+        fontsize: float = 12,
+        line_spacing: float = 14,
+        fontname: str = "Times-Roman",
+        indent: float = 0,
+        right_inset: float = 0,
+    ) -> None:
         nonlocal y
+        block_left = left_margin + indent
+        block_right = right_margin - right_inset
+        block_width = block_right - block_left
+        wrap_width = _estimate_wrap_width(block_width, fontsize, fontname)
+        wrapped = textwrap.wrap(text, width=wrap_width) or [text]
+        block_height = len(wrapped) * line_spacing + 1
+        if y + block_height > page_bottom:
+            create_page(current_header, top_y=page_top)
+        rect = fitz.Rect(block_left, y - 2, block_right, y + block_height + 2)
+        page.insert_textbox(
+            rect,
+            text,
+            fontsize=fontsize,
+            fontname=fontname,
+            align=fitz.TEXT_ALIGN_JUSTIFY,
+            lineheight=line_spacing / fontsize,
+        )
+        y += block_height + 2.5
+
+    def looks_like_equation(text: str) -> bool:
+        candidate = text.strip()
+        if not candidate:
+            return False
+        candidate = candidate.lstrip("-* ").strip()
+        if candidate.startswith("`") and candidate.endswith("`") and len(candidate) > 2:
+            candidate = candidate[1:-1].strip()
+        if " = " not in candidate:
+            return False
+        lowered = candidate.lower()
+        if lowered.startswith(("table ", "figure ", "chapter ")):
+            return False
+        symbolic_tokens = ["*", "/", "^", "(", ")", "[", "]", "_", "Δ", "α", "β", "λ", "Σ", "μ", "ρ"]
+        if any(token in candidate for token in symbolic_tokens):
+            return True
+        if re.search(r"\b(?:ln|log|exp|sqrt|sin|cos|tan|max|min)\b", candidate):
+            return True
+        if re.search(r"[A-Za-z]\s*=\s*[A-Za-z0-9(]", candidate):
+            return True
+        return False
+
+    def render_equation_block(text: str) -> None:
+        nonlocal y
+        content = text.strip().lstrip("-* ").strip()
+        if content.startswith("`") and content.endswith("`") and len(content) > 2:
+            content = content[1:-1].strip()
+        block_left = left_margin + 20
+        block_right = right_margin - 18
+        block_width = block_right - block_left
+        fontsize = 11.4
+        line_spacing = 14.0
+        wrap_width = _estimate_wrap_width(block_width - 18, fontsize, "Courier")
+        wrapped = textwrap.wrap(content, width=wrap_width) or [content]
+        block_height = len(wrapped) * line_spacing + 14
+        if y + block_height > page_bottom:
+            create_page(current_header, top_y=page_top)
+        y += 4
+        page.draw_rect(
+            fitz.Rect(block_left, y - 10, block_right, y - 10 + block_height),
+            color=(0.55, 0.55, 0.55),
+            fill=(0.97, 0.97, 0.97),
+            width=0.35,
+        )
+        page.draw_line(
+            fitz.Point(block_left + 8, y - 4),
+            fitz.Point(block_right - 8, y - 4),
+            color=(0.65, 0.65, 0.65),
+            width=0.25,
+        )
+        for line in wrapped:
+            page.insert_text((block_left + 10, y + 2), line, fontsize=fontsize, fontname="Courier")
+            y += line_spacing
+        y += 8
+
+    def render_figure_caption(text: str) -> None:
+        nonlocal y
+        caption = _clean_inline_markup(text.strip())
+        if caption.startswith("**") and caption.endswith("**") and len(caption) > 4:
+            caption = caption[2:-2].strip()
+        caption = re.sub(r"^(Table\s+\d+\.\d+):\s*", r"\1 ", caption)
+        caption = re.sub(r"^(Figure\s+\d+\.\d+):\s*", r"\1 ", caption)
+        y += 1
+        render_wrapped(
+            caption,
+            fontsize=10.4,
+            line_spacing=11.6,
+            wrap_width=72,
+            fontname="Helvetica-Bold",
+        )
+        y += 3
+
+    def render_svg_block(svg_text: str) -> None:
+        nonlocal y
+        available_width = right_margin - left_margin
+        max_height = 320.0
+        try:
+            svg_doc = fitz.open(stream=svg_text.encode("utf-8"), filetype="svg")
+            pdf_bytes = svg_doc.convert_to_pdf()
+            figure_doc = fitz.open("pdf", pdf_bytes)
+            source_rect = figure_doc[0].rect
+            scale = min(available_width / max(source_rect.width, 1), max_height / max(source_rect.height, 1))
+            target_width = source_rect.width * scale
+            target_height = source_rect.height * scale
+            if y + target_height + 10 > page_bottom:
+                create_page(current_header, top_y=page_top)
+            target_rect = fitz.Rect(left_margin, y, left_margin + target_width, y + target_height)
+            page.draw_rect(
+                fitz.Rect(target_rect.x0 - 4, target_rect.y0 - 4, target_rect.x1 + 4, target_rect.y1 + 4),
+                color=(0.55, 0.55, 0.55),
+                width=0.35,
+            )
+            page.show_pdf_page(target_rect, figure_doc, 0)
+            y = target_rect.y1 + 12
+        except Exception:
+            render_wrapped("[Figure rendering fallback: SVG asset omitted in PDF export]", fontsize=10.5, line_spacing=12.5, wrap_width=70, fontname="Helvetica-Oblique")
+            y += 8
+
+    def render_chapter_opening(text: str) -> None:
+        nonlocal y, pending_chapter_lead, pending_chapter_body_heading
         match = re.match(r"Chapter\s+(\d+)\s*:\s*(.*)", text, flags=re.IGNORECASE)
-        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin, y), color=(0, 0, 0), width=0.8)
-        y += 18
+        create_page(text, top_y=108)
+        page.draw_line(fitz.Point(56, 58), fitz.Point(539, 58), color=(0.25, 0.25, 0.25), width=0.5)
+        page.draw_line(fitz.Point(56, 784), fitz.Point(539, 784), color=(0.25, 0.25, 0.25), width=0.5)
         if match:
-            render_wrapped(f"CHAPTER {match.group(1)}", fontsize=11, line_spacing=12, wrap_width=30, fontname="Helvetica")
-            render_wrapped(match.group(2).strip().upper(), fontsize=20, line_spacing=24, wrap_width=34, fontname="Times-Bold")
+            chapter_no = match.group(1)
+            chapter_title = match.group(2).strip().upper()
+            top_header = f"Chapter {chapter_no}: {match.group(2).strip()}"
+            page.insert_text((48, 30), top_header, fontsize=10.0, fontname="Helvetica")
+            title_width = fitz.get_text_length(benchmark_title_line, fontname="Times-Roman", fontsize=10.0)
+            page.insert_text((max(48, (595 - title_width) / 2), 30), benchmark_title_line, fontsize=10.0, fontname="Times-Roman")
+            chapter_line = f"CHAPTER {chapter_no}: {chapter_title}"
+            chapter_line_width = fitz.get_text_length(chapter_line, fontname="Helvetica-Bold", fontsize=15.2)
+            page.insert_text((max(60, (595 - chapter_line_width) / 2), 414), chapter_line, fontsize=15.2, fontname="Helvetica-Bold")
+            pending_chapter_body_heading = (chapter_no, match.group(2).strip())
         else:
-            render_wrapped(text.upper(), fontsize=18, line_spacing=22, wrap_width=36, fontname="Times-Bold")
-        y += 6
-        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin), color=(0, 0, 0), width=0.35)
-        y += 16
+            top_header = text
+            page.insert_text((48, 30), top_header, fontsize=10.0, fontname="Helvetica")
+            title_width = fitz.get_text_length(benchmark_title_line, fontname="Times-Roman", fontsize=10.0)
+            page.insert_text((max(48, (595 - title_width) / 2), 30), benchmark_title_line, fontsize=10.0, fontname="Times-Roman")
+            text_width = fitz.get_text_length(text.upper(), fontname="Helvetica-Bold", fontsize=15.2)
+            page.insert_text((max(60, (595 - text_width) / 2), 414), text.upper(), fontsize=15.2, fontname="Helvetica-Bold")
+            pending_chapter_body_heading = None
+        pending_chapter_lead = True
 
     def render_major_section(text: str) -> None:
         nonlocal y
-        render_wrapped(text, fontsize=16, line_spacing=18, wrap_width=42, fontname="Times-Bold")
-        y += 2
-        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin - 130, y), color=(0, 0, 0), width=0.35)
-        y += 12
+        render_wrapped(text, fontsize=13.8, line_spacing=15.4, wrap_width=50, fontname="Times-Bold")
+        y += 1
+        page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin - 220, y), color=(0.35, 0.35, 0.35), width=0.2)
+        y += 6
+
+    def render_cover_block(
+        text: str,
+        *,
+        fontsize: float,
+        line_spacing: float,
+        wrap_width: int,
+        fontname: str,
+        extra_top_gap: float = 0,
+    ) -> None:
+        nonlocal y
+        if extra_top_gap:
+            y += extra_top_gap
+        wrapped = textwrap.wrap(text, width=wrap_width) or [text]
+        for line in wrapped:
+            ensure_space()
+            page.insert_text((cover_left_margin, y), line, fontsize=fontsize, fontname=fontname)
+            y += line_spacing
+
+    def render_front_matter_item(text: str) -> None:
+        nonlocal y
+        content = text.strip()
+        if content.startswith("- "):
+            content = content[2:].strip()
+        content = _clean_inline_markup(content)
+        render_wrapped(content, fontsize=12.0, line_spacing=13.8, wrap_width=72, indent=6, fontname="Times-Roman")
+        y += 0.5
+
+    def render_hanging_item(
+        marker: str,
+        content: str,
+        *,
+        fontsize: float = 12.0,
+        line_spacing: float = 13.8,
+        fontname: str = "Times-Roman",
+        marker_fontname: str = "Helvetica",
+        marker_width: float = 18,
+        indent: float = 12,
+        right_inset: float = 6,
+    ) -> None:
+        nonlocal y
+        content = _clean_inline_markup(content)
+        block_left = left_margin + indent
+        content_left = block_left + marker_width
+        block_right = right_margin - right_inset
+        available_width = block_right - content_left
+        wrap_width = _estimate_wrap_width(available_width, fontsize, fontname)
+        wrapped = textwrap.wrap(content, width=wrap_width) or [content]
+        block_height = len(wrapped) * line_spacing + 2
+        if y + block_height > page_bottom:
+            create_page(current_header, top_y=page_top)
+        page.insert_text((block_left, y + 10.2), marker, fontsize=fontsize, fontname=marker_fontname)
+        rect = fitz.Rect(content_left, y - 2, block_right, y + block_height + 2)
+        page.insert_textbox(
+            rect,
+            content,
+            fontsize=fontsize,
+            fontname=fontname,
+            align=fitz.TEXT_ALIGN_JUSTIFY,
+            lineheight=line_spacing / fontsize,
+        )
+        y += block_height + 4
+
+    def render_bullet_item(text: str) -> None:
+        content = re.sub(r"^[*-]\s+", "", text.strip())
+        render_hanging_item("•", content, fontsize=12.0, line_spacing=13.8, fontname="Times-Roman", marker_fontname="Helvetica", marker_width=16, indent=8)
+
+    def render_reference_item(text: str) -> None:
+        match = re.match(r"^(\d+\.)\s+(.*)$", text.strip())
+        if not match:
+            render_paragraph(text, fontsize=12.0, line_spacing=13.8, fontname="Times-Roman", right_inset=6)
+            return
+        render_hanging_item(
+            match.group(1),
+            match.group(2),
+            fontsize=12.0,
+            line_spacing=13.8,
+            fontname="Times-Roman",
+            marker_fontname="Helvetica-Bold",
+            marker_width=24,
+            indent=4,
+            right_inset=6,
+        )
 
     index = 0
     while index < len(clean_lines):
@@ -2179,50 +2725,102 @@ def render_academic_pdf(markdown_text: str, output_path: str, title: str, header
             else:
                 ensure_space()
                 page.draw_line(fitz.Point(left_margin, y), fitz.Point(right_margin, y), color=(0, 0, 0), width=0.35)
-                y += 10
+                y += 8
             index += 1
             continue
+        if stripped.startswith("**Figure ") and stripped.endswith("**"):
+            render_figure_caption(stripped)
+            index += 1
+            continue
+        if stripped.startswith("<svg"):
+            svg_lines = [raw_line]
+            index += 1
+            while index < len(clean_lines):
+                svg_lines.append(clean_lines[index])
+                if "</svg>" in clean_lines[index]:
+                    index += 1
+                    break
+                index += 1
+            render_svg_block("\n".join(svg_lines))
+            continue
         if _is_markdown_table_start(clean_lines, index):
-            ensure_space(required_bottom=page_bottom - 40)
             headers = [cell.strip() for cell in clean_lines[index].strip().strip("|").split("|")]
-            render_wrapped(" | ".join(headers), fontsize=10.5, line_spacing=12, wrap_width=84, fontname="Helvetica-Bold")
+            rows: list[list[str]] = []
             index += 2
             while index < len(clean_lines) and clean_lines[index].strip().startswith("|"):
                 values = [cell.strip() for cell in clean_lines[index].strip().strip("|").split("|")]
-                pairs = [
-                    f"{headers[cell_index] if cell_index < len(headers) else f'Field {cell_index + 1}'}: {values[cell_index] if cell_index < len(values) else '-'}"
-                    for cell_index in range(max(len(headers), len(values)))
-                ]
-                render_wrapped(" ; ".join(pairs), fontsize=10, line_spacing=11, wrap_width=82, fontname="Times-Roman")
+                rows.append(values)
                 index += 1
-            y += 4
+            render_table(headers, rows)
             continue
         level = 0
+        previous_header = current_header
         if stripped.startswith("#"):
             level = len(stripped) - len(stripped.lstrip("#"))
             stripped = stripped.lstrip("#").strip()
         if level == 1 or stripped.startswith("Appendix "):
             current_header = stripped
         major_section_headings = {"Executive Summary", "Contents", "List of Tables", "List of Figures", "References", "Appendices"}
+        if stripped in {"Contents", "List of Tables", "List of Figures"} and level in {1, 2}:
+            if cover_mode:
+                create_page(stripped, top_y=108)
+                cover_mode = False
+            elif y > 110 or current_header != stripped:
+                create_page(stripped, top_y=page_top)
+            current_header = stripped
+            index += 1
+            continue
+        front_matter_headings = {"Contents", "List of Tables", "List of Figures"}
+        if (
+            not cover_mode
+            and current_header in front_matter_headings
+            and stripped not in front_matter_headings
+            and (stripped.startswith("Chapter ") or stripped in major_section_headings or stripped.startswith("Appendix "))
+        ):
+            create_page(previous_header, top_y=page_top)
         if not cover_mode and (stripped.startswith("Chapter ") or stripped in major_section_headings or stripped.startswith("Appendix ")):
-            if y > 110:
+            if stripped.startswith("Chapter "):
+                if y > 110:
+                    current_header = stripped
+            elif y > 110:
                 create_page(current_header, top_y=page_top)
         if cover_mode:
             if level == 1:
-                render_wrapped(stripped.upper(), fontsize=26, line_spacing=32, wrap_width=24, fontname="Times-Bold", center=True)
+                if stripped.isupper():
+                    stripped = stripped.title()
+                if y < 170:
+                    render_cover_block(benchmark_subtitle, fontsize=14.0, line_spacing=18.0, wrap_width=38, fontname="Helvetica-Bold", extra_top_gap=4)
+                    y += 18
+                render_cover_block(stripped, fontsize=18.0, line_spacing=22.0, wrap_width=34, fontname="Times-Bold", extra_top_gap=6)
             elif level == 2:
-                y += 8
-                render_wrapped(stripped, fontsize=15, line_spacing=20, wrap_width=42, fontname="Times-Bold", center=True)
+                if stripped.isupper():
+                    stripped = stripped.title()
+                render_cover_block(
+                    stripped,
+                    fontsize=12.8,
+                    line_spacing=16.5,
+                    wrap_width=50,
+                    fontname="Helvetica",
+                    extra_top_gap=8,
+                )
             else:
                 if stripped.startswith("Prepared for"):
-                    y += 44
-                render_wrapped(stripped, fontsize=12, line_spacing=15, wrap_width=54, fontname="Times-Roman", center=True)
+                    render_cover_block(stripped, fontsize=11.2, line_spacing=14.4, wrap_width=60, fontname="Times-Roman", extra_top_gap=20)
+                else:
+                    render_cover_block(stripped, fontsize=11.5, line_spacing=15, wrap_width=60, fontname="Times-Roman", extra_top_gap=10)
             y += 6
+            index += 1
+            continue
+        if current_header in {"Contents", "List of Tables", "List of Figures"} and stripped.startswith("- "):
+            index += 1
+            continue
+        if current_header == "References" and re.match(r"^\d+\.\s+", stripped):
+            render_reference_item(stripped)
             index += 1
             continue
         fontsize = 12
         wrap_width = 88
-        line_spacing = 14
+        line_spacing = 13.8
         fontname = "Times-Roman"
         if level == 1:
             if stripped.startswith("Chapter "):
@@ -2233,33 +2831,270 @@ def render_academic_pdf(markdown_text: str, output_path: str, title: str, header
             index += 1
             continue
         elif level == 2:
-            fontsize = 13.5
-            wrap_width = 72
-            line_spacing = 17
+            fontsize = 12.6
+            wrap_width = 76
+            line_spacing = 15.0
             fontname = "Times-Bold"
         elif level == 3:
-            fontsize = 12
-            wrap_width = 82
-            line_spacing = 14
+            fontsize = 11.3
+            wrap_width = 86
+            line_spacing = 13.2
             fontname = "Helvetica-Bold"
-        render_wrapped(stripped, fontsize=fontsize, line_spacing=line_spacing, wrap_width=wrap_width, fontname=fontname)
-        y += 4 if level else 2
+        if pending_chapter_lead and level == 0:
+            if pending_chapter_body_heading is not None:
+                create_page(current_header, top_y=86)
+                chapter_no, chapter_title = pending_chapter_body_heading
+                body_heading = f"{chapter_no} {chapter_title}"
+                render_wrapped(body_heading, fontsize=15.0, line_spacing=17.0, wrap_width=50, fontname="Times-Bold")
+                y += 2
+                pending_chapter_body_heading = None
+            y += 3
+            pending_chapter_lead = False
+        elif pending_chapter_lead and level > 0:
+            pending_chapter_lead = False
+        if level == 0 and looks_like_equation(stripped):
+            render_equation_block(stripped)
+            index += 1
+            continue
+        if level == 0 and re.match(r"^[*-]\s+", stripped):
+            render_bullet_item(stripped)
+            index += 1
+            continue
+        if level == 0:
+            render_paragraph(
+                _clean_inline_markup(stripped),
+                fontsize=12.0,
+                line_spacing=13.8,
+                fontname="Times-Roman",
+                right_inset=6,
+            )
+        else:
+            render_wrapped(_clean_inline_markup(stripped), fontsize=fontsize, line_spacing=line_spacing, wrap_width=wrap_width, fontname=fontname)
+            y += 2
         index += 1
 
-    for page_index in range(document.page_count):
+    def stamp_page_furniture() -> None:
+        for page_index in range(document.page_count):
+            pdf_page = document[page_index]
+            if page_index == 0:
+                pdf_page.draw_rect(fitz.Rect(cover_left_margin - 6, 720, right_margin, 774), fill=(1, 1, 1), color=None, overlay=True)
+                pdf_page.draw_line(fitz.Point(cover_left_margin, 724), fitz.Point(right_margin - 40, 724), color=(0.45, 0.45, 0.45), width=0.35)
+                pdf_page.insert_text((cover_left_margin, 742), "Institute-format home paper benchmark style", fontsize=9.2, fontname="Helvetica")
+                pdf_page.insert_text((cover_left_margin, 762), date.today().strftime("%B %Y"), fontsize=9.5, fontname="Times-Roman")
+                continue
+            header_value = page_headers[page_index] if page_index < len(page_headers) else None
+            if header_value in {"Contents", "List of Tables", "List of Figures"}:
+                pdf_page.draw_rect(fitz.Rect(left_margin - 4, 18, right_margin + 4, 38), fill=(1, 1, 1), color=None, overlay=True)
+                pdf_page.draw_rect(fitz.Rect(left_margin - 4, 802, right_margin + 4, 829), fill=(1, 1, 1), color=None, overlay=True)
+                footer_text = f"Page | {page_index}"
+                footer_width = fitz.get_text_length(footer_text, fontname="Helvetica", fontsize=9.2)
+                pdf_page.insert_text((max(48, (595 - footer_width) / 2), 820), footer_text, fontsize=9.2, fontname="Helvetica")
+                continue
+            pdf_page.draw_rect(fitz.Rect(left_margin - 4, 18, right_margin + 4, 38), fill=(1, 1, 1), color=None, overlay=True)
+            pdf_page.draw_rect(fitz.Rect(left_margin - 4, 802, right_margin + 4, 829), fill=(1, 1, 1), color=None, overlay=True)
+            left_header = header_value or ""
+            left_header = re.sub(r"^\d+\.\s*", "", left_header)
+            left_header = left_header[:52]
+            pdf_page.insert_text((48, 30), left_header, fontsize=9.0, fontname="Helvetica")
+            if header_value:
+                centered = benchmark_title_line
+                centered_width = fitz.get_text_length(centered, fontname="Times-Roman", fontsize=9.0)
+                pdf_page.insert_text((max(140, (595 - centered_width) / 2), 30), centered, fontsize=9.0, fontname="Times-Roman")
+            pdf_page.draw_line(fitz.Point(48, 36), fitz.Point(547, 36), color=(0.35, 0.35, 0.35), width=0.3)
+            footer_text = f"Page | {page_index}"
+            footer_width = fitz.get_text_length(footer_text, fontname="Helvetica", fontsize=9.2)
+            pdf_page.insert_text((max(48, (595 - footer_width) / 2), 820), footer_text, fontsize=9.2, fontname="Helvetica")
+
+    removable_pages: list[int] = []
+    for page_index in range(1, document.page_count):
         pdf_page = document[page_index]
-        if page_index == 0:
-            pdf_page.insert_text((190, 736), "PRELIMINARY TECHNO-ECONOMIC FEASIBILITY REPORT", fontsize=10, fontname="Helvetica")
-            pdf_page.insert_text((255, 758), date.today().isoformat(), fontsize=10, fontname="Times-Roman")
-            continue
         header_value = page_headers[page_index] if page_index < len(page_headers) else None
-        pdf_page.insert_text((left_margin, 28), header_text or title, fontsize=8.2, fontname="Helvetica")
-        if header_value:
-            short_header = re.sub(r"^Chapter\s+\d+\s*:\s*", "", header_value)
-            pdf_page.insert_text((390, 28), short_header[:26], fontsize=8.2, fontname="Times-Italic")
-        pdf_page.draw_line(fitz.Point(left_margin, 34), fitz.Point(right_margin, 34), color=(0, 0, 0), width=0.35)
-        pdf_page.draw_line(fitz.Point(left_margin, 806), fitz.Point(right_margin, 806), color=(0, 0, 0), width=0.35)
-        pdf_page.insert_text((285, 822), f"{page_index + 1}", fontsize=9.5, fontname="Times-Roman")
+        body_text = pdf_page.get_text("text").strip()
+        lines = [line.strip() for line in body_text.splitlines() if line.strip()]
+        if header_value and str(header_value).startswith("Chapter "):
+            has_divider_text = any("CHAPTER " in line for line in lines)
+            if has_divider_text:
+                continue
+        if not lines and len(pdf_page.get_images()) == 0 and len(pdf_page.get_drawings()) <= 10:
+            removable_pages.append(page_index)
+            continue
+        if 0 < len(lines) <= 3 and len(pdf_page.get_images()) == 0 and len(pdf_page.get_drawings()) <= 10:
+            removable_pages.append(page_index)
+    for page_index in reversed(removable_pages):
+        document.delete_page(page_index)
+        if page_index < len(page_headers):
+            page_headers.pop(page_index)
+
+    def rewrite_front_matter_pages() -> None:
+        page_texts = [" ".join(document[i].get_text("text").split()) for i in range(document.page_count)]
+        page_texts_norm = [_normalize_lookup(text) for text in page_texts]
+        front_matter_start = 1 if document.page_count > 1 else None
+        front_matter_end = next((idx for idx, header in enumerate(page_headers) if header == "Executive Summary"), None)
+
+        def _find_header_page(header_label: str) -> int | None:
+            for idx in range(front_matter_end or 0, len(page_headers)):
+                if idx < len(page_headers) and page_headers[idx] == header_label:
+                    return idx + 1
+            return None
+
+        def _find_page_for_label(label: str, *, chapter_body: bool = False) -> int | None:
+            normalized = _normalize_lookup(label)
+            search_start = front_matter_end or 0
+            for idx in range(search_start, len(page_texts_norm)):
+                text = page_texts_norm[idx]
+                if normalized and normalized in text:
+                    if chapter_body and "chapter " in text and "chapter " + normalized.split()[0] in text:
+                        continue
+                    return idx + 1
+            return None
+
+        def _find_caption_page(label: str) -> int | None:
+            normalized = _normalize_lookup(label)
+            normalized = normalized.replace(".", "")
+            for idx, text in enumerate(page_texts_norm):
+                candidate = text.replace(".", "")
+                if normalized in candidate:
+                    return idx + 1
+            return None
+
+        current_section: str | None = None
+        contents_items: list[str] = []
+        table_items: list[str] = []
+        figure_items: list[str] = []
+        for raw in clean_lines:
+            stripped = raw.strip()
+            if stripped in {"# Contents", "## Table of Contents"}:
+                current_section = "Contents"
+                continue
+            if stripped == "## List of Tables":
+                current_section = "List of Tables"
+                continue
+            if stripped == "## List of Figures":
+                current_section = "List of Figures"
+                continue
+            if stripped.startswith("# ") and stripped not in {"# Contents"}:
+                current_section = None
+            if current_section and stripped.startswith("- "):
+                item = _clean_inline_markup(stripped[2:].strip())
+                item = re.sub(r"^(Table\s+\d+\.\d+)\.\s*", r"\1 ", item)
+                item = re.sub(r"^(Figure\s+\d+\.\d+)\.\s*", r"\1 ", item)
+                if current_section == "Contents":
+                    contents_items.append(item)
+                elif current_section == "List of Tables":
+                    table_items.append(item)
+                elif current_section == "List of Figures":
+                    figure_items.append(item)
+
+        contents_entries: list[tuple[str, str]] = []
+        for item in contents_items:
+            page_no: int | None = None
+            label = item
+            if item.startswith("Chapter "):
+                m = re.match(r"Chapter\s+(\d+):\s*(.*)", item)
+                if m:
+                    body_label = f"{m.group(1)} {m.group(2)}"
+                    page_no = _find_page_for_label(body_label, chapter_body=True)
+                    label = body_label
+            elif item == "Executive Summary":
+                page_no = _find_header_page("Executive Summary") or _find_page_for_label("Executive Summary")
+            elif item == "References":
+                page_no = _find_header_page("References") or _find_page_for_label("References")
+            elif item == "Appendices":
+                page_no = _find_header_page("Appendices") or _find_page_for_label("Appendix A") or _find_page_for_label("Appendices")
+            if page_no is not None:
+                contents_entries.append((label, str(page_no)))
+
+        chapter_page_lookup: dict[str, str] = {}
+        for label, page_no in contents_entries:
+            m = re.match(r"(\d+)\s+", label)
+            if m:
+                chapter_page_lookup[m.group(1)] = page_no
+
+        table_entries: list[tuple[str, str]] = []
+        for item in table_items:
+            label = re.sub(r"^Table\s+(\d+\.\d+)\.\s*", r"Table \1 ", item)
+            page_no = _find_caption_page(item)
+            if page_no is None:
+                m = re.match(r"Table\s+(\d+)\.", item)
+                if m:
+                    fallback = chapter_page_lookup.get(m.group(1))
+                    page_no = int(fallback) if fallback and fallback.isdigit() else None
+            table_entries.append((label, str(page_no or "")))
+
+        figure_entries: list[tuple[str, str]] = []
+        for item in figure_items:
+            label = re.sub(r"^Figure\s+(\d+\.\d+)\.\s*", r"Figure \1 ", item)
+            page_no = _find_caption_page(item)
+            if page_no is None:
+                m = re.match(r"Figure\s+(\d+)\.", item)
+                if m:
+                    fallback = chapter_page_lookup.get(m.group(1))
+                    page_no = int(fallback) if fallback and fallback.isdigit() else None
+            figure_entries.append((label, str(page_no or "")))
+
+        def _render_entry_line(pdf_page: fitz.Page, y_pos: float, label: str, page_no: str) -> float:
+            left_x = 58
+            right_x = 535
+            font_size = 10.5
+            pdf_page.insert_text((left_x, y_pos), label, fontsize=font_size, fontname="Times-Roman")
+            page_text = page_no.strip() or "-"
+            page_width = fitz.get_text_length(page_text, fontname="Times-Roman", fontsize=font_size)
+            dot_start = left_x + min(300, fitz.get_text_length(label, fontname="Times-Roman", fontsize=font_size) + 8)
+            dot_end = right_x - page_width - 8
+            if dot_end > dot_start:
+                dots = "." * max(8, int((dot_end - dot_start) / 3.0))
+                pdf_page.insert_text((dot_start, y_pos), dots, fontsize=font_size, fontname="Times-Roman")
+            pdf_page.insert_text((right_x - page_width, y_pos), page_text, fontsize=font_size, fontname="Times-Roman")
+            return y_pos + 14
+
+        def _chunk_entries(entries: list[tuple[str, str]], page_capacity: int = 42) -> list[list[tuple[str, str]]]:
+            chunks: list[list[tuple[str, str]]] = []
+            for start in range(0, len(entries), page_capacity):
+                chunks.append(entries[start:start + page_capacity])
+            return chunks or [[]]
+
+        if front_matter_start is None or front_matter_end is None or front_matter_end <= front_matter_start:
+            return
+
+        section_chunks: list[tuple[str, list[tuple[str, str]]]] = [
+            ("Table of Contents", contents_entries),
+            ("List of Tables", table_entries),
+            ("List of Figures", figure_entries),
+        ]
+
+        inserted_front_matter_pages = 3
+        for _ in range(inserted_front_matter_pages):
+            document.new_page(pno=front_matter_start, width=595, height=842)
+            page_headers.insert(front_matter_start, None)
+
+        def _shift_entries(entries: list[tuple[str, str]]) -> list[tuple[str, str]]:
+            shifted: list[tuple[str, str]] = []
+            for label, page_no in entries:
+                if page_no and page_no.isdigit():
+                    shifted.append((label, str(int(page_no) + inserted_front_matter_pages)))
+                else:
+                    shifted.append((label, page_no))
+            return shifted
+
+        section_chunks = [(heading, _shift_entries(chunk)) for heading, chunk in section_chunks]
+        target_pages = list(range(front_matter_start, front_matter_start + inserted_front_matter_pages))
+
+        for pos, page_idx in enumerate(target_pages):
+            pdf_page = document[page_idx]
+            pdf_page.draw_rect(fitz.Rect(0, 0, 595, 842), fill=(1, 1, 1), color=None, overlay=True)
+            heading, chunk = section_chunks[pos] if pos < len(section_chunks) else ("", [])
+            page_headers[page_idx] = "Contents" if heading == "Table of Contents" else heading or ""
+            if not heading:
+                continue
+            y_pos = 76
+            display_heading = heading
+            pdf_page.insert_text((58, y_pos), display_heading, fontsize=14.5, fontname="Helvetica-Bold")
+            y_pos += 18
+            for label, page_no in chunk:
+                y_pos = _render_entry_line(pdf_page, y_pos, label, page_no)
+
+    rewrite_front_matter_pages()
+    stamp_page_furniture()
     document.set_metadata({"title": title})
     document.save(output_path)
     document.close()
